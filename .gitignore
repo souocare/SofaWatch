@@ -11,6 +11,10 @@ __pycache__/
 .Python
 .venv/
 venv/
+.sofawatchvenv/
+sofawatchvenv/
+.sofawatch/
+sofawatch/
 env/
 ENV/
 .pytest_cache/
