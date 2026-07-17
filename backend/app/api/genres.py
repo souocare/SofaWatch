@@ -1,11 +1,6 @@
-from typing import Annotated
+from fastapi import APIRouter
 
-from fastapi import APIRouter, Depends
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
-from app.db.dependencies import get_db_session
-from app.models import Genre
+from app.api.dependencies import GenreServiceDependency
 from app.schemas import GenreResponse
 
 router = APIRouter(
@@ -13,21 +8,17 @@ router = APIRouter(
     tags=["genres"],
 )
 
-DatabaseSession = Annotated[Session, Depends(get_db_session)]
-
 
 @router.get(
     "/",
     response_model=list[GenreResponse],
 )
 def list_genres(
-    session: DatabaseSession,
+    service: GenreServiceDependency,
 ) -> list[GenreResponse]:
     """Return all genres ordered by name."""
 
-    statement = select(Genre).order_by(Genre.name)
-
-    genres = session.scalars(statement).all()
+    genres = service.list_genres()
 
     return [
         GenreResponse.model_validate(genre)
