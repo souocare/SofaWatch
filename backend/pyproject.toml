@@ -14,7 +14,8 @@ dependencies = [
     "sqlalchemy",
     "alembic",
     "pydantic-settings",
-    "httpx"
+    "httpx",
+    "httpx2"
 ]
 
 [project.optional-dependencies]
@@ -22,7 +23,8 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "pytest-cov",
-    "ruff"
+    "ruff",
+    "httpx2"
 ]
 
 [tool.hatch.build.targets.wheel]

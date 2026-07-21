@@ -1,24 +1,38 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class GenreBase(BaseModel):
     """Common genre fields."""
 
-    name: str
-    slug: str
+    name: str = Field(
+        min_length=1,
+        max_length=100,
+    )
+    slug: str = Field(
+        min_length=1,
+        max_length=100,
+        pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$",
+    )
 
 
 class GenreCreate(GenreBase):
-    """Schema used when creating a genre."""
-
-    pass
+    """Data required to create a genre."""
 
 
 class GenreUpdate(BaseModel):
-    """Schema used when updating a genre."""
+    """Data accepted when updating a genre."""
 
-    name: str | None = None
-    slug: str | None = None
+    name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+    )
+    slug: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+        pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$",
+    )
 
 
 class GenreResponse(GenreBase):

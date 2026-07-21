@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models import Genre
@@ -15,6 +15,30 @@ class GenreRepository:
 
         statement = select(Genre).order_by(Genre.name)
 
-        return list(
-            self._session.scalars(statement).all()
+        return list(self._session.scalars(statement).all())
+
+    def get_by_name_or_slug(
+        self,
+        *,
+        name: str,
+        slug: str,
+    ) -> Genre | None:
+        """Return a genre with the given name or slug."""
+
+        statement = select(Genre).where(
+            or_(
+                Genre.name == name,
+                Genre.slug == slug,
+            )
         )
+
+        return self._session.scalar(statement)
+
+    def add(self, genre: Genre) -> Genre:
+        """Add and persist a genre."""
+
+        self._session.add(genre)
+        self._session.commit()
+        self._session.refresh(genre)
+
+        return genre

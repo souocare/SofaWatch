@@ -1,14 +1,14 @@
 import logging
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
+# from backend.app.api.routes.genres import router as genres_router
 from fastapi import FastAPI
 
+from app.api.router import api_router
+# from app.api.routes.search import router as search_router
 from app.core.config import get_settings
 from app.core.logging_config import configure_logging
-
-from app.api.genres import router as genres_router
-
 
 configure_logging()
 
@@ -33,7 +33,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.include_router(genres_router)
+# app.include_router(genres_router)
+# app.include_router(search_router)
+app.include_router(api_router)
 
 
 @app.get("/")

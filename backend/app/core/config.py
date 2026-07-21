@@ -4,7 +4,6 @@ from pathlib import Path
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 PROJECT_DIR = BACKEND_DIR.parent
 ENV_FILE = PROJECT_DIR / ".env"
@@ -28,6 +27,7 @@ class Settings(BaseSettings):
     tmdb_api_token: SecretStr | None = None
     tmdb_base_url: str = "https://api.themoviedb.org/3"
     tmdb_image_base_url: str = "https://image.tmdb.org/t/p"
+    tmdb_timeout_seconds: float = 20.0
 
     tvdb_api_key: SecretStr | None = None
     tvdb_pin: SecretStr | None = None
@@ -44,9 +44,7 @@ class Settings(BaseSettings):
     @property
     def supported_language_list(self) -> list[str]:
         return [
-            language.strip()
-            for language in self.supported_languages.split(",")
-            if language.strip()
+            language.strip() for language in self.supported_languages.split(",") if language.strip()
         ]
 
 
