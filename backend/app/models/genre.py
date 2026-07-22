@@ -1,8 +1,14 @@
-from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
+from typing import TYPE_CHECKING
 
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.associations import show_genres
 from app.db.base import Base
 from app.db.mixins import TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.show import Show
 
 
 class Genre(TimestampMixin, Base):
@@ -25,6 +31,11 @@ class Genre(TimestampMixin, Base):
         nullable=False,
         unique=True,
         index=True,
+    )
+
+    shows: Mapped[list["Show"]] = relationship(
+        secondary=show_genres,
+        back_populates="genres",
     )
 
     def __repr__(self) -> str:

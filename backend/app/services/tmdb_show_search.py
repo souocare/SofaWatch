@@ -1,9 +1,10 @@
-from app.core.config import Settings
-from app.providers.tmdb import TMDBClient
-from app.schemas.show import (
+from app.schemas.tmdb_show import (
     ShowSearchResponse,
     ShowSearchResult,
 )
+
+from app.core.config import Settings
+from app.providers.tmdb import TMDBClient
 
 
 class ShowSearchService:

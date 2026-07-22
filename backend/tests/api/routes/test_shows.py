@@ -2,6 +2,14 @@ from collections.abc import Generator
 from datetime import date
 
 import pytest
+from app.schemas.tmdb_show import (
+    ShowCountry,
+    ShowDetailsResponse,
+    ShowGenre,
+    ShowLanguage,
+    ShowNetwork,
+    ShowSeasonSummary,
+)
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import get_show_details_service
@@ -11,14 +19,6 @@ from app.providers.tmdb.exceptions import (
     TMDBNotFoundError,
     TMDBRequestError,
     TMDBResponseError,
-)
-from app.schemas.show import (
-    ShowCountry,
-    ShowDetailsResponse,
-    ShowGenre,
-    ShowLanguage,
-    ShowNetwork,
-    ShowSeasonSummary,
 )
 
 
@@ -46,12 +46,8 @@ class SuccessfulShowDetailsService:
             tagline="We're all different people at work.",
             first_air_date=date(2022, 2, 17),
             last_air_date=date(2025, 3, 20),
-            poster_url=(
-                "https://image.tmdb.org/t/p/w500/poster.jpg"
-            ),
-            backdrop_url=(
-                "https://image.tmdb.org/t/p/original/backdrop.jpg"
-            ),
+            poster_url=("https://image.tmdb.org/t/p/w500/poster.jpg"),
+            backdrop_url=("https://image.tmdb.org/t/p/original/backdrop.jpg"),
             homepage_url="https://tv.apple.com/show/severance",
             genres=[
                 ShowGenre(
@@ -71,9 +67,7 @@ class SuccessfulShowDetailsService:
                     overview="The first season.",
                     air_date=date(2022, 2, 17),
                     episode_count=9,
-                    poster_url=(
-                        "https://image.tmdb.org/t/p/w500/season-one.jpg"
-                    ),
+                    poster_url=("https://image.tmdb.org/t/p/w500/season-one.jpg"),
                     vote_average=8.4,
                 ),
                 ShowSeasonSummary(
@@ -83,9 +77,7 @@ class SuccessfulShowDetailsService:
                     overview="The second season.",
                     air_date=date(2025, 1, 17),
                     episode_count=10,
-                    poster_url=(
-                        "https://image.tmdb.org/t/p/w500/season-two.jpg"
-                    ),
+                    poster_url=("https://image.tmdb.org/t/p/w500/season-two.jpg"),
                     vote_average=8.6,
                 ),
             ],
@@ -93,9 +85,7 @@ class SuccessfulShowDetailsService:
                 ShowNetwork(
                     tmdb_id=2552,
                     name="Apple TV+",
-                    logo_url=(
-                        "https://image.tmdb.org/t/p/w500/apple-tv-logo.png"
-                    ),
+                    logo_url=("https://image.tmdb.org/t/p/w500/apple-tv-logo.png"),
                     origin_country="US",
                 ),
             ],
@@ -136,9 +126,7 @@ class NotFoundShowDetailsService:
         tmdb_id: int,
         language: str | None = None,
     ) -> None:
-        raise TMDBNotFoundError(
-            "The requested TMDB resource was not found."
-        )
+        raise TMDBNotFoundError("The requested TMDB resource was not found.")
 
 
 class ConfigurationErrorShowDetailsService:
@@ -150,9 +138,7 @@ class ConfigurationErrorShowDetailsService:
         tmdb_id: int,
         language: str | None = None,
     ) -> None:
-        raise TMDBConfigurationError(
-            "TMDB API token is not configured."
-        )
+        raise TMDBConfigurationError("TMDB API token is not configured.")
 
 
 class RequestErrorShowDetailsService:
@@ -164,9 +150,7 @@ class RequestErrorShowDetailsService:
         tmdb_id: int,
         language: str | None = None,
     ) -> None:
-        raise TMDBRequestError(
-            "TMDB could not be reached."
-        )
+        raise TMDBRequestError("TMDB could not be reached.")
 
 
 class ResponseErrorShowDetailsService:
@@ -178,14 +162,11 @@ class ResponseErrorShowDetailsService:
         tmdb_id: int,
         language: str | None = None,
     ) -> None:
-        raise TMDBResponseError(
-            "TMDB returned an invalid response."
-        )
+        raise TMDBResponseError("TMDB returned an invalid response.")
 
 
 @pytest.fixture
-def successful_show_details_service(
-) -> Generator[SuccessfulShowDetailsService, None, None]:
+def successful_show_details_service() -> Generator[SuccessfulShowDetailsService, None, None]:
     """Override the details service with a successful test double."""
 
     service = SuccessfulShowDetailsService()
@@ -204,8 +185,7 @@ def successful_show_details_service(
 
 
 @pytest.fixture
-def not_found_show_details_service(
-) -> Generator[None, None, None]:
+def not_found_show_details_service() -> Generator[None, None, None]:
     """Override the details service with a not-found test double."""
 
     def override() -> NotFoundShowDetailsService:
@@ -222,8 +202,7 @@ def not_found_show_details_service(
 
 
 @pytest.fixture
-def configuration_error_show_details_service(
-) -> Generator[None, None, None]:
+def configuration_error_show_details_service() -> Generator[None, None, None]:
     """Override the details service with a configuration-error double."""
 
     def override() -> ConfigurationErrorShowDetailsService:
@@ -240,8 +219,7 @@ def configuration_error_show_details_service(
 
 
 @pytest.fixture
-def request_error_show_details_service(
-) -> Generator[None, None, None]:
+def request_error_show_details_service() -> Generator[None, None, None]:
     """Override the details service with a request-error test double."""
 
     def override() -> RequestErrorShowDetailsService:
@@ -258,8 +236,7 @@ def request_error_show_details_service(
 
 
 @pytest.fixture
-def response_error_show_details_service(
-) -> Generator[None, None, None]:
+def response_error_show_details_service() -> Generator[None, None, None]:
     """Override the details service with a response-error test double."""
 
     def override() -> ResponseErrorShowDetailsService:

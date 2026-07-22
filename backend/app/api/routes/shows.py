@@ -1,5 +1,7 @@
 from typing import Annotated
 
+from app.schemas.tmdb_show import ShowDetailsResponse
+from app.services.tmdb_show_details import ShowDetailsService
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
 from app.api.dependencies import get_show_details_service
@@ -9,8 +11,6 @@ from app.providers.tmdb.exceptions import (
     TMDBRequestError,
     TMDBResponseError,
 )
-from app.schemas.show import ShowDetailsResponse
-from app.services.show_details import ShowDetailsService
 
 router = APIRouter(
     prefix="/shows",

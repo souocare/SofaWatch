@@ -3,12 +3,28 @@ from app.schemas.genre import (
     GenreResponse,
     GenreUpdate,
 )
-from app.schemas.show import ShowSearchResponse, ShowSearchResult
+from app.schemas.show import ShowResponse, ShowSummaryResponse
+from app.schemas.tmdb_show import (
+    ShowCountry,
+    ShowDetailsResponse,
+    ShowGenre,
+    ShowLanguage,
+    ShowNetwork,
+    ShowSearchResponse,
+    ShowSearchResult,
+    ShowSeasonSummary,
+)
 
 __all__ = [
     "GenreCreate",
-    "GenreResponse",
-    "GenreUpdate",
+    "ShowCountry",
+    "ShowDetailsResponse",
+    "ShowGenre",
+    "ShowLanguage",
+    "ShowNetwork",
+    "ShowResponse",
     "ShowSearchResponse",
     "ShowSearchResult",
+    "ShowSeasonSummary",
+    "ShowSummaryResponse",
 ]

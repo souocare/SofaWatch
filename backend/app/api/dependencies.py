@@ -8,8 +8,8 @@ from app.db.dependencies import DatabaseSession
 from app.providers.tmdb import TMDBClient
 from app.repositories import GenreRepository
 from app.services import GenreService
-from app.services.show_details import ShowDetailsService
-from app.services.show_search import ShowSearchService
+from app.services.tmdb_show_details import ShowDetailsService
+from app.services.tmdb_show_search import ShowSearchService
 
 
 def get_genre_service(
