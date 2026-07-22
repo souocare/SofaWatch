@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Mapping
 from typing import Any, TypeVar
 
@@ -11,10 +12,10 @@ from app.providers.tmdb.exceptions import (
     TMDBRequestError,
     TMDBResponseError,
 )
-from app.providers.tmdb.schemas import TMDBTVSearchResponse
-import logging
-
-from pydantic import ValidationError
+from app.providers.tmdb.schemas import (
+    TMDBTVDetails,
+    TMDBTVSearchResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -82,9 +83,9 @@ class TMDBClient:
 
         except (ValueError, ValidationError) as error:
             logger.exception(
-                    "TMDB search response failed schema validation: %s",
-                    error,
-                )
+                "TMDB response failed schema validation: %s",
+                error,
+            )
             raise TMDBResponseError("TMDB returned an invalid response.") from error
 
     def search_tv_shows(
@@ -114,6 +115,27 @@ class TMDBClient:
                 "page": page,
                 "language": request_language,
                 "include_adult": False,
+            },
+        )
+
+    def get_tv_show_details(
+        self,
+        *,
+        tmdb_id: int,
+        language: str | None = None,
+    ) -> TMDBTVDetails:
+        """Get detailed information about a TV series from TMDB."""
+
+        if tmdb_id < 1:
+            raise ValueError("The TMDB ID must be greater than or equal to 1.")
+
+        request_language = language or self._settings.default_language
+
+        return self.get(
+            f"/tv/{tmdb_id}",
+            response_model=TMDBTVDetails,
+            params={
+                "language": request_language,
             },
         )
 

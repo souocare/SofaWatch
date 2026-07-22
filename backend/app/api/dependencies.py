@@ -8,6 +8,7 @@ from app.db.dependencies import DatabaseSession
 from app.providers.tmdb import TMDBClient
 from app.repositories import GenreRepository
 from app.services import GenreService
+from app.services.show_details import ShowDetailsService
 from app.services.show_search import ShowSearchService
 
 
@@ -61,4 +62,22 @@ def get_show_search_service(
 ShowSearchServiceDependency = Annotated[
     ShowSearchService,
     Depends(get_show_search_service),
+]
+
+
+def get_show_details_service(
+    settings: Annotated[Settings, Depends(get_settings)],
+    tmdb_client: Annotated[TMDBClient, Depends(get_tmdb_client)],
+) -> ShowDetailsService:
+    """Provide the TV series details service."""
+
+    return ShowDetailsService(
+        settings=settings,
+        tmdb_client=tmdb_client,
+    )
+
+
+ShowDetailsServiceDependency = Annotated[
+    ShowDetailsService,
+    Depends(get_show_details_service),
 ]
