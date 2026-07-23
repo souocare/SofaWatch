@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     tvdb_pin: SecretStr | None = None
     tvdb_base_url: str = "https://api4.thetvdb.com/v4"
 
+    metadata_refresh_days: int = 7
+
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
         env_prefix="SOFAWATCH_",

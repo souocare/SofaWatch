@@ -11,11 +11,12 @@ class ShowSearchResult(BaseModel):
     title: str
     original_title: str
 
-    overview: str = ""
+    overview: str | None = None
     first_air_date: date | None = None
 
     poster_url: str | None = None
     backdrop_url: str | None = None
+
 
     original_language: str
     genre_ids: list[int] = Field(default_factory=list)
@@ -91,11 +92,17 @@ class ShowDetailsResponse(BaseModel):
     title: str
     original_title: str
 
-    overview: str = ""
-    tagline: str = ""
+    overview: str | None = None
+
+    tagline: str | None = None
 
     first_air_date: date | None = None
     last_air_date: date | None = None
+
+    poster_url: str | None = None
+    backdrop_url: str | None = None
+    poster_path: str | None = None
+    backdrop_path: str | None = None
 
     poster_url: str | None = None
     backdrop_url: str | None = None

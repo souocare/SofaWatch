@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String
+from sqlalchemy import String, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.associations import show_genres
@@ -17,6 +17,13 @@ class Genre(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(
         primary_key=True,
         autoincrement=True,
+    )
+
+    tmdb_id: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        unique=True,
+        index=True,
     )
 
     name: Mapped[str] = mapped_column(
@@ -39,4 +46,4 @@ class Genre(TimestampMixin, Base):
     )
 
     def __repr__(self) -> str:
-        return f"Genre(id={self.id!r}, name={self.name!r}, slug={self.slug!r})"
+        return f"Genre(id={self.id!r}, tmdb_id={self.tmdb_id!r}, name={self.name!r}, slug={self.slug!r})"

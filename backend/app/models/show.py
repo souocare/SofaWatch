@@ -66,16 +66,14 @@ class Show(TimestampMixin, Base):
         nullable=False,
     )
 
-    overview: Mapped[str] = mapped_column(
+    overview: Mapped[str | None] = mapped_column(
         Text,
-        nullable=False,
-        default="",
+        nullable=True,
     )
 
-    tagline: Mapped[str] = mapped_column(
+    tagline: Mapped[str | None] = mapped_column(
         String(500),
-        nullable=False,
-        default="",
+        nullable=True,
     )
 
     first_air_date: Mapped[date | None] = mapped_column(
@@ -88,22 +86,22 @@ class Show(TimestampMixin, Base):
         nullable=True,
     )
 
-    poster_path: Mapped[str | None] = mapped_column(
-        String(255),
-        nullable=True,
-    )
-
-    backdrop_path: Mapped[str | None] = mapped_column(
-        String(255),
-        nullable=True,
-    )
-
-    poster_cache_path: Mapped[str | None] = mapped_column(
+    tmdb_poster_path: Mapped[str | None] = mapped_column(
         String(500),
         nullable=True,
     )
 
-    backdrop_cache_path: Mapped[str | None] = mapped_column(
+    tmdb_backdrop_path: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
+    local_poster_path: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
+    local_backdrop_path: Mapped[str | None] = mapped_column(
         String(500),
         nullable=True,
     )
@@ -172,9 +170,10 @@ class Show(TimestampMixin, Base):
     )
 
     metadata_language: Mapped[str] = mapped_column(
-        String(10),
+        String(20),
         nullable=False,
     )
+    
 
     metadata_updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

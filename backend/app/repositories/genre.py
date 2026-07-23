@@ -1,8 +1,8 @@
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.models import Genre
-
+from app.models.genre import Genre
+from app.utils.slug import slugify
 
 class GenreRepository:
     """Database operations for genres."""
@@ -13,9 +13,16 @@ class GenreRepository:
     def list_all(self) -> list[Genre]:
         """Return all genres ordered by name."""
 
-        statement = select(Genre).order_by(Genre.name)
+        statement = select(Genre).order_by(Genre.name.asc())
 
         return list(self._session.scalars(statement).all())
+
+    def get_by_tmdb_id(self, tmdb_id: int) -> Genre | None:
+        """Return a genre by its TMDB identifier."""
+
+        statement = select(Genre).where(Genre.tmdb_id == tmdb_id)
+
+        return self._session.scalar(statement)
 
     def get_by_name_or_slug(
         self,
@@ -35,10 +42,30 @@ class GenreRepository:
         return self._session.scalar(statement)
 
     def add(self, genre: Genre) -> Genre:
-        """Add and persist a genre."""
+        """Add a genre to the current database session."""
 
         self._session.add(genre)
-        self._session.commit()
-        self._session.refresh(genre)
+        self._session.flush()
 
         return genre
+    
+    def get_or_create(
+        self,
+        *,
+        tmdb_id: int,
+        name: str,
+    ) -> Genre:
+        """Return an existing TMDB genre or create it."""
+
+        genre = self.get_by_tmdb_id(tmdb_id)
+
+        if genre is not None:
+            return genre
+
+        genre = Genre(
+            tmdb_id=tmdb_id,
+            name=name,
+            slug=slugify(name),
+        )
+
+        return self.add(genre)

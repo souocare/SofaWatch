@@ -12,7 +12,7 @@ from app.providers.tmdb import TMDBClient
 from app.providers.tmdb.schemas import TMDBTVDetails
 
 
-class ShowDetailsService:
+class TMDBShowDetailsService:
     """Service responsible for retrieving TV series details."""
 
     def __init__(
@@ -52,6 +52,8 @@ class ShowDetailsService:
             tagline=tmdb_show.tagline,
             first_air_date=tmdb_show.first_air_date,
             last_air_date=tmdb_show.last_air_date,
+            poster_path=tmdb_show.poster_path,
+            backdrop_path=tmdb_show.backdrop_path,
             poster_url=self._build_image_url(
                 tmdb_show.poster_path,
                 size="w500",

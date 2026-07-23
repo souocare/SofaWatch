@@ -54,6 +54,7 @@ def settings() -> Settings:
         tvdb_api_key=None,
         tvdb_pin=None,
         tvdb_base_url="https://api4.thetvdb.com/v4",
+        metadata_refresh_days=7,
     )
 
 

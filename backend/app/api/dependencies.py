@@ -8,8 +8,10 @@ from app.db.dependencies import DatabaseSession
 from app.providers.tmdb import TMDBClient
 from app.repositories import GenreRepository
 from app.services import GenreService
-from app.services.tmdb_show_details import ShowDetailsService
+from app.services.tmdb_show_details import TMDBShowDetailsService
 from app.services.tmdb_show_search import ShowSearchService
+from app.repositories import ShowRepository
+from app.services.show_import import ShowImportService
 
 
 def get_genre_service(
@@ -68,16 +70,41 @@ ShowSearchServiceDependency = Annotated[
 def get_show_details_service(
     settings: Annotated[Settings, Depends(get_settings)],
     tmdb_client: Annotated[TMDBClient, Depends(get_tmdb_client)],
-) -> ShowDetailsService:
+) -> TMDBShowDetailsService:
     """Provide the TV series details service."""
 
-    return ShowDetailsService(
+    return TMDBShowDetailsService(
         settings=settings,
         tmdb_client=tmdb_client,
     )
 
 
-ShowDetailsServiceDependency = Annotated[
-    ShowDetailsService,
+TMDBShowDetailsServiceDependency = Annotated[
+    TMDBShowDetailsService,
     Depends(get_show_details_service),
+]
+
+
+def get_show_import_service(
+    session: DatabaseSession,
+    settings: Annotated[Settings, Depends(get_settings)],
+    show_details_service: Annotated[
+        TMDBShowDetailsService,
+        Depends(get_show_details_service),
+    ],
+) -> ShowImportService:
+    """Provide the TV series import service."""
+
+    return ShowImportService(
+        session=session,
+        settings=settings,
+        show_repository=ShowRepository(session),
+        genre_repository=GenreRepository(session),
+        tmdb_show_details_service=show_details_service,
+    )
+
+
+ShowImportServiceDependency = Annotated[
+    ShowImportService,
+    Depends(get_show_import_service),
 ]

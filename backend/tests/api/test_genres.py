@@ -24,14 +24,17 @@ def test_list_genres_returns_genres_ordered_by_name(
     db_session.add_all(
         [
             Genre(
+                tmdb_id=10765,
                 name="Science Fiction",
                 slug="science-fiction",
             ),
             Genre(
+                tmdb_id=10759,
                 name="Action",
                 slug="action",
             ),
             Genre(
+                tmdb_id=18,
                 name="Drama",
                 slug="drama",
             ),
