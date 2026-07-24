@@ -1,13 +1,26 @@
 from uuid import UUID
 
+from app.api.params.show import ShowSortField, SortDirection
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.show import Show
 
+from app.models.genre import Genre
+from app.api.params.show import ShowSortField, ShowStatus, SortDirection
+from sqlalchemy import asc, desc, distinct, func, or_, select
 
 class ShowRepository:
     """Data access operations for locally stored TV series."""
+
+    _SORT_FIELDS = {
+        ShowSortField.TITLE: Show.title,
+        ShowSortField.FIRST_AIR_DATE: Show.first_air_date,
+        ShowSortField.VOTE_AVERAGE: Show.vote_average,
+        ShowSortField.POPULARITY: Show.popularity,
+        ShowSortField.CREATED_AT: Show.created_at,
+        ShowSortField.UPDATED_AT: Show.updated_at,
+    }
 
     def __init__(self, session: Session) -> None:
         self._session = session
@@ -38,13 +51,48 @@ class ShowRepository:
         *,
         offset: int = 0,
         limit: int = 50,
+        sort_by: ShowSortField = ShowSortField.TITLE,
+        sort_direction: SortDirection = SortDirection.ASC,
+        query: str | None = None,
+        genre: str | None = None,
+        status: ShowStatus | None = None,
     ) -> list[Show]:
-        """Return locally stored shows ordered alphabetically."""
+        """Return locally stored TV series matching the supplied filters."""
 
         statement = (
             select(Show)
             .options(selectinload(Show.genres))
-            .order_by(Show.title.asc())
+        )
+
+        if query:
+            statement = statement.where(
+                or_(
+                    Show.title.ilike(f"%{query}%"),
+                    Show.original_title.ilike(f"%{query}%"),
+                )
+            )
+
+        if genre:
+            statement = (
+                statement
+                .join(Show.genres)
+                .where(Genre.slug == genre)
+            )
+
+        if status is not None:
+            statement = statement.where(
+                Show.status == status.value
+            )
+
+        statement = statement.order_by(
+            self._build_order_by(
+                sort_by,
+                sort_direction,
+            )
+        )
+
+        statement = (
+            statement
             .offset(offset)
             .limit(limit)
         )
@@ -58,3 +106,51 @@ class ShowRepository:
         self._session.flush()
 
         return show
+    
+    def count(
+        self,
+        *,
+        query: str | None = None,
+        genre: str | None = None,
+        status: ShowStatus | None = None,
+    ) -> int:
+        """Count locally stored TV series matching the supplied filters."""
+
+        statement = select(
+            func.count(distinct(Show.id))
+        )
+
+        if query:
+            statement = statement.where(
+                or_(
+                    Show.title.ilike(f"%{query}%"),
+                    Show.original_title.ilike(f"%{query}%"),
+                )
+            )
+
+        if genre:
+            statement = (
+                statement
+                .join(Show.genres)
+                .where(Genre.slug == genre)
+            )
+
+        if status is not None:
+            statement = statement.where(
+                Show.status == status.value
+            )
+
+        return self._session.scalar(statement) or 0
+    
+
+    @staticmethod
+    def _build_order_by(
+        sort_by: ShowSortField,
+        sort_direction: SortDirection,
+    ):
+        column = ShowRepository._SORT_FIELDS[sort_by]
+
+        if sort_direction is SortDirection.DESC:
+            return desc(column)
+
+        return asc(column)

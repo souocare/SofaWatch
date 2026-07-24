@@ -1,18 +1,34 @@
 from typing import Annotated
+from uuid import UUID
+from fastapi import APIRouter, HTTPException, status
 
 from app.schemas.tmdb_show import ShowDetailsResponse
 from app.services.tmdb_show_details import TMDBShowDetailsService
 from app.services.show_import import ShowImportService
 from app.schemas.show import ShowResponse
+from app.schemas.pagination import PaginatedResponse
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
-from app.api.dependencies import get_show_details_service, get_show_import_service
+from app.api.dependencies import ShowRepositoryDependency, get_show_details_service, get_show_import_service
 from app.providers.tmdb.exceptions import (
     TMDBConfigurationError,
     TMDBNotFoundError,
     TMDBRequestError,
     TMDBResponseError,
 )
+
+from app.api.dependencies import get_show_repository
+from app.repositories.show import ShowRepository
+from app.schemas.show import ShowSummaryResponse
+from app.api.params.show import (
+    ShowListParams,
+    get_show_list_params,
+)
+
+from app.api.dependencies import ShowRepositoryDependency
+from app.schemas.show import ShowResponse
+
+
 
 router = APIRouter(
     prefix="/shows",
@@ -153,3 +169,72 @@ def import_show(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="TMDB returned an invalid response.",
         ) from error
+    
+
+@router.get(
+    "",
+    response_model=PaginatedResponse[ShowSummaryResponse],
+    summary="List locally stored TV series",
+    description=(
+        "Return locally stored TV series with pagination, ordering, "
+        "title search, genre filtering, and status filtering."
+    ),
+)
+def list_shows(
+    repository: ShowRepositoryDependency,
+    params: Annotated[
+        ShowListParams,
+        Depends(get_show_list_params),
+    ],
+) -> PaginatedResponse[ShowSummaryResponse]:
+    """Return a paginated list of locally stored TV series."""
+
+    items = repository.list(
+        offset=params.offset,
+        limit=params.limit,
+        sort_by=params.sort_by,
+        sort_direction=params.sort_direction,
+        query=params.query,
+        genre=params.genre,
+        status=params.status,
+    )
+
+    total = repository.count(
+        query=params.query,
+        genre=params.genre,
+        status=params.status,
+    )
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        offset=params.offset,
+        limit=params.limit,
+        has_next=params.offset + len(items) < total,
+    )
+
+@router.get(
+    "/{show_id}",
+    response_model=ShowResponse,
+    summary="Get a locally stored TV series",
+)
+def get_show(
+    show_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV series identifier.",
+        ),
+    ],
+    repository: ShowRepositoryDependency,
+) -> ShowResponse:
+    """Return a locally stored TV series by its internal identifier."""
+
+    show = repository.get_by_id(show_id)
+
+    if show is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="TV series not found.",
+        )
+
+    return show

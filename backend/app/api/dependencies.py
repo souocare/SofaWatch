@@ -108,3 +108,17 @@ ShowImportServiceDependency = Annotated[
     ShowImportService,
     Depends(get_show_import_service),
 ]
+
+
+def get_show_repository(
+    session: DatabaseSession,
+) -> ShowRepository:
+    """Provide a show repository for a single request."""
+
+    return ShowRepository(session)
+
+
+ShowRepositoryDependency = Annotated[
+    ShowRepository,
+    Depends(get_show_repository),
+]

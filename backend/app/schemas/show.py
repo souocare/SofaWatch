@@ -6,6 +6,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.schemas.genre import GenreResponse
 
 
+from datetime import date
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
 class ShowSummaryResponse(BaseModel):
     """Summary of a TV series stored locally in SofaWatch."""
 
@@ -19,8 +25,8 @@ class ShowSummaryResponse(BaseModel):
 
     first_air_date: date | None = None
 
-    poster_path: str | None = None
-    poster_cache_path: str | None = None
+    tmdb_poster_path: str | None = None
+    local_poster_path: str | None = None
 
     status: str
     vote_average: float = Field(ge=0, le=10)
@@ -40,17 +46,17 @@ class ShowResponse(BaseModel):
     title: str
     original_title: str
 
-    overview: str
-    tagline: str
+    overview: str | None = None
+    tagline: str | None = None
 
     first_air_date: date | None = None
     last_air_date: date | None = None
 
-    poster_path: str | None = None
-    backdrop_path: str | None = None
+    tmdb_poster_path: str | None = None
+    tmdb_backdrop_path: str | None = None
 
-    poster_cache_path: str | None = None
-    backdrop_cache_path: str | None = None
+    local_poster_path: str | None = None
+    local_backdrop_path: str | None = None
 
     homepage_url: str | None = None
     original_language: str
