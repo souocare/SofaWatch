@@ -78,10 +78,7 @@ class TMDBShowDetailsService:
                     overview=season.overview,
                     air_date=season.air_date,
                     episode_count=season.episode_count,
-                    poster_url=self._build_image_url(
-                        season.poster_path,
-                        size="w500",
-                    ),
+                    poster_path=season.poster_path,
                     vote_average=season.vote_average,
                 )
                 for season in tmdb_show.seasons

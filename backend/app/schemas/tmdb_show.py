@@ -55,8 +55,8 @@ class ShowSeasonSummary(BaseModel):
     air_date: date | None = None
     episode_count: int = Field(ge=0)
 
-    poster_url: str | None = None
-    vote_average: float = 0.0
+    poster_path: str | None = None
+    vote_average: float = Field(default=0.0, ge=0, le=10)
 
 
 class ShowNetwork(BaseModel):
@@ -103,9 +103,6 @@ class ShowDetailsResponse(BaseModel):
     backdrop_url: str | None = None
     poster_path: str | None = None
     backdrop_path: str | None = None
-
-    poster_url: str | None = None
-    backdrop_url: str | None = None
     homepage_url: str | None = None
 
     genres: list[ShowGenre] = Field(default_factory=list)

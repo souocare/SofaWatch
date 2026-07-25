@@ -9,6 +9,9 @@ from app.repositories.genre import GenreRepository
 from app.repositories.show import ShowRepository
 from app.schemas.tmdb_show import ShowDetailsResponse
 from app.services.tmdb_show_details import TMDBShowDetailsService
+from app.models.season import Season
+from app.repositories.season import SeasonRepository
+from app.schemas.tmdb_show import ShowDetailsResponse, ShowSeasonSummary
 
 
 class ShowImportService:
@@ -21,12 +24,14 @@ class ShowImportService:
         settings: Settings,
         show_repository: ShowRepository,
         genre_repository: GenreRepository,
+        season_repository: SeasonRepository,
         tmdb_show_details_service: TMDBShowDetailsService,
     ) -> None:
         self._session = session
         self._settings = settings
         self._show_repository = show_repository
         self._genre_repository = genre_repository
+        self._season_repository = season_repository
         self._tmdb_show_details_service = tmdb_show_details_service
 
     def import_show(
@@ -73,6 +78,11 @@ class ShowImportService:
                 )
 
                 show.genres = genres
+
+            self._sync_seasons(
+                show=show,
+                seasons=details.seasons,
+            )
 
             self._session.commit()
             self._session.refresh(show)
@@ -180,3 +190,61 @@ class ShowImportService:
 
         show.metadata_language = metadata_language
         show.metadata_updated_at = datetime.now(timezone.utc)
+
+    def _sync_seasons(
+        self,
+        *,
+        show: Show,
+        seasons: list[ShowSeasonSummary],
+    ) -> None:
+        """Create or update seasons returned by TMDB.
+
+        Seasons missing from the TMDB response are preserved locally.
+        """
+
+        for season_details in seasons:
+            season = self._season_repository.get_by_tmdb_id(
+                show_id=show.id,
+                tmdb_id=season_details.tmdb_id,
+            )
+
+            if season is None:
+                season = self._season_repository.get_by_number(
+                    show_id=show.id,
+                    season_number=season_details.season_number,
+                )
+
+            if season is None:
+                season = Season(
+                    show_id=show.id,
+                )
+
+                self._apply_season_metadata(
+                    season=season,
+                    details=season_details,
+                )
+
+                self._season_repository.add(season)
+                continue
+
+            self._apply_season_metadata(
+                season=season,
+                details=season_details,
+            )
+
+    @staticmethod
+    def _apply_season_metadata(
+        *,
+        season: Season,
+        details: ShowSeasonSummary,
+    ) -> None:
+        """Apply TMDB metadata to a local season."""
+
+        season.tmdb_id = details.tmdb_id
+        season.season_number = details.season_number
+        season.title = details.title
+        season.overview = details.overview or None
+        season.air_date = details.air_date
+        season.episode_count = details.episode_count
+        season.vote_average = details.vote_average
+        season.tmdb_poster_path = details.poster_path

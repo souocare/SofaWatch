@@ -10,8 +10,13 @@ from app.repositories import GenreRepository
 from app.services import GenreService
 from app.services.tmdb_show_details import TMDBShowDetailsService
 from app.services.tmdb_show_search import ShowSearchService
-from app.repositories import ShowRepository
+from app.repositories import (
+    GenreRepository,
+    SeasonRepository,
+    ShowRepository,
+)
 from app.services.show_import import ShowImportService
+from app.services import SeasonService
 
 
 def get_genre_service(
@@ -100,6 +105,7 @@ def get_show_import_service(
         settings=settings,
         show_repository=ShowRepository(session),
         genre_repository=GenreRepository(session),
+        season_repository=SeasonRepository(session),
         tmdb_show_details_service=show_details_service,
     )
 
@@ -121,4 +127,20 @@ def get_show_repository(
 ShowRepositoryDependency = Annotated[
     ShowRepository,
     Depends(get_show_repository),
+]
+
+def get_season_service(
+    session: DatabaseSession,
+) -> SeasonService:
+    """Provide a season service for a single request."""
+
+    return SeasonService(
+        season_repository=SeasonRepository(session),
+        show_repository=ShowRepository(session),
+    )
+
+
+SeasonServiceDependency = Annotated[
+    SeasonService,
+    Depends(get_season_service),
 ]

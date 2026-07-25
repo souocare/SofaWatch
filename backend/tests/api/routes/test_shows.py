@@ -74,7 +74,7 @@ class SuccessfulShowDetailsService:
                     overview="The first season.",
                     air_date=date(2022, 2, 17),
                     episode_count=9,
-                    poster_url=("https://image.tmdb.org/t/p/w500/season-one.jpg"),
+                    poster_path=("https://image.tmdb.org/t/p/w500/season-one.jpg"),
                     vote_average=8.4,
                 ),
                 ShowSeasonSummary(
@@ -84,7 +84,7 @@ class SuccessfulShowDetailsService:
                     overview="The second season.",
                     air_date=date(2025, 1, 17),
                     episode_count=10,
-                    poster_url=("https://image.tmdb.org/t/p/w500/season-two.jpg"),
+                    poster_path=("https://image.tmdb.org/t/p/w500/season-two.jpg"),
                     vote_average=8.6,
                 ),
             ],

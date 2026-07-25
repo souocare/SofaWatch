@@ -21,6 +21,7 @@ from app.db.mixins import TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.genre import Genre
+    from app.models.season import Season
 
 
 class Show(TimestampMixin, Base):
@@ -184,6 +185,12 @@ class Show(TimestampMixin, Base):
     genres: Mapped[list["Genre"]] = relationship(
         secondary=show_genres,
         back_populates="shows",
+    )
+
+    seasons: Mapped[list["Season"]] = relationship(
+        back_populates="show",
+        cascade="all, delete-orphan",
+        order_by="Season.season_number",
     )
 
     def __repr__(self) -> str:

@@ -27,6 +27,8 @@ from app.api.params.show import (
 
 from app.api.dependencies import ShowRepositoryDependency
 from app.schemas.show import ShowResponse
+from app.api.dependencies import SeasonServiceDependency
+from app.schemas.season import SeasonResponse
 
 
 
@@ -238,3 +240,29 @@ def get_show(
         )
 
     return show
+@router.get(
+    "/{show_id}/seasons",
+    response_model=list[SeasonResponse],
+    summary="List TV series seasons",
+    description="Return the locally stored seasons for a TV series.",
+)
+def list_show_seasons(
+    show_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV series identifier.",
+        ),
+    ],
+    service: SeasonServiceDependency,
+) -> list[SeasonResponse]:
+    """Return the locally stored seasons for a TV series."""
+
+    seasons = service.list_for_show(show_id)
+
+    if seasons is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="TV series not found.",
+        )
+
+    return seasons
