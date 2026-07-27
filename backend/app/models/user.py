@@ -1,10 +1,14 @@
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, String, Uuid
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.db.mixins import TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.library import LibraryEntry
 
 
 class User(TimestampMixin, Base):
@@ -27,6 +31,11 @@ class User(TimestampMixin, Base):
         Boolean,
         nullable=False,
         default=False,
+    )
+
+    library_entries: Mapped[list["LibraryEntry"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:

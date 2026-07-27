@@ -25,6 +25,7 @@ from app.repositories import (
     SeasonRepository,
     ShowRepository,
     UserRepository,
+    LibraryRepository
 )
 from app.services.tmdb_season_details import TMDBSeasonDetailsService
 from app.services import (
@@ -32,6 +33,7 @@ from app.services import (
     GenreService,
     SeasonService,
     UserService,
+    LibraryService
 )
 
 from fastapi import Depends, HTTPException, status
@@ -246,4 +248,21 @@ def get_current_user(
 CurrentUserDependency = Annotated[
     User,
     Depends(get_current_user),
+]
+
+def get_library_service(
+    session: DatabaseSession,
+) -> LibraryService:
+    """Provide a library service for a single request."""
+
+    return LibraryService(
+        session=session,
+        library_repository=LibraryRepository(session),
+        show_repository=ShowRepository(session),
+    )
+
+
+LibraryServiceDependency = Annotated[
+    LibraryService,
+    Depends(get_library_service),
 ]
