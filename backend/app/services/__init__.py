@@ -4,6 +4,7 @@ from app.services.genre import GenreService
 from app.services.show import ShowNotFoundError, ShowService
 from app.services.season import SeasonService
 from app.services.episode import EpisodeService
+from app.services.user import UserService
 
 __all__ = [
     "GenreAlreadyExistsError",
@@ -13,4 +14,5 @@ __all__ = [
     "ShowService",
     "SeasonService",
     "EpisodeService",
+    "UserService",
 ]

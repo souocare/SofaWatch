@@ -24,8 +24,18 @@ from app.repositories import (
     GenreRepository,
     SeasonRepository,
     ShowRepository,
+    UserRepository,
 )
 from app.services.tmdb_season_details import TMDBSeasonDetailsService
+from app.services import (
+    EpisodeService,
+    GenreService,
+    SeasonService,
+    UserService,
+)
+
+from fastapi import Depends, HTTPException, status
+from app.models.user import User
 
 def get_genre_service(
     session: DatabaseSession,
@@ -195,4 +205,45 @@ def get_episode_service(
 EpisodeServiceDependency = Annotated[
     EpisodeService,
     Depends(get_episode_service),
+]
+
+
+def get_user_service(
+    session: DatabaseSession,
+) -> UserService:
+    """Provide a user service for a single request."""
+
+    return UserService(
+        user_repository=UserRepository(session),
+    )
+
+
+UserServiceDependency = Annotated[
+    UserService,
+    Depends(get_user_service),
+]
+
+def get_current_user(
+    user_service: UserServiceDependency,
+) -> User:
+    """Return the current SofaWatch user.
+
+    The single local user acts as the current user until
+    authentication and multi-user support are introduced.
+    """
+
+    user = user_service.get_local()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Local user is not configured.",
+        )
+
+    return user
+
+
+CurrentUserDependency = Annotated[
+    User,
+    Depends(get_current_user),
 ]

@@ -3,9 +3,13 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 # from backend.app.api.routes.genres import router as genres_router
+from app.repositories.user import UserRepository
 from fastapi import FastAPI
 
 from app.api.router import api_router
+
+from app.db.session import SessionLocal
+from app.services.local_user import LocalUserService
 
 # from app.api.routes.search import router as search_router
 from app.core.config import get_settings
@@ -20,6 +24,12 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("%s API starting", settings.app_name)
+
+    with SessionLocal() as session:
+        LocalUserService(
+            session=session,
+            user_repository=UserRepository(session),
+        ).get_or_create()
 
     yield
 
