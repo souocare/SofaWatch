@@ -17,8 +17,38 @@ from app.repositories.show import ShowRepository
 from app.repositories.show import ShowRepository
 from app.services.show_import import ShowImportService
 from app.services.tmdb_show_details import TMDBShowDetailsService
+from app.models.episode import Episode
+from app.repositories.episode import EpisodeRepository
+from app.schemas.tmdb_episode import EpisodeSummary
+from app.services.tmdb_season_details import TMDBSeasonDetailsService
 
 TMDB_ID = 95396
+
+def make_episode_summary(
+    *,
+    tmdb_id: int,
+    episode_number: int,
+    title: str,
+    overview: str = "Episode overview.",
+    air_date_value: date | None = date(2022, 2, 18),
+    runtime: int | None = 57,
+    vote_average: float = 8.1,
+    vote_count: int = 42,
+    still_path: str | None = "/episode.jpg",
+) -> EpisodeSummary:
+    """Create episode metadata returned by the mocked TMDB service."""
+
+    return EpisodeSummary(
+        tmdb_id=tmdb_id,
+        episode_number=episode_number,
+        title=title,
+        overview=overview,
+        air_date=air_date_value,
+        runtime=runtime,
+        vote_average=vote_average,
+        vote_count=vote_count,
+        still_path=still_path,
+    )
 
 
 @pytest.fixture
@@ -108,6 +138,7 @@ def show_import_service(
     db_session: Session,
     settings: Settings,
     tmdb_show_details_service: Mock,
+    tmdb_season_details_service: Mock,
 ) -> ShowImportService:
     """Provide a show import service using the test database."""
 
@@ -117,7 +148,9 @@ def show_import_service(
         show_repository=ShowRepository(db_session),
         genre_repository=GenreRepository(db_session),
         season_repository=SeasonRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
         tmdb_show_details_service=tmdb_show_details_service,
+        tmdb_season_details_service=tmdb_season_details_service,
     )
 
 
@@ -250,6 +283,8 @@ def test_import_show_returns_recent_show_without_tmdb_request(
     db_session: Session,
     settings: Settings,
     tmdb_show_details_service: Mock,
+    tmdb_season_details_service: Mock,
+    
 ) -> None:
     """Avoid refreshing recently imported metadata."""
 
@@ -271,8 +306,10 @@ def test_import_show_returns_recent_show_without_tmdb_request(
         settings=settings,
         show_repository=ShowRepository(db_session),
         genre_repository=GenreRepository(db_session),
-        tmdb_show_details_service=tmdb_show_details_service,
         season_repository=SeasonRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        tmdb_show_details_service=tmdb_show_details_service,
+        tmdb_season_details_service=tmdb_season_details_service,
     )
 
     imported_show = service.import_show(
@@ -289,6 +326,7 @@ def test_import_show_refreshes_old_metadata(
     db_session: Session,
     settings: Settings,
     tmdb_show_details_service: Mock,
+    tmdb_season_details_service: Mock,
 ) -> None:
     """Refresh a show whose metadata is older than the configured limit."""
 
@@ -313,8 +351,10 @@ def test_import_show_refreshes_old_metadata(
         settings=settings,
         show_repository=ShowRepository(db_session),
         genre_repository=GenreRepository(db_session),
-        tmdb_show_details_service=tmdb_show_details_service,
         season_repository=SeasonRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        tmdb_show_details_service=tmdb_show_details_service,
+        tmdb_season_details_service=tmdb_season_details_service,
     )
 
     imported_show = service.import_show(
@@ -334,6 +374,7 @@ def test_import_show_force_refreshes_recent_metadata(
     db_session: Session,
     settings: Settings,
     tmdb_show_details_service: Mock,
+    tmdb_season_details_service: Mock,
 ) -> None:
     """Refresh recent metadata when force_refresh is enabled."""
 
@@ -355,8 +396,10 @@ def test_import_show_force_refreshes_recent_metadata(
         settings=settings,
         show_repository=ShowRepository(db_session),
         genre_repository=GenreRepository(db_session),
-        tmdb_show_details_service=tmdb_show_details_service,
         season_repository=SeasonRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        tmdb_show_details_service=tmdb_show_details_service,
+        tmdb_season_details_service=tmdb_season_details_service,
     )
 
     imported_show = service.import_show(
@@ -396,6 +439,7 @@ def test_import_show_rolls_back_when_persistence_fails(
     db_session: Session,
     settings: Settings,
     tmdb_show_details_service: Mock,
+    tmdb_season_details_service: Mock,
 ) -> None:
     """Rollback the transaction when the database operation fails."""
 
@@ -410,8 +454,10 @@ def test_import_show_rolls_back_when_persistence_fails(
         settings=settings,
         show_repository=show_repository,
         genre_repository=GenreRepository(db_session),
-        tmdb_show_details_service=tmdb_show_details_service,
         season_repository=SeasonRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        tmdb_show_details_service=tmdb_show_details_service,
+        tmdb_season_details_service=tmdb_season_details_service,
     )
 
     with pytest.raises(
@@ -816,3 +862,582 @@ def test_import_show_does_not_duplicate_seasons(
 
     assert first_show.id == second_show.id
     assert season_count == 3
+
+
+@pytest.fixture
+def tmdb_season_details_service() -> Mock:
+    """Provide a mocked TMDB season details service."""
+
+    service = Mock(spec=TMDBSeasonDetailsService)
+
+    def get_episodes(
+        *,
+        tmdb_id: int,
+        season_number: int,
+        language: str | None = None,
+    ) -> list[EpisodeSummary]:
+        base_id = 2000 + season_number * 100
+
+        return [
+            EpisodeSummary(
+                tmdb_id=base_id + 1,
+                episode_number=1,
+                title=f"Season {season_number} Episode 1",
+                overview="Episode 1.",
+                air_date=date(2022, 2, 18),
+                runtime=57,
+                vote_average=8.1,
+                vote_count=42,
+                still_path="/episode-1.jpg",
+            ),
+            EpisodeSummary(
+                tmdb_id=base_id + 2,
+                episode_number=2,
+                title=f"Season {season_number} Episode 2",
+                overview="Episode 2.",
+                air_date=date(2022, 2, 25),
+                runtime=54,
+                vote_average=8.2,
+                vote_count=38,
+                still_path="/episode-2.jpg",
+            ),
+        ]
+
+    service.get_episodes.side_effect = get_episodes
+
+    return service
+
+
+
+def test_import_show_creates_episodes(
+    db_session: Session,
+    show_import_service: ShowImportService,
+) -> None:
+    """Create episodes returned by TMDB for imported seasons."""
+
+    show = show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    episodes = list(
+        db_session.scalars(
+            select(Episode)
+            .join(Season)
+            .where(Season.show_id == show.id)
+            .order_by(
+                Season.season_number,
+                Episode.episode_number,
+            )
+        ).all()
+    )
+
+    assert len(episodes) == 6
+
+    assert [
+        episode.episode_number
+        for episode in episodes
+    ] == [
+        1,
+        2,
+        1,
+        2,
+        1,
+        2,
+    ]
+
+def test_import_show_persists_episode_metadata(
+    db_session: Session,
+    show_import_service: ShowImportService,
+) -> None:
+    """Persist episode metadata returned by TMDB."""
+
+    show = show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    season = db_session.scalar(
+        select(Season).where(
+            Season.show_id == show.id,
+            Season.season_number == 1,
+        )
+    )
+
+    assert season is not None
+
+    episode = db_session.scalar(
+        select(Episode).where(
+            Episode.season_id == season.id,
+            Episode.episode_number == 1,
+        )
+    )
+
+    assert episode is not None
+    assert episode.tmdb_id == 2101
+    assert episode.title == "Season 1 Episode 1"
+    assert episode.overview == "Episode 1."
+    assert episode.air_date == date(2022, 2, 18)
+    assert episode.runtime == 57
+    assert episode.vote_average == 8.1
+    assert episode.vote_count == 42
+    assert episode.tmdb_still_path == "/episode-1.jpg"
+    assert episode.local_still_path is None
+
+def test_import_show_requests_episodes_for_each_season(
+    show_import_service: ShowImportService,
+    tmdb_season_details_service: Mock,
+) -> None:
+    """Retrieve episodes for every season returned by TMDB."""
+
+    show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    assert tmdb_season_details_service.get_episodes.call_count == 3
+
+    tmdb_season_details_service.get_episodes.assert_any_call(
+        tmdb_id=TMDB_ID,
+        season_number=0,
+        language="en-US",
+    )
+    tmdb_season_details_service.get_episodes.assert_any_call(
+        tmdb_id=TMDB_ID,
+        season_number=1,
+        language="en-US",
+    )
+    tmdb_season_details_service.get_episodes.assert_any_call(
+        tmdb_id=TMDB_ID,
+        season_number=2,
+        language="en-US",
+    )
+
+def test_import_show_updates_existing_episode(
+    db_session: Session,
+    show_import_service: ShowImportService,
+    tmdb_season_details_service: Mock,
+) -> None:
+    """Update an existing episode instead of creating a duplicate."""
+
+    show = show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    season = db_session.scalar(
+        select(Season).where(
+            Season.show_id == show.id,
+            Season.season_number == 1,
+        )
+    )
+
+    assert season is not None
+
+    episode = db_session.scalar(
+        select(Episode).where(
+            Episode.season_id == season.id,
+            Episode.episode_number == 1,
+        )
+    )
+
+    assert episode is not None
+
+    original_episode_id = episode.id
+
+    def refreshed_episodes(
+        *,
+        tmdb_id: int,
+        season_number: int,
+        language: str | None = None,
+    ) -> list[EpisodeSummary]:
+        base_id = 2000 + season_number * 100
+
+        if season_number == 1:
+            return [
+                make_episode_summary(
+                    tmdb_id=2101,
+                    episode_number=1,
+                    title="Updated Episode",
+                    overview="Updated overview.",
+                    air_date_value=date(2022, 2, 19),
+                    runtime=60,
+                    vote_average=9.0,
+                    vote_count=100,
+                    still_path="/updated.jpg",
+                ),
+                make_episode_summary(
+                    tmdb_id=2102,
+                    episode_number=2,
+                    title="Season 1 Episode 2",
+                ),
+            ]
+
+        return [
+            make_episode_summary(
+                tmdb_id=base_id + 1,
+                episode_number=1,
+                title=f"Season {season_number} Episode 1",
+            ),
+            make_episode_summary(
+                tmdb_id=base_id + 2,
+                episode_number=2,
+                title=f"Season {season_number} Episode 2",
+            ),
+        ]
+
+
+    tmdb_season_details_service.get_episodes.side_effect = refreshed_episodes
+
+    show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+        force_refresh=True,
+    )
+
+    updated_episode = db_session.scalar(
+        select(Episode).where(
+            Episode.id == original_episode_id,
+        )
+    )
+
+    assert updated_episode is not None
+    assert updated_episode.title == "Updated Episode"
+    assert updated_episode.overview == "Updated overview."
+    assert updated_episode.air_date == date(2022, 2, 19)
+    assert updated_episode.runtime == 60
+    assert updated_episode.vote_average == 9.0
+    assert updated_episode.vote_count == 100
+    assert updated_episode.tmdb_still_path == "/updated.jpg"
+
+def test_import_show_adds_new_episode_during_refresh(
+    db_session: Session,
+    show_import_service: ShowImportService,
+    tmdb_season_details_service: Mock,
+) -> None:
+    """Create newly released episodes during a metadata refresh."""
+
+    show = show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    def refreshed_episodes(
+        *,
+        tmdb_id: int,
+        season_number: int,
+        language: str | None = None,
+    ) -> list[EpisodeSummary]:
+        base_id = 2000 + season_number * 100
+
+        episodes = [
+            make_episode_summary(
+                tmdb_id=base_id + 1,
+                episode_number=1,
+                title=f"Season {season_number} Episode 1",
+            ),
+            make_episode_summary(
+                tmdb_id=base_id + 2,
+                episode_number=2,
+                title=f"Season {season_number} Episode 2",
+            ),
+        ]
+
+        if season_number == 1:
+            episodes.append(
+                make_episode_summary(
+                    tmdb_id=2103,
+                    episode_number=3,
+                    title="New Episode",
+                    overview="A newly released episode.",
+                    air_date_value=date(2022, 3, 4),
+                    runtime=55,
+                    vote_average=8.5,
+                    vote_count=25,
+                    still_path="/episode-3.jpg",
+                )
+            )
+
+        return episodes
+
+
+    tmdb_season_details_service.get_episodes.side_effect = refreshed_episodes
+
+    show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+        force_refresh=True,
+    )
+
+    episode = db_session.scalar(
+        select(Episode)
+        .join(Season)
+        .where(
+            Season.show_id == show.id,
+            Season.season_number == 1,
+            Episode.episode_number == 3,
+        )
+    )
+
+    assert episode is not None
+    assert episode.tmdb_id == 2103
+    assert episode.title == "New Episode"
+
+
+def test_import_show_keeps_episodes_missing_from_tmdb_response(
+    db_session: Session,
+    show_import_service: ShowImportService,
+    tmdb_season_details_service: Mock,
+) -> None:
+    """Keep local episodes absent from a later TMDB response."""
+
+    show = show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    season = db_session.scalar(
+        select(Season).where(
+            Season.show_id == show.id,
+            Season.season_number == 1,
+        )
+    )
+
+    assert season is not None
+
+    episode_two = db_session.scalar(
+        select(Episode).where(
+            Episode.season_id == season.id,
+            Episode.episode_number == 2,
+        )
+    )
+
+    assert episode_two is not None
+
+    original_episode_id = episode_two.id
+
+    tmdb_season_details_service.get_episodes.side_effect = lambda **kwargs: [
+        EpisodeSummary(
+            tmdb_id=2001,
+            episode_number=1,
+            title="Good News About Hell",
+            overview="Episode 1.",
+            air_date=date(2022, 2, 18),
+            runtime=57,
+            vote_average=8.1,
+            vote_count=42,
+            still_path="/episode-1.jpg",
+        )
+    ]
+
+    show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+        force_refresh=True,
+    )
+
+    preserved_episode = db_session.get(
+        Episode,
+        original_episode_id,
+    )
+
+    assert preserved_episode is not None
+    assert preserved_episode.episode_number == 2
+
+
+def test_import_show_matches_existing_episode_by_number(
+    db_session: Session,
+    show_import_service: ShowImportService,
+    tmdb_season_details_service: Mock,
+) -> None:
+    """Use episode number as fallback when the TMDB identifier changes."""
+
+    show = show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    season = db_session.scalar(
+        select(Season).where(
+            Season.show_id == show.id,
+            Season.season_number == 1,
+        )
+    )
+
+    assert season is not None
+
+    episode = db_session.scalar(
+        select(Episode).where(
+            Episode.season_id == season.id,
+            Episode.episode_number == 1,
+        )
+    )
+
+    assert episode is not None
+
+    original_episode_id = episode.id
+
+    def refreshed_episodes(
+        *,
+        tmdb_id: int,
+        season_number: int,
+        language: str | None = None,
+    ) -> list[EpisodeSummary]:
+        base_id = 2000 + season_number * 100
+
+        if season_number == 1:
+            return [
+                make_episode_summary(
+                    tmdb_id=999001,
+                    episode_number=1,
+                    title="Episode With New TMDB ID",
+                    overview="Updated episode.",
+                ),
+                make_episode_summary(
+                    tmdb_id=2102,
+                    episode_number=2,
+                    title="Season 1 Episode 2",
+                ),
+            ]
+
+        return [
+            make_episode_summary(
+                tmdb_id=base_id + 1,
+                episode_number=1,
+                title=f"Season {season_number} Episode 1",
+            ),
+            make_episode_summary(
+                tmdb_id=base_id + 2,
+                episode_number=2,
+                title=f"Season {season_number} Episode 2",
+            ),
+        ]
+
+
+    tmdb_season_details_service.get_episodes.side_effect = refreshed_episodes
+
+    show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+        force_refresh=True,
+    )
+
+    updated_episode = db_session.get(
+        Episode,
+        original_episode_id,
+    )
+
+    assert updated_episode is not None
+    assert updated_episode.tmdb_id == 999001
+    assert updated_episode.title == "Episode With New TMDB ID"
+
+def test_import_show_preserves_local_episode_still(
+    db_session: Session,
+    show_import_service: ShowImportService,
+    tmdb_season_details_service: Mock,
+) -> None:
+    """Preserve local episode artwork during a TMDB refresh."""
+
+    show = show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    season = db_session.scalar(
+        select(Season).where(
+            Season.show_id == show.id,
+            Season.season_number == 1,
+        )
+    )
+
+    assert season is not None
+
+    episode = db_session.scalar(
+        select(Episode).where(
+            Episode.season_id == season.id,
+            Episode.episode_number == 1,
+        )
+    )
+
+    assert episode is not None
+
+    episode.local_still_path = (
+        "/media/shows/severance/s01e01.jpg"
+    )
+
+    db_session.commit()
+
+    def refreshed_episodes(
+        *,
+        tmdb_id: int,
+        season_number: int,
+        language: str | None = None,
+    ) -> list[EpisodeSummary]:
+        base_id = 2000 + season_number * 100
+
+        if season_number == 1:
+            return [
+                make_episode_summary(
+                    tmdb_id=2101,
+                    episode_number=1,
+                    title="Season 1 Episode 1",
+                    still_path="/new-tmdb-still.jpg",
+                ),
+                make_episode_summary(
+                    tmdb_id=2102,
+                    episode_number=2,
+                    title="Season 1 Episode 2",
+                ),
+            ]
+
+        return [
+            make_episode_summary(
+                tmdb_id=base_id + 1,
+                episode_number=1,
+                title=f"Season {season_number} Episode 1",
+            ),
+            make_episode_summary(
+                tmdb_id=base_id + 2,
+                episode_number=2,
+                title=f"Season {season_number} Episode 2",
+            ),
+        ]
+
+
+    tmdb_season_details_service.get_episodes.side_effect = refreshed_episodes
+
+    show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+        force_refresh=True,
+    )
+
+    updated_episode = db_session.get(
+        Episode,
+        episode.id,
+    )
+
+    assert updated_episode is not None
+    assert (
+        updated_episode.tmdb_still_path
+        == "/new-tmdb-still.jpg"
+    )
+    assert (
+        updated_episode.local_still_path
+        == "/media/shows/severance/s01e01.jpg"
+    )
+
+
+def test_import_show_does_not_duplicate_episodes(
+    db_session: Session,
+    show_import_service: ShowImportService,
+) -> None:
+    """Avoid duplicating episodes during repeated imports."""
+
+    show = show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+        force_refresh=True,
+    )
+
+    episode_count = db_session.scalar(
+        select(func.count())
+        .select_from(Episode)
+        .join(Season)
+        .where(
+            Season.show_id == show.id,
+        )
+    )
+
+    assert episode_count == 6
+

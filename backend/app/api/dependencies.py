@@ -1,6 +1,8 @@
 from collections.abc import Generator
 from typing import Annotated
 
+from app.services.episode import EpisodeService
+from app.services.season import SeasonService
 from fastapi import Depends
 
 from app.core.config import Settings, get_settings
@@ -11,13 +13,19 @@ from app.services import GenreService
 from app.services.tmdb_show_details import TMDBShowDetailsService
 from app.services.tmdb_show_search import ShowSearchService
 from app.repositories import (
+    EpisodeRepository,
     GenreRepository,
     SeasonRepository,
     ShowRepository,
 )
 from app.services.show_import import ShowImportService
-from app.services import SeasonService
-
+from app.repositories import (
+    EpisodeRepository,
+    GenreRepository,
+    SeasonRepository,
+    ShowRepository,
+)
+from app.services.tmdb_season_details import TMDBSeasonDetailsService
 
 def get_genre_service(
     session: DatabaseSession,
@@ -90,12 +98,37 @@ TMDBShowDetailsServiceDependency = Annotated[
 ]
 
 
+def get_tmdb_season_details_service(
+    tmdb_client: Annotated[
+        TMDBClient,
+        Depends(get_tmdb_client),
+    ],
+) -> TMDBSeasonDetailsService:
+    """Provide the TV season details service."""
+
+    return TMDBSeasonDetailsService(
+        tmdb_client=tmdb_client,
+    )
+
+
+TMDBSeasonDetailsServiceDependency = Annotated[
+    TMDBSeasonDetailsService,
+    Depends(get_tmdb_season_details_service),
+]
+
 def get_show_import_service(
     session: DatabaseSession,
-    settings: Annotated[Settings, Depends(get_settings)],
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
     show_details_service: Annotated[
         TMDBShowDetailsService,
         Depends(get_show_details_service),
+    ],
+    season_details_service: Annotated[
+        TMDBSeasonDetailsService,
+        Depends(get_tmdb_season_details_service),
     ],
 ) -> ShowImportService:
     """Provide the TV series import service."""
@@ -106,7 +139,9 @@ def get_show_import_service(
         show_repository=ShowRepository(session),
         genre_repository=GenreRepository(session),
         season_repository=SeasonRepository(session),
+        episode_repository=EpisodeRepository(session),
         tmdb_show_details_service=show_details_service,
+        tmdb_season_details_service=season_details_service,
     )
 
 
@@ -143,4 +178,21 @@ def get_season_service(
 SeasonServiceDependency = Annotated[
     SeasonService,
     Depends(get_season_service),
+]
+
+
+def get_episode_service(
+    session: DatabaseSession,
+) -> EpisodeService:
+    """Provide an episode service for a single request."""
+
+    return EpisodeService(
+        episode_repository=EpisodeRepository(session),
+        season_repository=SeasonRepository(session),
+    )
+
+
+EpisodeServiceDependency = Annotated[
+    EpisodeService,
+    Depends(get_episode_service),
 ]

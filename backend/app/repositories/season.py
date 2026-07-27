@@ -28,16 +28,15 @@ class SeasonRepository:
         return self._session.scalar(statement)
     
     def get_by_id(
-            self,
-            season_id: UUID,
-        ) -> Season | None:
-            """Return a season by its local identifier."""
+        self,
+        season_id: UUID,
+    ) -> Season | None:
+        """Return a season by its internal identifier."""
 
-            statement = select(Season).where(
-                Season.id == season_id,
-            )
-
-            return self._session.scalar(statement)
+        return self._session.get(
+            Season,
+            season_id,
+        )
 
     def get_by_number(
         self,

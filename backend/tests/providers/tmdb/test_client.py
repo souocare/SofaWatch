@@ -655,3 +655,364 @@ def test_get_tv_show_details_rejects_invalid_schema(
             )
     finally:
         http_client.close()
+
+def test_get_tv_season_details_returns_validated_response(
+    settings: Settings,
+) -> None:
+    """Return validated details for an existing TMDB TV season."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path.endswith("/tv/95396/season/1")
+        assert request.url.params["language"] == "en-US"
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "_id": "season-internal-id",
+                "air_date": "2022-02-18",
+                "episodes": [
+                    {
+                        "air_date": "2022-02-18",
+                        "episode_number": 1,
+                        "episode_type": "standard",
+                        "id": 2001,
+                        "name": "Good News About Hell",
+                        "overview": "Mark starts a new day at Lumon.",
+                        "production_code": "",
+                        "runtime": 57,
+                        "season_number": 1,
+                        "show_id": 95396,
+                        "still_path": "/episode-1.jpg",
+                        "vote_average": 8.1,
+                        "vote_count": 42,
+                    },
+                    {
+                        "air_date": "2022-02-25",
+                        "episode_number": 2,
+                        "episode_type": "standard",
+                        "id": 2002,
+                        "name": "Half Loop",
+                        "overview": "The team continues its work.",
+                        "production_code": "",
+                        "runtime": 54,
+                        "season_number": 1,
+                        "show_id": 95396,
+                        "still_path": "/episode-2.jpg",
+                        "vote_average": 8.2,
+                        "vote_count": 38,
+                    },
+                ],
+                "id": 134792,
+                "name": "Season 1",
+                "overview": "The first season.",
+                "poster_path": "/season-1.jpg",
+                "season_number": 1,
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(settings, handler)
+
+    try:
+        response = tmdb_client.get_tv_season_details(
+            tmdb_id=95396,
+            season_number=1,
+        )
+    finally:
+        http_client.close()
+
+    assert response.id == 134792
+    assert response.name == "Season 1"
+    assert response.season_number == 1
+    assert response.air_date is not None
+    assert response.air_date.isoformat() == "2022-02-18"
+
+    assert len(response.episodes) == 2
+
+    first_episode = response.episodes[0]
+
+    assert first_episode.id == 2001
+    assert first_episode.episode_number == 1
+    assert first_episode.name == "Good News About Hell"
+    assert first_episode.runtime == 57
+    assert first_episode.vote_average == 8.1
+    assert first_episode.vote_count == 42
+    assert first_episode.still_path == "/episode-1.jpg"
+
+
+def test_get_tv_season_details_uses_custom_language(
+    settings: Settings,
+) -> None:
+    """Send the requested language when retrieving TV season details."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/tv/95396/season/1")
+        assert request.url.params["language"] == "pt-PT"
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "air_date": "2022-02-18",
+                "episodes": [],
+                "id": 134792,
+                "name": "Temporada 1",
+                "overview": "A primeira temporada.",
+                "poster_path": "/season-1.jpg",
+                "season_number": 1,
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(settings, handler)
+
+    try:
+        response = tmdb_client.get_tv_season_details(
+            tmdb_id=95396,
+            season_number=1,
+            language="pt-PT",
+        )
+    finally:
+        http_client.close()
+
+    assert response.id == 134792
+    assert response.name == "Temporada 1"
+
+
+def test_get_tv_season_details_supports_specials(
+    settings: Settings,
+) -> None:
+    """Allow season number zero for TV specials."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/tv/95396/season/0")
+        assert request.url.params["language"] == "en-US"
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "air_date": None,
+                "episodes": [],
+                "id": 1000,
+                "name": "Specials",
+                "overview": "Special episodes.",
+                "poster_path": None,
+                "season_number": 0,
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(settings, handler)
+
+    try:
+        response = tmdb_client.get_tv_season_details(
+            tmdb_id=95396,
+            season_number=0,
+        )
+    finally:
+        http_client.close()
+
+    assert response.id == 1000
+    assert response.season_number == 0
+    assert response.name == "Specials"
+
+
+@pytest.mark.parametrize(
+    "tmdb_id",
+    [
+        0,
+        -1,
+        -100,
+    ],
+)
+def test_get_tv_season_details_rejects_invalid_tmdb_id(
+    settings: Settings,
+    tmdb_id: int,
+) -> None:
+    """Reject TMDB identifiers lower than one."""
+
+    request_was_made = False
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal request_was_made
+        request_was_made = True
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+        )
+
+    tmdb_client, http_client = create_tmdb_client(settings, handler)
+
+    try:
+        with pytest.raises(
+            ValueError,
+            match="TMDB ID must be greater than or equal to 1",
+        ):
+            tmdb_client.get_tv_season_details(
+                tmdb_id=tmdb_id,
+                season_number=1,
+            )
+    finally:
+        http_client.close()
+
+    assert request_was_made is False
+
+
+@pytest.mark.parametrize(
+    "season_number",
+    [
+        -1,
+        -10,
+    ],
+)
+def test_get_tv_season_details_rejects_invalid_season_number(
+    settings: Settings,
+    season_number: int,
+) -> None:
+    """Reject season numbers lower than zero."""
+
+    request_was_made = False
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal request_was_made
+        request_was_made = True
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+        )
+
+    tmdb_client, http_client = create_tmdb_client(settings, handler)
+
+    try:
+        with pytest.raises(
+            ValueError,
+            match="season number must be greater than or equal to 0",
+        ):
+            tmdb_client.get_tv_season_details(
+                tmdb_id=95396,
+                season_number=season_number,
+            )
+    finally:
+        http_client.close()
+
+    assert request_was_made is False
+
+
+def test_get_tv_season_details_normalizes_empty_dates(
+    settings: Settings,
+) -> None:
+    """Convert empty TMDB date strings into null values."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "air_date": "",
+                "episodes": [
+                    {
+                        "air_date": "",
+                        "episode_number": 1,
+                        "episode_type": "standard",
+                        "id": 2001,
+                        "name": "Future Episode",
+                        "overview": "",
+                        "production_code": "",
+                        "runtime": None,
+                        "season_number": 1,
+                        "show_id": 95396,
+                        "still_path": None,
+                        "vote_average": 0.0,
+                        "vote_count": 0,
+                    }
+                ],
+                "id": 134792,
+                "name": "Season 1",
+                "overview": "",
+                "poster_path": None,
+                "season_number": 1,
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(settings, handler)
+
+    try:
+        response = tmdb_client.get_tv_season_details(
+            tmdb_id=95396,
+            season_number=1,
+        )
+    finally:
+        http_client.close()
+
+    assert response.air_date is None
+    assert len(response.episodes) == 1
+    assert response.episodes[0].air_date is None
+    assert response.episodes[0].runtime is None
+
+
+def test_get_tv_season_details_converts_not_found_response(
+    settings: Settings,
+) -> None:
+    """Convert a TMDB 404 response into a not-found provider error."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith(
+            "/tv/95396/season/999",
+        )
+
+        return httpx.Response(
+            status_code=httpx.codes.NOT_FOUND,
+            request=request,
+            json={
+                "status_code": 34,
+                "status_message": (
+                    "The resource you requested could not be found."
+                ),
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(settings, handler)
+
+    try:
+        with pytest.raises(
+            TMDBNotFoundError,
+            match="requested TMDB resource was not found",
+        ):
+            tmdb_client.get_tv_season_details(
+                tmdb_id=95396,
+                season_number=999,
+            )
+    finally:
+        http_client.close()
+
+
+def test_get_tv_season_details_rejects_invalid_schema(
+    settings: Settings,
+) -> None:
+    """Reject a TV season response that does not match the schema."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "id": 134792,
+                "name": "Season 1",
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(settings, handler)
+
+    try:
+        with pytest.raises(
+            TMDBResponseError,
+            match="invalid response",
+        ):
+            tmdb_client.get_tv_season_details(
+                tmdb_id=95396,
+                season_number=1,
+            )
+    finally:
+        http_client.close()

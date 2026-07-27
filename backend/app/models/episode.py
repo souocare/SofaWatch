@@ -19,32 +19,35 @@ from app.db.base import Base
 from app.db.mixins import TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.episode import Episode
-    from app.models.show import Show
+    from app.models.season import Season
 
 
-class Season(TimestampMixin, Base):
-    """TV series season stored locally by SofaWatch."""
+class Episode(TimestampMixin, Base):
+    """TV series episode stored locally by SofaWatch."""
 
-    __tablename__ = "seasons"
+    __tablename__ = "episodes"
 
     __table_args__ = (
         UniqueConstraint(
-            "show_id",
-            "season_number",
-            name="uq_seasons_show_id_season_number",
+            "season_id",
+            "episode_number",
+            name="uq_episodes_season_id_episode_number",
         ),
         CheckConstraint(
-            "season_number >= 0",
-            name="ck_seasons_season_number_non_negative",
+            "episode_number >= 0",
+            name="ck_episodes_episode_number_non_negative",
         ),
         CheckConstraint(
-            "episode_count >= 0",
-            name="ck_seasons_episode_count_non_negative",
+            "runtime IS NULL OR runtime >= 0",
+            name="ck_episodes_runtime_non_negative",
         ),
         CheckConstraint(
             "vote_average >= 0 AND vote_average <= 10",
-            name="ck_seasons_vote_average_range",
+            name="ck_episodes_vote_average_range",
+        ),
+        CheckConstraint(
+            "vote_count >= 0",
+            name="ck_episodes_vote_count_non_negative",
         ),
     )
 
@@ -54,10 +57,10 @@ class Season(TimestampMixin, Base):
         default=uuid4,
     )
 
-    show_id: Mapped[UUID] = mapped_column(
+    season_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey(
-            "shows.id",
+            "seasons.id",
             ondelete="CASCADE",
         ),
         nullable=False,
@@ -71,7 +74,7 @@ class Season(TimestampMixin, Base):
         index=True,
     )
 
-    season_number: Mapped[int] = mapped_column(
+    episode_number: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
     )
@@ -91,10 +94,9 @@ class Season(TimestampMixin, Base):
         nullable=True,
     )
 
-    episode_count: Mapped[int] = mapped_column(
+    runtime: Mapped[int | None] = mapped_column(
         Integer,
-        nullable=False,
-        default=0,
+        nullable=True,
     )
 
     vote_average: Mapped[float] = mapped_column(
@@ -103,32 +105,32 @@ class Season(TimestampMixin, Base):
         default=0.0,
     )
 
-    tmdb_poster_path: Mapped[str | None] = mapped_column(
+    vote_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+
+    tmdb_still_path: Mapped[str | None] = mapped_column(
         String(500),
         nullable=True,
     )
 
-    local_poster_path: Mapped[str | None] = mapped_column(
+    local_still_path: Mapped[str | None] = mapped_column(
         String(500),
         nullable=True,
     )
 
-    show: Mapped["Show"] = relationship(
-        back_populates="seasons",
-    )
-
-    episodes: Mapped[list["Episode"]] = relationship(
-        back_populates="season",
-        cascade="all, delete-orphan",
-        order_by="Episode.episode_number",
+    season: Mapped["Season"] = relationship(
+        back_populates="episodes",
     )
 
     def __repr__(self) -> str:
         return (
-            "Season("
+            "Episode("
             f"id={self.id!r}, "
-            f"show_id={self.show_id!r}, "
-            f"season_number={self.season_number!r}, "
+            f"season_id={self.season_id!r}, "
+            f"episode_number={self.episode_number!r}, "
             f"title={self.title!r}"
             ")"
         )

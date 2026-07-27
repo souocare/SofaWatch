@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
+from app.repositories.episode import EpisodeRepository
+from app.services.tmdb_season_details import TMDBSeasonDetailsService
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -12,6 +14,8 @@ from app.services.tmdb_show_details import TMDBShowDetailsService
 from app.models.season import Season
 from app.repositories.season import SeasonRepository
 from app.schemas.tmdb_show import ShowDetailsResponse, ShowSeasonSummary
+from app.models.episode import Episode
+from app.schemas.tmdb_episode import EpisodeSummary
 
 
 class ShowImportService:
@@ -25,14 +29,18 @@ class ShowImportService:
         show_repository: ShowRepository,
         genre_repository: GenreRepository,
         season_repository: SeasonRepository,
+        episode_repository: EpisodeRepository,
         tmdb_show_details_service: TMDBShowDetailsService,
+        tmdb_season_details_service: TMDBSeasonDetailsService,
     ) -> None:
         self._session = session
         self._settings = settings
         self._show_repository = show_repository
         self._genre_repository = genre_repository
         self._season_repository = season_repository
+        self._episode_repository = episode_repository
         self._tmdb_show_details_service = tmdb_show_details_service
+        self._tmdb_season_details_service = tmdb_season_details_service
 
     def import_show(
         self,
@@ -79,9 +87,17 @@ class ShowImportService:
 
                 show.genres = genres
 
-            self._sync_seasons(
+            seasons = self._sync_seasons(
                 show=show,
                 seasons=details.seasons,
+            )
+
+            self._session.flush()
+
+            self._sync_episodes(
+                show=show,
+                seasons=seasons,
+                language=metadata_language,
             )
 
             self._session.commit()
@@ -196,11 +212,13 @@ class ShowImportService:
         *,
         show: Show,
         seasons: list[ShowSeasonSummary],
-    ) -> None:
+    ) -> list[Season]:
         """Create or update seasons returned by TMDB.
 
         Seasons missing from the TMDB response are preserved locally.
         """
+
+        resolved_seasons: list[Season] = []
 
         for season_details in seasons:
             season = self._season_repository.get_by_tmdb_id(
@@ -225,11 +243,75 @@ class ShowImportService:
                 )
 
                 self._season_repository.add(season)
+            else:
+                self._apply_season_metadata(
+                    season=season,
+                    details=season_details,
+                )
+
+            resolved_seasons.append(season)
+
+        return resolved_seasons
+
+    def _sync_episodes(
+        self,
+        *,
+        show: Show,
+        seasons: list[Season],
+        language: str,
+    ) -> None:
+        """Synchronize locally stored episodes with TMDB."""
+
+        for season in seasons:
+            episodes = self._tmdb_season_details_service.get_episodes(
+                tmdb_id=show.tmdb_id,
+                season_number=season.season_number,
+                language=language,
+            )
+
+            self._sync_season_episodes(
+                season=season,
+                episodes=episodes,
+            )
+
+    def _sync_season_episodes(
+        self,
+        *,
+        season: Season,
+        episodes: list[EpisodeSummary],
+    ) -> None:
+        """Create or update episodes returned by TMDB.
+
+        Episodes missing from the TMDB response are preserved locally.
+        """
+
+        for episode_details in episodes:
+            episode = self._episode_repository.get_by_tmdb_id(
+                episode_details.tmdb_id,
+            )
+
+            if episode is None:
+                episode = self._episode_repository.get_by_number(
+                    season_id=season.id,
+                    episode_number=episode_details.episode_number,
+                )
+
+            if episode is None:
+                episode = Episode(
+                    season_id=season.id,
+                )
+
+                self._apply_episode_metadata(
+                    episode=episode,
+                    details=episode_details,
+                )
+
+                self._episode_repository.add(episode)
                 continue
 
-            self._apply_season_metadata(
-                season=season,
-                details=season_details,
+            self._apply_episode_metadata(
+                episode=episode,
+                details=episode_details,
             )
 
     @staticmethod
@@ -248,3 +330,21 @@ class ShowImportService:
         season.episode_count = details.episode_count
         season.vote_average = details.vote_average
         season.tmdb_poster_path = details.poster_path
+
+    @staticmethod
+    def _apply_episode_metadata(
+        *,
+        episode: Episode,
+        details: EpisodeSummary,
+    ) -> None:
+        """Apply TMDB metadata to a local episode."""
+
+        episode.tmdb_id = details.tmdb_id
+        episode.episode_number = details.episode_number
+        episode.title = details.title
+        episode.overview = details.overview or None
+        episode.air_date = details.air_date
+        episode.runtime = details.runtime
+        episode.vote_average = details.vote_average
+        episode.vote_count = details.vote_count
+        episode.tmdb_still_path = details.still_path

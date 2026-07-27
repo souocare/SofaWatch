@@ -2,6 +2,9 @@ from datetime import date
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from datetime import date
+
+from pydantic import BaseModel, Field
 
 
 class TMDBTVSearchResult(BaseModel):
@@ -196,6 +199,31 @@ class TMDBTVDetails(BaseModel):
     )
     @classmethod
     def normalize_empty_dates(
+        cls,
+        value: Any,
+    ) -> Any:
+        """Convert TMDB empty date strings into null values."""
+
+        return None if value == "" else value
+    
+
+class TMDBSeasonDetails(BaseModel):
+    """Detailed TV season information returned by TMDB."""
+
+    id: int
+    air_date: date | None = None
+    name: str
+    overview: str
+    poster_path: str | None = None
+    season_number: int
+
+    episodes: list[TMDBEpisodeSummary] = Field(
+        default_factory=list,
+    )
+
+    @field_validator("air_date", mode="before")
+    @classmethod
+    def normalize_empty_air_date(
         cls,
         value: Any,
     ) -> Any:

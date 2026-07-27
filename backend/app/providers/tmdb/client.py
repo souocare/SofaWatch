@@ -13,9 +13,11 @@ from app.providers.tmdb.exceptions import (
     TMDBResponseError,
 )
 from app.providers.tmdb.schemas import (
+    TMDBSeasonDetails,
     TMDBTVDetails,
     TMDBTVSearchResponse,
 )
+
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +136,35 @@ class TMDBClient:
         return self.get(
             f"/tv/{tmdb_id}",
             response_model=TMDBTVDetails,
+            params={
+                "language": request_language,
+            },
+        )
+    
+    def get_tv_season_details(
+        self,
+        *,
+        tmdb_id: int,
+        season_number: int,
+        language: str | None = None,
+    ) -> TMDBSeasonDetails:
+        """Get detailed information about a TV season from TMDB."""
+
+        if tmdb_id < 1:
+            raise ValueError(
+                "The TMDB ID must be greater than or equal to 1."
+            )
+
+        if season_number < 0:
+            raise ValueError(
+                "The season number must be greater than or equal to 0."
+            )
+
+        request_language = language or self._settings.default_language
+
+        return self.get(
+            f"/tv/{tmdb_id}/season/{season_number}",
+            response_model=TMDBSeasonDetails,
             params={
                 "language": request_language,
             },
