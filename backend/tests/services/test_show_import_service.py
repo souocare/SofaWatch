@@ -5,13 +5,14 @@ from unittest.mock import Mock
 import pytest
 from app.repositories.season import SeasonRepository
 from app.models.season import Season
+from app.repositories.network import NetworkRepository
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.models.genre import Genre
 from app.models.show import Show
-from app.models.show import Show
+from app.models.network import Network
 from app.repositories.genre import GenreRepository
 from app.repositories.show import ShowRepository
 from app.repositories.show import ShowRepository
@@ -86,6 +87,14 @@ def show_details() -> SimpleNamespace:
                 name="Mystery",
             ),
         ],
+        networks=[
+            SimpleNamespace(
+                tmdb_id=2552,
+                name="Apple TV+",
+                logo_path="/apple-tv-logo.png",
+                origin_country="US",
+            ),
+        ],
         seasons=[
             SimpleNamespace(
                 tmdb_id=199716,
@@ -151,6 +160,7 @@ def show_import_service(
         episode_repository=EpisodeRepository(db_session),
         tmdb_show_details_service=tmdb_show_details_service,
         tmdb_season_details_service=tmdb_season_details_service,
+        network_repository=NetworkRepository(db_session),
     )
 
 
@@ -310,6 +320,7 @@ def test_import_show_returns_recent_show_without_tmdb_request(
         episode_repository=EpisodeRepository(db_session),
         tmdb_show_details_service=tmdb_show_details_service,
         tmdb_season_details_service=tmdb_season_details_service,
+        network_repository=NetworkRepository(db_session),
     )
 
     imported_show = service.import_show(
@@ -355,6 +366,7 @@ def test_import_show_refreshes_old_metadata(
         episode_repository=EpisodeRepository(db_session),
         tmdb_show_details_service=tmdb_show_details_service,
         tmdb_season_details_service=tmdb_season_details_service,
+        network_repository=NetworkRepository(db_session),
     )
 
     imported_show = service.import_show(
@@ -400,6 +412,7 @@ def test_import_show_force_refreshes_recent_metadata(
         episode_repository=EpisodeRepository(db_session),
         tmdb_show_details_service=tmdb_show_details_service,
         tmdb_season_details_service=tmdb_season_details_service,
+        network_repository=NetworkRepository(db_session),
     )
 
     imported_show = service.import_show(
@@ -458,6 +471,7 @@ def test_import_show_rolls_back_when_persistence_fails(
         episode_repository=EpisodeRepository(db_session),
         tmdb_show_details_service=tmdb_show_details_service,
         tmdb_season_details_service=tmdb_season_details_service,
+        network_repository=NetworkRepository(db_session),
     )
 
     with pytest.raises(
@@ -1440,4 +1454,474 @@ def test_import_show_does_not_duplicate_episodes(
     )
 
     assert episode_count == 6
+
+
+
+def test_import_show_creates_and_associates_networks(
+    db_session: Session,
+    show_import_service: ShowImportService,
+) -> None:
+    """Create missing networks and associate them with the show."""
+
+    show = show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    network_count = db_session.scalar(
+        select(func.count()).select_from(Network)
+    )
+
+    assert network_count == 1
+
+    assert len(show.networks) == 1
+
+    network = show.networks[0]
+
+    assert network.tmdb_id == 2552
+    assert network.name == "Apple TV+"
+    assert network.tmdb_logo_path == "/apple-tv-logo.png"
+    assert network.origin_country == "US"
+
+
+def test_import_show_updates_existing_network_metadata(
+    db_session: Session,
+    show_import_service: ShowImportService,
+    tmdb_show_details_service: Mock,
+    show_details: SimpleNamespace,
+) -> None:
+    """Update metadata for an existing network during refresh."""
+
+    show = show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    network = show.networks[0]
+    original_network_id = network.id
+
+    updated_details = SimpleNamespace(
+        **vars(show_details),
+    )
+
+    updated_details.networks = [
+        SimpleNamespace(
+            tmdb_id=2552,
+            name="Apple TV Plus",
+            logo_path="/new-logo.png",
+            origin_country="US",
+        ),
+    ]
+
+    tmdb_show_details_service.get_details.return_value = (
+        updated_details
+    )
+
+    refreshed_show = show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+        force_refresh=True,
+    )
+
+    assert len(refreshed_show.networks) == 1
+
+    updated_network = refreshed_show.networks[0]
+
+    assert updated_network.id == original_network_id
+    assert updated_network.tmdb_id == 2552
+    assert updated_network.name == "Apple TV Plus"
+    assert updated_network.tmdb_logo_path == "/new-logo.png"
+    assert updated_network.origin_country == "US"
+
+def test_import_show_does_not_duplicate_networks(
+    db_session: Session,
+    show_import_service: ShowImportService,
+) -> None:
+    """Reuse existing networks instead of creating duplicates."""
+
+    show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+        force_refresh=True,
+    )
+
+    network_count = db_session.scalar(
+        select(func.count()).select_from(Network)
+    )
+
+    assert network_count == 1
+
+def test_import_show_updates_network_associations(
+    db_session: Session,
+    show_import_service: ShowImportService,
+    tmdb_show_details_service: Mock,
+    show_details: SimpleNamespace,
+) -> None:
+    """Replace show network associations with the current TMDB networks."""
+
+    show = show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    assert len(show.networks) == 1
+    assert show.networks[0].tmdb_id == 2552
+
+    updated_details = SimpleNamespace(
+        **vars(show_details),
+    )
+
+    updated_details.networks = [
+        SimpleNamespace(
+            tmdb_id=49,
+            name="HBO",
+            logo_path="/hbo.png",
+            origin_country="US",
+        ),
+    ]
+
+    tmdb_show_details_service.get_details.return_value = (
+        updated_details
+    )
+
+    refreshed_show = show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+        force_refresh=True,
+    )
+
+    assert len(refreshed_show.networks) == 1
+    assert refreshed_show.networks[0].tmdb_id == 49
+
+    network_ids = {
+        network.tmdb_id
+        for network in refreshed_show.networks
+    }
+
+    assert 2552 not in network_ids
+
+def test_import_show_associates_multiple_networks(
+    show_import_service: ShowImportService,
+    tmdb_show_details_service: Mock,
+    show_details: SimpleNamespace,
+) -> None:
+    """Associate every network returned by TMDB with the show."""
+
+    updated_details = SimpleNamespace(
+        **vars(show_details),
+    )
+
+    updated_details.networks = [
+        SimpleNamespace(
+            tmdb_id=2552,
+            name="Apple TV+",
+            logo_path="/apple.png",
+            origin_country="US",
+        ),
+        SimpleNamespace(
+            tmdb_id=49,
+            name="HBO",
+            logo_path="/hbo.png",
+            origin_country="US",
+        ),
+    ]
+
+    tmdb_show_details_service.get_details.return_value = (
+        updated_details
+    )
+
+    show = show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    assert {
+        network.tmdb_id
+        for network in show.networks
+    } == {
+        2552,
+        49,
+    }
+
+def test_should_not_refresh_ended_show_automatically(
+    db_session: Session,
+    settings: Settings,
+    tmdb_show_details_service: Mock,
+    tmdb_season_details_service: Mock,
+) -> None:
+    """Do not automatically refresh a TV series that has ended."""
+
+    show = Show(
+        tmdb_id=TMDB_ID,
+        title="Ended Show",
+        original_title="Ended Show",
+        original_language="en",
+        status="Ended",
+        metadata_language="en-US",
+        metadata_updated_at=(
+            datetime.now(timezone.utc)
+            - timedelta(days=settings.metadata_refresh_days + 100)
+        ),
+    )
+
+    db_session.add(show)
+    db_session.commit()
+
+    service = ShowImportService(
+        session=db_session,
+        settings=settings,
+        show_repository=ShowRepository(db_session),
+        genre_repository=GenreRepository(db_session),
+        network_repository=NetworkRepository(db_session),
+        season_repository=SeasonRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        tmdb_show_details_service=tmdb_show_details_service,
+        tmdb_season_details_service=tmdb_season_details_service,
+    )
+
+    result = service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    assert result.id == show.id
+
+    tmdb_show_details_service.get_details.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "show_status",
+    [
+        "Canceled",
+        "Cancelled",
+    ],
+)
+def test_should_not_refresh_canceled_show_automatically(
+    db_session: Session,
+    settings: Settings,
+    tmdb_show_details_service: Mock,
+    tmdb_season_details_service: Mock,
+    show_status: str,
+) -> None:
+    """Do not automatically refresh a canceled TV series."""
+
+    show = Show(
+        tmdb_id=TMDB_ID,
+        title="Canceled Show",
+        original_title="Canceled Show",
+        original_language="en",
+        status=show_status,
+        metadata_language="en-US",
+        metadata_updated_at=(
+            datetime.now(timezone.utc)
+            - timedelta(days=settings.metadata_refresh_days + 100)
+        ),
+    )
+
+    db_session.add(show)
+    db_session.commit()
+
+    service = ShowImportService(
+        session=db_session,
+        settings=settings,
+        show_repository=ShowRepository(db_session),
+        genre_repository=GenreRepository(db_session),
+        network_repository=NetworkRepository(db_session),
+        season_repository=SeasonRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        tmdb_show_details_service=tmdb_show_details_service,
+        tmdb_season_details_service=tmdb_season_details_service,
+    )
+
+    result = service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    assert result.id == show.id
+
+    tmdb_show_details_service.get_details.assert_not_called()
+
+def test_manual_refresh_refreshes_ended_show(
+    db_session: Session,
+    settings: Settings,
+    tmdb_show_details_service: Mock,
+    tmdb_season_details_service: Mock,
+    show_details: SimpleNamespace,
+) -> None:
+    """Allow a manual metadata refresh for an ended TV series."""
+
+    show = Show(
+        tmdb_id=TMDB_ID,
+        title="Old title",
+        original_title="Old title",
+        original_language="en",
+        status="Ended",
+        metadata_language="en-US",
+        metadata_updated_at=datetime.now(timezone.utc),
+    )
+
+    db_session.add(show)
+    db_session.commit()
+
+    tmdb_show_details_service.get_details.return_value = (
+        show_details
+    )
+
+    service = ShowImportService(
+        session=db_session,
+        settings=settings,
+        show_repository=ShowRepository(db_session),
+        genre_repository=GenreRepository(db_session),
+        network_repository=NetworkRepository(db_session),
+        season_repository=SeasonRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        tmdb_show_details_service=tmdb_show_details_service,
+        tmdb_season_details_service=tmdb_season_details_service,
+    )
+
+    result = service.refresh_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    assert result.id == show.id
+
+    tmdb_show_details_service.get_details.assert_called_once()
+
+
+def test_manual_refresh_refreshes_canceled_show(
+    db_session: Session,
+    settings: Settings,
+    tmdb_show_details_service: Mock,
+    tmdb_season_details_service: Mock,
+    show_details: SimpleNamespace,
+) -> None:
+    """Allow a manual metadata refresh for a canceled TV series."""
+
+    show = Show(
+        tmdb_id=TMDB_ID,
+        title="Canceled Show",
+        original_title="Canceled Show",
+        original_language="en",
+        status="Canceled",
+        metadata_language="en-US",
+        metadata_updated_at=datetime.now(timezone.utc),
+    )
+
+    db_session.add(show)
+    db_session.commit()
+
+    tmdb_show_details_service.get_details.return_value = (
+        show_details
+    )
+
+    service = ShowImportService(
+        session=db_session,
+        settings=settings,
+        show_repository=ShowRepository(db_session),
+        genre_repository=GenreRepository(db_session),
+        network_repository=NetworkRepository(db_session),
+        season_repository=SeasonRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        tmdb_show_details_service=tmdb_show_details_service,
+        tmdb_season_details_service=tmdb_season_details_service,
+    )
+
+    result = service.refresh_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    assert result.id == show.id
+
+    tmdb_show_details_service.get_details.assert_called_once()
+
+
+
+def test_successful_refresh_updates_metadata_updated_at(
+    db_session: Session,
+    show_import_service: ShowImportService,
+) -> None:
+    """Update the last metadata synchronization timestamp after success."""
+
+    before = datetime.now(timezone.utc)
+
+    show = show_import_service.import_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    assert show.metadata_updated_at is not None
+
+    updated_at = show.metadata_updated_at
+
+    if updated_at.tzinfo is None:
+        updated_at = updated_at.replace(
+            tzinfo=timezone.utc,
+        )
+
+    assert updated_at >= before
+
+
+def test_failed_refresh_does_not_persist_new_metadata_timestamp(
+    db_session: Session,
+    settings: Settings,
+    tmdb_show_details_service: Mock,
+    tmdb_season_details_service: Mock,
+) -> None:
+    """Do not persist a new sync timestamp when refresh fails."""
+
+    original_timestamp = (
+        datetime.now(timezone.utc)
+        - timedelta(days=30)
+    )
+
+    show = Show(
+        tmdb_id=TMDB_ID,
+        title="Existing Show",
+        original_title="Existing Show",
+        original_language="en",
+        metadata_language="en-US",
+        metadata_updated_at=original_timestamp,
+    )
+
+    db_session.add(show)
+    db_session.commit()
+
+    tmdb_show_details_service.get_details.side_effect = (
+        RuntimeError("Refresh failed.")
+    )
+
+    service = ShowImportService(
+        session=db_session,
+        settings=settings,
+        show_repository=ShowRepository(db_session),
+        genre_repository=GenreRepository(db_session),
+        network_repository=NetworkRepository(db_session),
+        season_repository=SeasonRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        tmdb_show_details_service=tmdb_show_details_service,
+        tmdb_season_details_service=tmdb_season_details_service,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="Refresh failed",
+    ):
+        service.refresh_show(
+            tmdb_id=TMDB_ID,
+        )
+
+    db_session.expire_all()
+
+    stored_show = db_session.get(
+        Show,
+        show.id,
+    )
+
+    assert stored_show is not None
+    assert stored_show.metadata_updated_at is not None
+
+    stored_timestamp = stored_show.metadata_updated_at
+
+    if stored_timestamp.tzinfo is None:
+        stored_timestamp = stored_timestamp.replace(
+            tzinfo=timezone.utc,
+        )
+
+    assert stored_timestamp == original_timestamp
+
 

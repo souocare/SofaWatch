@@ -38,6 +38,11 @@ from app.schemas.progress import (
     ShowProgressResponse,
 )
 
+from app.api.dependencies import (
+    ShowImportServiceDependency,
+    ShowRepositoryDependency,
+)
+
 
 
 router = APIRouter(
@@ -336,3 +341,73 @@ def get_next_episode(
         )
 
     return result
+
+@router.post(
+    "/{show_id}/refresh",
+    response_model=ShowResponse,
+    summary="Refresh TV series metadata",
+    description=(
+        "Force a metadata refresh for a locally stored TV series "
+        "using TMDB."
+    ),
+)
+def refresh_show(
+    show_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV series identifier.",
+        ),
+    ],
+    repository: ShowRepositoryDependency,
+    service: ShowImportServiceDependency,
+    language: Annotated[
+        str | None,
+        Query(
+            min_length=2,
+            max_length=10,
+            description="Language used when refreshing TMDB metadata.",
+            examples=["en-US", "pt-PT"],
+        ),
+    ] = None,
+) -> ShowResponse:
+    """Force a metadata refresh for a locally stored TV series."""
+
+    show = repository.get_by_id(
+        show_id,
+    )
+
+    if show is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="TV series not found.",
+        )
+
+    try:
+        return service.refresh_show(
+            tmdb_id=show.tmdb_id,
+            language=language,
+        )
+
+    except TMDBNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="The requested TV series was not found in TMDB.",
+        ) from error
+
+    except TMDBConfigurationError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="The TMDB provider is not configured.",
+        ) from error
+
+    except TMDBRequestError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The TMDB service is currently unavailable.",
+        ) from error
+
+    except TMDBResponseError as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="TMDB returned an invalid response.",
+        ) from error

@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from app.models.genre import Genre
     from app.models.season import Season
     from app.models.library import LibraryEntry
+    from app.models.network import Network
 
 
 class Show(TimestampMixin, Base):
@@ -197,6 +198,11 @@ class Show(TimestampMixin, Base):
     library_entries: Mapped[list["LibraryEntry"]] = relationship(
         back_populates="show",
         cascade="all, delete-orphan",
+    )
+
+    networks: Mapped[list["Network"]] = relationship(
+        secondary="show_networks",
+        back_populates="shows",
     )
 
     def __repr__(self) -> str:

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from uuid import UUID
 
 from app.api.params.show import ShowSortField, SortDirection
@@ -9,6 +10,7 @@ from app.models.show import Show
 from app.models.genre import Genre
 from app.api.params.show import ShowSortField, ShowStatus, SortDirection
 from sqlalchemy import asc, desc, distinct, func, or_, select
+
 
 class ShowRepository:
     """Data access operations for locally stored TV series."""
@@ -141,6 +143,19 @@ class ShowRepository:
             )
 
         return self._session.scalar(statement) or 0
+    
+    def list_all(
+        self,
+    ) -> list[Show]:
+        """Return all locally stored TV series."""
+
+        return list(
+            self._session.scalars(
+                select(Show).order_by(
+                    Show.id,
+                )
+            ).all()
+        )
     
 
     @staticmethod

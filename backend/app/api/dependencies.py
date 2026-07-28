@@ -3,6 +3,8 @@ from typing import Annotated
 
 from app.services.episode import EpisodeService
 from app.services.season import SeasonService
+from app.db import session
+from app.repositories.network import NetworkRepository
 from fastapi import Depends
 
 from app.core.config import Settings, get_settings
@@ -38,6 +40,8 @@ from app.services import (
 
 from app.repositories import EpisodeProgressRepository
 from app.services import EpisodeProgressService
+from app.repositories.background_job import BackgroundJobRepository
+from app.jobs.executor import BackgroundJobExecutor
 
 from fastapi import Depends, HTTPException, status
 from app.models.user import User
@@ -145,6 +149,7 @@ def get_show_import_service(
         TMDBSeasonDetailsService,
         Depends(get_tmdb_season_details_service),
     ],
+    network_repository=NetworkRepository(session),
 ) -> ShowImportService:
     """Provide the TV series import service."""
 
@@ -287,4 +292,33 @@ def get_episode_progress_service(
 EpisodeProgressServiceDependency = Annotated[
     EpisodeProgressService,
     Depends(get_episode_progress_service),
+]
+
+def get_background_job_repository(
+    session: DatabaseSession,
+) -> BackgroundJobRepository:
+    """Provide a background job repository for a single request."""
+
+    return BackgroundJobRepository(session)
+
+
+BackgroundJobRepositoryDependency = Annotated[
+    BackgroundJobRepository,
+    Depends(get_background_job_repository),
+]
+
+def get_background_job_executor(
+    session: DatabaseSession,
+) -> BackgroundJobExecutor:
+    """Provide a background job executor for a single request."""
+
+    return BackgroundJobExecutor(
+        session=session,
+        repository=BackgroundJobRepository(session),
+    )
+
+
+BackgroundJobExecutorDependency = Annotated[
+    BackgroundJobExecutor,
+    Depends(get_background_job_executor),
 ]

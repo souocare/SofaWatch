@@ -5,6 +5,8 @@ from app.repositories.episode import EpisodeRepository
 from app.repositories.user import UserRepository
 from app.repositories.library import LibraryRepository
 from app.repositories.episode_progress import EpisodeProgressRepository
+from app.repositories.network import NetworkRepository
+from app.repositories.background_job import BackgroundJobRepository
 
 __all__ = [
     "GenreRepository",
@@ -14,4 +16,6 @@ __all__ = [
     "UserRepository",
     "LibraryRepository",
     "EpisodeProgressRepository",
+    "NetworkRepository",
+    "BackgroundJobRepository",
 ]

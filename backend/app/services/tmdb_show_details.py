@@ -87,6 +87,7 @@ class TMDBShowDetailsService:
                 ShowNetwork(
                     tmdb_id=network.id,
                     name=network.name,
+                    logo_path=network.logo_path,
                     logo_url=self._build_image_url(
                         network.logo_path,
                         size="w500",

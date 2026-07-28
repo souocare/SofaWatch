@@ -64,7 +64,7 @@ class ShowNetwork(BaseModel):
 
     tmdb_id: int = Field(gt=0)
     name: str
-
+    logo_path: str | None = None
     logo_url: str | None = None
     origin_country: str = ""
 

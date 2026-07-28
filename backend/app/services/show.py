@@ -4,6 +4,7 @@ from app.models.show import Show
 from app.repositories.show import ShowRepository
 
 
+
 class ShowNotFoundError(Exception):
     """Raised when a locally stored TV series cannot be found."""
 
