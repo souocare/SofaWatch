@@ -36,6 +36,9 @@ from app.services import (
     LibraryService
 )
 
+from app.repositories import EpisodeProgressRepository
+from app.services import EpisodeProgressService
+
 from fastapi import Depends, HTTPException, status
 from app.models.user import User
 
@@ -265,4 +268,23 @@ def get_library_service(
 LibraryServiceDependency = Annotated[
     LibraryService,
     Depends(get_library_service),
+]
+
+def get_episode_progress_service(
+    session: DatabaseSession,
+) -> EpisodeProgressService:
+    """Provide an episode progress service for a single request."""
+
+    return EpisodeProgressService(
+        session=session,
+        progress_repository=EpisodeProgressRepository(session),
+        episode_repository=EpisodeRepository(session),
+        season_repository=SeasonRepository(session),
+        show_repository=ShowRepository(session),
+    )
+
+
+EpisodeProgressServiceDependency = Annotated[
+    EpisodeProgressService,
+    Depends(get_episode_progress_service),
 ]

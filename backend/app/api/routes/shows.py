@@ -29,6 +29,14 @@ from app.api.dependencies import ShowRepositoryDependency
 from app.schemas.show import ShowResponse
 from app.api.dependencies import SeasonServiceDependency
 from app.schemas.season import SeasonResponse
+from app.api.dependencies import (
+    CurrentUserDependency,
+    EpisodeProgressServiceDependency,
+)
+from app.schemas.progress import (
+    NextEpisodeResponse,
+    ShowProgressResponse,
+)
 
 
 
@@ -266,3 +274,65 @@ def list_show_seasons(
         )
 
     return seasons
+
+@router.get(
+    "/{show_id}/progress",
+    response_model=ShowProgressResponse,
+    summary="Get TV series viewing progress",
+    description="Return viewing progress for a TV series for the current user.",
+)
+def get_show_progress(
+    show_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV series identifier.",
+        ),
+    ],
+    service: EpisodeProgressServiceDependency,
+    current_user: CurrentUserDependency,
+) -> ShowProgressResponse:
+    """Return viewing progress for a TV series."""
+
+    progress = service.get_show_progress(
+        user_id=current_user.id,
+        show_id=show_id,
+    )
+
+    if progress is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="TV series not found.",
+        )
+
+    return progress
+
+@router.get(
+    "/{show_id}/next-episode",
+    response_model=NextEpisodeResponse,
+    summary="Get next episode",
+    description="Return the next unwatched episode for the current user.",
+)
+def get_next_episode(
+    show_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV series identifier.",
+        ),
+    ],
+    service: EpisodeProgressServiceDependency,
+    current_user: CurrentUserDependency,
+) -> NextEpisodeResponse:
+    """Return the next unwatched episode of a TV series."""
+
+    result = service.get_next_episode(
+        user_id=current_user.id,
+        show_id=show_id,
+    )
+
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="TV series not found.",
+        )
+
+    return result

@@ -20,6 +20,7 @@ from app.db.mixins import TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.season import Season
+    from app.models.episode_progress import EpisodeProgress
 
 
 class Episode(TimestampMixin, Base):
@@ -123,6 +124,11 @@ class Episode(TimestampMixin, Base):
 
     season: Mapped["Season"] = relationship(
         back_populates="episodes",
+    )
+
+    progress_entries: Mapped[list["EpisodeProgress"]] = relationship(
+        back_populates="episode",
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:

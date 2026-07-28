@@ -6,6 +6,7 @@ from app.services.season import SeasonService
 from app.services.episode import EpisodeService
 from app.services.user import UserService
 from app.services.library import LibraryService
+from app.services.episode_progress import EpisodeProgressService
 
 __all__ = [
     "GenreAlreadyExistsError",
@@ -17,4 +18,5 @@ __all__ = [
     "EpisodeService",
     "UserService",
     "LibraryService",
+    "EpisodeProgressService",
 ]

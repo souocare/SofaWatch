@@ -4,5 +4,6 @@ from app.models.season import Season
 from app.models.episode import Episode
 from app.models.user import User
 from app.models.library import LibraryEntry
+from app.models.episode_progress import EpisodeProgress
 
-__all__ = ["Genre", "Show", "Season", "Episode", "User", "LibraryEntry"]
+__all__ = ["Genre", "Show", "Season", "Episode", "User", "LibraryEntry", "EpisodeProgress"]
