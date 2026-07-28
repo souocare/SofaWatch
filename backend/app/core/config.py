@@ -21,19 +21,25 @@ class Settings(BaseSettings):
 
     secret_key: SecretStr = Field(min_length=32)
 
-    default_language: str = "en"
-    supported_languages: str = "en,pt-PT"
+    default_language: str = "en-US"
+    supported_languages: str = "en-US,pt-PT"
 
     tmdb_api_token: SecretStr | None = None
     tmdb_base_url: str = "https://api.themoviedb.org/3"
     tmdb_image_base_url: str = "https://image.tmdb.org/t/p"
-    tmdb_timeout_seconds: float = 20.0
+    tmdb_timeout_seconds: float = Field(
+        default=20.0,
+        gt=0,
+    )
 
     tvdb_api_key: SecretStr | None = None
     tvdb_pin: SecretStr | None = None
     tvdb_base_url: str = "https://api4.thetvdb.com/v4"
 
-    metadata_refresh_days: int = 7
+    metadata_refresh_days: int = Field(
+        default=7,
+        ge=1,
+    )
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,

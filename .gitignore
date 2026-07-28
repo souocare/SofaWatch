@@ -69,6 +69,19 @@ Thumbs.db
 *.tmp
 *.swp
 
+# Type checking / test artifacts
+.pytype/
+.hypothesis/
+coverage.xml
+
+# Node package manager caches
+.npm/
+.yarn/
+.pnpm-store/
+
+
+
 docs_internal.md
 AI_CONTEXT.md
 ROADMAP.md
+docs/decisions/
