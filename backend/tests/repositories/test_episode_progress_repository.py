@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -124,11 +124,7 @@ def create_progress(
         user_id=user.id,
         episode_id=episode.id,
         is_watched=is_watched,
-        watched_at=(
-            datetime.now(timezone.utc)
-            if is_watched
-            else None
-        ),
+        watched_at=(datetime.now(UTC) if is_watched else None),
     )
 
     db_session.add(progress)
@@ -173,7 +169,7 @@ def test_add_and_get_episode_progress(
         user_id=user.id,
         episode_id=episode.id,
         is_watched=True,
-        watched_at=datetime.now(timezone.utc),
+        watched_at=datetime.now(UTC),
     )
 
     repository.add(progress)

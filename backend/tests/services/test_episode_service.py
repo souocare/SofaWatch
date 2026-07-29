@@ -171,10 +171,7 @@ def test_list_for_season_returns_stored_episodes(
 
     assert result == episodes
     assert len(result) == 3
-    assert [
-        episode.episode_number
-        for episode in result
-    ] == [
+    assert [episode.episode_number for episode in result] == [
         1,
         2,
         3,
@@ -225,6 +222,7 @@ def test_list_for_season_returns_repository_result_without_modifying_it(
     assert result is episodes
     assert result[0].episode_number == 2
     assert result[1].episode_number == 1
+
 
 def test_get_by_id_returns_episode(
     episode_service: EpisodeService,

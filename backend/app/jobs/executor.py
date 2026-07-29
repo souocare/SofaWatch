@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from time import perf_counter
 
 from sqlalchemy.orm import Session
@@ -9,7 +9,6 @@ from app.models.background_job import BackgroundJob
 from app.models.background_job_run import BackgroundJobRun
 from app.models.enums import BackgroundJobStatus
 from app.repositories.background_job import BackgroundJobRepository
-
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,7 @@ class BackgroundJobExecutor:
             definition,
         )
 
-        started_at = datetime.now(timezone.utc)
+        started_at = datetime.now(UTC)
 
         run = BackgroundJobRun(
             job_id=job.id,
@@ -69,7 +68,7 @@ class BackgroundJobExecutor:
                 started_timer,
             )
 
-            finished_at = datetime.now(timezone.utc)
+            finished_at = datetime.now(UTC)
 
             run.status = BackgroundJobStatus.FAILED
             run.finished_at = finished_at
@@ -80,10 +79,7 @@ class BackgroundJobExecutor:
             job.last_finished_at = finished_at
             job.last_duration_ms = duration_ms
             job.last_error = str(error)
-            job.next_run_at = (
-                started_at
-                + definition.interval
-            )
+            job.next_run_at = started_at + definition.interval
 
             self._session.commit()
             self._session.refresh(run)
@@ -100,7 +96,7 @@ class BackgroundJobExecutor:
             started_timer,
         )
 
-        finished_at = datetime.now(timezone.utc)
+        finished_at = datetime.now(UTC)
 
         run.status = BackgroundJobStatus.SUCCESS
         run.finished_at = finished_at
@@ -111,10 +107,7 @@ class BackgroundJobExecutor:
         job.last_finished_at = finished_at
         job.last_duration_ms = duration_ms
         job.last_error = None
-        job.next_run_at = (
-            started_at
-            + definition.interval
-        )
+        job.next_run_at = started_at + definition.interval
 
         self._session.commit()
         self._session.refresh(run)
@@ -163,6 +156,4 @@ class BackgroundJobExecutor:
     ) -> int:
         """Return elapsed execution time in milliseconds."""
 
-        return round(
-            (perf_counter() - started_timer) * 1000
-        )
+        return round((perf_counter() - started_timer) * 1000)

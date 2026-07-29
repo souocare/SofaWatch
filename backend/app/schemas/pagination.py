@@ -3,12 +3,11 @@
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel, Field
-from pydantic.generics import GenericModel
 
 T = TypeVar("T")
 
 
-class PaginatedResponse(GenericModel, Generic[T]):
+class PaginatedResponse(BaseModel, Generic[T]):
     """Paginated API response."""
 
     items: list[T] = Field(default_factory=list)

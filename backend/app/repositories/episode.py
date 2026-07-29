@@ -1,11 +1,10 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.episode import Episode
 from app.models.season import Season
-from sqlalchemy import func, select
 
 
 class EpisodeRepository:
@@ -89,28 +88,34 @@ class EpisodeRepository:
     ) -> int:
         """Count locally stored episodes belonging to a season."""
 
-        return self._session.scalar(
-            select(func.count())
-            .select_from(Episode)
-            .where(
-                Episode.season_id == season_id,
+        return (
+            self._session.scalar(
+                select(func.count())
+                .select_from(Episode)
+                .where(
+                    Episode.season_id == season_id,
+                )
             )
-        ) or 0
-    
+            or 0
+        )
+
     def count_by_show_id(
         self,
         show_id: UUID,
     ) -> int:
         """Count locally stored episodes belonging to a TV series."""
 
-        return self._session.scalar(
-            select(func.count())
-            .select_from(Episode)
-            .join(
-                Season,
-                Season.id == Episode.season_id,
+        return (
+            self._session.scalar(
+                select(func.count())
+                .select_from(Episode)
+                .join(
+                    Season,
+                    Season.id == Episode.season_id,
+                )
+                .where(
+                    Season.show_id == show_id,
+                )
             )
-            .where(
-                Season.show_id == show_id,
-            )
-        ) or 0
+            or 0
+        )

@@ -1,49 +1,37 @@
 from typing import Annotated
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, status
 
-from app.schemas.tmdb_show import ShowDetailsResponse
-from app.services.tmdb_show_details import TMDBShowDetailsService
-from app.services.show_import import ShowImportService
-from app.schemas.show import ShowResponse
-from app.schemas.pagination import PaginatedResponse
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
-from app.api.dependencies import ShowRepositoryDependency, get_show_details_service, get_show_import_service
+from app.api.dependencies import (
+    CurrentUserDependency,
+    EpisodeProgressServiceDependency,
+    SeasonServiceDependency,
+    ShowImportServiceDependency,
+    ShowRepositoryDependency,
+    get_show_details_service,
+    get_show_import_service,
+)
+from app.api.params.show import (
+    ShowListParams,
+    get_show_list_params,
+)
 from app.providers.tmdb.exceptions import (
     TMDBConfigurationError,
     TMDBNotFoundError,
     TMDBRequestError,
     TMDBResponseError,
 )
-
-from app.api.dependencies import get_show_repository
-from app.repositories.show import ShowRepository
-from app.schemas.show import ShowSummaryResponse
-from app.api.params.show import (
-    ShowListParams,
-    get_show_list_params,
-)
-
-from app.api.dependencies import ShowRepositoryDependency
-from app.schemas.show import ShowResponse
-from app.api.dependencies import SeasonServiceDependency
-from app.schemas.season import SeasonResponse
-from app.api.dependencies import (
-    CurrentUserDependency,
-    EpisodeProgressServiceDependency,
-)
+from app.schemas.pagination import PaginatedResponse
 from app.schemas.progress import (
     NextEpisodeResponse,
     ShowProgressResponse,
 )
-
-from app.api.dependencies import (
-    ShowImportServiceDependency,
-    ShowRepositoryDependency,
-)
-
-
+from app.schemas.season import SeasonResponse
+from app.schemas.show import ShowResponse, ShowSummaryResponse
+from app.schemas.tmdb_show import ShowDetailsResponse
+from app.services.show_import import ShowImportService
+from app.services.tmdb_show_details import TMDBShowDetailsService
 
 router = APIRouter(
     prefix="/shows",
@@ -184,7 +172,7 @@ def import_show(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="TMDB returned an invalid response.",
         ) from error
-    
+
 
 @router.get(
     "",
@@ -228,6 +216,7 @@ def list_shows(
         has_next=params.offset + len(items) < total,
     )
 
+
 @router.get(
     "/{show_id}",
     response_model=ShowResponse,
@@ -253,6 +242,8 @@ def get_show(
         )
 
     return show
+
+
 @router.get(
     "/{show_id}/seasons",
     response_model=list[SeasonResponse],
@@ -279,6 +270,7 @@ def list_show_seasons(
         )
 
     return seasons
+
 
 @router.get(
     "/{show_id}/progress",
@@ -311,6 +303,7 @@ def get_show_progress(
 
     return progress
 
+
 @router.get(
     "/{show_id}/next-episode",
     response_model=NextEpisodeResponse,
@@ -342,14 +335,12 @@ def get_next_episode(
 
     return result
 
+
 @router.post(
     "/{show_id}/refresh",
     response_model=ShowResponse,
     summary="Refresh TV series metadata",
-    description=(
-        "Force a metadata refresh for a locally stored TV series "
-        "using TMDB."
-    ),
+    description=("Force a metadata refresh for a locally stored TV series using TMDB."),
 )
 def refresh_show(
     show_id: Annotated[

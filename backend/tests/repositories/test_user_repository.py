@@ -85,10 +85,12 @@ def test_get_local_returns_local_user(
         is_local=False,
     )
 
-    db_session.add_all([
-        local_user,
-        other_user,
-    ])
+    db_session.add_all(
+        [
+            local_user,
+            other_user,
+        ]
+    )
     db_session.commit()
 
     repository = UserRepository(db_session)

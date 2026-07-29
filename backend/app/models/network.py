@@ -49,10 +49,4 @@ class Network(TimestampMixin, Base):
     )
 
     def __repr__(self) -> str:
-        return (
-            "Network("
-            f"id={self.id!r}, "
-            f"tmdb_id={self.tmdb_id!r}, "
-            f"name={self.name!r}"
-            ")"
-        )
+        return f"Network(id={self.id!r}, tmdb_id={self.tmdb_id!r}, name={self.name!r})"

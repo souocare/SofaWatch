@@ -10,9 +10,7 @@ def main() -> None:
     """Run a registered background job manually."""
 
     if len(sys.argv) != 2:
-        raise SystemExit(
-            "Usage: python -m app.jobs.run <job_key>"
-        )
+        raise SystemExit("Usage: python -m app.jobs.run <job_key>")
 
     job_key = sys.argv[1]
 
@@ -21,9 +19,7 @@ def main() -> None:
     )
 
     if definition is None:
-        raise SystemExit(
-            f"Unknown background job: {job_key}"
-        )
+        raise SystemExit(f"Unknown background job: {job_key}")
 
     with SessionLocal() as session:
         executor = BackgroundJobExecutor(
@@ -35,9 +31,7 @@ def main() -> None:
             definition,
         )
 
-        print(
-            f"{definition.key}: {run.status.value}"
-        )
+        print(f"{definition.key}: {run.status.value}")
 
 
 if __name__ == "__main__":

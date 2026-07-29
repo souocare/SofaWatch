@@ -1,50 +1,37 @@
 from collections.abc import Generator
 from typing import Annotated
 
-from app.services.episode import EpisodeService
-from app.services.season import SeasonService
-from app.db import session
-from app.repositories.network import NetworkRepository
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 
 from app.core.config import Settings, get_settings
 from app.db.dependencies import DatabaseSession
+from app.jobs.executor import BackgroundJobExecutor
+from app.models.user import User
 from app.providers.tmdb import TMDBClient
-from app.repositories import GenreRepository
-from app.services import GenreService
-from app.services.tmdb_show_details import TMDBShowDetailsService
-from app.services.tmdb_show_search import ShowSearchService
 from app.repositories import (
+    EpisodeProgressRepository,
     EpisodeRepository,
     GenreRepository,
-    SeasonRepository,
-    ShowRepository,
-)
-from app.services.show_import import ShowImportService
-from app.repositories import (
-    EpisodeRepository,
-    GenreRepository,
+    LibraryRepository,
     SeasonRepository,
     ShowRepository,
     UserRepository,
-    LibraryRepository
 )
-from app.services.tmdb_season_details import TMDBSeasonDetailsService
+from app.repositories.background_job import BackgroundJobRepository
+from app.repositories.network import NetworkRepository
 from app.services import (
+    EpisodeProgressService,
     EpisodeService,
     GenreService,
+    LibraryService,
     SeasonService,
     UserService,
-    LibraryService
 )
+from app.services.show_import import ShowImportService
+from app.services.tmdb_season_details import TMDBSeasonDetailsService
+from app.services.tmdb_show_details import TMDBShowDetailsService
+from app.services.tmdb_show_search import ShowSearchService
 
-from app.repositories import EpisodeProgressRepository
-from app.services import EpisodeProgressService
-from app.repositories.background_job import BackgroundJobRepository
-from app.jobs.executor import BackgroundJobExecutor
-
-from fastapi import Depends, HTTPException, status
-from app.models.user import User
 
 def get_genre_service(
     session: DatabaseSession,
@@ -135,6 +122,7 @@ TMDBSeasonDetailsServiceDependency = Annotated[
     Depends(get_tmdb_season_details_service),
 ]
 
+
 def get_show_import_service(
     session: DatabaseSession,
     settings: Annotated[
@@ -149,7 +137,6 @@ def get_show_import_service(
         TMDBSeasonDetailsService,
         Depends(get_tmdb_season_details_service),
     ],
-    network_repository=NetworkRepository(session),
 ) -> ShowImportService:
     """Provide the TV series import service."""
 
@@ -158,6 +145,7 @@ def get_show_import_service(
         settings=settings,
         show_repository=ShowRepository(session),
         genre_repository=GenreRepository(session),
+        network_repository=NetworkRepository(session),
         season_repository=SeasonRepository(session),
         episode_repository=EpisodeRepository(session),
         tmdb_show_details_service=show_details_service,
@@ -183,6 +171,7 @@ ShowRepositoryDependency = Annotated[
     ShowRepository,
     Depends(get_show_repository),
 ]
+
 
 def get_season_service(
     session: DatabaseSession,
@@ -233,6 +222,7 @@ UserServiceDependency = Annotated[
     Depends(get_user_service),
 ]
 
+
 def get_current_user(
     user_service: UserServiceDependency,
 ) -> User:
@@ -258,6 +248,7 @@ CurrentUserDependency = Annotated[
     Depends(get_current_user),
 ]
 
+
 def get_library_service(
     session: DatabaseSession,
 ) -> LibraryService:
@@ -274,6 +265,7 @@ LibraryServiceDependency = Annotated[
     LibraryService,
     Depends(get_library_service),
 ]
+
 
 def get_episode_progress_service(
     session: DatabaseSession,
@@ -294,6 +286,7 @@ EpisodeProgressServiceDependency = Annotated[
     Depends(get_episode_progress_service),
 ]
 
+
 def get_background_job_repository(
     session: DatabaseSession,
 ) -> BackgroundJobRepository:
@@ -306,6 +299,7 @@ BackgroundJobRepositoryDependency = Annotated[
     BackgroundJobRepository,
     Depends(get_background_job_repository),
 ]
+
 
 def get_background_job_executor(
     session: DatabaseSession,

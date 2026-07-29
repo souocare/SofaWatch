@@ -19,8 +19,8 @@ from app.db.base import Base
 from app.db.mixins import TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.season import Season
     from app.models.episode_progress import EpisodeProgress
+    from app.models.season import Season
 
 
 class Episode(TimestampMixin, Base):

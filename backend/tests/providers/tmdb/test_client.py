@@ -656,6 +656,7 @@ def test_get_tv_show_details_rejects_invalid_schema(
     finally:
         http_client.close()
 
+
 def test_get_tv_season_details_returns_validated_response(
     settings: Settings,
 ) -> None:
@@ -967,9 +968,7 @@ def test_get_tv_season_details_converts_not_found_response(
             request=request,
             json={
                 "status_code": 34,
-                "status_message": (
-                    "The resource you requested could not be found."
-                ),
+                "status_message": ("The resource you requested could not be found."),
             },
         )
 

@@ -1,9 +1,9 @@
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 from types import MappingProxyType
-from typing import Callable, Mapping
-from app.jobs.metadata_sync import run_metadata_sync
 
+from app.jobs.metadata_sync import run_metadata_sync
 
 JobCallable = Callable[[], None]
 
@@ -17,8 +17,6 @@ class BackgroundJobDefinition:
     schedule_label: str
     interval: timedelta
     handler: JobCallable
-
-
 
 
 _JOB_DEFINITIONS = {

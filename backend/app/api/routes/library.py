@@ -14,13 +14,11 @@ from app.api.dependencies import (
     LibraryServiceDependency,
 )
 from app.models.enums import LibraryStatus
-from app.schemas.library import LibraryEntryResponse
-from app.services.exceptions import LibraryEntryAlreadyExistsError
 from app.schemas.library import (
     LibraryEntryResponse,
     LibraryStatusUpdate,
 )
-
+from app.services.exceptions import LibraryEntryAlreadyExistsError
 
 router = APIRouter(
     prefix="/library",
@@ -96,7 +94,7 @@ def remove_show_from_library(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="TV series is not in the library.",
         )
-    
+
 
 @router.patch(
     "/shows/{show_id}/status",
@@ -137,8 +135,7 @@ def update_library_status(
     response_model=list[LibraryEntryResponse],
     summary="List library",
     description=(
-        "Return the current user's personal TV library, "
-        "optionally filtered by tracking status."
+        "Return the current user's personal TV library, optionally filtered by tracking status."
     ),
 )
 def list_library(

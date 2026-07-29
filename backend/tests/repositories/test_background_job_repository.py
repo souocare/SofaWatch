@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -6,6 +6,7 @@ from app.models.background_job import BackgroundJob
 from app.models.background_job_run import BackgroundJobRun
 from app.models.enums import BackgroundJobStatus
 from app.repositories.background_job import BackgroundJobRepository
+
 
 def test_add_and_get_background_job(
     db_session: Session,
@@ -37,6 +38,7 @@ def test_add_and_get_background_job(
     assert result.schedule == "Every 8h"
     assert result.status == BackgroundJobStatus.IDLE
 
+
 def test_get_by_key_returns_none_when_job_does_not_exist(
     db_session: Session,
 ) -> None:
@@ -51,6 +53,7 @@ def test_get_by_key_returns_none_when_job_does_not_exist(
     )
 
     assert result is None
+
 
 def test_list_all_returns_jobs_ordered_by_name(
     db_session: Session,
@@ -83,59 +86,11 @@ def test_list_all_returns_jobs_ordered_by_name(
 
     result = repository.list_all()
 
-    assert [
-        job.key
-        for job in result
-    ] == [
+    assert [job.key for job in result] == [
         "backup",
         "metadata_sync",
     ]
 
-def test_add_run_persists_background_job_run(
-    db_session: Session,
-) -> None:
-    """Persist an execution for a background job."""
-
-    repository = BackgroundJobRepository(
-        db_session,
-    )
-
-    job = BackgroundJob(
-        key="metadata_sync",
-        name="Metadata sync",
-        schedule="Every 8h",
-        status=BackgroundJobStatus.IDLE,
-    )
-
-    repository.add(job)
-    repository.commit()
-
-    started_at = datetime.now(timezone.utc)
-
-    run = BackgroundJobRun(
-        job_id=job.id,
-        status=BackgroundJobStatus.SUCCESS,
-        started_at=started_at,
-        finished_at=started_at,
-        duration_ms=125,
-    )
-
-    repository.add_run(run)
-    repository.commit()
-
-    result = repository.list_runs(
-        job_id=job.id,
-    )
-
-    assert len(result) == 1
-
-    stored_run = result[0]
-
-    assert stored_run.id == run.id
-    assert stored_run.job_id == job.id
-    assert stored_run.status == BackgroundJobStatus.SUCCESS
-    assert stored_run.duration_ms == 125
-    assert stored_run.error is None
 
 def test_add_run_persists_background_job_run(
     db_session: Session,
@@ -156,7 +111,7 @@ def test_add_run_persists_background_job_run(
     repository.add(job)
     repository.commit()
 
-    started_at = datetime.now(timezone.utc)
+    started_at = datetime.now(UTC)
 
     run = BackgroundJobRun(
         job_id=job.id,
@@ -203,7 +158,7 @@ def test_list_runs_returns_most_recent_first(
     repository.add(job)
     repository.commit()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     old_run = BackgroundJobRun(
         job_id=job.id,
@@ -257,7 +212,7 @@ def test_list_runs_only_returns_runs_for_requested_job(
     repository.add(backup_job)
     repository.commit()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     repository.add_run(
         BackgroundJobRun(
@@ -304,7 +259,7 @@ def test_list_runs_respects_limit(
     repository.add(job)
     repository.commit()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     for index in range(5):
         repository.add_run(
@@ -323,5 +278,3 @@ def test_list_runs_respects_limit(
     )
 
     assert len(result) == 2
-
-

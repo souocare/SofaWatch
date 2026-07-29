@@ -1,5 +1,3 @@
-from unittest.mock import Mock
-
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -79,4 +77,3 @@ def test_get_or_create_is_idempotent(
     users = db_session.query(User).all()
 
     assert len(users) == 1
-

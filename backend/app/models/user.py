@@ -8,8 +8,8 @@ from app.db.base import Base
 from app.db.mixins import TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.library import LibraryEntry
     from app.models.episode_progress import EpisodeProgress
+    from app.models.library import LibraryEntry
 
 
 class User(TimestampMixin, Base):
@@ -46,9 +46,5 @@ class User(TimestampMixin, Base):
 
     def __repr__(self) -> str:
         return (
-            "User("
-            f"id={self.id!r}, "
-            f"display_name={self.display_name!r}, "
-            f"is_local={self.is_local!r}"
-            ")"
+            f"User(id={self.id!r}, display_name={self.display_name!r}, is_local={self.is_local!r})"
         )

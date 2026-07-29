@@ -1,23 +1,25 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from app.repositories.episode import EpisodeRepository
-from app.services.tmdb_season_details import TMDBSeasonDetailsService
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.models.genre import Genre
-from app.models.show import Show
-from app.repositories.genre import GenreRepository
-from app.repositories.show import ShowRepository
-from app.schemas.tmdb_show import ShowDetailsResponse
-from app.services.tmdb_show_details import TMDBShowDetailsService
-from app.models.season import Season
-from app.repositories.season import SeasonRepository
-from app.schemas.tmdb_show import ShowDetailsResponse, ShowSeasonSummary
 from app.models.episode import Episode
-from app.schemas.tmdb_episode import EpisodeSummary
+from app.models.genre import Genre
 from app.models.network import Network
+from app.models.season import Season
+from app.models.show import Show
+from app.repositories.episode import EpisodeRepository
+from app.repositories.genre import GenreRepository
 from app.repositories.network import NetworkRepository
+from app.repositories.season import SeasonRepository
+from app.repositories.show import ShowRepository
+from app.schemas.tmdb_episode import EpisodeSummary
+from app.schemas.tmdb_show import (
+    ShowDetailsResponse,
+    ShowSeasonSummary,
+)
+from app.services.tmdb_season_details import TMDBSeasonDetailsService
+from app.services.tmdb_show_details import TMDBShowDetailsService
 
 
 class ShowImportService:
@@ -59,11 +61,7 @@ class ShowImportService:
 
         show = self._show_repository.get_by_tmdb_id(tmdb_id)
 
-        if (
-            show is not None
-            and not force_refresh
-            and not self._should_refresh(show)
-        ):
+        if show is not None and not force_refresh and not self._should_refresh(show):
             return show
 
         details = self._tmdb_show_details_service.get_details(
@@ -107,7 +105,7 @@ class ShowImportService:
                 seasons=seasons,
                 language=metadata_language,
             )
-            show.metadata_updated_at = datetime.now(timezone.utc)
+            show.metadata_updated_at = datetime.now(UTC)
 
             self._session.commit()
             self._session.refresh(show)
@@ -124,11 +122,7 @@ class ShowImportService:
     ) -> bool:
         """Return whether the show's metadata should be refreshed automatically."""
 
-        normalized_status = (
-            show.status.strip().lower()
-            if show.status
-            else ""
-        )
+        normalized_status = show.status.strip().lower() if show.status else ""
 
         if normalized_status in {
             "ended",
@@ -144,12 +138,10 @@ class ShowImportService:
 
         if metadata_updated_at.tzinfo is None:
             metadata_updated_at = metadata_updated_at.replace(
-                tzinfo=timezone.utc,
+                tzinfo=UTC,
             )
 
-        return (
-            datetime.now(timezone.utc) - metadata_updated_at
-        ) >= timedelta(
+        return (datetime.now(UTC) - metadata_updated_at) >= timedelta(
             days=self._settings.metadata_refresh_days,
         )
 
@@ -232,11 +224,7 @@ class ShowImportService:
         show.number_of_seasons = details.number_of_seasons
         show.number_of_episodes = details.number_of_episodes
 
-        show.episode_run_time = (
-            details.episode_run_times[0]
-            if details.episode_run_times
-            else None
-        )
+        show.episode_run_time = details.episode_run_times[0] if details.episode_run_times else None
 
         show.popularity = details.popularity
         show.vote_average = details.vote_average
@@ -365,21 +353,6 @@ class ShowImportService:
             language=language,
             force_refresh=True,
         )
-    
-    def _resolve_networks(
-        self,
-        details: ShowDetailsResponse,
-    ) -> list[Network]:
-        """Resolve TMDB networks into local Network entities."""
-        return [
-            self._network_repository.get_or_create(
-                tmdb_id=network.tmdb_id,
-                name=network.name,
-                tmdb_logo_path=network.logo_path,
-                origin_country=network.origin_country,
-            )
-            for network in details.networks
-        ]
 
     @staticmethod
     def _apply_season_metadata(

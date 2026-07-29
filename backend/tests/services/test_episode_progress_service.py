@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import uuid4
@@ -13,6 +13,7 @@ from app.repositories.season import SeasonRepository
 from app.repositories.show import ShowRepository
 from app.services.episode_progress import EpisodeProgressService
 
+
 def as_utc(
     value: datetime,
 ) -> datetime:
@@ -20,11 +21,11 @@ def as_utc(
 
     if value.tzinfo is None:
         return value.replace(
-            tzinfo=timezone.utc,
+            tzinfo=UTC,
         )
 
     return value.astimezone(
-        timezone.utc,
+        UTC,
     )
 
 
@@ -168,7 +169,7 @@ def test_mark_watched_uses_explicit_watched_at(
         20,
         21,
         30,
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
 
     result = progress_service.mark_watched(
@@ -227,7 +228,7 @@ def test_mark_watched_normalizes_naive_watched_at_to_utc(
         20,
         21,
         30,
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
 
 
@@ -291,7 +292,7 @@ def test_mark_watched_preserves_existing_watched_at(
         10,
         20,
         0,
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
 
     progress = EpisodeProgress(
@@ -396,7 +397,7 @@ def test_mark_unwatched_clears_existing_progress(
         user_id=user_id,
         episode_id=episode_id,
         is_watched=True,
-        watched_at=datetime.now(timezone.utc),
+        watched_at=datetime.now(UTC),
     )
 
     db_session.add(progress)
@@ -631,9 +632,7 @@ def test_get_next_episode_returns_next_unwatched_episode(
         local_still_path=None,
     )
 
-    progress_repository.get_next_unwatched_for_show.return_value = (
-        episode
-    )
+    progress_repository.get_next_unwatched_for_show.return_value = episode
 
     result = progress_service.get_next_episode(
         user_id=user_id,

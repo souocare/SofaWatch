@@ -74,6 +74,7 @@ def test_metadata_sync_refreshes_all_shows() -> None:
         force_refresh=False,
     )
 
+
 def test_metadata_sync_continues_when_one_show_fails() -> None:
     """Continue synchronizing remaining shows after an individual failure."""
 
@@ -117,13 +118,9 @@ def test_metadata_sync_continues_when_one_show_fails() -> None:
         force_refresh: bool = False,
     ) -> None:
         if tmdb_id == 1002:
-            raise RuntimeError(
-                "TMDB failed for this show."
-            )
+            raise RuntimeError("TMDB failed for this show.")
 
-    show_import_service.import_show.side_effect = (
-        import_show
-    )
+    show_import_service.import_show.side_effect = import_show
 
     with (
         patch(
@@ -142,12 +139,12 @@ def test_metadata_sync_continues_when_one_show_fails() -> None:
             "app.jobs.metadata_sync.ShowImportService",
             return_value=show_import_service,
         ),
-    ):
-        with pytest.raises(
+        pytest.raises(
             RuntimeError,
             match="1 failed TV series out of 3",
-        ):
-            run_metadata_sync()
+        ),
+    ):
+        run_metadata_sync()
 
     assert show_import_service.import_show.call_count == 3
 
@@ -156,6 +153,7 @@ def test_metadata_sync_continues_when_one_show_fails() -> None:
         language="pt-PT",
         force_refresh=False,
     )
+
 
 def test_metadata_sync_reports_all_failed_shows() -> None:
     """Report the total number of failed show refreshes."""
@@ -201,13 +199,9 @@ def test_metadata_sync_reports_all_failed_shows() -> None:
             1001,
             1003,
         }:
-            raise RuntimeError(
-                "Expected failure."
-            )
+            raise RuntimeError("Expected failure.")
 
-    show_import_service.import_show.side_effect = (
-        import_show
-    )
+    show_import_service.import_show.side_effect = import_show
 
     with (
         patch(
@@ -226,12 +220,12 @@ def test_metadata_sync_reports_all_failed_shows() -> None:
             "app.jobs.metadata_sync.ShowImportService",
             return_value=show_import_service,
         ),
-    ):
-        with pytest.raises(
+        pytest.raises(
             RuntimeError,
             match="2 failed TV series out of 3",
-        ):
-            run_metadata_sync()
+        ),
+    ):
+        run_metadata_sync()
 
     assert show_import_service.import_show.call_count == 3
 
@@ -273,6 +267,7 @@ def test_metadata_sync_succeeds_when_database_has_no_shows() -> None:
         run_metadata_sync()
 
     show_import_service.import_show.assert_not_called()
+
 
 def test_metadata_sync_preserves_each_show_metadata_language() -> None:
     """Refresh each show using its stored metadata language."""

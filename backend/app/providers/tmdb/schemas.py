@@ -2,9 +2,6 @@ from datetime import date
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from datetime import date
-
-from pydantic import BaseModel, Field
 
 
 class TMDBTVSearchResult(BaseModel):
@@ -205,7 +202,7 @@ class TMDBTVDetails(BaseModel):
         """Convert TMDB empty date strings into null values."""
 
         return None if value == "" else value
-    
+
 
 class TMDBSeasonDetails(BaseModel):
     """Detailed TV season information returned by TMDB."""

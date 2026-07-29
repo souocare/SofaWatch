@@ -26,7 +26,7 @@ class SeasonRepository:
         )
 
         return self._session.scalar(statement)
-    
+
     def get_by_id(
         self,
         season_id: UUID,
@@ -60,7 +60,6 @@ class SeasonRepository:
         self._session.flush()
 
         return season
-    
 
     def list_by_show_id(
         self,
@@ -69,9 +68,7 @@ class SeasonRepository:
         """Return all seasons belonging to a TV series."""
 
         statement = (
-            select(Season)
-            .where(Season.show_id == show_id)
-            .order_by(Season.season_number.asc())
+            select(Season).where(Season.show_id == show_id).order_by(Season.season_number.asc())
         )
 
         return list(self._session.scalars(statement).all())

@@ -1,12 +1,12 @@
 from fastapi import APIRouter
 
-from app.api.routes.genres import router as genres_router
-from app.api.routes.search import router as search_router
-from app.api.routes.shows import router as shows_router
-from app.api.routes.seasons import router as seasons_router
-from app.api.routes.episodes import router as episodes_router
-from app.api.routes.library import router as library_router
 from app.api.routes.background_jobs import router as background_jobs_router
+from app.api.routes.episodes import router as episodes_router
+from app.api.routes.genres import router as genres_router
+from app.api.routes.library import router as library_router
+from app.api.routes.search import router as search_router
+from app.api.routes.seasons import router as seasons_router
+from app.api.routes.shows import router as shows_router
 
 api_router = APIRouter()
 

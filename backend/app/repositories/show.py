@@ -1,15 +1,13 @@
 from __future__ import annotations
+
 from uuid import UUID
 
-from app.api.params.show import ShowSortField, SortDirection
-from sqlalchemy import select
+from sqlalchemy import asc, desc, distinct, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.show import Show
-
-from app.models.genre import Genre
 from app.api.params.show import ShowSortField, ShowStatus, SortDirection
-from sqlalchemy import asc, desc, distinct, func, or_, select
+from app.models.genre import Genre
+from app.models.show import Show
 
 
 class ShowRepository:
@@ -61,10 +59,7 @@ class ShowRepository:
     ) -> list[Show]:
         """Return locally stored TV series matching the supplied filters."""
 
-        statement = (
-            select(Show)
-            .options(selectinload(Show.genres))
-        )
+        statement = select(Show).options(selectinload(Show.genres))
 
         if query:
             statement = statement.where(
@@ -75,16 +70,10 @@ class ShowRepository:
             )
 
         if genre:
-            statement = (
-                statement
-                .join(Show.genres)
-                .where(Genre.slug == genre)
-            )
+            statement = statement.join(Show.genres).where(Genre.slug == genre)
 
         if status is not None:
-            statement = statement.where(
-                Show.status == status.value
-            )
+            statement = statement.where(Show.status == status.value)
 
         statement = statement.order_by(
             self._build_order_by(
@@ -93,11 +82,7 @@ class ShowRepository:
             )
         )
 
-        statement = (
-            statement
-            .offset(offset)
-            .limit(limit)
-        )
+        statement = statement.offset(offset).limit(limit)
 
         return list(self._session.scalars(statement).all())
 
@@ -108,7 +93,7 @@ class ShowRepository:
         self._session.flush()
 
         return show
-    
+
     def count(
         self,
         *,
@@ -118,9 +103,7 @@ class ShowRepository:
     ) -> int:
         """Count locally stored TV series matching the supplied filters."""
 
-        statement = select(
-            func.count(distinct(Show.id))
-        )
+        statement = select(func.count(distinct(Show.id)))
 
         if query:
             statement = statement.where(
@@ -131,19 +114,13 @@ class ShowRepository:
             )
 
         if genre:
-            statement = (
-                statement
-                .join(Show.genres)
-                .where(Genre.slug == genre)
-            )
+            statement = statement.join(Show.genres).where(Genre.slug == genre)
 
         if status is not None:
-            statement = statement.where(
-                Show.status == status.value
-            )
+            statement = statement.where(Show.status == status.value)
 
         return self._session.scalar(statement) or 0
-    
+
     def list_all(
         self,
     ) -> list[Show]:
@@ -156,7 +133,6 @@ class ShowRepository:
                 )
             ).all()
         )
-    
 
     @staticmethod
     def _build_order_by(

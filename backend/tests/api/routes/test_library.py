@@ -405,10 +405,7 @@ def test_list_library_returns_current_user_entries(
 
     assert len(body) == 2
 
-    assert {
-        item["show_id"]
-        for item in body
-    } == {
+    assert {item["show_id"] for item in body} == {
         str(first_show.id),
         str(second_show.id),
     }

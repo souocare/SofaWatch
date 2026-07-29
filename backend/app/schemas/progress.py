@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
 from app.schemas.episode import EpisodeResponse
 
 
@@ -30,7 +31,6 @@ class ShowProgressResponse(BaseModel):
         ge=0,
         le=100,
     )
-
 
 
 class NextEpisodeResponse(BaseModel):

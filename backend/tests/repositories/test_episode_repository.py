@@ -323,10 +323,12 @@ def test_get_by_number_isolated_between_seasons(
         title="Season 2 Episode 1",
     )
 
-    db_session.add_all([
-        first_episode,
-        second_episode,
-    ])
+    db_session.add_all(
+        [
+            first_episode,
+            second_episode,
+        ]
+    )
     db_session.commit()
 
     repository = EpisodeRepository(db_session)
@@ -398,10 +400,7 @@ def test_list_by_season_id_returns_episodes(
     )
 
     assert len(result) == 2
-    assert [
-        episode.title
-        for episode in result
-    ] == [
+    assert [episode.title for episode in result] == [
         "Episode 1",
         "Episode 2",
     ]
@@ -418,26 +417,28 @@ def test_list_by_season_id_orders_by_episode_number(
         show=show,
     )
 
-    db_session.add_all([
-        make_episode(
-            season_id=season.id,
-            tmdb_id=2003,
-            episode_number=3,
-            title="Episode 3",
-        ),
-        make_episode(
-            season_id=season.id,
-            tmdb_id=2001,
-            episode_number=1,
-            title="Episode 1",
-        ),
-        make_episode(
-            season_id=season.id,
-            tmdb_id=2002,
-            episode_number=2,
-            title="Episode 2",
-        ),
-    ])
+    db_session.add_all(
+        [
+            make_episode(
+                season_id=season.id,
+                tmdb_id=2003,
+                episode_number=3,
+                title="Episode 3",
+            ),
+            make_episode(
+                season_id=season.id,
+                tmdb_id=2001,
+                episode_number=1,
+                title="Episode 1",
+            ),
+            make_episode(
+                season_id=season.id,
+                tmdb_id=2002,
+                episode_number=2,
+                title="Episode 2",
+            ),
+        ]
+    )
     db_session.commit()
 
     repository = EpisodeRepository(db_session)
@@ -446,10 +447,7 @@ def test_list_by_season_id_orders_by_episode_number(
         season.id,
     )
 
-    assert [
-        episode.episode_number
-        for episode in result
-    ] == [
+    assert [episode.episode_number for episode in result] == [
         1,
         2,
         3,
@@ -476,20 +474,22 @@ def test_list_by_season_id_only_returns_requested_season(
         season_number=2,
     )
 
-    db_session.add_all([
-        make_episode(
-            season_id=first_season.id,
-            tmdb_id=2001,
-            episode_number=1,
-            title="First season episode",
-        ),
-        make_episode(
-            season_id=second_season.id,
-            tmdb_id=3001,
-            episode_number=1,
-            title="Second season episode",
-        ),
-    ])
+    db_session.add_all(
+        [
+            make_episode(
+                season_id=first_season.id,
+                tmdb_id=2001,
+                episode_number=1,
+                title="First season episode",
+            ),
+            make_episode(
+                season_id=second_season.id,
+                tmdb_id=3001,
+                episode_number=1,
+                title="Second season episode",
+            ),
+        ]
+    )
     db_session.commit()
 
     repository = EpisodeRepository(db_session)
@@ -501,6 +501,7 @@ def test_list_by_season_id_only_returns_requested_season(
     assert len(result) == 1
     assert result[0].title == "First season episode"
     assert result[0].season_id == first_season.id
+
 
 def test_tmdb_id_must_be_unique(
     db_session: Session,
@@ -544,6 +545,7 @@ def test_tmdb_id_must_be_unique(
 
     db_session.rollback()
 
+
 def test_episode_number_must_be_unique_within_season(
     db_session: Session,
 ) -> None:
@@ -577,6 +579,7 @@ def test_episode_number_must_be_unique_within_season(
 
     db_session.rollback()
 
+
 def test_episode_number_can_repeat_across_seasons(
     db_session: Session,
 ) -> None:
@@ -597,20 +600,23 @@ def test_episode_number_can_repeat_across_seasons(
         season_number=2,
     )
 
-    db_session.add_all([
-        make_episode(
-            season_id=first_season.id,
-            tmdb_id=2001,
-            episode_number=1,
-        ),
-        make_episode(
-            season_id=second_season.id,
-            tmdb_id=2002,
-            episode_number=1,
-        ),
-    ])
+    db_session.add_all(
+        [
+            make_episode(
+                season_id=first_season.id,
+                tmdb_id=2001,
+                episode_number=1,
+            ),
+            make_episode(
+                season_id=second_season.id,
+                tmdb_id=2002,
+                episode_number=1,
+            ),
+        ]
+    )
 
     db_session.commit()
+
 
 @pytest.mark.parametrize(
     ("field", "value"),
@@ -652,6 +658,7 @@ def test_episode_rejects_invalid_numeric_values(
 
     db_session.rollback()
 
+
 def test_episode_allows_missing_runtime(
     db_session: Session,
 ) -> None:
@@ -673,4 +680,3 @@ def test_episode_allows_missing_runtime(
     db_session.refresh(episode)
 
     assert episode.runtime is None
-

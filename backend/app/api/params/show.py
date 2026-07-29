@@ -1,11 +1,8 @@
 from enum import StrEnum
-
-from fastapi import Query
-from pydantic import BaseModel, Field
-
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Query
+from pydantic import BaseModel
 
 
 class ShowSortField(StrEnum):
@@ -33,6 +30,7 @@ class ShowStatus(StrEnum):
     IN_PRODUCTION = "In Production"
     PLANNED = "Planned"
     PILOT = "Pilot"
+
 
 class ShowListParams(BaseModel):
     """Query parameters for listing TV series."""
@@ -69,7 +67,6 @@ def get_show_list_params(
             description="Field used to sort the results.",
         ),
     ] = ShowSortField.TITLE,
-
     sort_direction: Annotated[
         SortDirection,
         Query(

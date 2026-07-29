@@ -1,13 +1,20 @@
 from collections.abc import Generator
 from datetime import date
-from uuid import uuid4
-
-from sqlalchemy.orm import Session
-
-from app.models.genre import Genre
-from app.models.show import Show
 
 import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from app.api.dependencies import get_show_details_service
+from app.main import app as application
+from app.models.genre import Genre
+from app.models.show import Show
+from app.providers.tmdb.exceptions import (
+    TMDBConfigurationError,
+    TMDBNotFoundError,
+    TMDBRequestError,
+    TMDBResponseError,
+)
 from app.schemas.tmdb_show import (
     ShowCountry,
     ShowDetailsResponse,
@@ -16,17 +23,6 @@ from app.schemas.tmdb_show import (
     ShowNetwork,
     ShowSeasonSummary,
 )
-from fastapi.testclient import TestClient
-
-from app.api.dependencies import get_show_details_service
-from app.main import app as application
-from app.providers.tmdb.exceptions import (
-    TMDBConfigurationError,
-    TMDBNotFoundError,
-    TMDBRequestError,
-    TMDBResponseError,
-)
-
 
 
 class SuccessfulShowDetailsService:
@@ -218,6 +214,7 @@ def create_local_show(
     db_session.refresh(show)
 
     return show
+
 
 def create_genre(
     db_session: Session,
@@ -484,22 +481,6 @@ def test_get_show_details_rejects_invalid_language(
     assert response.status_code == 422
 
 
-def test_list_shows_returns_empty_paginated_response(
-    client: TestClient,
-) -> None:
-    """Return an empty paginated response when no local shows exist."""
-
-    response = client.get("/shows")
-
-    assert response.status_code == 200
-    assert response.json() == {
-        "items": [],
-        "total": 0,
-        "offset": 0,
-        "limit": 50,
-        "has_next": False,
-    }
-
 def test_list_shows_returns_locally_stored_shows(
     client: TestClient,
     db_session: Session,
@@ -555,42 +536,6 @@ def test_list_shows_returns_empty_paginated_response(
     }
 
 
-def test_list_shows_returns_locally_stored_shows(
-    client: TestClient,
-    db_session: Session,
-) -> None:
-    """Return locally stored TV series."""
-
-    create_local_show(
-        db_session,
-        tmdb_id=1396,
-        title="Breaking Bad",
-        first_air_date=date(2008, 1, 20),
-        vote_average=8.9,
-    )
-    create_local_show(
-        db_session,
-        tmdb_id=95396,
-        title="Severance",
-        first_air_date=date(2022, 2, 17),
-        vote_average=8.4,
-    )
-
-    response = client.get("/shows")
-
-    assert response.status_code == 200
-
-    body = response.json()
-
-    assert body["total"] == 2
-    assert body["offset"] == 0
-    assert body["limit"] == 50
-    assert body["has_next"] is False
-
-    assert [item["title"] for item in body["items"]] == [
-        "Breaking Bad",
-        "Severance",
-    ]
 
 def test_list_shows_applies_pagination(
     client: TestClient,

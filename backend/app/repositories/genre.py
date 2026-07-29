@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.models.genre import Genre
 from app.utils.slug import slugify
 
+
 class GenreRepository:
     """Database operations for genres."""
 
@@ -48,7 +49,7 @@ class GenreRepository:
         self._session.flush()
 
         return genre
-    
+
     def get_or_create(
         self,
         *,

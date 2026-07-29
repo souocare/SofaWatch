@@ -3,14 +3,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Path, status
 
-from app.schemas.episode import EpisodeResponse
 from app.api.dependencies import (
     CurrentUserDependency,
     EpisodeProgressServiceDependency,
-    EpisodeServiceDependency
+    EpisodeServiceDependency,
 )
+from app.schemas.episode import EpisodeResponse
 from app.schemas.progress import SeasonProgressResponse
-
 
 router = APIRouter(
     prefix="/seasons",

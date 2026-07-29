@@ -170,6 +170,7 @@ def test_execute_records_successful_run(
     assert job.last_error is None
     assert job.next_run_at is not None
 
+
 def test_execute_schedules_next_run_from_start_time(
     executor: BackgroundJobExecutor,
     repository: BackgroundJobRepository,
@@ -192,14 +193,14 @@ def test_execute_schedules_next_run_from_start_time(
     assert job is not None
     assert job.next_run_at is not None
 
-    expected_next_run = (
-        run.started_at.replace(tzinfo=None)
-        + timedelta(hours=8)
-    )
+    expected_next_run = run.started_at.replace(tzinfo=None) + timedelta(hours=8)
 
-    assert job.next_run_at.replace(
-        tzinfo=None,
-    ) == expected_next_run
+    assert (
+        job.next_run_at.replace(
+            tzinfo=None,
+        )
+        == expected_next_run
+    )
 
 
 def test_execute_records_failed_run(
@@ -208,11 +209,7 @@ def test_execute_records_failed_run(
 ) -> None:
     """Persist failure state when the job handler raises an exception."""
 
-    handler = Mock(
-        side_effect=RuntimeError(
-            "Something went wrong."
-        )
-    )
+    handler = Mock(side_effect=RuntimeError("Something went wrong."))
 
     definition = create_definition(
         handler=handler,
@@ -244,16 +241,13 @@ def test_execute_records_failed_run(
 
     handler.assert_called_once_with()
 
+
 def test_execute_does_not_raise_handler_exception(
     executor: BackgroundJobExecutor,
 ) -> None:
     """Convert handler failures into failed job runs."""
 
-    handler = Mock(
-        side_effect=ValueError(
-            "Expected test failure."
-        )
-    )
+    handler = Mock(side_effect=ValueError("Expected test failure."))
 
     definition = create_definition(
         handler=handler,
@@ -265,6 +259,7 @@ def test_execute_does_not_raise_handler_exception(
 
     assert run.status == BackgroundJobStatus.FAILED
     assert run.error == "Expected test failure."
+
 
 def test_execute_creates_run_for_each_execution(
     executor: BackgroundJobExecutor,
@@ -296,13 +291,11 @@ def test_execute_creates_run_for_each_execution(
 
     assert len(runs) == 2
 
-    assert {
-        run.id
-        for run in runs
-    } == {
+    assert {run.id for run in runs} == {
         first_run.id,
         second_run.id,
     }
+
 
 def test_successful_execution_clears_previous_error(
     executor: BackgroundJobExecutor,
@@ -311,11 +304,7 @@ def test_successful_execution_clears_previous_error(
     """Clear the previous job error after a successful execution."""
 
     failing_definition = create_definition(
-        handler=Mock(
-            side_effect=RuntimeError(
-                "Temporary failure."
-            )
-        ),
+        handler=Mock(side_effect=RuntimeError("Temporary failure.")),
     )
 
     executor.execute(

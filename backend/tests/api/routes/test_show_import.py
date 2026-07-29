@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import Mock
 
 import pytest
@@ -41,7 +41,7 @@ def imported_show(
         tagline="We're all different people at work.",
         original_language="en",
         metadata_language="en-US",
-        metadata_updated_at=datetime.now(timezone.utc),
+        metadata_updated_at=datetime.now(UTC),
     )
 
     db_session.add(show)
@@ -61,9 +61,7 @@ def client_with_show_import_service(
     def override_get_show_import_service() -> Mock:
         return show_import_service
 
-    app.dependency_overrides[
-        get_show_import_service
-    ] = override_get_show_import_service
+    app.dependency_overrides[get_show_import_service] = override_get_show_import_service
 
     return client
 
@@ -90,9 +88,7 @@ def test_import_show_returns_imported_show(
     assert response_data["tmdb_id"] == TMDB_ID
     assert response_data["title"] == "Severance"
     assert response_data["original_title"] == "Severance"
-    assert response_data["overview"] == (
-        "Employees undergo a severance procedure."
-    )
+    assert response_data["overview"] == ("Employees undergo a severance procedure.")
     assert response_data["metadata_language"] == "en-US"
 
     show_import_service.import_show.assert_called_once_with(
@@ -198,9 +194,7 @@ def test_import_show_converts_not_found_error(
 ) -> None:
     """Convert a missing TMDB show into an HTTP 404 response."""
 
-    show_import_service.import_show.side_effect = TMDBNotFoundError(
-        "TV series not found."
-    )
+    show_import_service.import_show.side_effect = TMDBNotFoundError("TV series not found.")
 
     response = client_with_show_import_service.post(
         IMPORT_SHOW_URL.format(
@@ -220,10 +214,8 @@ def test_import_show_converts_configuration_error(
 ) -> None:
     """Convert a TMDB configuration failure into HTTP 500."""
 
-    show_import_service.import_show.side_effect = (
-        TMDBConfigurationError(
-            "TMDB API token is not configured."
-        )
+    show_import_service.import_show.side_effect = TMDBConfigurationError(
+        "TMDB API token is not configured."
     )
 
     response = client_with_show_import_service.post(
@@ -244,9 +236,7 @@ def test_import_show_converts_request_error(
 ) -> None:
     """Convert a TMDB request failure into HTTP 503."""
 
-    show_import_service.import_show.side_effect = TMDBRequestError(
-        "TMDB could not be reached."
-    )
+    show_import_service.import_show.side_effect = TMDBRequestError("TMDB could not be reached.")
 
     response = client_with_show_import_service.post(
         IMPORT_SHOW_URL.format(

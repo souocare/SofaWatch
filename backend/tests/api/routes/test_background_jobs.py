@@ -1,5 +1,4 @@
-from datetime import datetime, timezone
-from unittest.mock import Mock
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -44,7 +43,7 @@ def create_run(
 ) -> BackgroundJobRun:
     """Create and persist a background job run."""
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     run = BackgroundJobRun(
         job_id=job.id,
@@ -74,11 +73,7 @@ def test_list_background_jobs_returns_registered_jobs(
 
     assert len(body) == len(BACKGROUND_JOBS)
 
-    metadata_sync = next(
-        item
-        for item in body
-        if item["key"] == "metadata_sync"
-    )
+    metadata_sync = next(item for item in body if item["key"] == "metadata_sync")
 
     assert metadata_sync["name"] == "Metadata sync"
     assert metadata_sync["schedule"] == "Every 8h"
@@ -105,11 +100,7 @@ def test_list_background_jobs_returns_persisted_state(
 
     assert response.status_code == 200
 
-    metadata_sync = next(
-        item
-        for item in response.json()
-        if item["key"] == "metadata_sync"
-    )
+    metadata_sync = next(item for item in response.json() if item["key"] == "metadata_sync")
 
     assert metadata_sync["status"] == "success"
     assert metadata_sync["last_duration_ms"] == 125
@@ -144,10 +135,7 @@ def test_list_background_job_runs_returns_history(
 
     assert len(body) == 2
 
-    returned_ids = {
-        item["id"]
-        for item in body
-    }
+    returned_ids = {item["id"] for item in body}
 
     assert returned_ids == {
         str(first_run.id),

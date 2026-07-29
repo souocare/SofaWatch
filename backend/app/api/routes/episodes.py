@@ -14,7 +14,6 @@ from app.schemas.episode_progress import (
     EpisodeWatchedRequest,
 )
 
-
 router = APIRouter(
     prefix="/episodes",
     tags=["Episodes"],

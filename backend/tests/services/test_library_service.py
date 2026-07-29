@@ -219,9 +219,7 @@ def test_add_show_raises_when_entry_already_exists(
         show_id=show_id,
     )
 
-    library_repository.get_by_user_and_show.return_value = (
-        existing_entry
-    )
+    library_repository.get_by_user_and_show.return_value = existing_entry
 
     with pytest.raises(
         LibraryEntryAlreadyExistsError,

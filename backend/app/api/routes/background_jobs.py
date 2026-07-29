@@ -2,7 +2,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Path, Query, status
 
-from app.api.dependencies import BackgroundJobRepositoryDependency
+from app.api.dependencies import (
+    BackgroundJobExecutorDependency,
+    BackgroundJobRepositoryDependency,
+)
 from app.jobs.registry import BACKGROUND_JOBS, get_background_job
 from app.models.background_job import BackgroundJob
 from app.models.enums import BackgroundJobStatus
@@ -10,10 +13,6 @@ from app.schemas.background_job import (
     BackgroundJobResponse,
     BackgroundJobRunNowResponse,
     BackgroundJobRunResponse,
-)
-from app.api.dependencies import (
-    BackgroundJobExecutorDependency,
-    BackgroundJobRepositoryDependency,
 )
 
 router = APIRouter(
@@ -33,10 +32,7 @@ def list_background_jobs(
 ) -> list[BackgroundJobResponse]:
     """Return all registered background jobs."""
 
-    jobs_by_key = {
-        job.key: job
-        for job in repository.list_all()
-    }
+    jobs_by_key = {job.key: job for job in repository.list_all()}
 
     result: list[BackgroundJob] = []
 
@@ -63,6 +59,7 @@ def list_background_jobs(
     repository.commit()
 
     return result
+
 
 @router.get(
     "/{job_key}/runs",
@@ -108,6 +105,7 @@ def list_background_job_runs(
         limit=limit,
     )
 
+
 @router.post(
     "/{job_key}/run",
     response_model=BackgroundJobRunNowResponse,
@@ -142,10 +140,7 @@ def run_background_job_now(
         job_key,
     )
 
-    if (
-        existing_job is not None
-        and existing_job.status == BackgroundJobStatus.RUNNING
-    ):
+    if existing_job is not None and existing_job.status == BackgroundJobStatus.RUNNING:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Background job is already running.",
@@ -160,9 +155,7 @@ def run_background_job_now(
     )
 
     if job is None:
-        raise RuntimeError(
-            "Background job state was not persisted."
-        )
+        raise RuntimeError("Background job state was not persisted.")
 
     return BackgroundJobRunNowResponse(
         job=job,

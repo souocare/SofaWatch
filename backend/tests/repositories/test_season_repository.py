@@ -326,10 +326,7 @@ def test_list_by_show_id_orders_seasons_by_season_number(
 
     result = repository.list_by_show_id(show.id)
 
-    assert [
-        season.season_number
-        for season in result
-    ] == [
+    assert [season.season_number for season in result] == [
         0,
         1,
         2,

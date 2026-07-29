@@ -10,7 +10,6 @@ from app.providers.tmdb.schemas import (
 )
 from app.services.tmdb_season_details import TMDBSeasonDetailsService
 
-
 TMDB_ID = 95396
 SEASON_NUMBER = 1
 
@@ -194,10 +193,7 @@ def test_get_episodes_preserves_episode_order(
         season_number=SEASON_NUMBER,
     )
 
-    assert [
-        episode.episode_number
-        for episode in episodes
-    ] == [
+    assert [episode.episode_number for episode in episodes] == [
         1,
         2,
     ]

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -10,10 +11,10 @@ from sqlalchemy import (
     Uuid,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base import Base
 from app.db.mixins import TimestampMixin
 from app.models.enums import BackgroundJobStatus
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.background_job_run import BackgroundJobRun
@@ -52,10 +53,7 @@ class BackgroundJob(TimestampMixin, Base):
             BackgroundJobStatus,
             name="background_job_status",
             native_enum=False,
-            values_callable=lambda enum: [
-                member.value
-                for member in enum
-            ],
+            values_callable=lambda enum: [member.value for member in enum],
         ),
         nullable=False,
         default=BackgroundJobStatus.IDLE,

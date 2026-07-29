@@ -6,12 +6,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.schemas.genre import GenreResponse
 
 
-from datetime import date
-from uuid import UUID
-
-from pydantic import BaseModel, ConfigDict, Field
-
-
 class ShowSummaryResponse(BaseModel):
     """Summary of a TV series stored locally in SofaWatch."""
 

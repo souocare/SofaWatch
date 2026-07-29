@@ -2,7 +2,6 @@ from sqlalchemy import Column, ForeignKey, Table, Uuid
 
 from app.db.base import Base
 
-
 show_networks = Table(
     "show_networks",
     Base.metadata,

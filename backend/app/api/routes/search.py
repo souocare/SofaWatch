@@ -1,6 +1,5 @@
 from typing import Annotated
 
-from app.schemas.tmdb_show import ShowSearchResponse
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.dependencies import get_show_search_service
@@ -9,6 +8,7 @@ from app.providers.tmdb.exceptions import (
     TMDBRequestError,
     TMDBResponseError,
 )
+from app.schemas.tmdb_show import ShowSearchResponse
 from app.services.tmdb_show_search import ShowSearchService
 
 router = APIRouter(

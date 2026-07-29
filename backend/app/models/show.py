@@ -21,9 +21,9 @@ from app.db.mixins import TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.genre import Genre
-    from app.models.season import Season
     from app.models.library import LibraryEntry
     from app.models.network import Network
+    from app.models.season import Season
 
 
 class Show(TimestampMixin, Base):
@@ -176,7 +176,6 @@ class Show(TimestampMixin, Base):
         String(20),
         nullable=False,
     )
-    
 
     metadata_updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

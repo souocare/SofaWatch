@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.enums import LibraryStatus
@@ -64,9 +64,7 @@ class LibraryRepository:
             LibraryEntry.created_at.desc(),
         )
 
-        return list(
-            self._session.scalars(statement).all()
-        )
+        return list(self._session.scalars(statement).all())
 
     def add(
         self,

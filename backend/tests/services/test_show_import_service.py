@@ -1,29 +1,29 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
-from app.repositories.season import SeasonRepository
-from app.models.season import Season
-from app.repositories.network import NetworkRepository
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.models.genre import Genre
-from app.models.show import Show
-from app.models.network import Network
-from app.repositories.genre import GenreRepository
-from app.repositories.show import ShowRepository
-from app.repositories.show import ShowRepository
-from app.services.show_import import ShowImportService
-from app.services.tmdb_show_details import TMDBShowDetailsService
 from app.models.episode import Episode
+from app.models.genre import Genre
+from app.models.network import Network
+from app.models.season import Season
+from app.models.show import Show
 from app.repositories.episode import EpisodeRepository
+from app.repositories.genre import GenreRepository
+from app.repositories.network import NetworkRepository
+from app.repositories.season import SeasonRepository
+from app.repositories.show import ShowRepository
 from app.schemas.tmdb_episode import EpisodeSummary
+from app.services.show_import import ShowImportService
 from app.services.tmdb_season_details import TMDBSeasonDetailsService
+from app.services.tmdb_show_details import TMDBShowDetailsService
 
 TMDB_ID = 95396
+
 
 def make_episode_summary(
     *,
@@ -238,16 +238,11 @@ def test_import_show_creates_and_associates_genres(
         tmdb_id=TMDB_ID,
     )
 
-    genre_count = db_session.scalar(
-        select(func.count()).select_from(Genre)
-    )
+    genre_count = db_session.scalar(select(func.count()).select_from(Genre))
 
     assert genre_count == 2
 
-    genres_by_tmdb_id = {
-        genre.tmdb_id: genre
-        for genre in show.genres
-    }
+    genres_by_tmdb_id = {genre.tmdb_id: genre for genre in show.genres}
 
     assert set(genres_by_tmdb_id) == {
         18,
@@ -276,9 +271,7 @@ def test_import_show_does_not_create_duplicate(
         tmdb_id=TMDB_ID,
     )
 
-    show_count = db_session.scalar(
-        select(func.count()).select_from(Show)
-    )
+    show_count = db_session.scalar(select(func.count()).select_from(Show))
 
     assert show_count == 1
     assert first_show.id == second_show.id
@@ -294,7 +287,6 @@ def test_import_show_returns_recent_show_without_tmdb_request(
     settings: Settings,
     tmdb_show_details_service: Mock,
     tmdb_season_details_service: Mock,
-    
 ) -> None:
     """Avoid refreshing recently imported metadata."""
 
@@ -304,7 +296,7 @@ def test_import_show_returns_recent_show_without_tmdb_request(
         original_title="Severance",
         original_language="en",
         metadata_language="en-US",
-        metadata_updated_at=datetime.now(timezone.utc),
+        metadata_updated_at=datetime.now(UTC),
     )
 
     db_session.add(existing_show)
@@ -348,8 +340,7 @@ def test_import_show_refreshes_old_metadata(
         original_language="en",
         metadata_language="en-US",
         metadata_updated_at=(
-            datetime.now(timezone.utc)
-            - timedelta(days=settings.metadata_refresh_days + 1)
+            datetime.now(UTC) - timedelta(days=settings.metadata_refresh_days + 1)
         ),
     )
 
@@ -396,7 +387,7 @@ def test_import_show_force_refreshes_recent_metadata(
         original_title="Existing title",
         original_language="en",
         metadata_language="en-US",
-        metadata_updated_at=datetime.now(timezone.utc),
+        metadata_updated_at=datetime.now(UTC),
     )
 
     db_session.add(existing_show)
@@ -458,9 +449,7 @@ def test_import_show_rolls_back_when_persistence_fails(
 
     show_repository = Mock(spec=ShowRepository)
     show_repository.get_by_tmdb_id.return_value = None
-    show_repository.add.side_effect = RuntimeError(
-        "Database write failed."
-    )
+    show_repository.add.side_effect = RuntimeError("Database write failed.")
 
     service = ShowImportService(
         session=db_session,
@@ -482,16 +471,13 @@ def test_import_show_rolls_back_when_persistence_fails(
             tmdb_id=TMDB_ID,
         )
 
-    show_count = db_session.scalar(
-        select(func.count()).select_from(Show)
-    )
+    show_count = db_session.scalar(select(func.count()).select_from(Show))
 
-    genre_count = db_session.scalar(
-        select(func.count()).select_from(Genre)
-    )
+    genre_count = db_session.scalar(select(func.count()).select_from(Genre))
 
     assert show_count == 0
     assert genre_count == 0
+
 
 def test_import_show_creates_seasons(
     db_session: Session,
@@ -505,18 +491,13 @@ def test_import_show_creates_seasons(
 
     seasons = list(
         db_session.scalars(
-            select(Season)
-            .where(Season.show_id == show.id)
-            .order_by(Season.season_number)
+            select(Season).where(Season.show_id == show.id).order_by(Season.season_number)
         ).all()
     )
 
     assert len(seasons) == 3
 
-    assert [
-        season.season_number
-        for season in seasons
-    ] == [
+    assert [season.season_number for season in seasons] == [
         0,
         1,
         2,
@@ -530,6 +511,7 @@ def test_import_show_creates_seasons(
 
     assert seasons[2].tmdb_id == 368201
     assert seasons[2].title == "Season 2"
+
 
 def test_import_show_persists_season_metadata(
     db_session: Session,
@@ -558,6 +540,7 @@ def test_import_show_persists_season_metadata(
     assert season.tmdb_poster_path == "/season-1.jpg"
     assert season.local_poster_path is None
 
+
 def test_import_show_associates_seasons_with_show(
     show_import_service: ShowImportService,
 ) -> None:
@@ -569,19 +552,13 @@ def test_import_show_associates_seasons_with_show(
 
     assert len(show.seasons) == 3
 
-    assert [
-        season.season_number
-        for season in show.seasons
-    ] == [
+    assert [season.season_number for season in show.seasons] == [
         0,
         1,
         2,
     ]
 
-    assert all(
-        season.show_id == show.id
-        for season in show.seasons
-    )
+    assert all(season.show_id == show.id for season in show.seasons)
 
 
 def test_import_show_updates_existing_season(
@@ -637,9 +614,7 @@ def test_import_show_updates_existing_season(
     assert updated_season.tmdb_poster_path == "/updated-season-1.jpg"
 
     season_count = db_session.scalar(
-        select(func.count())
-        .select_from(Season)
-        .where(Season.show_id == refreshed_show.id)
+        select(func.count()).select_from(Season).where(Season.show_id == refreshed_show.id)
     )
 
     assert season_count == 3
@@ -687,9 +662,7 @@ def test_import_show_adds_new_season_during_refresh(
     assert season.tmdb_poster_path == "/season-3.jpg"
 
     season_count = db_session.scalar(
-        select(func.count())
-        .select_from(Season)
-        .where(Season.show_id == refreshed_show.id)
+        select(func.count()).select_from(Season).where(Season.show_id == refreshed_show.id)
     )
 
     assert season_count == 4
@@ -717,11 +690,7 @@ def test_import_show_keeps_seasons_missing_from_tmdb_response(
 
     specials_id = specials.id
 
-    show_details.seasons = [
-        season
-        for season in show_details.seasons
-        if season.season_number != 0
-    ]
+    show_details.seasons = [season for season in show_details.seasons if season.season_number != 0]
 
     refreshed_show = show_import_service.import_show(
         tmdb_id=TMDB_ID,
@@ -740,9 +709,7 @@ def test_import_show_keeps_seasons_missing_from_tmdb_response(
     assert preserved_specials.title == "Specials"
 
     season_count = db_session.scalar(
-        select(func.count())
-        .select_from(Season)
-        .where(Season.show_id == refreshed_show.id)
+        select(func.count()).select_from(Season).where(Season.show_id == refreshed_show.id)
     )
 
     assert season_count == 3
@@ -801,6 +768,7 @@ def test_import_show_matches_existing_season_by_number(
 
     assert len(matching_seasons) == 1
 
+
 def test_import_show_preserves_local_season_poster(
     db_session: Session,
     show_import_service: ShowImportService,
@@ -821,14 +789,10 @@ def test_import_show_preserves_local_season_poster(
 
     assert season is not None
 
-    season.local_poster_path = (
-        "/media/shows/severance/season-1-poster.jpg"
-    )
+    season.local_poster_path = "/media/shows/severance/season-1-poster.jpg"
     db_session.commit()
 
-    show_details.seasons[1].poster_path = (
-        "/new-tmdb-season-1.jpg"
-    )
+    show_details.seasons[1].poster_path = "/new-tmdb-season-1.jpg"
 
     refreshed_show = show_import_service.import_show(
         tmdb_id=TMDB_ID,
@@ -843,14 +807,8 @@ def test_import_show_preserves_local_season_poster(
     )
 
     assert updated_season is not None
-    assert (
-        updated_season.tmdb_poster_path
-        == "/new-tmdb-season-1.jpg"
-    )
-    assert (
-        updated_season.local_poster_path
-        == "/media/shows/severance/season-1-poster.jpg"
-    )
+    assert updated_season.tmdb_poster_path == "/new-tmdb-season-1.jpg"
+    assert updated_season.local_poster_path == "/media/shows/severance/season-1-poster.jpg"
 
 
 def test_import_show_does_not_duplicate_seasons(
@@ -869,9 +827,7 @@ def test_import_show_does_not_duplicate_seasons(
     )
 
     season_count = db_session.scalar(
-        select(func.count())
-        .select_from(Season)
-        .where(Season.show_id == second_show.id)
+        select(func.count()).select_from(Season).where(Season.show_id == second_show.id)
     )
 
     assert first_show.id == second_show.id
@@ -922,7 +878,6 @@ def tmdb_season_details_service() -> Mock:
     return service
 
 
-
 def test_import_show_creates_episodes(
     db_session: Session,
     show_import_service: ShowImportService,
@@ -947,10 +902,7 @@ def test_import_show_creates_episodes(
 
     assert len(episodes) == 6
 
-    assert [
-        episode.episode_number
-        for episode in episodes
-    ] == [
+    assert [episode.episode_number for episode in episodes] == [
         1,
         2,
         1,
@@ -958,6 +910,7 @@ def test_import_show_creates_episodes(
         1,
         2,
     ]
+
 
 def test_import_show_persists_episode_metadata(
     db_session: Session,
@@ -996,6 +949,7 @@ def test_import_show_persists_episode_metadata(
     assert episode.tmdb_still_path == "/episode-1.jpg"
     assert episode.local_still_path is None
 
+
 def test_import_show_requests_episodes_for_each_season(
     show_import_service: ShowImportService,
     tmdb_season_details_service: Mock,
@@ -1023,6 +977,7 @@ def test_import_show_requests_episodes_for_each_season(
         season_number=2,
         language="en-US",
     )
+
 
 def test_import_show_updates_existing_episode(
     db_session: Session,
@@ -1096,7 +1051,6 @@ def test_import_show_updates_existing_episode(
             ),
         ]
 
-
     tmdb_season_details_service.get_episodes.side_effect = refreshed_episodes
 
     show_import_service.import_show(
@@ -1118,6 +1072,7 @@ def test_import_show_updates_existing_episode(
     assert updated_episode.vote_average == 9.0
     assert updated_episode.vote_count == 100
     assert updated_episode.tmdb_still_path == "/updated.jpg"
+
 
 def test_import_show_adds_new_episode_during_refresh(
     db_session: Session,
@@ -1167,7 +1122,6 @@ def test_import_show_adds_new_episode_during_refresh(
             )
 
         return episodes
-
 
     tmdb_season_details_service.get_episodes.side_effect = refreshed_episodes
 
@@ -1317,7 +1271,6 @@ def test_import_show_matches_existing_episode_by_number(
             ),
         ]
 
-
     tmdb_season_details_service.get_episodes.side_effect = refreshed_episodes
 
     show_import_service.import_show(
@@ -1333,6 +1286,7 @@ def test_import_show_matches_existing_episode_by_number(
     assert updated_episode is not None
     assert updated_episode.tmdb_id == 999001
     assert updated_episode.title == "Episode With New TMDB ID"
+
 
 def test_import_show_preserves_local_episode_still(
     db_session: Session,
@@ -1363,9 +1317,7 @@ def test_import_show_preserves_local_episode_still(
 
     assert episode is not None
 
-    episode.local_still_path = (
-        "/media/shows/severance/s01e01.jpg"
-    )
+    episode.local_still_path = "/media/shows/severance/s01e01.jpg"
 
     db_session.commit()
 
@@ -1405,7 +1357,6 @@ def test_import_show_preserves_local_episode_still(
             ),
         ]
 
-
     tmdb_season_details_service.get_episodes.side_effect = refreshed_episodes
 
     show_import_service.import_show(
@@ -1419,14 +1370,8 @@ def test_import_show_preserves_local_episode_still(
     )
 
     assert updated_episode is not None
-    assert (
-        updated_episode.tmdb_still_path
-        == "/new-tmdb-still.jpg"
-    )
-    assert (
-        updated_episode.local_still_path
-        == "/media/shows/severance/s01e01.jpg"
-    )
+    assert updated_episode.tmdb_still_path == "/new-tmdb-still.jpg"
+    assert updated_episode.local_still_path == "/media/shows/severance/s01e01.jpg"
 
 
 def test_import_show_does_not_duplicate_episodes(
@@ -1456,7 +1401,6 @@ def test_import_show_does_not_duplicate_episodes(
     assert episode_count == 6
 
 
-
 def test_import_show_creates_and_associates_networks(
     db_session: Session,
     show_import_service: ShowImportService,
@@ -1467,9 +1411,7 @@ def test_import_show_creates_and_associates_networks(
         tmdb_id=TMDB_ID,
     )
 
-    network_count = db_session.scalar(
-        select(func.count()).select_from(Network)
-    )
+    network_count = db_session.scalar(select(func.count()).select_from(Network))
 
     assert network_count == 1
 
@@ -1511,9 +1453,7 @@ def test_import_show_updates_existing_network_metadata(
         ),
     ]
 
-    tmdb_show_details_service.get_details.return_value = (
-        updated_details
-    )
+    tmdb_show_details_service.get_details.return_value = updated_details
 
     refreshed_show = show_import_service.import_show(
         tmdb_id=TMDB_ID,
@@ -1530,6 +1470,7 @@ def test_import_show_updates_existing_network_metadata(
     assert updated_network.tmdb_logo_path == "/new-logo.png"
     assert updated_network.origin_country == "US"
 
+
 def test_import_show_does_not_duplicate_networks(
     db_session: Session,
     show_import_service: ShowImportService,
@@ -1545,11 +1486,10 @@ def test_import_show_does_not_duplicate_networks(
         force_refresh=True,
     )
 
-    network_count = db_session.scalar(
-        select(func.count()).select_from(Network)
-    )
+    network_count = db_session.scalar(select(func.count()).select_from(Network))
 
     assert network_count == 1
+
 
 def test_import_show_updates_network_associations(
     db_session: Session,
@@ -1579,9 +1519,7 @@ def test_import_show_updates_network_associations(
         ),
     ]
 
-    tmdb_show_details_service.get_details.return_value = (
-        updated_details
-    )
+    tmdb_show_details_service.get_details.return_value = updated_details
 
     refreshed_show = show_import_service.import_show(
         tmdb_id=TMDB_ID,
@@ -1591,12 +1529,10 @@ def test_import_show_updates_network_associations(
     assert len(refreshed_show.networks) == 1
     assert refreshed_show.networks[0].tmdb_id == 49
 
-    network_ids = {
-        network.tmdb_id
-        for network in refreshed_show.networks
-    }
+    network_ids = {network.tmdb_id for network in refreshed_show.networks}
 
     assert 2552 not in network_ids
+
 
 def test_import_show_associates_multiple_networks(
     show_import_service: ShowImportService,
@@ -1624,21 +1560,17 @@ def test_import_show_associates_multiple_networks(
         ),
     ]
 
-    tmdb_show_details_service.get_details.return_value = (
-        updated_details
-    )
+    tmdb_show_details_service.get_details.return_value = updated_details
 
     show = show_import_service.import_show(
         tmdb_id=TMDB_ID,
     )
 
-    assert {
-        network.tmdb_id
-        for network in show.networks
-    } == {
+    assert {network.tmdb_id for network in show.networks} == {
         2552,
         49,
     }
+
 
 def test_should_not_refresh_ended_show_automatically(
     db_session: Session,
@@ -1656,8 +1588,7 @@ def test_should_not_refresh_ended_show_automatically(
         status="Ended",
         metadata_language="en-US",
         metadata_updated_at=(
-            datetime.now(timezone.utc)
-            - timedelta(days=settings.metadata_refresh_days + 100)
+            datetime.now(UTC) - timedelta(days=settings.metadata_refresh_days + 100)
         ),
     )
 
@@ -1709,8 +1640,7 @@ def test_should_not_refresh_canceled_show_automatically(
         status=show_status,
         metadata_language="en-US",
         metadata_updated_at=(
-            datetime.now(timezone.utc)
-            - timedelta(days=settings.metadata_refresh_days + 100)
+            datetime.now(UTC) - timedelta(days=settings.metadata_refresh_days + 100)
         ),
     )
 
@@ -1737,6 +1667,7 @@ def test_should_not_refresh_canceled_show_automatically(
 
     tmdb_show_details_service.get_details.assert_not_called()
 
+
 def test_manual_refresh_refreshes_ended_show(
     db_session: Session,
     settings: Settings,
@@ -1753,15 +1684,13 @@ def test_manual_refresh_refreshes_ended_show(
         original_language="en",
         status="Ended",
         metadata_language="en-US",
-        metadata_updated_at=datetime.now(timezone.utc),
+        metadata_updated_at=datetime.now(UTC),
     )
 
     db_session.add(show)
     db_session.commit()
 
-    tmdb_show_details_service.get_details.return_value = (
-        show_details
-    )
+    tmdb_show_details_service.get_details.return_value = show_details
 
     service = ShowImportService(
         session=db_session,
@@ -1800,15 +1729,13 @@ def test_manual_refresh_refreshes_canceled_show(
         original_language="en",
         status="Canceled",
         metadata_language="en-US",
-        metadata_updated_at=datetime.now(timezone.utc),
+        metadata_updated_at=datetime.now(UTC),
     )
 
     db_session.add(show)
     db_session.commit()
 
-    tmdb_show_details_service.get_details.return_value = (
-        show_details
-    )
+    tmdb_show_details_service.get_details.return_value = show_details
 
     service = ShowImportService(
         session=db_session,
@@ -1831,14 +1758,13 @@ def test_manual_refresh_refreshes_canceled_show(
     tmdb_show_details_service.get_details.assert_called_once()
 
 
-
 def test_successful_refresh_updates_metadata_updated_at(
     db_session: Session,
     show_import_service: ShowImportService,
 ) -> None:
     """Update the last metadata synchronization timestamp after success."""
 
-    before = datetime.now(timezone.utc)
+    before = datetime.now(UTC)
 
     show = show_import_service.import_show(
         tmdb_id=TMDB_ID,
@@ -1850,7 +1776,7 @@ def test_successful_refresh_updates_metadata_updated_at(
 
     if updated_at.tzinfo is None:
         updated_at = updated_at.replace(
-            tzinfo=timezone.utc,
+            tzinfo=UTC,
         )
 
     assert updated_at >= before
@@ -1864,10 +1790,7 @@ def test_failed_refresh_does_not_persist_new_metadata_timestamp(
 ) -> None:
     """Do not persist a new sync timestamp when refresh fails."""
 
-    original_timestamp = (
-        datetime.now(timezone.utc)
-        - timedelta(days=30)
-    )
+    original_timestamp = datetime.now(UTC) - timedelta(days=30)
 
     show = Show(
         tmdb_id=TMDB_ID,
@@ -1881,9 +1804,7 @@ def test_failed_refresh_does_not_persist_new_metadata_timestamp(
     db_session.add(show)
     db_session.commit()
 
-    tmdb_show_details_service.get_details.side_effect = (
-        RuntimeError("Refresh failed.")
-    )
+    tmdb_show_details_service.get_details.side_effect = RuntimeError("Refresh failed.")
 
     service = ShowImportService(
         session=db_session,
@@ -1919,9 +1840,7 @@ def test_failed_refresh_does_not_persist_new_metadata_timestamp(
 
     if stored_timestamp.tzinfo is None:
         stored_timestamp = stored_timestamp.replace(
-            tzinfo=timezone.utc,
+            tzinfo=UTC,
         )
 
     assert stored_timestamp == original_timestamp
-
-

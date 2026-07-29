@@ -4,8 +4,6 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.models.season import Season
-from app.models.show import Show
 from app.repositories.season import SeasonRepository
 from app.repositories.show import ShowRepository
 from app.services.season import SeasonService
@@ -157,10 +155,7 @@ def test_list_for_show_returns_stored_seasons(
 
     assert result == seasons
     assert len(result) == 3
-    assert [
-        season.season_number
-        for season in result
-    ] == [
+    assert [season.season_number for season in result] == [
         0,
         1,
         2,
@@ -205,6 +200,7 @@ def test_list_for_show_returns_repository_result_without_modifying_it(
     assert result is seasons
     assert result[0].season_number == 2
     assert result[1].season_number == 1
+
 
 def test_get_by_number_returns_season(
     show_id: UUID,

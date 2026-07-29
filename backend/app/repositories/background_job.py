@@ -1,4 +1,5 @@
 from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -80,7 +81,7 @@ class BackgroundJobRepository:
                 .limit(limit)
             ).all()
         )
-    
+
     def commit(
         self,
     ) -> None:
@@ -89,9 +90,9 @@ class BackgroundJobRepository:
         self._session.commit()
 
     def refresh(
-            self,
-            job: BackgroundJob,
-        ) -> None:
-            """Refresh a persisted background job."""
+        self,
+        job: BackgroundJob,
+    ) -> None:
+        """Refresh a persisted background job."""
 
-            self._session.refresh(job)
+        self._session.refresh(job)

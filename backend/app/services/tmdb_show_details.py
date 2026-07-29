@@ -1,3 +1,6 @@
+from app.core.config import Settings
+from app.providers.tmdb import TMDBClient
+from app.providers.tmdb.schemas import TMDBTVDetails
 from app.schemas.tmdb_show import (
     ShowCountry,
     ShowDetailsResponse,
@@ -6,10 +9,6 @@ from app.schemas.tmdb_show import (
     ShowNetwork,
     ShowSeasonSummary,
 )
-
-from app.core.config import Settings
-from app.providers.tmdb import TMDBClient
-from app.providers.tmdb.schemas import TMDBTVDetails
 
 
 class TMDBShowDetailsService:

@@ -1,19 +1,16 @@
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.db.session import SessionLocal
 from app.jobs.executor import BackgroundJobExecutor
-from app.jobs.registry import BACKGROUND_JOBS
-from app.models.background_job import BackgroundJob
-from app.models.enums import BackgroundJobStatus
-from app.repositories.background_job import BackgroundJobRepository
 from app.jobs.registry import (
     BACKGROUND_JOBS,
     BackgroundJobDefinition,
 )
-from datetime import datetime, timedelta, timezone
-
+from app.models.background_job import BackgroundJob
+from app.models.enums import BackgroundJobStatus
+from app.repositories.background_job import BackgroundJobRepository
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +20,7 @@ STALE_RUNNING_AFTER = timedelta(hours=2)
 
 class BackgroundJobScheduler:
     """Schedule and execute registered background jobs."""
-    
+
     def __init__(
         self,
         *,
@@ -42,9 +39,7 @@ class BackgroundJobScheduler:
             try:
                 self.run_due_jobs()
             except Exception:
-                logger.exception(
-                    "Unexpected error while checking background jobs."
-                )
+                logger.exception("Unexpected error while checking background jobs.")
 
             time.sleep(POLL_INTERVAL_SECONDS)
 
@@ -53,7 +48,7 @@ class BackgroundJobScheduler:
     ) -> None:
         """Execute every registered job that is currently due."""
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for definition in BACKGROUND_JOBS.values():
             try:
@@ -149,11 +144,11 @@ class BackgroundJobScheduler:
 
         if next_run_at.tzinfo is None:
             next_run_at = next_run_at.replace(
-                tzinfo=timezone.utc,
+                tzinfo=UTC,
             )
 
         return next_run_at <= now
-    
+
     @staticmethod
     def _is_stale_running_job(
         *,
@@ -169,10 +164,7 @@ class BackgroundJobScheduler:
 
         if last_started_at.tzinfo is None:
             last_started_at = last_started_at.replace(
-                tzinfo=timezone.utc,
+                tzinfo=UTC,
             )
 
-        return (
-            now - last_started_at
-            >= STALE_RUNNING_AFTER
-        )
+        return now - last_started_at >= STALE_RUNNING_AFTER

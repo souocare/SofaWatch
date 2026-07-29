@@ -72,9 +72,7 @@ class LibraryService:
         )
 
         if existing_entry is not None:
-            raise LibraryEntryAlreadyExistsError(
-                "TV series already exists in the user's library."
-            )
+            raise LibraryEntryAlreadyExistsError("TV series already exists in the user's library.")
 
         entry = LibraryEntry(
             user_id=user_id,

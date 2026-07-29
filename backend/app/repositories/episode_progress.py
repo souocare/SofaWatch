@@ -1,12 +1,11 @@
 from uuid import UUID
 
 from sqlalchemy import func, select
-
-from app.models.episode import Episode
-from app.models.season import Season
 from sqlalchemy.orm import Session
 
+from app.models.episode import Episode
 from app.models.episode_progress import EpisodeProgress
+from app.models.season import Season
 
 
 class EpisodeProgressRepository:
@@ -42,7 +41,7 @@ class EpisodeProgressRepository:
         self._session.add(progress)
 
         return progress
-    
+
     def count_watched_for_season(
         self,
         *,
@@ -51,20 +50,22 @@ class EpisodeProgressRepository:
     ) -> int:
         """Count watched episodes for a user within a season."""
 
-        return self._session.scalar(
-            select(func.count())
-            .select_from(EpisodeProgress)
-            .join(
-                Episode,
-                Episode.id == EpisodeProgress.episode_id,
+        return (
+            self._session.scalar(
+                select(func.count())
+                .select_from(EpisodeProgress)
+                .join(
+                    Episode,
+                    Episode.id == EpisodeProgress.episode_id,
+                )
+                .where(
+                    EpisodeProgress.user_id == user_id,
+                    EpisodeProgress.is_watched.is_(True),
+                    Episode.season_id == season_id,
+                )
             )
-            .where(
-                EpisodeProgress.user_id == user_id,
-                EpisodeProgress.is_watched.is_(True),
-                Episode.season_id == season_id,
-            )
-        ) or 0
-
+            or 0
+        )
 
     def count_watched_for_show(
         self,
@@ -74,24 +75,27 @@ class EpisodeProgressRepository:
     ) -> int:
         """Count watched episodes for a user within a TV series."""
 
-        return self._session.scalar(
-            select(func.count())
-            .select_from(EpisodeProgress)
-            .join(
-                Episode,
-                Episode.id == EpisodeProgress.episode_id,
+        return (
+            self._session.scalar(
+                select(func.count())
+                .select_from(EpisodeProgress)
+                .join(
+                    Episode,
+                    Episode.id == EpisodeProgress.episode_id,
+                )
+                .join(
+                    Season,
+                    Season.id == Episode.season_id,
+                )
+                .where(
+                    EpisodeProgress.user_id == user_id,
+                    EpisodeProgress.is_watched.is_(True),
+                    Season.show_id == show_id,
+                )
             )
-            .join(
-                Season,
-                Season.id == Episode.season_id,
-            )
-            .where(
-                EpisodeProgress.user_id == user_id,
-                EpisodeProgress.is_watched.is_(True),
-                Season.show_id == show_id,
-            )
-        ) or 0
-    
+            or 0
+        )
+
     def get_next_unwatched_for_show(
         self,
         *,
@@ -100,12 +104,9 @@ class EpisodeProgressRepository:
     ) -> Episode | None:
         """Return the next unwatched episode of a TV series."""
 
-        watched_episode_ids = (
-            select(EpisodeProgress.episode_id)
-            .where(
-                EpisodeProgress.user_id == user_id,
-                EpisodeProgress.is_watched.is_(True),
-            )
+        watched_episode_ids = select(EpisodeProgress.episode_id).where(
+            EpisodeProgress.user_id == user_id,
+            EpisodeProgress.is_watched.is_(True),
         )
 
         return self._session.scalar(

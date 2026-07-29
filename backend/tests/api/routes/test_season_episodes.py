@@ -236,10 +236,7 @@ def test_list_season_episodes_orders_by_episode_number(
 
     body = response.json()
 
-    assert [
-        episode["episode_number"]
-        for episode in body
-    ] == [
+    assert [episode["episode_number"] for episode in body] == [
         1,
         2,
         3,

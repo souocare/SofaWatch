@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta, timezone
+from collections.abc import Iterator
+from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 
 import pytest
 from sqlalchemy.orm import Session
-from contextlib import contextmanager
-from collections.abc import Iterator
 
 from app.jobs.registry import BackgroundJobDefinition
 from app.jobs.scheduler import BackgroundJobScheduler
@@ -45,6 +45,7 @@ def create_definition(
         handler=handler or Mock(),
     )
 
+
 def test_is_due_when_next_run_is_missing(
     scheduler: BackgroundJobScheduler,
 ) -> None:
@@ -58,19 +59,20 @@ def test_is_due_when_next_run_is_missing(
         next_run_at=None,
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     assert scheduler._is_due(
         job=job,
         now=now,
     )
 
+
 def test_is_due_when_next_run_is_in_the_past(
     scheduler: BackgroundJobScheduler,
 ) -> None:
     """Treat a job with an expired next run date as due."""
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     job = BackgroundJob(
         key="test_job",
@@ -85,12 +87,13 @@ def test_is_due_when_next_run_is_in_the_past(
         now=now,
     )
 
+
 def test_is_due_when_next_run_equals_now(
     scheduler: BackgroundJobScheduler,
 ) -> None:
     """Treat a job scheduled for now as due."""
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     job = BackgroundJob(
         key="test_job",
@@ -105,32 +108,15 @@ def test_is_due_when_next_run_equals_now(
         now=now,
     )
 
-def test_is_due_when_next_run_equals_now(
-    scheduler: BackgroundJobScheduler,
-) -> None:
-    """Treat a job scheduled for now as due."""
 
-    now = datetime.now(timezone.utc)
 
-    job = BackgroundJob(
-        key="test_job",
-        name="Test job",
-        schedule="Every 8h",
-        status=BackgroundJobStatus.SUCCESS,
-        next_run_at=now,
-    )
-
-    assert scheduler._is_due(
-        job=job,
-        now=now,
-    )
 
 def test_is_not_due_when_next_run_is_in_the_future(
     scheduler: BackgroundJobScheduler,
 ) -> None:
     """Do not run a job before its next execution date."""
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     job = BackgroundJob(
         key="test_job",
@@ -146,22 +132,19 @@ def test_is_not_due_when_next_run_is_in_the_future(
     )
 
 
-
 def test_is_due_supports_naive_sqlite_datetime(
     scheduler: BackgroundJobScheduler,
 ) -> None:
     """Interpret a timezone-naive persisted next run date as UTC."""
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     job = BackgroundJob(
         key="test_job",
         name="Test job",
         schedule="Every 8h",
         status=BackgroundJobStatus.SUCCESS,
-        next_run_at=(
-            now - timedelta(minutes=1)
-        ).replace(tzinfo=None),
+        next_run_at=(now - timedelta(minutes=1)).replace(tzinfo=None),
     )
 
     assert scheduler._is_due(
@@ -169,12 +152,13 @@ def test_is_due_supports_naive_sqlite_datetime(
         now=now,
     )
 
+
 def test_running_job_is_not_stale_when_recent(
     scheduler: BackgroundJobScheduler,
 ) -> None:
     """Keep a recently started running job active."""
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     job = BackgroundJob(
         key="test_job",
@@ -189,19 +173,21 @@ def test_running_job_is_not_stale_when_recent(
         now=now,
     )
 
+
 def test_running_job_is_stale_after_timeout(
     scheduler: BackgroundJobScheduler,
 ) -> None:
     """Treat a long-running job as stale after the configured timeout."""
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     job = BackgroundJob(
         key="test_job",
         name="Test job",
         schedule="Every 8h",
         status=BackgroundJobStatus.RUNNING,
-        last_started_at=now - timedelta(
+        last_started_at=now
+        - timedelta(
             hours=3,
         ),
     )
@@ -211,12 +197,13 @@ def test_running_job_is_stale_after_timeout(
         now=now,
     )
 
+
 def test_running_job_without_start_date_is_stale(
     scheduler: BackgroundJobScheduler,
 ) -> None:
     """Treat a running job without a start date as stale."""
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     job = BackgroundJob(
         key="test_job",
@@ -230,6 +217,7 @@ def test_running_job_without_start_date_is_stale(
         job=job,
         now=now,
     )
+
 
 @pytest.fixture
 def scheduler_with_db(
@@ -259,7 +247,7 @@ def test_run_if_due_does_not_execute_future_job(
         handler=handler,
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     repository.add(
         BackgroundJob(
@@ -279,6 +267,7 @@ def test_run_if_due_does_not_execute_future_job(
 
     handler.assert_not_called()
 
+
 def test_run_if_due_executes_due_job(
     scheduler_with_db: BackgroundJobScheduler,
     repository: BackgroundJobRepository,
@@ -291,7 +280,7 @@ def test_run_if_due_executes_due_job(
         handler=handler,
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     repository.add(
         BackgroundJob(
@@ -319,6 +308,7 @@ def test_run_if_due_executes_due_job(
     assert job.status == BackgroundJobStatus.SUCCESS
     assert job.next_run_at is not None
 
+
 def test_run_if_due_skips_running_job(
     scheduler_with_db: BackgroundJobScheduler,
     repository: BackgroundJobRepository,
@@ -331,7 +321,7 @@ def test_run_if_due_skips_running_job(
         handler=handler,
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     repository.add(
         BackgroundJob(
@@ -352,6 +342,7 @@ def test_run_if_due_skips_running_job(
 
     handler.assert_not_called()
 
+
 def test_run_if_due_retries_stale_running_job(
     scheduler_with_db: BackgroundJobScheduler,
     repository: BackgroundJobRepository,
@@ -364,7 +355,7 @@ def test_run_if_due_retries_stale_running_job(
         handler=handler,
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     repository.add(
         BackgroundJob(
@@ -392,6 +383,7 @@ def test_run_if_due_retries_stale_running_job(
     assert job is not None
     assert job.status == BackgroundJobStatus.SUCCESS
 
+
 def test_run_if_due_creates_and_executes_missing_job(
     scheduler_with_db: BackgroundJobScheduler,
     repository: BackgroundJobRepository,
@@ -404,13 +396,16 @@ def test_run_if_due_creates_and_executes_missing_job(
         handler=handler,
     )
 
-    assert repository.get_by_key(
-        definition.key,
-    ) is None
+    assert (
+        repository.get_by_key(
+            definition.key,
+        )
+        is None
+    )
 
     scheduler_with_db._run_if_due(
         definition=definition,
-        now=datetime.now(timezone.utc),
+        now=datetime.now(UTC),
     )
 
     handler.assert_called_once_with()
@@ -422,4 +417,3 @@ def test_run_if_due_creates_and_executes_missing_job(
     assert job is not None
     assert job.status == BackgroundJobStatus.SUCCESS
     assert job.next_run_at is not None
-
