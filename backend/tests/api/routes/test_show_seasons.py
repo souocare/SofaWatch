@@ -99,7 +99,7 @@ def test_list_show_seasons_returns_empty_list(
     )
 
     response = client.get(
-        f"/shows/{show.id}/seasons",
+        f"/api/v1/shows/{show.id}/seasons",
     )
 
     assert response.status_code == 200
@@ -132,7 +132,7 @@ def test_list_show_seasons_returns_stored_seasons(
     )
 
     response = client.get(
-        f"/shows/{show.id}/seasons",
+        f"/api/v1/shows/{show.id}/seasons",
     )
 
     assert response.status_code == 200
@@ -190,7 +190,7 @@ def test_list_show_seasons_orders_by_season_number(
     )
 
     response = client.get(
-        f"/shows/{show.id}/seasons",
+        f"/api/v1/shows/{show.id}/seasons",
     )
 
     assert response.status_code == 200
@@ -229,7 +229,7 @@ def test_list_show_seasons_includes_specials(
     )
 
     response = client.get(
-        f"/shows/{show.id}/seasons",
+        f"/api/v1/shows/{show.id}/seasons",
     )
 
     assert response.status_code == 200
@@ -275,7 +275,7 @@ def test_list_show_seasons_only_returns_requested_show_seasons(
     )
 
     response = client.get(
-        f"/shows/{first_show.id}/seasons",
+        f"/api/v1/shows/{first_show.id}/seasons",
     )
 
     assert response.status_code == 200
@@ -314,7 +314,7 @@ def test_list_show_seasons_serializes_optional_fields_as_null(
     )
 
     response = client.get(
-        f"/shows/{show.id}/seasons",
+        f"/api/v1/shows/{show.id}/seasons",
     )
 
     assert response.status_code == 200
@@ -360,7 +360,7 @@ def test_list_show_seasons_returns_local_poster_path(
     )
 
     response = client.get(
-        f"/shows/{show.id}/seasons",
+        f"/api/v1/shows/{show.id}/seasons",
     )
 
     assert response.status_code == 200
@@ -379,7 +379,7 @@ def test_list_show_seasons_returns_404_when_show_does_not_exist(
     missing_show_id = uuid4()
 
     response = client.get(
-        f"/shows/{missing_show_id}/seasons",
+        f"/api/v1/shows/{missing_show_id}/seasons",
     )
 
     assert response.status_code == 404
@@ -403,7 +403,7 @@ def test_list_show_seasons_rejects_invalid_show_id(
     """Reject an invalid local TV series identifier."""
 
     response = client.get(
-        f"/shows/{show_id}/seasons",
+        f"/api/v1/shows/{show_id}/seasons",
     )
 
     assert response.status_code == 422

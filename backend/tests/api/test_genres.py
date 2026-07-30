@@ -9,7 +9,7 @@ def test_list_genres_returns_empty_list_when_none_exist(
 ) -> None:
     """The genres endpoint returns an empty list when no genres exist."""
 
-    response = client.get("/genres/")
+    response = client.get("/api/v1/genres/")
 
     assert response.status_code == 200
     assert response.json() == []
@@ -42,7 +42,7 @@ def test_list_genres_returns_genres_ordered_by_name(
     )
     db_session.commit()
 
-    response = client.get("/genres/")
+    response = client.get("/api/v1/genres/")
 
     assert response.status_code == 200
 

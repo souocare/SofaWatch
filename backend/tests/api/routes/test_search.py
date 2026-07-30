@@ -17,7 +17,7 @@ from app.schemas.tmdb_show import (
 )
 from app.services.tmdb_show_search import ShowSearchService
 
-SEARCH_SHOWS_URL = "/search/shows"
+SEARCH_SHOWS_URL = "/api/v1/search/shows"
 
 
 @pytest.fixture

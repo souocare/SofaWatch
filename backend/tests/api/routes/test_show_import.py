@@ -16,7 +16,7 @@ from app.providers.tmdb.exceptions import (
 )
 from app.services.show_import import ShowImportService
 
-IMPORT_SHOW_URL = "/shows/import/tmdb/{tmdb_id}"
+IMPORT_SHOW_URL = "/api/v1/shows/import/tmdb/{tmdb_id}"
 TMDB_ID = 95396
 
 

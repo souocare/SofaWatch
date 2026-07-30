@@ -135,7 +135,7 @@ def test_get_episode_returns_detailed_response(
     )
 
     response = client.get(
-        f"/episodes/{episode.id}",
+        f"/api/v1/episodes/{episode.id}",
     )
 
     assert response.status_code == 200
@@ -191,7 +191,7 @@ def test_get_episode_serializes_optional_fields_as_null(
     )
 
     response = client.get(
-        f"/episodes/{episode.id}",
+        f"/api/v1/episodes/{episode.id}",
     )
 
     assert response.status_code == 200
@@ -217,7 +217,7 @@ def test_get_episode_returns_404_when_episode_does_not_exist(
     """Return HTTP 404 when the local TV episode does not exist."""
 
     response = client.get(
-        f"/episodes/{uuid4()}",
+        f"/api/v1/episodes/{uuid4()}",
     )
 
     assert response.status_code == 404
@@ -241,7 +241,7 @@ def test_get_episode_rejects_invalid_episode_id(
     """Reject an invalid local TV episode identifier."""
 
     response = client.get(
-        f"/episodes/{episode_id}",
+        f"/api/v1/episodes/{episode_id}",
     )
 
     assert response.status_code == 422

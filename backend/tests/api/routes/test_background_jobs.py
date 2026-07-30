@@ -65,7 +65,7 @@ def test_list_background_jobs_returns_registered_jobs(
 ) -> None:
     """Return the state of every registered background job."""
 
-    response = client.get("/background-jobs")
+    response = client.get("/api/v1/background-jobs")
 
     assert response.status_code == 200
 
@@ -96,7 +96,7 @@ def test_list_background_jobs_returns_persisted_state(
 
     db_session.commit()
 
-    response = client.get("/background-jobs")
+    response = client.get("/api/v1/background-jobs")
 
     assert response.status_code == 200
 
@@ -126,7 +126,7 @@ def test_list_background_job_runs_returns_history(
     )
 
     response = client.get(
-        "/background-jobs/metadata_sync/runs",
+        "/api/v1/background-jobs/metadata_sync/runs",
     )
 
     assert response.status_code == 200
@@ -149,7 +149,7 @@ def test_list_background_job_runs_returns_empty_when_no_runs_exist(
     """Return an empty history for a registered job without executions."""
 
     response = client.get(
-        "/background-jobs/metadata_sync/runs",
+        "/api/v1/background-jobs/metadata_sync/runs",
     )
 
     assert response.status_code == 200
@@ -162,7 +162,7 @@ def test_list_background_job_runs_returns_404_for_unknown_job(
     """Return HTTP 404 for an unregistered background job."""
 
     response = client.get(
-        "/background-jobs/not-a-job/runs",
+        "/api/v1/background-jobs/not-a-job/runs",
     )
 
     assert response.status_code == 404
@@ -187,7 +187,7 @@ def test_list_background_job_runs_applies_limit(
         )
 
     response = client.get(
-        "/background-jobs/metadata_sync/runs",
+        "/api/v1/background-jobs/metadata_sync/runs",
         params={
             "limit": 2,
         },
@@ -211,7 +211,7 @@ def test_list_background_job_runs_rejects_invalid_limit(
     """Reject history limits outside the supported range."""
 
     response = client.get(
-        "/background-jobs/metadata_sync/runs",
+        "/api/v1/background-jobs/metadata_sync/runs",
         params={
             "limit": limit,
         },
@@ -226,7 +226,7 @@ def test_run_background_job_now_returns_404_for_unknown_job(
     """Return HTTP 404 when manually running an unknown job."""
 
     response = client.post(
-        "/background-jobs/not-a-job/run",
+        "/api/v1/background-jobs/not-a-job/run",
     )
 
     assert response.status_code == 404
@@ -247,7 +247,7 @@ def test_run_background_job_now_returns_409_when_job_is_running(
     )
 
     response = client.post(
-        "/background-jobs/metadata_sync/run",
+        "/api/v1/background-jobs/metadata_sync/run",
     )
 
     assert response.status_code == 409

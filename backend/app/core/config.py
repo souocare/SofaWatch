@@ -41,6 +41,13 @@ class Settings(BaseSettings):
         ge=1,
     )
 
+    cors_origins: str = (
+        "http://localhost:8081,"
+        "http://127.0.0.1:8081,"
+        "http://localhost:19006,"
+        "http://127.0.0.1:19006"
+    )
+
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
         env_prefix="SOFAWATCH_",
@@ -53,6 +60,16 @@ class Settings(BaseSettings):
     def supported_language_list(self) -> list[str]:
         return [
             language.strip() for language in self.supported_languages.split(",") if language.strip()
+        ]
+    
+    @property
+    def cors_origin_list(self) -> list[str]:
+        """Return configured CORS origins."""
+
+        return [
+            origin.strip()
+            for origin in self.cors_origins.split(",")
+            if origin.strip()
         ]
 
 

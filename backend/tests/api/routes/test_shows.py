@@ -331,7 +331,7 @@ def test_get_show_details_returns_valid_response(
 ) -> None:
     """Return detailed information about an existing TV series."""
 
-    response = client.get("/shows/tmdb/95396")
+    response = client.get("/api/v1/shows/tmdb/95396")
 
     assert response.status_code == 200
 
@@ -372,7 +372,7 @@ def test_get_show_details_passes_language_to_service(
     """Pass the requested response language to the details service."""
 
     response = client.get(
-        "/shows/tmdb/95396",
+        "/api/v1/shows/tmdb/95396",
         params={
             "language": "pt-PT",
         },
@@ -389,7 +389,7 @@ def test_get_show_details_returns_404_when_show_does_not_exist(
 ) -> None:
     """Return HTTP 404 when the requested TMDB series does not exist."""
 
-    response = client.get("/shows/tmdb/999999999")
+    response = client.get("/api/v1/shows/tmdb/999999999")
 
     assert response.status_code == 404
     assert response.json() == {
@@ -403,7 +403,7 @@ def test_get_show_details_returns_500_when_tmdb_is_not_configured(
 ) -> None:
     """Return HTTP 500 when the TMDB provider is not configured."""
 
-    response = client.get("/shows/tmdb/95396")
+    response = client.get("/api/v1/shows/tmdb/95396")
 
     assert response.status_code == 500
     assert response.json() == {
@@ -417,7 +417,7 @@ def test_get_show_details_returns_503_when_tmdb_is_unavailable(
 ) -> None:
     """Return HTTP 503 when TMDB cannot be reached."""
 
-    response = client.get("/shows/tmdb/95396")
+    response = client.get("/api/v1/shows/tmdb/95396")
 
     assert response.status_code == 503
     assert response.json() == {
@@ -431,7 +431,7 @@ def test_get_show_details_returns_502_for_invalid_tmdb_response(
 ) -> None:
     """Return HTTP 502 when TMDB returns an invalid response."""
 
-    response = client.get("/shows/tmdb/95396")
+    response = client.get("/api/v1/shows/tmdb/95396")
 
     assert response.status_code == 502
     assert response.json() == {
@@ -453,7 +453,7 @@ def test_get_show_details_rejects_invalid_tmdb_id(
 ) -> None:
     """Reject TMDB identifiers lower than one."""
 
-    response = client.get(f"/shows/tmdb/{tmdb_id}")
+    response = client.get(f"/api/v1/shows/tmdb/{tmdb_id}")
 
     assert response.status_code == 422
 
@@ -472,7 +472,7 @@ def test_get_show_details_rejects_invalid_language(
     """Reject languages outside the accepted length limits."""
 
     response = client.get(
-        "/shows/tmdb/95396",
+        "/api/v1/shows/tmdb/95396",
         params={
             "language": language,
         },
@@ -502,7 +502,7 @@ def test_list_shows_returns_locally_stored_shows(
         vote_average=8.4,
     )
 
-    response = client.get("/shows")
+    response = client.get("/api/v1/shows")
 
     assert response.status_code == 200
 
@@ -524,7 +524,7 @@ def test_list_shows_returns_empty_paginated_response(
 ) -> None:
     """Return an empty paginated response when no local shows exist."""
 
-    response = client.get("/shows")
+    response = client.get("/api/v1/shows")
 
     assert response.status_code == 200
     assert response.json() == {
@@ -560,7 +560,7 @@ def test_list_shows_applies_pagination(
     )
 
     response = client.get(
-        "/shows",
+        "/api/v1/shows",
         params={
             "offset": 1,
             "limit": 1,
@@ -597,7 +597,7 @@ def test_list_shows_reports_no_next_page_on_last_page(
     )
 
     response = client.get(
-        "/shows",
+        "/api/v1/shows",
         params={
             "offset": 1,
             "limit": 1,
@@ -639,7 +639,7 @@ def test_list_shows_sorts_by_popularity_descending(
     )
 
     response = client.get(
-        "/shows",
+        "/api/v1/shows",
         params={
             "sort_by": "popularity",
             "sort_direction": "desc",
@@ -675,7 +675,7 @@ def test_list_shows_filters_by_title(
     )
 
     response = client.get(
-        "/shows",
+        "/api/v1/shows",
         params={
             "query": "dragon",
         },
@@ -723,7 +723,7 @@ def test_list_shows_filters_by_genre_slug(
     )
 
     response = client.get(
-        "/shows",
+        "/api/v1/shows",
         params={
             "genre": "drama",
         },
@@ -758,7 +758,7 @@ def test_list_shows_filters_by_status(
     )
 
     response = client.get(
-        "/shows",
+        "/api/v1/shows",
         params={
             "status": "Ended",
         },
@@ -816,7 +816,7 @@ def test_list_shows_combines_query_genre_and_status_filters(
     )
 
     response = client.get(
-        "/shows",
+        "/api/v1/shows",
         params={
             "query": "The Last",
             "genre": "drama",
@@ -857,7 +857,7 @@ def test_get_local_show_returns_detailed_response(
         genres=[drama],
     )
 
-    response = client.get(f"/shows/{show.id}")
+    response = client.get(f"/api/v1/shows/{show.id}")
 
     assert response.status_code == 200
 
@@ -884,6 +884,6 @@ def test_get_local_show_rejects_invalid_uuid(
 ) -> None:
     """Reject an invalid local TV series identifier."""
 
-    response = client.get("/shows/not-a-valid-uuid")
+    response = client.get("/api/v1/shows/not-a-valid-uuid")
 
     assert response.status_code == 422

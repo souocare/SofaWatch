@@ -106,7 +106,7 @@ def test_add_show_to_library(
     )
 
     response = client.post(
-        f"/library/shows/{show.id}",
+        f"/api/v1/library/shows/{show.id}",
     )
 
     assert response.status_code == 201
@@ -141,7 +141,7 @@ def test_add_show_to_library_returns_404_when_show_does_not_exist(
     create_local_user(db_session)
 
     response = client.post(
-        f"/library/shows/{uuid4()}",
+        f"/api/v1/library/shows/{uuid4()}",
     )
 
     assert response.status_code == 404
@@ -171,7 +171,7 @@ def test_add_show_to_library_returns_409_when_already_present(
     )
 
     response = client.post(
-        f"/library/shows/{show.id}",
+        f"/api/v1/library/shows/{show.id}",
     )
 
     assert response.status_code == 409
@@ -189,7 +189,7 @@ def test_add_show_to_library_rejects_invalid_show_id(
     create_local_user(db_session)
 
     response = client.post(
-        "/library/shows/not-a-valid-uuid",
+        "/api/v1/library/shows/not-a-valid-uuid",
     )
 
     assert response.status_code == 422
@@ -216,7 +216,7 @@ def test_remove_show_from_library(
     )
 
     response = client.delete(
-        f"/library/shows/{show.id}",
+        f"/api/v1/library/shows/{show.id}",
     )
 
     assert response.status_code == 204
@@ -249,7 +249,7 @@ def test_remove_show_from_library_returns_404_when_missing(
     )
 
     response = client.delete(
-        f"/library/shows/{show.id}",
+        f"/api/v1/library/shows/{show.id}",
     )
 
     assert response.status_code == 404
@@ -280,7 +280,7 @@ def test_update_library_status(
     )
 
     response = client.patch(
-        f"/library/shows/{show.id}/status",
+        f"/api/v1/library/shows/{show.id}/status",
         json={
             "status": "watching",
         },
@@ -314,7 +314,7 @@ def test_update_library_status_returns_404_when_missing(
     )
 
     response = client.patch(
-        f"/library/shows/{show.id}/status",
+        f"/api/v1/library/shows/{show.id}/status",
         json={
             "status": "watching",
         },
@@ -356,7 +356,7 @@ def test_update_library_status_rejects_invalid_status(
     )
 
     response = client.patch(
-        f"/library/shows/{show.id}/status",
+        f"/api/v1/library/shows/{show.id}/status",
         json={
             "status": library_status,
         },
@@ -397,7 +397,7 @@ def test_list_library_returns_current_user_entries(
         status=LibraryStatus.PLANNING,
     )
 
-    response = client.get("/library")
+    response = client.get("/api/v1/library")
 
     assert response.status_code == 200
 
@@ -444,7 +444,7 @@ def test_list_library_filters_by_status(
     )
 
     response = client.get(
-        "/library",
+        "/api/v1/library",
         params={
             "status": "watching",
         },
@@ -468,7 +468,7 @@ def test_list_library_rejects_invalid_status(
     create_local_user(db_session)
 
     response = client.get(
-        "/library",
+        "/api/v1/library",
         params={
             "status": "banana",
         },
@@ -512,7 +512,7 @@ def test_library_isolated_between_users(
         show=other_show,
     )
 
-    response = client.get("/library")
+    response = client.get("/api/v1/library")
 
     assert response.status_code == 200
 

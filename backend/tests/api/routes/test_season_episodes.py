@@ -120,7 +120,7 @@ def test_list_season_episodes_returns_empty_list(
     )
 
     response = client.get(
-        f"/seasons/{season.id}/episodes",
+        f"/api/v1/seasons/{season.id}/episodes",
     )
 
     assert response.status_code == 200
@@ -162,7 +162,7 @@ def test_list_season_episodes_returns_stored_episodes(
     )
 
     response = client.get(
-        f"/seasons/{season.id}/episodes",
+        f"/api/v1/seasons/{season.id}/episodes",
     )
 
     assert response.status_code == 200
@@ -229,7 +229,7 @@ def test_list_season_episodes_orders_by_episode_number(
     )
 
     response = client.get(
-        f"/seasons/{season.id}/episodes",
+        f"/api/v1/seasons/{season.id}/episodes",
     )
 
     assert response.status_code == 200
@@ -288,7 +288,7 @@ def test_list_season_episodes_only_returns_requested_season(
     )
 
     response = client.get(
-        f"/seasons/{first_season.id}/episodes",
+        f"/api/v1/seasons/{first_season.id}/episodes",
     )
 
     assert response.status_code == 200
@@ -336,7 +336,7 @@ def test_list_season_episodes_serializes_optional_fields_as_null(
     )
 
     response = client.get(
-        f"/seasons/{season.id}/episodes",
+        f"/api/v1/seasons/{season.id}/episodes",
     )
 
     assert response.status_code == 200
@@ -364,7 +364,7 @@ def test_list_season_episodes_returns_404_when_season_does_not_exist(
     """Return HTTP 404 when the local TV season does not exist."""
 
     response = client.get(
-        f"/seasons/{uuid4()}/episodes",
+        f"/api/v1/seasons/{uuid4()}/episodes",
     )
 
     assert response.status_code == 404
@@ -388,7 +388,7 @@ def test_list_season_episodes_rejects_invalid_season_id(
     """Reject an invalid local TV season identifier."""
 
     response = client.get(
-        f"/seasons/{season_id}/episodes",
+        f"/api/v1/seasons/{season_id}/episodes",
     )
 
     assert response.status_code == 422

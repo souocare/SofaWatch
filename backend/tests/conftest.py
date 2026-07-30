@@ -1,9 +1,10 @@
 from collections.abc import Generator
+from sqlite3 import Connection as SQLite3Connection
 
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -12,6 +13,7 @@ from app.core.config import Settings
 from app.db.base import Base
 from app.db.dependencies import get_db_session
 from app.main import app
+
 
 TEST_DATABASE_URL = "sqlite://"
 
@@ -23,6 +25,24 @@ test_engine = create_engine(
     },
     poolclass=StaticPool,
 )
+
+
+@event.listens_for(test_engine, "connect")
+def enable_sqlite_foreign_keys(
+    dbapi_connection,
+    _connection_record,
+) -> None:
+    """Enable foreign key enforcement for the SQLite test database."""
+
+    if isinstance(
+        dbapi_connection,
+        SQLite3Connection,
+    ):
+        cursor = dbapi_connection.cursor()
+        cursor.execute(
+            "PRAGMA foreign_keys=ON"
+        )
+        cursor.close()
 
 
 TestSessionLocal = sessionmaker(
@@ -62,12 +82,16 @@ def settings() -> Settings:
 def db_session() -> Generator[Session, None, None]:
     """Provide an isolated database session for a test."""
 
-    Base.metadata.create_all(bind=test_engine)
+    Base.metadata.create_all(
+        bind=test_engine,
+    )
 
     with TestSessionLocal() as session:
         yield session
 
-    Base.metadata.drop_all(bind=test_engine)
+    Base.metadata.drop_all(
+        bind=test_engine,
+    )
 
 
 @pytest.fixture
@@ -79,7 +103,9 @@ def client(
     def override_get_db_session() -> Generator[Session, None, None]:
         yield db_session
 
-    app.dependency_overrides[get_db_session] = override_get_db_session
+    app.dependency_overrides[
+        get_db_session
+    ] = override_get_db_session
 
     with TestClient(app) as test_client:
         yield test_client
