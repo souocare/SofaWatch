@@ -222,7 +222,10 @@ def test_get_episode_returns_404_when_episode_does_not_exist(
 
     assert response.status_code == 404
     assert response.json() == {
-        "detail": "TV episode not found.",
+        "error": {
+            "code": "episode_not_found",
+            "message": "TV episode not found.",
+        }
     }
 
 

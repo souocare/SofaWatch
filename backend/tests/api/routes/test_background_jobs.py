@@ -167,7 +167,10 @@ def test_list_background_job_runs_returns_404_for_unknown_job(
 
     assert response.status_code == 404
     assert response.json() == {
-        "detail": "Background job not found.",
+        "error": {
+            "code": "background_job_not_found",
+            "message": "Background job not found.",
+        }
     }
 
 
@@ -231,7 +234,10 @@ def test_run_background_job_now_returns_404_for_unknown_job(
 
     assert response.status_code == 404
     assert response.json() == {
-        "detail": "Background job not found.",
+        "error": {
+            "code": "background_job_not_found",
+            "message": "Background job not found.",
+        }
     }
 
 
@@ -252,5 +258,8 @@ def test_run_background_job_now_returns_409_when_job_is_running(
 
     assert response.status_code == 409
     assert response.json() == {
-        "detail": "Background job is already running.",
+        "error": {
+            "code": "background_job_already_running",
+            "message": "Background job is already running.",
+        }
     }

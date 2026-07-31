@@ -369,7 +369,10 @@ def test_list_season_episodes_returns_404_when_season_does_not_exist(
 
     assert response.status_code == 404
     assert response.json() == {
-        "detail": "TV season not found.",
+        "error": {
+            "code": "season_not_found",
+            "message": "TV season not found.",
+        }
     }
 
 

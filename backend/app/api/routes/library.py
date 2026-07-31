@@ -3,11 +3,11 @@ from uuid import UUID
 
 from fastapi import (
     APIRouter,
-    HTTPException,
     Path,
     Query,
     status,
 )
+from app.core.exceptions import APIError
 
 from app.api.dependencies import (
     CurrentUserDependency,
@@ -52,15 +52,17 @@ def add_show_to_library(
             status=LibraryStatus.PLANNING,
         )
     except LibraryEntryAlreadyExistsError as error:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_409_CONFLICT,
-            detail="TV series is already in the library.",
+            code="library_entry_already_exists",
+            message="TV series is already in the library.",
         ) from error
 
     if entry is None:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="TV series not found.",
+            code="show_not_found",
+            message="TV series not found.",
         )
 
     return entry
@@ -90,9 +92,10 @@ def remove_show_from_library(
     )
 
     if not removed:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="TV series is not in the library.",
+            code="library_entry_not_found",
+            message="TV series is not in the library.",
         )
 
 
@@ -122,9 +125,10 @@ def update_library_status(
     )
 
     if entry is None:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="TV series is not in the library.",
+            code="library_entry_not_found",
+            message="TV series is not in the library.",
         )
 
     return entry

@@ -384,7 +384,10 @@ def test_list_show_seasons_returns_404_when_show_does_not_exist(
 
     assert response.status_code == 404
     assert response.json() == {
-        "detail": "TV series not found.",
+        "error": {
+            "code": "show_not_found",
+            "message": "TV series not found.",
+        }
     }
 
 

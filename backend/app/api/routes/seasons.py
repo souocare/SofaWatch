@@ -1,7 +1,8 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import APIRouter, Path, status
+from app.core.exceptions import APIError
 
 from app.api.dependencies import (
     CurrentUserDependency,
@@ -37,9 +38,10 @@ def list_season_episodes(
     episodes = service.list_for_season(season_id)
 
     if episodes is None:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="TV season not found.",
+            code="season_not_found",
+            message="TV season not found.",
         )
 
     return episodes
@@ -69,9 +71,10 @@ def get_season_progress(
     )
 
     if progress is None:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="TV season not found.",
+            code="season_not_found",
+            message="TV season not found.",
         )
 
     return progress

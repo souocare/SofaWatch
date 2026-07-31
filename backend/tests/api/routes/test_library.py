@@ -146,7 +146,10 @@ def test_add_show_to_library_returns_404_when_show_does_not_exist(
 
     assert response.status_code == 404
     assert response.json() == {
-        "detail": "TV series not found.",
+        "error": {
+            "code": "show_not_found",
+            "message": "TV series not found.",
+        }
     }
 
 
@@ -175,8 +178,12 @@ def test_add_show_to_library_returns_409_when_already_present(
     )
 
     assert response.status_code == 409
+
     assert response.json() == {
-        "detail": "TV series is already in the library.",
+        "error": {
+            "code": "library_entry_already_exists",
+            "message": "TV series is already in the library.",
+        }
     }
 
 
@@ -254,7 +261,10 @@ def test_remove_show_from_library_returns_404_when_missing(
 
     assert response.status_code == 404
     assert response.json() == {
-        "detail": "TV series is not in the library.",
+        "error": {
+            "code": "library_entry_not_found",
+            "message": "TV series is not in the library.",
+        }
     }
 
 
@@ -322,7 +332,10 @@ def test_update_library_status_returns_404_when_missing(
 
     assert response.status_code == 404
     assert response.json() == {
-        "detail": "TV series is not in the library.",
+        "error": {
+            "code": "library_entry_not_found",
+            "message": "TV series is not in the library.",
+        }
     }
 
 

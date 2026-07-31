@@ -1,6 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
+from app.core.exceptions import APIError
 
 from app.api.dependencies import get_show_search_service
 from app.providers.tmdb.exceptions import (
@@ -64,19 +65,22 @@ def search_shows(
         )
 
     except TMDBConfigurationError as error:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="The TMDB provider is not configured.",
+            code="tmdb_not_configured",
+            message="The TMDB provider is not configured.",
         ) from error
 
     except TMDBRequestError as error:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The TMDB service is currently unavailable.",
+            code="tmdb_unavailable",
+            message="The TMDB service is currently unavailable.",
         ) from error
 
     except TMDBResponseError as error:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="TMDB returned an invalid response.",
+            code="tmdb_invalid_response",
+            message="TMDB returned an invalid response.",
         ) from error

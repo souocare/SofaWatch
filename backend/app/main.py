@@ -15,6 +15,15 @@ from app.db.session import SessionLocal
 from app.repositories.user import UserRepository
 from app.services.local_user import LocalUserService
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from app.api.error_handlers import (
+    api_error_handler,
+    http_exception_handler,
+    validation_exception_handler,
+)
+from app.core.exceptions import APIError
 
 configure_logging()
 
@@ -51,6 +60,21 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+app.add_exception_handler(
+    APIError,
+    api_error_handler,
+)
+
+app.add_exception_handler(
+    StarletteHTTPException,
+    http_exception_handler,
+)
+
+app.add_exception_handler(
+    RequestValidationError,
+    validation_exception_handler,
 )
 
 # app.include_router(genres_router)

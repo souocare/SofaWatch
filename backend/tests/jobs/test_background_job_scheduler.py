@@ -42,7 +42,7 @@ def create_definition(
         name="Test job",
         schedule_label="Every 8h",
         interval=timedelta(hours=8),
-        handler=handler or Mock(),
+        handler=handler if handler is not None else Mock(return_value=None),
     )
 
 
@@ -241,7 +241,9 @@ def test_run_if_due_does_not_execute_future_job(
 ) -> None:
     """Do not execute a job that is not due yet."""
 
-    handler = Mock()
+    handler = Mock(
+        return_value=None,
+    )
 
     definition = create_definition(
         handler=handler,
@@ -274,7 +276,9 @@ def test_run_if_due_executes_due_job(
 ) -> None:
     """Execute a background job when its next run is due."""
 
-    handler = Mock()
+    handler = Mock(
+        return_value=None,
+    )
 
     definition = create_definition(
         handler=handler,
@@ -315,7 +319,9 @@ def test_run_if_due_skips_running_job(
 ) -> None:
     """Do not execute a job that is already running."""
 
-    handler = Mock()
+    handler = Mock(
+        return_value=None,
+    )
 
     definition = create_definition(
         handler=handler,
@@ -349,7 +355,9 @@ def test_run_if_due_retries_stale_running_job(
 ) -> None:
     """Retry a running job that appears to have been abandoned."""
 
-    handler = Mock()
+    handler = Mock(
+        return_value=None,
+    )
 
     definition = create_definition(
         handler=handler,
@@ -390,7 +398,9 @@ def test_run_if_due_creates_and_executes_missing_job(
 ) -> None:
     """Create and immediately execute a registered job missing from the database."""
 
-    handler = Mock()
+    handler = Mock(
+        return_value=None,
+    )
 
     definition = create_definition(
         handler=handler,

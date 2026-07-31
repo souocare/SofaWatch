@@ -1,7 +1,8 @@
 from collections.abc import Generator
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, status
+from app.core.exceptions import APIError
 
 from app.core.config import Settings, get_settings
 from app.db.dependencies import DatabaseSession
@@ -235,9 +236,10 @@ def get_current_user(
     user = user_service.get_local()
 
     if user is None:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Local user is not configured.",
+            code="local_user_not_configured",
+            message="Local user is not configured.",
         )
 
     return user

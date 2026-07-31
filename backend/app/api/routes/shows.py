@@ -1,7 +1,8 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
+from app.core.exceptions import APIError
 
 from app.api.dependencies import (
     CurrentUserDependency,
@@ -79,27 +80,31 @@ def get_show_details(
         )
 
     except TMDBNotFoundError as error:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="The requested TV series was not found.",
+            code="tmdb_not_found",
+            message="The requested TV series was not found.",
         ) from error
 
     except TMDBConfigurationError as error:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="The TMDB provider is not configured.",
+            code="tmdb_not_configured",
+            message="The TMDB provider is not configured.",
         ) from error
 
     except TMDBRequestError as error:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The TMDB service is currently unavailable.",
+            code="tmdb_unavailable",
+            message="The TMDB service is currently unavailable.",
         ) from error
 
     except TMDBResponseError as error:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="TMDB returned an invalid response.",
+            code="tmdb_invalid_response",
+            message="TMDB returned an invalid response.",
         ) from error
 
 
@@ -155,27 +160,31 @@ def import_show(
         )
 
     except TMDBNotFoundError as error:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="The requested TV series was not found.",
+            code="tmdb_not_found",
+            message="The requested TV series was not found.",
         ) from error
 
     except TMDBConfigurationError as error:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="The TMDB provider is not configured.",
+            code="tmdb_not_configured",
+            message="The TMDB provider is not configured.",
         ) from error
 
     except TMDBRequestError as error:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The TMDB service is currently unavailable.",
+            code="tmdb_unavailable",
+            message="The TMDB service is currently unavailable.",
         ) from error
 
     except TMDBResponseError as error:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="TMDB returned an invalid response.",
+            code="tmdb_invalid_response",
+            message="TMDB returned an invalid response.",
         ) from error
 
 
@@ -241,9 +250,10 @@ def get_show(
     show = repository.get_by_id(show_id)
 
     if show is None:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="TV series not found.",
+            code="show_not_found",
+            message="TV series not found.",
         )
 
     return show
@@ -269,9 +279,10 @@ def list_show_seasons(
     seasons = service.list_for_show(show_id)
 
     if seasons is None:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="TV series not found.",
+            code="show_not_found",
+            message="TV series not found.",
         )
 
     return seasons
@@ -301,9 +312,10 @@ def get_show_progress(
     )
 
     if progress is None:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="TV series not found.",
+            code="show_not_found",
+            message="TV series not found.",
         )
 
     return progress
@@ -336,9 +348,10 @@ def get_next_episode(
     )
 
     if result is None:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="TV series not found.",
+            code="show_not_found",
+            message="TV series not found.",
         )
 
     return result
@@ -369,9 +382,10 @@ def get_next_upcoming_episode(
     )
 
     if result is None:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="TV series not found.",
+            code="show_not_found",
+            message="TV series not found.",
         )
 
     return result
@@ -409,9 +423,10 @@ def refresh_show(
     )
 
     if show is None:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="TV series not found.",
+            code="show_not_found",
+            message="TV series not found.",
         )
 
     try:
@@ -421,25 +436,29 @@ def refresh_show(
         )
 
     except TMDBNotFoundError as error:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="The requested TV series was not found in TMDB.",
+            code="tmdb_not_found",
+            message="The requested TV series was not found.",
         ) from error
 
     except TMDBConfigurationError as error:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="The TMDB provider is not configured.",
+            code="tmdb_not_configured",
+            message="The TMDB provider is not configured.",
         ) from error
 
     except TMDBRequestError as error:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The TMDB service is currently unavailable.",
+            code="tmdb_unavailable",
+            message="The TMDB service is currently unavailable.",
         ) from error
 
     except TMDBResponseError as error:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="TMDB returned an invalid response.",
+            code="tmdb_invalid_response",
+            message="TMDB returned an invalid response.",
         ) from error

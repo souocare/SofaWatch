@@ -393,7 +393,10 @@ def test_get_show_details_returns_404_when_show_does_not_exist(
 
     assert response.status_code == 404
     assert response.json() == {
-        "detail": "The requested TV series was not found.",
+        "error": {
+            "code": "tmdb_not_found",
+            "message": "The requested TV series was not found.",
+        }
     }
 
 
@@ -407,7 +410,10 @@ def test_get_show_details_returns_500_when_tmdb_is_not_configured(
 
     assert response.status_code == 500
     assert response.json() == {
-        "detail": "The TMDB provider is not configured.",
+        "error": {
+            "code": "tmdb_not_configured",
+            "message": "The TMDB provider is not configured.",
+        }
     }
 
 
@@ -421,7 +427,10 @@ def test_get_show_details_returns_503_when_tmdb_is_unavailable(
 
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "The TMDB service is currently unavailable.",
+        "error": {
+            "code": "tmdb_unavailable",
+            "message": "The TMDB service is currently unavailable.",
+        }
     }
 
 
@@ -435,7 +444,10 @@ def test_get_show_details_returns_502_for_invalid_tmdb_response(
 
     assert response.status_code == 502
     assert response.json() == {
-        "detail": "TMDB returned an invalid response.",
+        "error": {
+            "code": "tmdb_invalid_response",
+            "message": "TMDB returned an invalid response.",
+        }
     }
 
 

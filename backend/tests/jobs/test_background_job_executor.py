@@ -60,7 +60,9 @@ def test_execute_creates_job_when_missing(
 ) -> None:
     """Create persisted job state when executing a new job."""
 
-    handler = Mock()
+    handler = Mock(
+        return_value=None,
+    )
 
     definition = create_definition(
         handler=handler,
@@ -107,7 +109,7 @@ def test_execute_reuses_existing_job(
     original_job_id = existing_job.id
 
     definition = create_definition(
-        handler=Mock(),
+        handler=Mock(return_value=None),
         name="Updated name",
         schedule_label="Every 8h",
     )
@@ -124,7 +126,6 @@ def test_execute_reuses_existing_job(
 
     assert job is not None
     assert job.id == original_job_id
-
     assert job.name == "Updated name"
     assert job.schedule == "Every 8h"
 
@@ -139,7 +140,9 @@ def test_execute_records_successful_run(
 ) -> None:
     """Persist successful execution state and history."""
 
-    handler = Mock()
+    handler = Mock(
+        return_value=None,
+    )
 
     definition = create_definition(
         handler=handler,
@@ -178,7 +181,7 @@ def test_execute_schedules_next_run_from_start_time(
     """Schedule the next execution relative to the current run start."""
 
     definition = create_definition(
-        handler=Mock(),
+        handler=Mock(return_value=None),
         interval=timedelta(hours=8),
     )
 
@@ -268,7 +271,7 @@ def test_execute_creates_run_for_each_execution(
     """Create a separate history entry for every execution."""
 
     definition = create_definition(
-        handler=Mock(),
+        handler=Mock(return_value=None),
     )
 
     first_run = executor.execute(
@@ -320,7 +323,7 @@ def test_successful_execution_clears_previous_error(
     assert failed_job.last_error == "Temporary failure."
 
     successful_definition = create_definition(
-        handler=Mock(),
+        handler=Mock(return_value=None),
     )
 
     executor.execute(

@@ -1,6 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Path, Query, status
+from fastapi import APIRouter, Path, Query, status
+from app.core.exceptions import APIError
 
 from app.api.dependencies import (
     BackgroundJobExecutorDependency,
@@ -88,9 +89,10 @@ def list_background_job_runs(
     """Return recent executions of a background job."""
 
     if get_background_job(job_key) is None:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Background job not found.",
+            code="background_job_not_found",
+            message="Background job not found.",
         )
 
     job = repository.get_by_key(
@@ -131,9 +133,10 @@ def run_background_job_now(
     )
 
     if definition is None:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Background job not found.",
+            code="background_job_not_found",
+            message="Background job not found.",
         )
 
     existing_job = repository.get_by_key(
@@ -141,9 +144,10 @@ def run_background_job_now(
     )
 
     if existing_job is not None and existing_job.status == BackgroundJobStatus.RUNNING:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Background job is already running.",
+            code="background_job_already_running",
+            message="Background job is already running.",
         )
 
     run = executor.execute(

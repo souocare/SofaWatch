@@ -1,7 +1,8 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import APIRouter, Path, status
+from app.core.exceptions import APIError
 
 from app.api.dependencies import (
     CurrentUserDependency,
@@ -42,9 +43,10 @@ def get_episode(
     )
 
     if episode is None:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="TV episode not found.",
+            code="episode_not_found",
+            message="TV episode not found.",
         )
 
     return episode
@@ -76,9 +78,10 @@ def mark_episode_watched(
     )
 
     if progress is None:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="TV episode not found.",
+            code="episode_not_found",
+            message="TV episode not found.",
         )
 
     return progress
@@ -108,9 +111,10 @@ def mark_episode_unwatched(
     )
 
     if progress is None:
-        raise HTTPException(
+        raise APIError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="TV episode not found.",
+            code="episode_not_found",
+            message="TV episode not found.",
         )
 
     return progress

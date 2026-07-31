@@ -255,7 +255,10 @@ def test_search_shows_converts_configuration_error(
 
     assert response.status_code == 500
     assert response.json() == {
-        "detail": "The TMDB provider is not configured.",
+        "error": {
+            "code": "tmdb_not_configured",
+            "message": "The TMDB provider is not configured.",
+        }
     }
 
 
@@ -274,7 +277,10 @@ def test_search_shows_converts_request_error(
 
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "The TMDB service is currently unavailable.",
+        "error": {
+            "code": "tmdb_unavailable",
+            "message": "The TMDB service is currently unavailable.",
+        }
     }
 
 
@@ -293,5 +299,8 @@ def test_search_shows_converts_response_error(
 
     assert response.status_code == 502
     assert response.json() == {
-        "detail": "TMDB returned an invalid response.",
+        "error": {
+            "code": "tmdb_invalid_response",
+            "message": "TMDB returned an invalid response.",
+        }
     }
