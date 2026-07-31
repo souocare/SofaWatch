@@ -37,6 +37,7 @@ class BackgroundJobRunResponse(BaseModel):
     finished_at: datetime | None
     duration_ms: int | None
     error: str | None
+    result: dict[str, object] | None
 
 
 class BackgroundJobRunNowResponse(BaseModel):

@@ -1,9 +1,13 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
+from app.models.user import User
+from app.models.episode import Episode
+from app.models.season import Season
+from app.models.show import Show
 from sqlalchemy.orm import Session
 
 from app.models.episode_progress import EpisodeProgress
@@ -28,6 +32,67 @@ def as_utc(
         UTC,
     )
 
+def persist_user(
+    db_session: Session,
+) -> User:
+    user = User(
+        display_name="Test User",
+        is_local=False,
+    )
+    db_session.add(user)
+    db_session.flush()
+    return user
+
+def persist_show(
+    db_session: Session,
+    *,
+    tmdb_id: int = 95396,
+    title: str = "Severance",
+) -> Show:
+    """Persist a TV series for service tests."""
+
+    show = Show(
+        tmdb_id=tmdb_id,
+        title=title,
+        original_title=title,
+        original_language="en",
+        metadata_language="en-US",
+    )
+
+    db_session.add(show)
+    db_session.flush()
+
+    return show
+
+def persist_season(
+    db_session: Session,
+    *,
+    show: Show,
+) -> Season:
+    season = Season(
+        show_id=show.id,
+        tmdb_id=999002,
+        season_number=1,
+        title="Season 1",
+    )
+    db_session.add(season)
+    db_session.flush()
+    return season
+
+def persist_episode(
+    db_session: Session,
+    *,
+    season: Season,
+) -> Episode:
+    episode = Episode(
+        season_id=season.id,
+        tmdb_id=999003,
+        episode_number=1,
+        title="Episode 1",
+    )
+    db_session.add(episode)
+    db_session.flush()
+    return episode
 
 @pytest.fixture
 def progress_repository() -> Mock:
@@ -107,12 +172,18 @@ def test_mark_watched_creates_progress(
 ) -> None:
     """Create progress when an episode is marked watched for the first time."""
 
-    user_id = uuid4()
-    episode_id = uuid4()
-
-    episode_repository.get_by_id.return_value = SimpleNamespace(
-        id=episode_id,
+    user = persist_user(db_session)
+    show = persist_show(db_session)
+    season = persist_season(
+        db_session,
+        show=show,
     )
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+
+    episode_repository.get_by_id.return_value = episode
     progress_repository.get_by_user_and_episode.return_value = None
 
     def add_progress(
@@ -124,13 +195,13 @@ def test_mark_watched_creates_progress(
     progress_repository.add.side_effect = add_progress
 
     result = progress_service.mark_watched(
-        user_id=user_id,
-        episode_id=episode_id,
+        user_id=user.id,
+        episode_id=episode.id,
     )
 
     assert result is not None
-    assert result.user_id == user_id
-    assert result.episode_id == episode_id
+    assert result.user_id == user.id
+    assert result.episode_id == episode.id
     assert result.is_watched is True
     assert result.watched_at is not None
 
@@ -147,12 +218,18 @@ def test_mark_watched_uses_explicit_watched_at(
 ) -> None:
     """Store the explicitly supplied viewing date."""
 
-    user_id = uuid4()
-    episode_id = uuid4()
-
-    episode_repository.get_by_id.return_value = SimpleNamespace(
-        id=episode_id,
+    user = persist_user(db_session)
+    show = persist_show(db_session)
+    season = persist_season(
+        db_session,
+        show=show,
     )
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+
+    episode_repository.get_by_id.return_value = episode
     progress_repository.get_by_user_and_episode.return_value = None
 
     def add_progress(
@@ -173,11 +250,12 @@ def test_mark_watched_uses_explicit_watched_at(
     )
 
     result = progress_service.mark_watched(
-        user_id=user_id,
-        episode_id=episode_id,
+        user_id=user.id,
+        episode_id=episode.id,
         watched_at=watched_at,
     )
 
+    assert result is not None
     assert result.watched_at is not None
     assert as_utc(result.watched_at) == watched_at
 
@@ -190,12 +268,18 @@ def test_mark_watched_normalizes_naive_watched_at_to_utc(
 ) -> None:
     """Interpret a timezone-naive viewing date as UTC."""
 
-    user_id = uuid4()
-    episode_id = uuid4()
-
-    episode_repository.get_by_id.return_value = SimpleNamespace(
-        id=episode_id,
+    user = persist_user(db_session)
+    show = persist_show(db_session)
+    season = persist_season(
+        db_session,
+        show=show,
     )
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+
+    episode_repository.get_by_id.return_value = episode
     progress_repository.get_by_user_and_episode.return_value = None
 
     def add_progress(
@@ -215,13 +299,14 @@ def test_mark_watched_normalizes_naive_watched_at_to_utc(
     )
 
     result = progress_service.mark_watched(
-        user_id=user_id,
-        episode_id=episode_id,
+        user_id=user.id,
+        episode_id=episode.id,
         watched_at=watched_at,
     )
 
     assert result is not None
     assert result.watched_at is not None
+
     assert as_utc(result.watched_at) == datetime(
         2026,
         7,
@@ -240,16 +325,22 @@ def test_mark_watched_updates_existing_unwatched_progress(
 ) -> None:
     """Mark an existing unwatched progress entry as watched."""
 
-    user_id = uuid4()
-    episode_id = uuid4()
-
-    episode_repository.get_by_id.return_value = SimpleNamespace(
-        id=episode_id,
+    user = persist_user(db_session)
+    show = persist_show(db_session)
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+    episode = persist_episode(
+        db_session,
+        season=season,
     )
 
+    episode_repository.get_by_id.return_value = episode
+
     progress = EpisodeProgress(
-        user_id=user_id,
-        episode_id=episode_id,
+        user_id=user.id,
+        episode_id=episode.id,
         is_watched=False,
         watched_at=None,
     )
@@ -260,8 +351,8 @@ def test_mark_watched_updates_existing_unwatched_progress(
     progress_repository.get_by_user_and_episode.return_value = progress
 
     result = progress_service.mark_watched(
-        user_id=user_id,
-        episode_id=episode_id,
+        user_id=user.id,
+        episode_id=episode.id,
     )
 
     assert result is progress
@@ -279,12 +370,18 @@ def test_mark_watched_preserves_existing_watched_at(
 ) -> None:
     """Preserve the viewing date when an already watched episode is marked again."""
 
-    user_id = uuid4()
-    episode_id = uuid4()
-
-    episode_repository.get_by_id.return_value = SimpleNamespace(
-        id=episode_id,
+    user = persist_user(db_session)
+    show = persist_show(db_session)
+    season = persist_season(
+        db_session,
+        show=show,
     )
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+
+    episode_repository.get_by_id.return_value = episode
 
     original_watched_at = datetime(
         2026,
@@ -296,8 +393,8 @@ def test_mark_watched_preserves_existing_watched_at(
     )
 
     progress = EpisodeProgress(
-        user_id=user_id,
-        episode_id=episode_id,
+        user_id=user.id,
+        episode_id=episode.id,
         is_watched=True,
         watched_at=original_watched_at,
     )
@@ -308,12 +405,11 @@ def test_mark_watched_preserves_existing_watched_at(
     progress_repository.get_by_user_and_episode.return_value = progress
 
     result = progress_service.mark_watched(
-        user_id=user_id,
-        episode_id=episode_id,
+        user_id=user.id,
+        episode_id=episode.id,
     )
 
     assert result is progress
-    # assert result.watched_at == original_watched_at
     assert result.watched_at is not None
     assert as_utc(result.watched_at) == original_watched_at
 
@@ -348,12 +444,18 @@ def test_mark_unwatched_creates_unwatched_progress_when_missing(
 ) -> None:
     """Create an unwatched progress entry when none exists."""
 
-    user_id = uuid4()
-    episode_id = uuid4()
-
-    episode_repository.get_by_id.return_value = SimpleNamespace(
-        id=episode_id,
+    user = persist_user(db_session)
+    show = persist_show(db_session)
+    season = persist_season(
+        db_session,
+        show=show,
     )
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+
+    episode_repository.get_by_id.return_value = episode
     progress_repository.get_by_user_and_episode.return_value = None
 
     def add_progress(
@@ -365,11 +467,13 @@ def test_mark_unwatched_creates_unwatched_progress_when_missing(
     progress_repository.add.side_effect = add_progress
 
     result = progress_service.mark_unwatched(
-        user_id=user_id,
-        episode_id=episode_id,
+        user_id=user.id,
+        episode_id=episode.id,
     )
 
     assert result is not None
+    assert result.user_id == user.id
+    assert result.episode_id == episode.id
     assert result.is_watched is False
     assert result.watched_at is None
 
@@ -386,16 +490,22 @@ def test_mark_unwatched_clears_existing_progress(
 ) -> None:
     """Clear watched state and viewing date from existing progress."""
 
-    user_id = uuid4()
-    episode_id = uuid4()
-
-    episode_repository.get_by_id.return_value = SimpleNamespace(
-        id=episode_id,
+    user = persist_user(db_session)
+    show = persist_show(db_session)
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+    episode = persist_episode(
+        db_session,
+        season=season,
     )
 
+    episode_repository.get_by_id.return_value = episode
+
     progress = EpisodeProgress(
-        user_id=user_id,
-        episode_id=episode_id,
+        user_id=user.id,
+        episode_id=episode.id,
         is_watched=True,
         watched_at=datetime.now(UTC),
     )
@@ -406,8 +516,8 @@ def test_mark_unwatched_clears_existing_progress(
     progress_repository.get_by_user_and_episode.return_value = progress
 
     result = progress_service.mark_unwatched(
-        user_id=user_id,
-        episode_id=episode_id,
+        user_id=user.id,
+        episode_id=episode.id,
     )
 
     assert result is progress
@@ -436,64 +546,11 @@ def test_get_season_progress_returns_none_when_season_does_not_exist(
     assert result is None
 
     episode_repository.count_by_season_id.assert_not_called()
+    episode_repository.count_aired_by_season_id.assert_not_called()
     progress_repository.count_watched_for_season.assert_not_called()
+    progress_repository.count_watched_aired_for_season.assert_not_called()
 
 
-def test_get_season_progress_calculates_percentage(
-    progress_service: EpisodeProgressService,
-    season_repository: Mock,
-    episode_repository: Mock,
-    progress_repository: Mock,
-) -> None:
-    """Calculate watched episode count and percentage for a season."""
-
-    user_id = uuid4()
-    season_id = uuid4()
-
-    season_repository.get_by_id.return_value = SimpleNamespace(
-        id=season_id,
-    )
-    episode_repository.count_by_season_id.return_value = 10
-    progress_repository.count_watched_for_season.return_value = 7
-
-    result = progress_service.get_season_progress(
-        user_id=user_id,
-        season_id=season_id,
-    )
-
-    assert result is not None
-    assert result.season_id == season_id
-    assert result.watched_episodes == 7
-    assert result.total_episodes == 10
-    assert result.progress_percentage == 70.0
-
-
-def test_get_season_progress_handles_empty_season(
-    progress_service: EpisodeProgressService,
-    season_repository: Mock,
-    episode_repository: Mock,
-    progress_repository: Mock,
-) -> None:
-    """Return zero percent for a season with no locally stored episodes."""
-
-    user_id = uuid4()
-    season_id = uuid4()
-
-    season_repository.get_by_id.return_value = SimpleNamespace(
-        id=season_id,
-    )
-    episode_repository.count_by_season_id.return_value = 0
-    progress_repository.count_watched_for_season.return_value = 0
-
-    result = progress_service.get_season_progress(
-        user_id=user_id,
-        season_id=season_id,
-    )
-
-    assert result is not None
-    assert result.watched_episodes == 0
-    assert result.total_episodes == 0
-    assert result.progress_percentage == 0.0
 
 
 def test_get_show_progress_returns_none_when_show_does_not_exist(
@@ -516,39 +573,11 @@ def test_get_show_progress_returns_none_when_show_does_not_exist(
 
     assert result is None
 
-    episode_repository.count_by_show_id.assert_not_called()
+    episode_repository.count_regular_by_show_id.assert_not_called()
+    episode_repository.count_aired_by_show_id.assert_not_called()
     progress_repository.count_watched_for_show.assert_not_called()
+    progress_repository.count_watched_aired_for_show.assert_not_called()
 
-
-def test_get_show_progress_calculates_percentage(
-    progress_service: EpisodeProgressService,
-    show_repository: Mock,
-    episode_repository: Mock,
-    progress_repository: Mock,
-) -> None:
-    """Calculate watched episode count and percentage for a TV series."""
-
-    user_id = uuid4()
-    show_id = uuid4()
-
-    show_repository.get_by_id.return_value = SimpleNamespace(
-        id=show_id,
-    )
-    episode_repository.count_by_show_id.return_value = 19
-    progress_repository.count_watched_for_show.return_value = 12
-
-    result = progress_service.get_show_progress(
-        user_id=user_id,
-        show_id=show_id,
-    )
-
-    assert result is not None
-    assert result.show_id == show_id
-    assert result.watched_episodes == 12
-    assert result.total_episodes == 19
-    assert result.progress_percentage == pytest.approx(
-        63.1578947368421,
-    )
 
 
 def test_get_show_progress_handles_show_without_episodes(
@@ -565,8 +594,11 @@ def test_get_show_progress_handles_show_without_episodes(
     show_repository.get_by_id.return_value = SimpleNamespace(
         id=show_id,
     )
-    episode_repository.count_by_show_id.return_value = 0
+    episode_repository.count_regular_by_show_id.return_value = 0
+    episode_repository.count_aired_by_show_id.return_value = 0
+
     progress_repository.count_watched_for_show.return_value = 0
+    progress_repository.count_watched_aired_for_show.return_value = 0
 
     result = progress_service.get_show_progress(
         user_id=user_id,
@@ -648,6 +680,7 @@ def test_get_next_episode_returns_next_unwatched_episode(
     progress_repository.get_next_unwatched_for_show.assert_called_once_with(
         user_id=user_id,
         show_id=show_id,
+        as_of=date.today(),
     )
 
 
@@ -674,3 +707,398 @@ def test_get_next_episode_returns_null_when_show_is_complete(
     assert result is not None
     assert result.show_id == show_id
     assert result.next_episode is None
+
+def test_get_season_progress_calculates_progress(
+    progress_service: EpisodeProgressService,
+    season_repository: Mock,
+    episode_repository: Mock,
+    progress_repository: Mock,
+) -> None:
+    """Calculate overall and aired progress for a season."""
+
+    user_id = uuid4()
+    season_id = uuid4()
+
+    season_repository.get_by_id.return_value = SimpleNamespace(
+        id=season_id,
+    )
+
+    episode_repository.count_by_season_id.return_value = 10
+    progress_repository.count_watched_for_season.return_value = 5
+
+    episode_repository.count_aired_by_season_id.return_value = 5
+    progress_repository.count_watched_aired_for_season.return_value = 5
+
+    result = progress_service.get_season_progress(
+        user_id=user_id,
+        season_id=season_id,
+    )
+
+    assert result is not None
+    assert result.season_id == season_id
+
+    assert result.watched_episodes == 5
+    assert result.total_episodes == 10
+    assert result.progress_percentage == 50.0
+
+    assert result.aired_episodes == 5
+    assert result.watched_aired_episodes == 5
+    assert result.aired_progress_percentage == 100.0
+    assert result.caught_up is True
+
+
+def test_get_season_progress_is_not_caught_up_when_aired_episode_is_unwatched(
+    progress_service: EpisodeProgressService,
+    season_repository: Mock,
+    episode_repository: Mock,
+    progress_repository: Mock,
+) -> None:
+    """Return false when not every aired episode has been watched."""
+
+    user_id = uuid4()
+    season_id = uuid4()
+
+    season_repository.get_by_id.return_value = SimpleNamespace(
+        id=season_id,
+    )
+
+    episode_repository.count_by_season_id.return_value = 10
+    progress_repository.count_watched_for_season.return_value = 3
+
+    episode_repository.count_aired_by_season_id.return_value = 5
+    progress_repository.count_watched_aired_for_season.return_value = 3
+
+    result = progress_service.get_season_progress(
+        user_id=user_id,
+        season_id=season_id,
+    )
+
+    assert result is not None
+    assert result.progress_percentage == 30.0
+    assert result.aired_progress_percentage == 60.0
+    assert result.caught_up is False
+
+def test_get_season_progress_handles_empty_season(
+    progress_service: EpisodeProgressService,
+    season_repository: Mock,
+    episode_repository: Mock,
+    progress_repository: Mock,
+) -> None:
+    """Return zero progress for a season without episodes."""
+
+    user_id = uuid4()
+    season_id = uuid4()
+
+    season_repository.get_by_id.return_value = SimpleNamespace(
+        id=season_id,
+    )
+
+    episode_repository.count_by_season_id.return_value = 0
+    progress_repository.count_watched_for_season.return_value = 0
+
+    episode_repository.count_aired_by_season_id.return_value = 0
+    progress_repository.count_watched_aired_for_season.return_value = 0
+
+    result = progress_service.get_season_progress(
+        user_id=user_id,
+        season_id=season_id,
+    )
+
+    assert result is not None
+
+    assert result.watched_episodes == 0
+    assert result.total_episodes == 0
+    assert result.progress_percentage == 0.0
+
+    assert result.aired_episodes == 0
+    assert result.watched_aired_episodes == 0
+    assert result.aired_progress_percentage == 0.0
+
+    assert result.caught_up is False
+
+def test_get_show_progress_calculates_progress(
+    progress_service: EpisodeProgressService,
+    show_repository: Mock,
+    episode_repository: Mock,
+    progress_repository: Mock,
+) -> None:
+    """Calculate overall and aired progress for a TV series."""
+
+    user_id = uuid4()
+    show_id = uuid4()
+
+    show_repository.get_by_id.return_value = SimpleNamespace(
+        id=show_id,
+    )
+
+    episode_repository.count_regular_by_show_id.return_value = 10
+    progress_repository.count_watched_for_show.return_value = 5
+
+    episode_repository.count_aired_by_show_id.return_value = 5
+    progress_repository.count_watched_aired_for_show.return_value = 5
+
+    result = progress_service.get_show_progress(
+        user_id=user_id,
+        show_id=show_id,
+    )
+
+    assert result is not None
+
+    assert result.show_id == show_id
+
+    assert result.watched_episodes == 5
+    assert result.total_episodes == 10
+    assert result.progress_percentage == 50.0
+
+    assert result.aired_episodes == 5
+    assert result.watched_aired_episodes == 5
+    assert result.aired_progress_percentage == 100.0
+
+    assert result.caught_up is True
+
+
+def test_get_show_progress_is_not_caught_up_when_aired_episode_is_unwatched(
+    progress_service: EpisodeProgressService,
+    show_repository: Mock,
+    episode_repository: Mock,
+    progress_repository: Mock,
+) -> None:
+    """Return false when not every aired regular episode was watched."""
+
+    user_id = uuid4()
+    show_id = uuid4()
+
+    show_repository.get_by_id.return_value = SimpleNamespace(
+        id=show_id,
+    )
+
+    episode_repository.count_regular_by_show_id.return_value = 10
+    progress_repository.count_watched_for_show.return_value = 3
+
+    episode_repository.count_aired_by_show_id.return_value = 5
+    progress_repository.count_watched_aired_for_show.return_value = 3
+
+    result = progress_service.get_show_progress(
+        user_id=user_id,
+        show_id=show_id,
+    )
+
+    assert result is not None
+    assert result.progress_percentage == 30.0
+    assert result.aired_progress_percentage == 60.0
+    assert result.caught_up is False
+
+
+
+def test_get_show_progress_handles_show_without_episodes(
+    progress_service: EpisodeProgressService,
+    show_repository: Mock,
+    episode_repository: Mock,
+    progress_repository: Mock,
+) -> None:
+    """Return zero progress when no regular episodes exist."""
+
+    user_id = uuid4()
+    show_id = uuid4()
+
+    show_repository.get_by_id.return_value = SimpleNamespace(
+        id=show_id,
+    )
+
+    episode_repository.count_regular_by_show_id.return_value = 0
+    progress_repository.count_watched_for_show.return_value = 0
+
+    episode_repository.count_aired_by_show_id.return_value = 0
+    progress_repository.count_watched_aired_for_show.return_value = 0
+
+    result = progress_service.get_show_progress(
+        user_id=user_id,
+        show_id=show_id,
+    )
+
+    assert result is not None
+    assert result.watched_episodes == 0
+    assert result.total_episodes == 0
+    assert result.progress_percentage == 0.0
+
+    assert result.aired_episodes == 0
+    assert result.watched_aired_episodes == 0
+    assert result.aired_progress_percentage == 0.0
+
+    assert result.caught_up is False
+
+
+def test_get_next_upcoming_episode_returns_none_when_show_does_not_exist(
+    progress_service: EpisodeProgressService,
+    show_repository: Mock,
+    progress_repository: Mock,
+) -> None:
+    """Return None when requesting upcoming episode for a missing show."""
+
+    show_id = uuid4()
+
+    show_repository.get_by_id.return_value = None
+
+    result = progress_service.get_next_upcoming_episode(
+        show_id=show_id,
+    )
+
+    assert result is None
+
+    progress_repository.get_next_upcoming_for_show.assert_not_called()
+
+
+def test_get_next_upcoming_episode_returns_future_episode(
+    progress_service: EpisodeProgressService,
+    show_repository: Mock,
+    progress_repository: Mock,
+) -> None:
+    """Return the next future regular episode."""
+
+    show_id = uuid4()
+    episode_id = uuid4()
+    season_id = uuid4()
+
+    show_repository.get_by_id.return_value = SimpleNamespace(
+        id=show_id,
+    )
+
+    episode = SimpleNamespace(
+        id=episode_id,
+        season_id=season_id,
+        tmdb_id=2106,
+        episode_number=6,
+        title="Episode 6",
+        overview=None,
+        air_date=date(2026, 8, 2),
+        runtime=55,
+        vote_average=0.0,
+        vote_count=0,
+        tmdb_still_path=None,
+        local_still_path=None,
+    )
+
+    progress_repository.get_next_upcoming_for_show.return_value = (
+        episode
+    )
+
+    result = progress_service.get_next_upcoming_episode(
+        show_id=show_id,
+    )
+
+    assert result is not None
+    assert result.show_id == show_id
+    assert result.next_episode is not None
+    assert result.next_episode.id == episode_id
+
+    progress_repository.get_next_upcoming_for_show.assert_called_once_with(
+        show_id=show_id,
+        after=date.today(),
+    )
+
+def test_get_next_upcoming_episode_returns_null_when_none_is_known(
+    progress_service: EpisodeProgressService,
+    show_repository: Mock,
+    progress_repository: Mock,
+) -> None:
+    """Return a null episode when no future regular episode is known."""
+
+    show_id = uuid4()
+
+    show_repository.get_by_id.return_value = SimpleNamespace(
+        id=show_id,
+    )
+
+    progress_repository.get_next_upcoming_for_show.return_value = None
+
+    result = progress_service.get_next_upcoming_episode(
+        show_id=show_id,
+    )
+
+    assert result is not None
+    assert result.show_id == show_id
+    assert result.next_episode is None
+
+    
+
+def test_get_season_progress_calculates_percentage(
+    progress_service: EpisodeProgressService,
+    season_repository: Mock,
+    episode_repository: Mock,
+    progress_repository: Mock,
+) -> None:
+    """Calculate overall and aired progress for a season."""
+
+    user_id = uuid4()
+    season_id = uuid4()
+
+    season_repository.get_by_id.return_value = SimpleNamespace(
+        id=season_id,
+    )
+
+    episode_repository.count_by_season_id.return_value = 10
+    progress_repository.count_watched_for_season.return_value = 5
+
+    episode_repository.count_aired_by_season_id.return_value = 5
+    progress_repository.count_watched_aired_for_season.return_value = 5
+
+    result = progress_service.get_season_progress(
+        user_id=user_id,
+        season_id=season_id,
+    )
+
+    assert result is not None
+
+    assert result.season_id == season_id
+
+    assert result.watched_episodes == 5
+    assert result.total_episodes == 10
+    assert result.progress_percentage == 50.0
+
+    assert result.aired_episodes == 5
+    assert result.watched_aired_episodes == 5
+    assert result.aired_progress_percentage == 100.0
+
+    assert result.caught_up is True
+
+
+def test_get_show_progress_calculates_percentage(
+    progress_service: EpisodeProgressService,
+    show_repository: Mock,
+    episode_repository: Mock,
+    progress_repository: Mock,
+) -> None:
+    """Calculate overall and aired progress for a TV series."""
+
+    user_id = uuid4()
+    show_id = uuid4()
+
+    show_repository.get_by_id.return_value = SimpleNamespace(
+        id=show_id,
+    )
+
+    episode_repository.count_regular_by_show_id.return_value = 10
+    progress_repository.count_watched_for_show.return_value = 5
+
+    episode_repository.count_aired_by_show_id.return_value = 5
+    progress_repository.count_watched_aired_for_show.return_value = 5
+
+    result = progress_service.get_show_progress(
+        user_id=user_id,
+        show_id=show_id,
+    )
+
+    assert result is not None
+
+    assert result.show_id == show_id
+
+    assert result.watched_episodes == 5
+    assert result.total_episodes == 10
+    assert result.progress_percentage == 50.0
+
+    assert result.aired_episodes == 5
+    assert result.watched_aired_episodes == 5
+    assert result.aired_progress_percentage == 100.0
+
+    assert result.caught_up is True
+

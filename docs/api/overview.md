@@ -5,6 +5,15 @@ SofaWatch exposes a REST API using FastAPI.
 
 Interactive OpenAPI documentation is available automatically through FastAPI.
 
+## Versioning
+
+All application API routes are exposed under:
+
+```text
+/api/v1
+```
+The FastAPI documentation endpoints remain available at /docs and /redoc.
+
 ## Main resources
 
 ### Shows
@@ -14,17 +23,20 @@ Supports:
 - local show listing;
 - local show detail;
 - TMDB detail lookup;
-- TMDB import;
+- idempotent TMDB import;
 - manual metadata refresh;
-- show progress;
-- next episode.
+- overall and aired show progress;
+- caught-up state;
+- next aired episode to watch;
+- next upcoming episode.
 
 ### Seasons
 
 Supports:
 
 - listing seasons belonging to a show;
-- season progress;
+- overall and aired season progress;
+- caught-up state;
 - episodes belonging to a season.
 
 ### Episodes
@@ -60,6 +72,7 @@ Supports:
 
 - listing registered jobs;
 - retrieving execution history;
+- structured execution results;
 - manually executing a job.
 
 ## Resource identifiers
@@ -71,15 +84,15 @@ Local entities generally use UUIDs.
 For example:
 
 ```text
-GET /shows/{show_id}
+GET /api/v1/shows/{show_id}
 ``` 
 uses the SofaWatch UUID, while:
 ```text
-GET /shows/tmdb/{tmdb_id}
+GET /api/v1/shows/tmdb/{tmdb_id}
 ```
 uses the TMDB identifier.
 
-##Error handling
+## Error handling
 The API uses standard HTTP status codes.
 Typical examples include:
 

@@ -5,7 +5,8 @@ from types import MappingProxyType
 
 from app.jobs.metadata_sync import run_metadata_sync
 
-JobCallable = Callable[[], None]
+JobResult = dict[str, object]
+JobCallable = Callable[[], JobResult | None]
 
 
 @dataclass(frozen=True, slots=True)

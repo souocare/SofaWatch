@@ -12,6 +12,8 @@ from app.repositories.show import ShowRepository
 from app.services.exceptions import LibraryEntryAlreadyExistsError
 from app.services.library import LibraryService
 
+from app.models.show import Show
+from app.models.user import User
 
 @pytest.fixture
 def library_repository() -> Mock:
@@ -51,6 +53,43 @@ def make_show(
     return SimpleNamespace(
         id=show_id,
     )
+
+def persist_user(
+    db_session: Session,
+) -> User:
+    """Persist a user for service tests."""
+
+    user = User(
+        display_name="Test User",
+        is_local=False,
+    )
+
+    db_session.add(user)
+    db_session.flush()
+
+    return user
+
+
+def persist_show(
+    db_session: Session,
+    *,
+    tmdb_id: int = 95396,
+    title: str = "Severance",
+) -> Show:
+    """Persist a TV series for service tests."""
+
+    show = Show(
+        tmdb_id=tmdb_id,
+        title=title,
+        original_title=title,
+        original_language="en",
+        metadata_language="en-US",
+    )
+
+    db_session.add(show)
+    db_session.flush()
+
+    return show
 
 
 def make_entry(
@@ -241,12 +280,15 @@ def test_add_show_creates_planning_entry_by_default(
 ) -> None:
     """Create a planning entry when no status is specified."""
 
-    user_id = uuid4()
-    show_id = uuid4()
-
-    show_repository.get_by_id.return_value = make_show(
-        show_id=show_id,
+    user = persist_user(
+        db_session,
     )
+
+    show = persist_show(
+        db_session,
+    )
+
+    show_repository.get_by_id.return_value = show
     library_repository.get_by_user_and_show.return_value = None
 
     def add_entry(entry: LibraryEntry) -> LibraryEntry:
@@ -256,16 +298,18 @@ def test_add_show_creates_planning_entry_by_default(
     library_repository.add.side_effect = add_entry
 
     result = library_service.add_show(
-        user_id=user_id,
-        show_id=show_id,
+        user_id=user.id,
+        show_id=show.id,
     )
 
     assert result is not None
-    assert result.user_id == user_id
-    assert result.show_id == show_id
+    assert result.user_id == user.id
+    assert result.show_id == show.id
     assert result.status == LibraryStatus.PLANNING
 
-    library_repository.add.assert_called_once_with(result)
+    library_repository.add.assert_called_once_with(
+        result,
+    )
 
 
 def test_add_show_uses_selected_status(
@@ -276,12 +320,15 @@ def test_add_show_uses_selected_status(
 ) -> None:
     """Create an entry using the explicitly selected status."""
 
-    user_id = uuid4()
-    show_id = uuid4()
-
-    show_repository.get_by_id.return_value = make_show(
-        show_id=show_id,
+    user = persist_user(
+        db_session,
     )
+
+    show = persist_show(
+        db_session,
+    )
+
+    show_repository.get_by_id.return_value = show
     library_repository.get_by_user_and_show.return_value = None
 
     def add_entry(entry: LibraryEntry) -> LibraryEntry:
@@ -291,12 +338,14 @@ def test_add_show_uses_selected_status(
     library_repository.add.side_effect = add_entry
 
     result = library_service.add_show(
-        user_id=user_id,
-        show_id=show_id,
+        user_id=user.id,
+        show_id=show.id,
         status=LibraryStatus.WATCHING,
     )
 
     assert result is not None
+    assert result.user_id == user.id
+    assert result.show_id == show.id
     assert result.status == LibraryStatus.WATCHING
 
 
@@ -375,22 +424,28 @@ def test_update_status_updates_existing_entry(
 ) -> None:
     """Update the tracking status of an existing library entry."""
 
-    user_id = uuid4()
-    show_id = uuid4()
+    user = persist_user(
+        db_session,
+    )
+
+    show = persist_show(
+        db_session,
+    )
 
     entry = make_entry(
-        user_id=user_id,
-        show_id=show_id,
+        user_id=user.id,
+        show_id=show.id,
         status=LibraryStatus.PLANNING,
     )
 
     db_session.add(entry)
+    db_session.flush()
 
     library_repository.get_by_user_and_show.return_value = entry
 
     result = library_service.update_status(
-        user_id=user_id,
-        show_id=show_id,
+        user_id=user.id,
+        show_id=show.id,
         status=LibraryStatus.WATCHING,
     )
 

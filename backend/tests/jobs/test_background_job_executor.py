@@ -334,3 +334,69 @@ def test_successful_execution_clears_previous_error(
     assert job is not None
     assert job.status == BackgroundJobStatus.SUCCESS
     assert job.last_error is None
+
+
+def test_execute_persists_handler_result(
+    executor: BackgroundJobExecutor,
+) -> None:
+    """Persist structured data returned by the job handler."""
+
+    handler = Mock(
+        return_value={
+            "checked": 10,
+            "refreshed": 4,
+            "skipped": 6,
+            "failed": 0,
+        }
+    )
+
+    definition = create_definition(
+        handler=handler,
+    )
+
+    run = executor.execute(
+        definition,
+    )
+
+    assert run.status == BackgroundJobStatus.SUCCESS
+    assert run.result == {
+        "checked": 10,
+        "refreshed": 4,
+        "skipped": 6,
+        "failed": 0,
+    }
+
+def test_execute_preserves_result_from_failed_handler(
+    executor: BackgroundJobExecutor,
+) -> None:
+    """Persist structured result data exposed by a failed job."""
+
+    class TestJobError(RuntimeError):
+        def __init__(self) -> None:
+            super().__init__("Partial failure.")
+            self.result = {
+                "checked": 10,
+                "refreshed": 4,
+                "skipped": 5,
+                "failed": 1,
+            }
+
+    definition = create_definition(
+        handler=Mock(
+            side_effect=TestJobError(),
+        ),
+    )
+
+    run = executor.execute(
+        definition,
+    )
+
+    assert run.status == BackgroundJobStatus.FAILED
+    assert run.error == "Partial failure."
+    assert run.result == {
+        "checked": 10,
+        "refreshed": 4,
+        "skipped": 5,
+        "failed": 1,
+    }
+

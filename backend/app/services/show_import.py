@@ -20,7 +20,22 @@ from app.schemas.tmdb_show import (
 )
 from app.services.tmdb_season_details import TMDBSeasonDetailsService
 from app.services.tmdb_show_details import TMDBShowDetailsService
+from dataclasses import dataclass
+from enum import StrEnum
 
+class ShowSyncOutcome(StrEnum):
+    """Outcome of an automatic TV series metadata synchronization."""
+
+    REFRESHED = "refreshed"
+    SKIPPED = "skipped"
+
+
+@dataclass(frozen=True, slots=True)
+class ShowSyncResult:
+    """Result of synchronizing one locally stored TV series."""
+
+    show: Show
+    outcome: ShowSyncOutcome
 
 class ShowImportService:
     """Import and refresh TV series metadata."""
@@ -115,6 +130,35 @@ class ShowImportService:
         except Exception:
             self._session.rollback()
             raise
+
+    def sync_show(
+        self,
+        *,
+        tmdb_id: int,
+        language: str | None = None,
+    ) -> ShowSyncResult:
+        """Synchronize an existing TV series when automatic refresh is required."""
+
+        show = self._show_repository.get_by_tmdb_id(
+            tmdb_id,
+        )
+
+        if show is not None and not self._should_refresh(show):
+            return ShowSyncResult(
+                show=show,
+                outcome=ShowSyncOutcome.SKIPPED,
+            )
+
+        synced_show = self.import_show(
+            tmdb_id=tmdb_id,
+            language=language,
+            force_refresh=False,
+        )
+
+        return ShowSyncResult(
+            show=synced_show,
+            outcome=ShowSyncOutcome.REFRESHED,
+        )
 
     def _should_refresh(
         self,

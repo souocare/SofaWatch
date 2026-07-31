@@ -5,7 +5,7 @@
 The goal is to provide a private, self-hosted alternative for managing what you watch, keeping track of your progress, discovering what to watch next, and maintaining your own viewing history while keeping application data under your control.
 
 > [!NOTE]
-> SofaWatch is currently under active development. Things are being build. 
+> SofaWatch is currently under active development. Things are being built. 
 
 ## Features
 
@@ -21,8 +21,10 @@ The backend currently supports:
 - Library tracking states
 - Watched and unwatched episode tracking
 - Viewing dates
-- Season and show progress
-- Next episode detection
+- Overall and aired viewing progress
+- Caught-up state detection
+- Next aired episode detection
+- Next upcoming episode detection
 - Manual metadata refresh
 - Periodic metadata synchronization
 - Persistent background jobs and execution history
@@ -36,7 +38,6 @@ SofaWatch is intended to grow into a complete TV and movie companion, including:
 - Native iOS and Android applications
 - Responsive web application
 - Personalized home and discovery experiences
-- Upcoming episode tracking
 - Ratings and favorites
 - Viewing statistics and history
 - Recommendations
@@ -252,12 +253,15 @@ Jobs track their:
 - Next execution
 - Errors
 - Execution history
+- Structured execution results
 
 The first scheduled job handles TV metadata synchronization.
 
 The scheduler checks for metadata synchronization every eight hours. Automatic synchronization respects the metadata refresh policy and does not force updates for shows that should not be refreshed.
 
 Ended and canceled TV shows are excluded from automatic metadata refreshes but remain available for manual refresh.
+
+Metadata synchronization runs record how many shows were checked, refreshed, skipped, or failed. These structured results are stored with each execution history entry and remain available even when a run finishes with partial failures.
 
 See [Background Jobs](docs/architecture/background-jobs.md) for details.
 

@@ -92,6 +92,12 @@ The backend currently supports:
 - persistent background job state and execution history
 - manual background job execution
 - local user association for library and viewing progress
+- overall and aired season/show progress calculation
+- caught-up state detection
+- next aired unwatched episode detection
+- next upcoming episode detection
+- automatic metadata synchronization with refresh/skip/failure metrics
+- persistent background job execution results
 
 Movies and additional application functionality will be added as development continues.
 
@@ -151,6 +157,7 @@ See [API Overview](../docs/api/overview.md) for an overview of the available res
 SQLite is the default database.
 
 Database access is implemented using SQLAlchemy, while schema changes are managed through Alembic migrations.
+SQLite foreign key enforcement is enabled explicitly for application and test database connections.
 
 Apply all pending migrations with:
 

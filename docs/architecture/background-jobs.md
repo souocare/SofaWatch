@@ -35,6 +35,8 @@ The executor is responsible for:
 - executing the handler;
 - measuring execution duration;
 - recording success or failure;
+- persisting structured handler results when available;
+- preserving structured partial results from failed handlers when exposed by the error;
 - storing the next execution time.
 
 ### Persistence
@@ -43,6 +45,10 @@ The executor is responsible for:
 
 `background_job_runs` stores execution history.
 
+Each run can also store a generic structured `result` object.
+
+This allows individual jobs to expose job-specific execution metrics without coupling the generic background job infrastructure to a particular task.
+
 This allows the frontend to show information such as:
 
 - schedule;
@@ -50,7 +56,9 @@ This allows the frontend to show information such as:
 - last run;
 - duration;
 - next run;
+- structured execution result;
 - last error.
+
 
 ## Metadata synchronization
 
@@ -65,3 +73,12 @@ Ended and canceled series are skipped during automatic metadata refreshes, but t
 Individual show failures do not prevent remaining shows from being processed.
 
 If one or more shows fail, the overall job execution is marked as failed.
+
+A metadata synchronization run records:
+- checked shows;
+- refreshed shows;
+- skipped shows;
+- failed shows.
+
+The result is stored on the corresponding background job run.
+If individual shows fail, processing continues for the remaining shows. The final run is marked as failed when at least one show fails, while the partial synchronization counters are still preserved.

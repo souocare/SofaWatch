@@ -8,6 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     Text,
+    JSON,
     Uuid,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -68,6 +69,11 @@ class BackgroundJobRun(TimestampMixin, Base):
 
     error: Mapped[str | None] = mapped_column(
         Text,
+        nullable=True,
+    )
+
+    result: Mapped[dict[str, object] | None] = mapped_column(
+        JSON,
         nullable=True,
     )
 

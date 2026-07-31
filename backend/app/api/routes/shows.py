@@ -25,8 +25,10 @@ from app.providers.tmdb.exceptions import (
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.progress import (
     NextEpisodeResponse,
+    NextUpcomingEpisodeResponse,
     ShowProgressResponse,
 )
+
 from app.schemas.season import SeasonResponse
 from app.schemas.show import ShowResponse, ShowSummaryResponse
 from app.schemas.tmdb_show import ShowDetailsResponse
@@ -105,8 +107,11 @@ def get_show_details(
     "/import/tmdb/{tmdb_id}",
     response_model=ShowResponse,
     summary="Import TV series",
-    description="Import a TV series from TMDB into the local database.",
-    status_code=status.HTTP_201_CREATED,
+    description=(
+        "Ensure a TV series from TMDB exists in the local database "
+        "and return the locally stored series."
+    ),
+    status_code=status.HTTP_200_OK,
 )
 def import_show(
     service: Annotated[
@@ -308,7 +313,10 @@ def get_show_progress(
     "/{show_id}/next-episode",
     response_model=NextEpisodeResponse,
     summary="Get next episode",
-    description="Return the next unwatched episode for the current user.",
+    description=(
+        "Return the next aired unwatched regular episode "
+        "for the current user."
+    ),
 )
 def get_next_episode(
     show_id: Annotated[
@@ -324,6 +332,39 @@ def get_next_episode(
 
     result = service.get_next_episode(
         user_id=current_user.id,
+        show_id=show_id,
+    )
+
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="TV series not found.",
+        )
+
+    return result
+
+
+@router.get(
+    "/{show_id}/next-upcoming",
+    response_model=NextUpcomingEpisodeResponse,
+    summary="Get next upcoming episode",
+    description=(
+        "Return the next known future regular episode "
+        "of a TV series."
+    ),
+)
+def get_next_upcoming_episode(
+    show_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV series identifier.",
+        ),
+    ],
+    service: EpisodeProgressServiceDependency,
+) -> NextUpcomingEpisodeResponse:
+    """Return the next future regular episode of a TV series."""
+
+    result = service.get_next_upcoming_episode(
         show_id=show_id,
     )
 

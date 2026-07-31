@@ -53,6 +53,7 @@ def make_episode(
     tmdb_id: int = 4023112,
     episode_number: int = 1,
     title: str = "Good News About Hell",
+    air_date: date | None = date(2022, 2, 18),
 ) -> Episode:
     """Create a TV episode for repository tests."""
 
@@ -62,12 +63,12 @@ def make_episode(
         episode_number=episode_number,
         title=title,
         overview="Episode overview.",
-        air_date=date(2022, 2, 18),
         runtime=57,
         vote_average=8.1,
         vote_count=42,
         tmdb_still_path="/episode.jpg",
         local_still_path=None,
+        air_date=air_date,
     )
 
 
@@ -680,3 +681,172 @@ def test_episode_allows_missing_runtime(
     db_session.refresh(episode)
 
     assert episode.runtime is None
+
+
+def test_count_aired_by_season_id_counts_only_aired_episodes(
+    db_session: Session,
+) -> None:
+    """Count only episodes aired on or before the requested date."""
+
+    show = persist_show(db_session)
+
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+
+    db_session.add_all(
+        [
+            make_episode(
+                season_id=season.id,
+                tmdb_id=1001,
+                episode_number=1,
+                air_date=date(2026, 7, 1),
+            ),
+            make_episode(
+                season_id=season.id,
+                tmdb_id=1002,
+                episode_number=2,
+                air_date=date(2026, 7, 29),
+            ),
+            make_episode(
+                season_id=season.id,
+                tmdb_id=1003,
+                episode_number=3,
+                air_date=date(2026, 8, 1),
+            ),
+            make_episode(
+                season_id=season.id,
+                tmdb_id=1004,
+                episode_number=4,
+                air_date=None,
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    repository = EpisodeRepository(db_session)
+
+    result = repository.count_aired_by_season_id(
+        season.id,
+        as_of=date(2026, 7, 29),
+    )
+
+    assert result == 2
+
+
+def test_count_regular_by_show_id_excludes_specials(
+    db_session: Session,
+) -> None:
+    """Exclude season zero from show-level episode totals."""
+
+    show = persist_show(db_session)
+
+    specials = persist_season(
+        db_session,
+        show=show,
+        tmdb_id=1000,
+        season_number=0,
+        title="Specials",
+    )
+
+    regular = persist_season(
+        db_session,
+        show=show,
+        tmdb_id=1001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    db_session.add_all(
+        [
+            make_episode(
+                season_id=specials.id,
+                tmdb_id=2001,
+                episode_number=1,
+            ),
+            make_episode(
+                season_id=regular.id,
+                tmdb_id=2101,
+                episode_number=1,
+            ),
+            make_episode(
+                season_id=regular.id,
+                tmdb_id=2102,
+                episode_number=2,
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    repository = EpisodeRepository(db_session)
+
+    assert repository.count_regular_by_show_id(
+        show.id,
+    ) == 2
+
+
+def test_count_aired_by_show_id_excludes_future_unknown_and_specials(
+    db_session: Session,
+) -> None:
+    """Count only aired regular episodes at show level."""
+
+    show = persist_show(db_session)
+
+    specials = persist_season(
+        db_session,
+        show=show,
+        tmdb_id=1000,
+        season_number=0,
+        title="Specials",
+    )
+
+    regular = persist_season(
+        db_session,
+        show=show,
+        tmdb_id=1001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    db_session.add_all(
+        [
+            make_episode(
+                season_id=specials.id,
+                tmdb_id=2001,
+                episode_number=1,
+                air_date=date(2026, 7, 1),
+            ),
+            make_episode(
+                season_id=regular.id,
+                tmdb_id=2101,
+                episode_number=1,
+                air_date=date(2026, 7, 1),
+            ),
+            make_episode(
+                season_id=regular.id,
+                tmdb_id=2102,
+                episode_number=2,
+                air_date=date(2026, 8, 1),
+            ),
+            make_episode(
+                season_id=regular.id,
+                tmdb_id=2103,
+                episode_number=3,
+                air_date=None,
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    repository = EpisodeRepository(db_session)
+
+    assert repository.count_aired_by_show_id(
+        show.id,
+        as_of=date(2026, 7, 29),
+    ) == 1
+
+

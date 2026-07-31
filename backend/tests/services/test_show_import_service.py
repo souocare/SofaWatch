@@ -18,7 +18,7 @@ from app.repositories.network import NetworkRepository
 from app.repositories.season import SeasonRepository
 from app.repositories.show import ShowRepository
 from app.schemas.tmdb_episode import EpisodeSummary
-from app.services.show_import import ShowImportService
+from app.services.show_import import ShowImportService, ShowSyncOutcome
 from app.services.tmdb_season_details import TMDBSeasonDetailsService
 from app.services.tmdb_show_details import TMDBShowDetailsService
 
@@ -1143,6 +1143,141 @@ def test_import_show_adds_new_episode_during_refresh(
     assert episode is not None
     assert episode.tmdb_id == 2103
     assert episode.title == "New Episode"
+
+
+def test_sync_show_skips_recent_metadata(
+    db_session: Session,
+    settings: Settings,
+    tmdb_show_details_service: Mock,
+    tmdb_season_details_service: Mock,
+) -> None:
+    """Skip automatic synchronization when metadata is still recent."""
+    show = Show(
+        tmdb_id=TMDB_ID,
+        title="Existing Show",
+        original_title="Existing Show",
+        original_language="en",
+        metadata_language="en-US",
+        metadata_updated_at=datetime.now(UTC),
+    )
+    db_session.add(show)
+    db_session.commit()
+    service = ShowImportService(
+        session=db_session,
+        settings=settings,
+        show_repository=ShowRepository(db_session),
+        genre_repository=GenreRepository(db_session),
+        network_repository=NetworkRepository(db_session),
+        season_repository=SeasonRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        tmdb_show_details_service=tmdb_show_details_service,
+        tmdb_season_details_service=tmdb_season_details_service,
+    )
+    result = service.sync_show(
+        tmdb_id=TMDB_ID,
+        language="en-US",
+    )
+    assert result.show.id == show.id
+    assert result.outcome is ShowSyncOutcome.SKIPPED
+    tmdb_show_details_service.get_details.assert_not_called()
+
+
+def test_sync_show_refreshes_stale_metadata(
+    db_session: Session,
+    settings: Settings,
+    tmdb_show_details_service: Mock,
+    tmdb_season_details_service: Mock,
+    show_details: SimpleNamespace,
+) -> None:
+    """Refresh automatic synchronization when metadata is stale."""
+
+    show = Show(
+        tmdb_id=TMDB_ID,
+        title="Old title",
+        original_title="Old title",
+        original_language="en",
+        metadata_language="en-US",
+        metadata_updated_at=(
+            datetime.now(UTC)
+            - timedelta(days=settings.metadata_refresh_days + 1)
+        ),
+    )
+
+    db_session.add(show)
+    db_session.commit()
+
+    tmdb_show_details_service.get_details.return_value = show_details
+
+    service = ShowImportService(
+        session=db_session,
+        settings=settings,
+        show_repository=ShowRepository(db_session),
+        genre_repository=GenreRepository(db_session),
+        network_repository=NetworkRepository(db_session),
+        season_repository=SeasonRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        tmdb_show_details_service=tmdb_show_details_service,
+        tmdb_season_details_service=tmdb_season_details_service,
+    )
+
+    result = service.sync_show(
+        tmdb_id=TMDB_ID,
+        language="en-US",
+    )
+
+    assert result.show.id == show.id
+    assert result.outcome is ShowSyncOutcome.REFRESHED
+
+    tmdb_show_details_service.get_details.assert_called_once_with(
+        tmdb_id=TMDB_ID,
+        language="en-US",
+    )
+
+def test_sync_show_skips_ended_show(
+    db_session: Session,
+    settings: Settings,
+    tmdb_show_details_service: Mock,
+    tmdb_season_details_service: Mock,
+) -> None:
+    """Skip ended TV series during automatic synchronization."""
+
+    show = Show(
+        tmdb_id=TMDB_ID,
+        title="Ended Show",
+        original_title="Ended Show",
+        original_language="en",
+        status="Ended",
+        metadata_language="en-US",
+        metadata_updated_at=(
+            datetime.now(UTC)
+            - timedelta(days=settings.metadata_refresh_days + 100)
+        ),
+    )
+
+    db_session.add(show)
+    db_session.commit()
+
+    service = ShowImportService(
+        session=db_session,
+        settings=settings,
+        show_repository=ShowRepository(db_session),
+        genre_repository=GenreRepository(db_session),
+        network_repository=NetworkRepository(db_session),
+        season_repository=SeasonRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        tmdb_show_details_service=tmdb_show_details_service,
+        tmdb_season_details_service=tmdb_season_details_service,
+    )
+
+    result = service.sync_show(
+        tmdb_id=TMDB_ID,
+    )
+
+    assert result.outcome is ShowSyncOutcome.SKIPPED
+    tmdb_show_details_service.get_details.assert_not_called()
+
+
+
 
 
 def test_import_show_keeps_episodes_missing_from_tmdb_response(

@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+from datetime import date
 
 from app.models.episode import Episode
 from app.models.season import Season
@@ -115,6 +116,77 @@ class EpisodeRepository:
                 )
                 .where(
                     Season.show_id == show_id,
+                )
+            )
+            or 0
+        )
+    
+    def count_aired_by_season_id(
+        self,
+        season_id: UUID,
+        *,
+        as_of: date,
+    ) -> int:
+        """Count aired episodes belonging to a season."""
+
+        return (
+            self._session.scalar(
+                select(func.count())
+                .select_from(Episode)
+                .where(
+                    Episode.season_id == season_id,
+                    Episode.air_date.is_not(None),
+                    Episode.air_date <= as_of,
+                )
+            )
+            or 0
+        )
+
+
+    def count_regular_by_show_id(
+        self,
+        show_id: UUID,
+    ) -> int:
+        """Count regular locally stored episodes belonging to a TV series."""
+
+        return (
+            self._session.scalar(
+                select(func.count())
+                .select_from(Episode)
+                .join(
+                    Season,
+                    Season.id == Episode.season_id,
+                )
+                .where(
+                    Season.show_id == show_id,
+                    Season.season_number > 0,
+                )
+            )
+            or 0
+        )
+
+
+    def count_aired_by_show_id(
+        self,
+        show_id: UUID,
+        *,
+        as_of: date,
+    ) -> int:
+        """Count aired regular episodes belonging to a TV series."""
+
+        return (
+            self._session.scalar(
+                select(func.count())
+                .select_from(Episode)
+                .join(
+                    Season,
+                    Season.id == Episode.season_id,
+                )
+                .where(
+                    Season.show_id == show_id,
+                    Season.season_number > 0,
+                    Episode.air_date.is_not(None),
+                    Episode.air_date <= as_of,
                 )
             )
             or 0

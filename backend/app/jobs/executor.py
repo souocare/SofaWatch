@@ -61,7 +61,7 @@ class BackgroundJobExecutor:
         )
 
         try:
-            definition.handler()
+            result = definition.handler()
 
         except Exception as error:
             duration_ms = self._duration_ms(
@@ -74,6 +74,11 @@ class BackgroundJobExecutor:
             run.finished_at = finished_at
             run.duration_ms = duration_ms
             run.error = str(error)
+            run.result = getattr(
+                error,
+                "result",
+                None,
+            )
 
             job.status = BackgroundJobStatus.FAILED
             job.last_finished_at = finished_at
@@ -102,6 +107,7 @@ class BackgroundJobExecutor:
         run.finished_at = finished_at
         run.duration_ms = duration_ms
         run.error = None
+        run.result = result
 
         job.status = BackgroundJobStatus.SUCCESS
         job.last_finished_at = finished_at

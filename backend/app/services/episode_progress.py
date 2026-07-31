@@ -1,5 +1,6 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, date
 from uuid import UUID
+
 
 from sqlalchemy.orm import Session
 
@@ -8,7 +9,7 @@ from app.repositories.episode import EpisodeRepository
 from app.repositories.episode_progress import EpisodeProgressRepository
 from app.repositories.season import SeasonRepository
 from app.repositories.show import ShowRepository
-from app.schemas.progress import NextEpisodeResponse, SeasonProgressResponse, ShowProgressResponse
+from app.schemas.progress import NextEpisodeResponse, NextUpcomingEpisodeResponse, SeasonProgressResponse, ShowProgressResponse
 
 
 class EpisodeProgressService:
@@ -132,22 +133,60 @@ class EpisodeProgressService:
         if season is None:
             return None
 
+        today = date.today()
+
         total_episodes = self._episode_repository.count_by_season_id(
             season_id,
         )
 
-        watched_episodes = self._progress_repository.count_watched_for_season(
-            user_id=user_id,
-            season_id=season_id,
+        watched_episodes = (
+            self._progress_repository.count_watched_for_season(
+                user_id=user_id,
+                season_id=season_id,
+            )
         )
 
-        percentage = watched_episodes / total_episodes * 100 if total_episodes > 0 else 0.0
+        aired_episodes = (
+            self._episode_repository.count_aired_by_season_id(
+                season_id,
+                as_of=today,
+            )
+        )
+
+        watched_aired_episodes = (
+            self._progress_repository.count_watched_aired_for_season(
+                user_id=user_id,
+                season_id=season_id,
+                as_of=today,
+            )
+        )
+
+        progress_percentage = (
+            watched_episodes / total_episodes * 100
+            if total_episodes > 0
+            else 0.0
+        )
+
+        aired_progress_percentage = (
+            watched_aired_episodes / aired_episodes * 100
+            if aired_episodes > 0
+            else 0.0
+        )
+
+        caught_up = (
+            aired_episodes > 0
+            and watched_aired_episodes == aired_episodes
+        )
 
         return SeasonProgressResponse(
             season_id=season_id,
             watched_episodes=watched_episodes,
             total_episodes=total_episodes,
-            progress_percentage=percentage,
+            progress_percentage=progress_percentage,
+            aired_episodes=aired_episodes,
+            watched_aired_episodes=watched_aired_episodes,
+            aired_progress_percentage=aired_progress_percentage,
+            caught_up=caught_up,
         )
 
     def get_show_progress(
@@ -165,22 +204,62 @@ class EpisodeProgressService:
         if show is None:
             return None
 
-        total_episodes = self._episode_repository.count_by_show_id(
-            show_id,
+        today = date.today()
+
+        total_episodes = (
+            self._episode_repository.count_regular_by_show_id(
+                show_id,
+            )
         )
 
-        watched_episodes = self._progress_repository.count_watched_for_show(
-            user_id=user_id,
-            show_id=show_id,
+        watched_episodes = (
+            self._progress_repository.count_watched_for_show(
+                user_id=user_id,
+                show_id=show_id,
+            )
         )
 
-        percentage = watched_episodes / total_episodes * 100 if total_episodes > 0 else 0.0
+        aired_episodes = (
+            self._episode_repository.count_aired_by_show_id(
+                show_id,
+                as_of=today,
+            )
+        )
+
+        watched_aired_episodes = (
+            self._progress_repository.count_watched_aired_for_show(
+                user_id=user_id,
+                show_id=show_id,
+                as_of=today,
+            )
+        )
+
+        progress_percentage = (
+            watched_episodes / total_episodes * 100
+            if total_episodes > 0
+            else 0.0
+        )
+
+        aired_progress_percentage = (
+            watched_aired_episodes / aired_episodes * 100
+            if aired_episodes > 0
+            else 0.0
+        )
+
+        caught_up = (
+            aired_episodes > 0
+            and watched_aired_episodes == aired_episodes
+        )
 
         return ShowProgressResponse(
             show_id=show_id,
             watched_episodes=watched_episodes,
             total_episodes=total_episodes,
-            progress_percentage=percentage,
+            progress_percentage=progress_percentage,
+            aired_episodes=aired_episodes,
+            watched_aired_episodes=watched_aired_episodes,
+            aired_progress_percentage=aired_progress_percentage,
+            caught_up=caught_up,
         )
 
     def get_next_episode(
@@ -204,9 +283,34 @@ class EpisodeProgressService:
         episode = self._progress_repository.get_next_unwatched_for_show(
             user_id=user_id,
             show_id=show_id,
+            as_of=date.today(),
         )
 
         return NextEpisodeResponse(
+            show_id=show_id,
+            next_episode=episode,
+        )
+    
+    def get_next_upcoming_episode(
+        self,
+        *,
+        show_id: UUID,
+    ) -> NextUpcomingEpisodeResponse | None:
+        """Return the next future regular episode of a TV series."""
+
+        show = self._show_repository.get_by_id(
+            show_id,
+        )
+
+        if show is None:
+            return None
+
+        episode = self._progress_repository.get_next_upcoming_for_show(
+            show_id=show_id,
+            after=date.today(),
+        )
+
+        return NextUpcomingEpisodeResponse(
             show_id=show_id,
             next_episode=episode,
         )

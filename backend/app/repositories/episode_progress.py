@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+from datetime import date
 
 from app.models.episode import Episode
 from app.models.episode_progress import EpisodeProgress
@@ -91,6 +92,7 @@ class EpisodeProgressRepository:
                     EpisodeProgress.user_id == user_id,
                     EpisodeProgress.is_watched.is_(True),
                     Season.show_id == show_id,
+                    Season.season_number > 0,
                 )
             )
             or 0
@@ -101,10 +103,13 @@ class EpisodeProgressRepository:
         *,
         user_id: UUID,
         show_id: UUID,
+        as_of: date,
     ) -> Episode | None:
-        """Return the next unwatched episode of a TV series."""
+        """Return the next aired unwatched regular episode of a TV series."""
 
-        watched_episode_ids = select(EpisodeProgress.episode_id).where(
+        watched_episode_ids = select(
+            EpisodeProgress.episode_id
+        ).where(
             EpisodeProgress.user_id == user_id,
             EpisodeProgress.is_watched.is_(True),
         )
@@ -118,6 +123,8 @@ class EpisodeProgressRepository:
             .where(
                 Season.show_id == show_id,
                 Season.season_number > 0,
+                Episode.air_date.is_not(None),
+                Episode.air_date <= as_of,
                 Episode.id.not_in(watched_episode_ids),
             )
             .order_by(
@@ -125,4 +132,94 @@ class EpisodeProgressRepository:
                 Episode.episode_number.asc(),
             )
             .limit(1)
+        )
+    
+    def get_next_upcoming_for_show(
+        self,
+        *,
+        show_id: UUID,
+        after: date,
+    ) -> Episode | None:
+        """Return the next future regular episode of a TV series."""
+
+        return self._session.scalar(
+            select(Episode)
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .where(
+                Season.show_id == show_id,
+                Season.season_number > 0,
+                Episode.air_date.is_not(None),
+                Episode.air_date > after,
+            )
+            .order_by(
+                Episode.air_date.asc(),
+                Season.season_number.asc(),
+                Episode.episode_number.asc(),
+            )
+            .limit(1)
+        )
+    
+    def count_watched_aired_for_season(
+        self,
+        *,
+        user_id: UUID,
+        season_id: UUID,
+        as_of: date,
+    ) -> int:
+        """Count watched aired episodes for a user within a season."""
+
+        return (
+            self._session.scalar(
+                select(func.count())
+                .select_from(EpisodeProgress)
+                .join(
+                    Episode,
+                    Episode.id == EpisodeProgress.episode_id,
+                )
+                .where(
+                    EpisodeProgress.user_id == user_id,
+                    EpisodeProgress.is_watched.is_(True),
+                    Episode.season_id == season_id,
+                    Episode.air_date.is_not(None),
+                    Episode.air_date <= as_of,
+                )
+            )
+            or 0
+        )
+
+
+    def count_watched_aired_for_show(
+        self,
+        *,
+        user_id: UUID,
+        show_id: UUID,
+        as_of: date,
+    ) -> int:
+        """Count watched aired regular episodes for a user within a TV series."""
+
+        return (
+            self._session.scalar(
+                select(func.count())
+                .select_from(EpisodeProgress)
+                .join(
+                    Episode,
+                    Episode.id == EpisodeProgress.episode_id,
+                )
+                .join(
+                    Season,
+                    Season.id == Episode.season_id,
+                )
+                .where(
+                    EpisodeProgress.user_id == user_id,
+                    EpisodeProgress.is_watched.is_(True),
+                    Season.show_id == show_id,
+                    Season.season_number > 0,
+                    Episode.air_date.is_not(None),
+                    Episode.air_date <= as_of,
+                )
+            )
+            or 0
         )

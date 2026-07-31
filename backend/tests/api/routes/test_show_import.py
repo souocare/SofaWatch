@@ -81,7 +81,7 @@ def test_import_show_returns_imported_show(
         )
     )
 
-    assert response.status_code == 201
+    assert response.status_code == 200
 
     response_data = response.json()
 
@@ -117,7 +117,7 @@ def test_import_show_forwards_optional_parameters(
         },
     )
 
-    assert response.status_code == 201
+    assert response.status_code == 200
 
     show_import_service.import_show.assert_called_once_with(
         tmdb_id=TMDB_ID,
