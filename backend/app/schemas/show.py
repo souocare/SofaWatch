@@ -21,6 +21,8 @@ class ShowSummaryResponse(BaseModel):
 
     tmdb_poster_path: str | None = None
     local_poster_path: str | None = None
+    poster_url: str | None = None
+    backdrop_url: str | None = None
 
     status: str
     vote_average: float = Field(ge=0, le=10)
@@ -51,6 +53,8 @@ class ShowResponse(BaseModel):
 
     local_poster_path: str | None = None
     local_backdrop_path: str | None = None
+    poster_url: str | None = None
+    backdrop_url: str | None = None
 
     homepage_url: str | None = None
     original_language: str

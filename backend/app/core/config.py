@@ -19,6 +19,8 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./data/sofawatch.db"
 
+    image_storage_path: str = "./data/images"
+
     secret_key: SecretStr = Field(min_length=32)
 
     default_language: str = "en-US"

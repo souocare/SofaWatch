@@ -22,3 +22,4 @@ class SeasonResponse(BaseModel):
 
     tmdb_poster_path: str | None = None
     local_poster_path: str | None = None
+    poster_url: str | None = None

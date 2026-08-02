@@ -152,6 +152,9 @@ def test_list_show_seasons_returns_stored_seasons(
         "vote_average": 8.4,
         "tmdb_poster_path": "/season-one.jpg",
         "local_poster_path": None,
+        "poster_url": (
+            f"/api/v1/images/seasons/{season.id}/poster"
+        ),
     }
 
 
@@ -334,6 +337,7 @@ def test_list_show_seasons_serializes_optional_fields_as_null(
         "vote_average": 0.0,
         "tmdb_poster_path": None,
         "local_poster_path": None,
+        "poster_url": None,
     }
 
 

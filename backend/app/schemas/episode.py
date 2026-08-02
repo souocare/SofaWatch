@@ -30,3 +30,5 @@ class EpisodeResponse(BaseModel):
 
     tmdb_still_path: str | None = None
     local_still_path: str | None = None
+
+    still_url: str | None = None

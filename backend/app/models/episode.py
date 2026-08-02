@@ -131,6 +131,15 @@ class Episode(TimestampMixin, Base):
         cascade="all, delete-orphan",
     )
 
+    @property
+    def still_url(self) -> str | None:
+        """Return the SofaWatch episode still endpoint when artwork is available."""
+
+        if not self.local_still_path and not self.tmdb_still_path:
+            return None
+
+        return f"/api/v1/images/episodes/{self.id}/still"
+
     def __repr__(self) -> str:
         return (
             "Episode("

@@ -7,6 +7,7 @@ from app.api.routes.library import router as library_router
 from app.api.routes.search import router as search_router
 from app.api.routes.seasons import router as seasons_router
 from app.api.routes.shows import router as shows_router
+from app.api.routes.images import router as images_router
 
 api_router = APIRouter(
     prefix="/api/v1",
@@ -19,3 +20,4 @@ api_router.include_router(seasons_router)
 api_router.include_router(episodes_router)
 api_router.include_router(library_router)
 api_router.include_router(background_jobs_router)
+api_router.include_router(images_router)

@@ -85,3 +85,6 @@ docs_internal.md
 AI_CONTEXT.md
 ROADMAP.md
 docs/decisions/
+
+# Image cache
+backend/data/images/

@@ -32,6 +32,9 @@ from app.services.show_import import ShowImportService
 from app.services.tmdb_season_details import TMDBSeasonDetailsService
 from app.services.tmdb_show_details import TMDBShowDetailsService
 from app.services.tmdb_show_search import ShowSearchService
+from app.core.storage import ImageStorage
+from app.services.image import ImageService
+from app.services.image_cache import ImageCacheService
 
 
 def get_genre_service(
@@ -317,4 +320,43 @@ def get_background_job_executor(
 BackgroundJobExecutorDependency = Annotated[
     BackgroundJobExecutor,
     Depends(get_background_job_executor),
+]
+
+
+def get_image_service(
+    session: DatabaseSession,
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
+) -> Generator[ImageService, None, None]:
+    """Provide the image resolution service for one request."""
+
+    storage = ImageStorage(
+        settings=settings,
+    )
+
+    cache_service = ImageCacheService(
+        settings=settings,
+        storage=storage,
+    )
+
+    service = ImageService(
+        session=session,
+        storage=storage,
+        cache_service=cache_service,
+        show_repository=ShowRepository(session),
+        season_repository=SeasonRepository(session),
+        episode_repository=EpisodeRepository(session),
+    )
+
+    try:
+        yield service
+    finally:
+        cache_service.close()
+
+
+ImageServiceDependency = Annotated[
+    ImageService,
+    Depends(get_image_service),
 ]

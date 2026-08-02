@@ -62,3 +62,34 @@ def test_show_can_have_genres() -> None:
     assert show.genres == [drama, fantasy]
     assert drama in show.genres
     assert fantasy in show.genres
+
+
+
+
+def test_poster_url_returns_endpoint() -> None:
+    show = Show()
+
+    show.id = "12345678-1234-1234-1234-123456789abc"
+    show.tmdb_poster_path = "/poster.jpg"
+
+    assert show.poster_url == (
+        "/api/v1/images/shows/"
+        "12345678-1234-1234-1234-123456789abc/poster"
+    )
+
+
+def test_poster_url_returns_none_when_no_image_exists() -> None:
+    show = Show()
+
+    assert show.poster_url is None
+
+def test_backdrop_url_returns_endpoint() -> None:
+    show = Show()
+
+    show.id = "12345678-1234-1234-1234-123456789abc"
+    show.tmdb_backdrop_path = "/backdrop.jpg"
+
+    assert show.backdrop_url == (
+        "/api/v1/images/shows/"
+        "12345678-1234-1234-1234-123456789abc/backdrop"
+    )

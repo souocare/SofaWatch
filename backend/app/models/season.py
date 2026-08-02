@@ -123,6 +123,15 @@ class Season(TimestampMixin, Base):
         order_by="Episode.episode_number",
     )
 
+    @property
+    def poster_url(self) -> str | None:
+        """Return the SofaWatch season poster endpoint when artwork is available."""
+
+        if not self.local_poster_path and not self.tmdb_poster_path:
+            return None
+
+        return f"/api/v1/images/seasons/{self.id}/poster"
+
     def __repr__(self) -> str:
         return (
             "Season("
