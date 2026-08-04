@@ -1,3 +1,4 @@
+import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
@@ -6,7 +7,6 @@ import 'package:sofawatch/core/server/repositories/server_configuration_reposito
 import 'package:sofawatch/features/server_setup/application/cubit/server_setup_cubit.dart';
 import 'package:sofawatch/features/server_setup/application/cubit/server_setup_state.dart';
 import 'package:sofawatch/features/server_setup/domain/services/server_connection_tester.dart';
-import 'package:bloc_test/bloc_test.dart';
 
 class _FakeServerConfigurationRepository
     implements ServerConfigurationRepository {

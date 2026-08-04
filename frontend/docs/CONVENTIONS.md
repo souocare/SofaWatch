@@ -577,3 +577,19 @@ Start with the simplest structure that keeps responsibilities separated.
 
 Add abstraction when a concrete need appears.
 
+
+---
+
+## 20. sTesting conventions
+
+- Mirror the `lib/` structure under `test/`.
+- Name test files with the `_test.dart` suffix.
+- Prefer behavior-oriented test names.
+- Use private fakes when they are only needed by one test file.
+- Move shared fakes to `test/fakes/`.
+- Keep shared fixtures in `test/fixtures/` or feature-specific fixture folders.
+- Prefer direct state comparisons when the full state matters.
+- Use matchers when only selected fields matter.
+- Test public behavior instead of private implementation details.
+- Use `await expectLater` for asynchronous failures.
+- Keep widget tests deterministic by setting an explicit viewport when layout behavior matters.

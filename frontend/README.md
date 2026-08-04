@@ -1,17 +1,112 @@
-# sofawatch
+# SofaWatch Frontend
 
-A new Flutter project.
+Flutter client for **SofaWatch**, a self-hosted application for tracking
+TV shows, movies, episodes, progress, upcoming releases, and personal
+watch activity.
 
-## Getting Started
+## Platforms
 
-This project is a starting point for a Flutter application.
+-   iOS
+-   Android
+-   Web
 
-A few resources to get you started if this is your first Flutter project:
+## Current status
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Implemented foundation:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+-   Adaptive navigation
+-   Persistent navigation
+-   Deep links
+-   Server setup flow
+-   API client
+-   Error handling
+-   Design system
+-   Remote state
+-   Automated tests
+
+Next milestone: **Search**.
+
+## Architecture
+
+``` text
+lib/
+├── app/
+├── core/
+└── features/
+```
+
+Feature structure:
+
+``` text
+feature/
+├── application/
+├── data/
+├── domain/
+└── presentation/
+```
+
+## Technologies
+
+-   Flutter
+-   Dart
+-   Cubit / BLoC
+-   go_router
+-   Dio
+-   Equatable
+
+## Routes
+
+``` text
+/home
+/shows
+/movies
+/explore
+/profile
+/server-setup
+```
+
+## Server Setup
+
+1.  Validate URL
+2.  Call `/api/v1/health`
+3.  Save configuration
+4.  Configure API client
+5.  Open application
+
+## API
+
+-   Automatic `/api/v1`
+-   Timeouts
+-   JSON headers
+-   GET / POST / PUT / PATCH / DELETE
+-   Centralized exception mapping
+
+## Remote State
+
+Uses `RemoteStatus` and `RemoteState<T>`.
+
+## Development
+
+``` bash
+flutter pub get
+flutter run -d chrome
+```
+
+Validation:
+
+``` bash
+dart format --output=none --set-exit-if-changed .
+flutter analyze
+flutter test
+flutter test --test-randomize-ordering-seed=random
+flutter build web
+flutter build ios --simulator
+```
+
+## Backend
+
+Located in:
+
+``` text
+backend/
+```

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:sofawatch/app/app_bootstrap_data.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/logging/app_bloc_observer.dart';
@@ -18,6 +19,7 @@ Future<void> bootstrap(
   FutureOr<Widget> Function(AppBootstrapData data) builder,
 ) async {
   WidgetsFlutterBinding.ensureInitialized();
+  GoogleFonts.config.allowRuntimeFetching = false;
   usePathUrlStrategy();
 
   Bloc.observer = const AppBlocObserver();
