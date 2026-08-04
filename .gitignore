@@ -88,3 +88,34 @@ docs/decisions/
 
 # Image cache
 backend/data/images/
+
+
+# Flutter / Dart
+frontend/.dart_tool/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.packages
+frontend/build/
+frontend/coverage/
+
+# IDE
+frontend/.idea/
+frontend/*.iml
+
+# Android local configuration and signing
+frontend/android/local.properties
+frontend/android/key.properties
+frontend/android/*.jks
+frontend/android/*.keystore
+
+# iOS / macOS generated files
+frontend/ios/Pods/
+frontend/ios/.symlinks/
+frontend/ios/Flutter/ephemeral/
+frontend/macos/Pods/
+frontend/macos/Flutter/ephemeral/
+
+# Generated environment files
+frontend/.env
+frontend/.env.*
+!frontend/.env.example

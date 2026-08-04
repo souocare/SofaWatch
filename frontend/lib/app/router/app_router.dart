@@ -1,0 +1,218 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sofawatch/app/router/app_routes.dart';
+import 'package:sofawatch/app/router/app_shell.dart';
+import 'package:sofawatch/app/router/details_modal_page.dart';
+import 'package:sofawatch/app/router/details_placeholder_page.dart';
+import 'package:sofawatch/app/router/not_found_page.dart';
+import 'package:sofawatch/app/router/route_paths.dart';
+import 'package:sofawatch/core/api/api_client.dart';
+import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
+import 'package:sofawatch/features/explore/presentation/pages/explore_page.dart';
+import 'package:sofawatch/features/home/presentation/pages/home_page.dart';
+import 'package:sofawatch/features/movies/presentation/pages/movies_page.dart';
+import 'package:sofawatch/features/profile/presentation/pages/profile_page.dart';
+import 'package:sofawatch/features/server_setup/application/cubit/server_setup_cubit.dart';
+import 'package:sofawatch/features/server_setup/domain/services/server_connection_tester.dart';
+import 'package:sofawatch/features/server_setup/presentation/pages/server_setup_page.dart';
+import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
+
+GoRouter createAppRouter({required ApiClient apiClient}) {
+  final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
+    debugLabel: 'root',
+  );
+
+  final GlobalKey<NavigatorState> homeNavigatorKey = GlobalKey<NavigatorState>(
+    debugLabel: 'home',
+  );
+
+  final GlobalKey<NavigatorState> showsNavigatorKey = GlobalKey<NavigatorState>(
+    debugLabel: 'shows',
+  );
+
+  final GlobalKey<NavigatorState> moviesNavigatorKey =
+      GlobalKey<NavigatorState>(debugLabel: 'movies');
+
+  final GlobalKey<NavigatorState> exploreNavigatorKey =
+      GlobalKey<NavigatorState>(debugLabel: 'explore');
+
+  final GlobalKey<NavigatorState> profileNavigatorKey =
+      GlobalKey<NavigatorState>(debugLabel: 'profile');
+
+  return GoRouter(
+    navigatorKey: rootNavigatorKey,
+    initialLocation: RoutePaths.root,
+    redirect: (BuildContext context, GoRouterState state) {
+      if (kIsWeb) {
+        return null;
+      }
+
+      final bool isServerSetupRoute =
+          state.matchedLocation == RoutePaths.serverSetup;
+
+      if (!apiClient.isConfigured) {
+        if (isServerSetupRoute) {
+          return null;
+        }
+
+        return RoutePaths.serverSetup;
+      }
+
+      if (isServerSetupRoute) {
+        return RoutePaths.home;
+      }
+
+      return null;
+    },
+    errorBuilder: (BuildContext context, GoRouterState state) {
+      return NotFoundPage(location: state.uri.toString());
+    },
+    routes: <RouteBase>[
+      GoRoute(
+        path: RoutePaths.root,
+        redirect: (BuildContext context, GoRouterState state) {
+          return RoutePaths.home;
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        name: AppRoute.serverSetup.name,
+        path: RoutePaths.serverSetup,
+        builder: (BuildContext context, GoRouterState state) {
+          return BlocProvider<ServerSetupCubit>(
+            create: (BuildContext context) {
+              return ServerSetupCubit(
+                context.read<ServerConfigurationRepository>(),
+                context.read<ServerConnectionTester>(),
+                context.read<ApiClient>(),
+              );
+            },
+            child: const ServerSetupPage(),
+          );
+        },
+      ),
+      StatefulShellRoute.indexedStack(
+        builder:
+            (
+              BuildContext context,
+              GoRouterState state,
+              StatefulNavigationShell navigationShell,
+            ) {
+              return AppShell(navigationShell: navigationShell);
+            },
+        branches: <StatefulShellBranch>[
+          StatefulShellBranch(
+            navigatorKey: homeNavigatorKey,
+            routes: <RouteBase>[
+              GoRoute(
+                name: AppRoute.home.name,
+                path: RoutePaths.home,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const HomePage();
+                },
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: showsNavigatorKey,
+            routes: <RouteBase>[
+              GoRoute(
+                name: AppRoute.shows.name,
+                path: RoutePaths.shows,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const ShowsPage();
+                },
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: moviesNavigatorKey,
+            routes: <RouteBase>[
+              GoRoute(
+                name: AppRoute.movies.name,
+                path: RoutePaths.movies,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const MoviesPage();
+                },
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: exploreNavigatorKey,
+            routes: <RouteBase>[
+              GoRoute(
+                name: AppRoute.explore.name,
+                path: RoutePaths.explore,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const ExplorePage();
+                },
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: profileNavigatorKey,
+            routes: <RouteBase>[
+              GoRoute(
+                name: AppRoute.profile.name,
+                path: RoutePaths.profile,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const ProfilePage();
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        name: AppRoute.showDetails.name,
+        path: RoutePaths.showDetails,
+        pageBuilder: (BuildContext context, GoRouterState state) {
+          final String showId = state.pathParameters['showId']!;
+
+          return buildDetailsModalPage(
+            state: state,
+            child: DetailsPlaceholderPage(
+              title: 'Show Details',
+              resourceId: showId,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        name: AppRoute.movieDetails.name,
+        path: RoutePaths.movieDetails,
+        pageBuilder: (BuildContext context, GoRouterState state) {
+          final String movieId = state.pathParameters['movieId']!;
+
+          return buildDetailsModalPage(
+            state: state,
+            child: DetailsPlaceholderPage(
+              title: 'Movie Details',
+              resourceId: movieId,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        name: AppRoute.episodeDetails.name,
+        path: RoutePaths.episodeDetails,
+        pageBuilder: (BuildContext context, GoRouterState state) {
+          final String episodeId = state.pathParameters['episodeId']!;
+
+          return buildDetailsModalPage(
+            state: state,
+            child: DetailsPlaceholderPage(
+              title: 'Episode Details',
+              resourceId: episodeId,
+            ),
+          );
+        },
+      ),
+    ],
+  );
+}
