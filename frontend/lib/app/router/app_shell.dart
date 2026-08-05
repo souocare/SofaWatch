@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/theme/tokens/app_colors.dart';
 import 'package:sofawatch/app/theme/tokens/app_durations.dart';
 import 'package:sofawatch/app/theme/tokens/app_radius.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
 import 'package:sofawatch/app/theme/tokens/app_typography.dart';
+import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
+import 'package:sofawatch/features/search/domain/repositories/search_repository.dart';
 import 'package:sofawatch/features/search/presentation/views/search_mobile_view.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_text_field.dart';
 
@@ -303,7 +308,10 @@ class _MobileAppShell extends StatefulWidget {
 
 class _MobileAppShellState extends State<_MobileAppShell> {
   _DualPillMode _mode = _DualPillMode.navigation;
+
   final FocusNode _searchFocusNode = FocusNode();
+
+  SearchBloc? _searchBloc;
 
   bool get _isSearchMode {
     return _mode == _DualPillMode.search;
@@ -324,12 +332,19 @@ class _MobileAppShellState extends State<_MobileAppShell> {
       return;
     }
 
-    _setMode(_DualPillMode.search);
+    final SearchBloc searchBloc = SearchBloc(context.read<SearchRepository>());
+
+    setState(() {
+      _searchBloc = searchBloc;
+      _mode = _DualPillMode.search;
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _searchFocusNode.requestFocus();
+      if (!mounted || !_isSearchMode) {
+        return;
       }
+
+      _searchFocusNode.requestFocus();
     });
   }
 
@@ -338,11 +353,21 @@ class _MobileAppShellState extends State<_MobileAppShell> {
       return;
     }
 
-    _searchFocusNode.unfocus();
+    final SearchBloc? searchBloc = _searchBloc;
 
+    _searchFocusNode.unfocus();
     FocusManager.instance.primaryFocus?.unfocus();
 
-    _setMode(_DualPillMode.navigation);
+    setState(() {
+      _mode = _DualPillMode.navigation;
+      _searchBloc = null;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (searchBloc != null && !searchBloc.isClosed) {
+        unawaited(searchBloc.close());
+      }
+    });
   }
 
   Widget _buildBody() {
@@ -374,8 +399,7 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildScaffold() {
     return Scaffold(
       extendBody: true,
       body: _buildBody(),
@@ -401,7 +425,28 @@ class _MobileAppShellState extends State<_MobileAppShell> {
   @override
   void dispose() {
     _searchFocusNode.dispose();
+
+    final SearchBloc? searchBloc = _searchBloc;
+
+    if (searchBloc != null && !searchBloc.isClosed) {
+      unawaited(searchBloc.close());
+    }
+
     super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final SearchBloc? searchBloc = _searchBloc;
+
+    if (searchBloc == null) {
+      return _buildScaffold();
+    }
+
+    return BlocProvider<SearchBloc>.value(
+      value: searchBloc,
+      child: _buildScaffold(),
+    );
   }
 }
 
