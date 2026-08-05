@@ -305,12 +305,6 @@ class _MobileAppShellState extends State<_MobileAppShell> {
   _DualPillMode _mode = _DualPillMode.navigation;
   final FocusNode _searchFocusNode = FocusNode();
 
-  @override
-  void dispose() {
-    _searchFocusNode.dispose();
-    super.dispose();
-  }
-
   bool get _isSearchMode {
     return _mode == _DualPillMode.search;
   }
@@ -339,6 +333,18 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     });
   }
 
+  void _closeSearch() {
+    if (!_isSearchMode) {
+      return;
+    }
+
+    _searchFocusNode.unfocus();
+
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    _setMode(_DualPillMode.navigation);
+  }
+
   Widget _buildBody() {
     return Stack(
       fit: StackFit.expand,
@@ -362,7 +368,10 @@ class _MobileAppShellState extends State<_MobileAppShell> {
   }
 
   Widget _buildActionPill() {
-    return _MobileSearchPill(onPressed: _handleSearchPressed);
+    return _MobileSearchPill(
+      isSearchMode: _isSearchMode,
+      onPressed: _isSearchMode ? _closeSearch : _handleSearchPressed,
+    );
   }
 
   @override
@@ -387,6 +396,12 @@ class _MobileAppShellState extends State<_MobileAppShell> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _searchFocusNode.dispose();
+    super.dispose();
   }
 }
 
@@ -500,11 +515,27 @@ class _MobileSearchFieldPill extends StatelessWidget {
 }
 
 class _MobileSearchPill extends StatelessWidget {
-  const _MobileSearchPill({required this.onPressed});
+  const _MobileSearchPill({
+    required this.isSearchMode,
+    required this.onPressed,
+  });
 
   static const double _size = 72;
 
+  final bool isSearchMode;
   final VoidCallback onPressed;
+
+  String get _tooltip {
+    return isSearchMode ? 'Close search' : 'Search';
+  }
+
+  String get _semanticLabel {
+    return isSearchMode ? 'Close search' : 'Open search';
+  }
+
+  IconData get _icon {
+    return isSearchMode ? Icons.close_rounded : Icons.search_rounded;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -521,17 +552,32 @@ class _MobileSearchPill extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: Tooltip(
-          message: 'Search',
-          child: InkWell(
-            key: const ValueKey<String>('mobile-search-pill-action'),
-            onTap: onPressed,
-            customBorder: RoundedRectangleBorder(
-              borderRadius: AppRadius.borderFull,
-            ),
-            child: Icon(
-              Icons.search_rounded,
-              size: 28,
-              color: colorScheme.onSurface,
+          message: _tooltip,
+          child: Semantics(
+            button: true,
+            label: _semanticLabel,
+            child: InkWell(
+              key: ValueKey<String>(
+                isSearchMode
+                    ? 'mobile-search-close-action'
+                    : 'mobile-search-pill-action',
+              ),
+              onTap: onPressed,
+              customBorder: RoundedRectangleBorder(
+                borderRadius: AppRadius.borderFull,
+              ),
+              child: Center(
+                child: Icon(
+                  _icon,
+                  key: ValueKey<String>(
+                    isSearchMode
+                        ? 'mobile-search-close-icon'
+                        : 'mobile-search-icon',
+                  ),
+                  size: 28,
+                  color: colorScheme.onSurface,
+                ),
+              ),
             ),
           ),
         ),
