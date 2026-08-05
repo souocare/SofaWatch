@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/theme/tokens/app_colors.dart';
 import 'package:sofawatch/app/theme/tokens/app_durations.dart';
@@ -702,6 +703,59 @@ class _MobilePillSurface extends StatelessWidget {
   }
 }
 
+class _AccessiblePillAction extends StatelessWidget {
+  const _AccessiblePillAction({
+    required this.onPressed,
+    required this.semanticLabel,
+    required this.tooltip,
+    required this.child,
+    this.selected = false,
+    this.keyValue,
+  });
+
+  final VoidCallback onPressed;
+  final String semanticLabel;
+  final String tooltip;
+  final Widget child;
+  final bool selected;
+  final String? keyValue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: semanticLabel,
+        child: FocusableActionDetector(
+          mouseCursor: SystemMouseCursors.click,
+          shortcuts: const <ShortcutActivator, Intent>{
+            SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+          },
+          actions: <Type, Action<Intent>>{
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (ActivateIntent intent) {
+                onPressed();
+                return null;
+              },
+            ),
+          },
+          child: InkWell(
+            key: keyValue == null ? null : ValueKey<String>(keyValue!),
+            onTap: onPressed,
+            customBorder: RoundedRectangleBorder(
+              borderRadius: AppRadius.borderFull,
+            ),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _MobilePrimaryNavigationPill extends StatelessWidget {
   const _MobilePrimaryNavigationPill({
     required this.currentIndex,
@@ -765,59 +819,51 @@ class _MobileNavigationPillItem extends StatelessWidget {
 
     final Color foregroundColor = selected ? selectedColor : unselectedColor;
 
-    return Tooltip(
-      message: navigationItem.label,
-      child: Semantics(
-        button: true,
-        selected: selected,
-        label: navigationItem.label,
-        child: InkWell(
-          key: ValueKey<String>(
-            'mobile-navigation-${navigationItem.label.toLowerCase()}',
-          ),
-          onTap: onPressed,
-          customBorder: RoundedRectangleBorder(
-            borderRadius: AppRadius.borderFull,
-          ),
-          child: SizedBox.expand(
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Icon(
-                    selected
-                        ? navigationItem.selectedIcon
-                        : navigationItem.icon,
-                    key: ValueKey<String>(
-                      selected
-                          ? 'mobile-${navigationItem.label.toLowerCase()}-selected-icon'
-                          : 'mobile-${navigationItem.label.toLowerCase()}-icon',
-                    ),
-                    size: compact ? 20 : _iconSize,
-                    color: foregroundColor,
-                  ),
-                  if (selected) ...<Widget>[
-                    const SizedBox(height: _iconLabelSpacing),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                      child: Text(
-                        navigationItem.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.fade,
-                        softWrap: false,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: foregroundColor,
-                          fontWeight: FontWeight.w600,
-                          height: 1,
-                          fontSize: compact ? 10 : null,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+    final String semanticLabel = selected
+        ? '${navigationItem.label}, selected tab'
+        : '${navigationItem.label} tab';
+
+    return _AccessiblePillAction(
+      keyValue: 'mobile-navigation-${navigationItem.label.toLowerCase()}',
+      tooltip: navigationItem.label,
+      semanticLabel: semanticLabel,
+      selected: selected,
+      onPressed: onPressed,
+      child: SizedBox.expand(
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Icon(
+                selected ? navigationItem.selectedIcon : navigationItem.icon,
+                key: ValueKey<String>(
+                  selected
+                      ? 'mobile-${navigationItem.label.toLowerCase()}-selected-icon'
+                      : 'mobile-${navigationItem.label.toLowerCase()}-icon',
+                ),
+                size: compact ? 20 : _iconSize,
+                color: foregroundColor,
               ),
-            ),
+              if (selected) ...<Widget>[
+                const SizedBox(height: _iconLabelSpacing),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Text(
+                    navigationItem.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                    softWrap: false,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: foregroundColor,
+                      fontWeight: FontWeight.w600,
+                      height: 1,
+                      fontSize: compact ? 10 : null,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -838,28 +884,22 @@ class _MobileCompactNavigationPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double effectiveSize = math.max(size, 48);
+
     return SizedBox.square(
-      dimension: size,
+      dimension: effectiveSize,
       child: _MobilePillSurface(
         keyValue: 'mobile-compact-navigation-pill',
-        child: Tooltip(
-          message: 'Return to ${navigationItem.label}',
-          child: Semantics(
-            button: true,
-            label: 'Close search and return to ${navigationItem.label}',
-            child: InkWell(
-              key: const ValueKey<String>('mobile-search-close-action'),
-              onTap: onPressed,
-              customBorder: RoundedRectangleBorder(
-                borderRadius: AppRadius.borderFull,
-              ),
-              child: Center(
-                child: Icon(
-                  navigationItem.selectedIcon,
-                  key: const ValueKey<String>('mobile-compact-navigation-icon'),
-                  size: size <= 48 ? 24 : 28,
-                ),
-              ),
+        child: _AccessiblePillAction(
+          keyValue: 'mobile-search-close-action',
+          tooltip: 'Return to ${navigationItem.label}',
+          semanticLabel: 'Close search and return to ${navigationItem.label}',
+          onPressed: onPressed,
+          child: Center(
+            child: Icon(
+              navigationItem.selectedIcon,
+              key: const ValueKey<String>('mobile-compact-navigation-icon'),
+              size: effectiveSize <= 48 ? 24 : 28,
             ),
           ),
         ),
@@ -888,28 +928,22 @@ class _MobileSearchPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!isExpanded) {
+      final double effectiveSize = math.max(compactSize, 48);
+
       return SizedBox.square(
-        dimension: compactSize,
+        dimension: effectiveSize,
         child: _MobilePillSurface(
           keyValue: 'mobile-search-pill',
-          child: Tooltip(
-            message: 'Search',
-            child: Semantics(
-              button: true,
-              label: 'Open search',
-              child: InkWell(
-                key: const ValueKey<String>('mobile-search-pill-action'),
-                onTap: onPressed,
-                customBorder: RoundedRectangleBorder(
-                  borderRadius: AppRadius.borderFull,
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.search_rounded,
-                    key: const ValueKey<String>('mobile-search-icon'),
-                    size: compactSize <= 48 ? 24 : 28,
-                  ),
-                ),
+          child: _AccessiblePillAction(
+            keyValue: 'mobile-search-pill-action',
+            tooltip: 'Search',
+            semanticLabel: 'Open search',
+            onPressed: onPressed,
+            child: Center(
+              child: Icon(
+                Icons.search_rounded,
+                key: const ValueKey<String>('mobile-search-icon'),
+                size: effectiveSize <= 48 ? 24 : 28,
               ),
             ),
           ),
@@ -919,16 +953,21 @@ class _MobileSearchPill extends StatelessWidget {
 
     return SizedBox(
       height: compactField ? 48 : 54,
-      child: _MobilePillSurface(
-        keyValue: 'mobile-search-expanded-pill',
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: compactField ? 4 : AppSpacing.sm,
-          ),
-          child: SearchTextField(
-            focusNode: focusNode,
-            hintText: hintText,
-            compact: compactField,
+      child: Semantics(
+        container: true,
+        explicitChildNodes: true,
+        label: 'Search mode active',
+        child: _MobilePillSurface(
+          keyValue: 'mobile-search-expanded-pill',
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: compactField ? 4 : AppSpacing.sm,
+            ),
+            child: SearchTextField(
+              focusNode: focusNode,
+              hintText: hintText,
+              compact: compactField,
+            ),
           ),
         ),
       ),
