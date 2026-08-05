@@ -4,10 +4,18 @@ import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
 import 'package:sofawatch/features/search/application/bloc/search_event.dart';
 
 class SearchTextField extends StatefulWidget {
-  const SearchTextField({this.autofocus = false, this.focusNode, super.key});
+  const SearchTextField({
+    this.autofocus = false,
+    this.focusNode,
+    this.hintText = 'Search movies and TV shows',
+    this.compact = false,
+    super.key,
+  });
 
   final bool autofocus;
   final FocusNode? focusNode;
+  final String hintText;
+  final bool compact;
 
   @override
   State<SearchTextField> createState() {
@@ -79,7 +87,11 @@ class _SearchTextFieldState extends State<SearchTextField> {
       onChanged: _handleQueryChanged,
       onSubmitted: _handleSubmitted,
       decoration: InputDecoration(
-        hintText: 'Search movies and TV shows',
+        hintText: widget.hintText,
+        isDense: widget.compact,
+        contentPadding: widget.compact
+            ? const EdgeInsets.symmetric(vertical: 10)
+            : null,
         prefixIcon: const Icon(Icons.search_rounded),
         suffixIcon: _controller.text.isEmpty
             ? null

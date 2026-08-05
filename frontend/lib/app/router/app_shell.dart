@@ -390,10 +390,14 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     );
   }
 
-  Widget _buildNavigationPill() {
+  Widget _buildNavigationPill({
+    required double compactSize,
+    required double navigationHeight,
+  }) {
     if (_isSearchMode) {
       return _MobileCompactNavigationPill(
         navigationItem: _selectedNavigationItem,
+        size: compactSize,
         onPressed: _closeSearch,
       );
     }
@@ -401,50 +405,105 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     return _MobilePrimaryNavigationPill(
       currentIndex: widget.navigationShell.currentIndex,
       navigationItems: widget.navigationItems,
+      height: navigationHeight,
       onDestinationSelected: widget.onDestinationSelected,
     );
   }
 
-  Widget _buildSearchPill() {
+  Widget _buildSearchPill({
+    required double compactSize,
+    required bool useCompactField,
+    required String hintText,
+  }) {
     return _MobileSearchPill(
       isExpanded: _isSearchMode,
+      compactSize: compactSize,
+      compactField: useCompactField,
+      hintText: hintText,
       focusNode: _searchFocusNode,
       onPressed: _handleSearchPressed,
     );
   }
 
   Widget _buildBottomNavigation() {
-    if (_isSearchMode) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: <Widget>[
-          _buildNavigationPill(),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _buildSearchPill()),
-        ],
-      );
-    }
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool isLandscape =
+            MediaQuery.orientationOf(context) == Orientation.landscape;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: <Widget>[
-        Expanded(child: _buildNavigationPill()),
-        const SizedBox(width: AppSpacing.sm),
-        _buildSearchPill(),
-      ],
+        final bool isNarrow = constraints.maxWidth < 360 || isLandscape;
+
+        final bool isVeryNarrow = constraints.maxWidth < 330;
+
+        final double compactSize = isNarrow ? 48 : 54;
+
+        final double navigationHeight = isLandscape ? 48 : 54;
+
+        final double spacing = isNarrow ? 6 : AppSpacing.sm;
+
+        final String hintText;
+
+        if (isVeryNarrow) {
+          hintText = 'Search';
+        } else if (isNarrow) {
+          hintText = 'Movies and shows';
+        } else {
+          hintText = 'Search movies and TV shows';
+        }
+
+        if (_isSearchMode) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              _buildNavigationPill(
+                compactSize: compactSize,
+                navigationHeight: navigationHeight,
+              ),
+              SizedBox(width: spacing),
+              Expanded(
+                child: _buildSearchPill(
+                  compactSize: compactSize,
+                  useCompactField: isNarrow,
+                  hintText: hintText,
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: <Widget>[
+            Expanded(
+              child: _buildNavigationPill(
+                compactSize: compactSize,
+                navigationHeight: navigationHeight,
+              ),
+            ),
+            SizedBox(width: spacing),
+            _buildSearchPill(
+              compactSize: compactSize,
+              useCompactField: isNarrow,
+              hintText: hintText,
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildScaffold() {
     final double deviceBottomPadding = MediaQuery.viewPaddingOf(context).bottom;
 
-    final double bottomMargin = math.max(
-      deviceBottomPadding,
-      _minimumBottomMargin,
-    );
+    final bool keyboardIsOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+
+    final double bottomMargin = keyboardIsOpen
+        ? 4
+        : math.max(deviceBottomPadding, _minimumBottomMargin);
 
     return Scaffold(
       extendBody: true,
+      resizeToAvoidBottomInset: true,
       body: _buildBody(),
       bottomNavigationBar: Padding(
         padding: EdgeInsets.fromLTRB(
@@ -647,19 +706,19 @@ class _MobilePrimaryNavigationPill extends StatelessWidget {
   const _MobilePrimaryNavigationPill({
     required this.currentIndex,
     required this.navigationItems,
+    required this.height,
     required this.onDestinationSelected,
   });
 
-  static const double _height = 54;
-
   final int currentIndex;
   final List<_NavigationItem> navigationItems;
+  final double height;
   final ValueChanged<int> onDestinationSelected;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: _height,
+      height: height,
       child: _MobilePillSurface(
         keyValue: 'mobile-primary-navigation-pill',
         child: Row(
@@ -670,6 +729,7 @@ class _MobilePrimaryNavigationPill extends StatelessWidget {
                 child: _MobileNavigationPillItem(
                   navigationItem: navigationItems[index],
                   selected: currentIndex == index,
+                  compact: height < 54,
                   onPressed: () {
                     onDestinationSelected(index);
                   },
@@ -686,6 +746,7 @@ class _MobileNavigationPillItem extends StatelessWidget {
   const _MobileNavigationPillItem({
     required this.navigationItem,
     required this.selected,
+    required this.compact,
     required this.onPressed,
   });
 
@@ -694,6 +755,7 @@ class _MobileNavigationPillItem extends StatelessWidget {
 
   final _NavigationItem navigationItem;
   final bool selected;
+  final bool compact;
   final VoidCallback onPressed;
 
   @override
@@ -732,7 +794,7 @@ class _MobileNavigationPillItem extends StatelessWidget {
                           ? 'mobile-${navigationItem.label.toLowerCase()}-selected-icon'
                           : 'mobile-${navigationItem.label.toLowerCase()}-icon',
                     ),
-                    size: _iconSize,
+                    size: compact ? 20 : _iconSize,
                     color: foregroundColor,
                   ),
                   if (selected) ...<Widget>[
@@ -748,6 +810,7 @@ class _MobileNavigationPillItem extends StatelessWidget {
                           color: foregroundColor,
                           fontWeight: FontWeight.w600,
                           height: 1,
+                          fontSize: compact ? 10 : null,
                         ),
                       ),
                     ),
@@ -766,17 +829,17 @@ class _MobileCompactNavigationPill extends StatelessWidget {
   const _MobileCompactNavigationPill({
     required this.navigationItem,
     required this.onPressed,
+    required this.size,
   });
-
-  static const double _size = 54;
 
   final _NavigationItem navigationItem;
   final VoidCallback onPressed;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox.square(
-      dimension: _size,
+      dimension: size,
       child: _MobilePillSurface(
         keyValue: 'mobile-compact-navigation-pill',
         child: Tooltip(
@@ -794,7 +857,7 @@ class _MobileCompactNavigationPill extends StatelessWidget {
                 child: Icon(
                   navigationItem.selectedIcon,
                   key: const ValueKey<String>('mobile-compact-navigation-icon'),
-                  size: 28,
+                  size: size <= 48 ? 24 : 28,
                 ),
               ),
             ),
@@ -808,13 +871,17 @@ class _MobileCompactNavigationPill extends StatelessWidget {
 class _MobileSearchPill extends StatelessWidget {
   const _MobileSearchPill({
     required this.isExpanded,
+    required this.compactSize,
+    required this.compactField,
+    required this.hintText,
     required this.focusNode,
     required this.onPressed,
   });
 
-  static const double _compactSize = 54;
-
   final bool isExpanded;
+  final double compactSize;
+  final bool compactField;
+  final String hintText;
   final FocusNode focusNode;
   final VoidCallback onPressed;
 
@@ -822,7 +889,7 @@ class _MobileSearchPill extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!isExpanded) {
       return SizedBox.square(
-        dimension: _compactSize,
+        dimension: compactSize,
         child: _MobilePillSurface(
           keyValue: 'mobile-search-pill',
           child: Tooltip(
@@ -836,11 +903,11 @@ class _MobileSearchPill extends StatelessWidget {
                 customBorder: RoundedRectangleBorder(
                   borderRadius: AppRadius.borderFull,
                 ),
-                child: const Center(
+                child: Center(
                   child: Icon(
                     Icons.search_rounded,
-                    key: ValueKey<String>('mobile-search-icon'),
-                    size: 28,
+                    key: const ValueKey<String>('mobile-search-icon'),
+                    size: compactSize <= 48 ? 24 : 28,
                   ),
                 ),
               ),
@@ -850,15 +917,20 @@ class _MobileSearchPill extends StatelessWidget {
       );
     }
 
-    // Esta é a Search pill expandida.
-    return _MobilePillSurface(
-      keyValue: 'mobile-search-expanded-pill',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          // vertical: AppSpacing.sm,
+    return SizedBox(
+      height: compactField ? 48 : 54,
+      child: _MobilePillSurface(
+        keyValue: 'mobile-search-expanded-pill',
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: compactField ? 4 : AppSpacing.sm,
+          ),
+          child: SearchTextField(
+            focusNode: focusNode,
+            hintText: hintText,
+            compact: compactField,
+          ),
         ),
-        child: SearchTextField(focusNode: focusNode),
       ),
     );
   }
