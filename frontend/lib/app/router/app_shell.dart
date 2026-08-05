@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -514,7 +515,9 @@ class _MobilePillVisualStyle {
     required this.backgroundColor,
     required this.borderColor,
     required this.foregroundColor,
-    required this.usesTranslucency,
+    required this.shadows,
+    required this.blurSigma,
+    required this.usesBlur,
   });
 
   factory _MobilePillVisualStyle.resolve(BuildContext context) {
@@ -530,38 +533,57 @@ class _MobilePillVisualStyle {
         backgroundColor: colorScheme.surfaceContainerHigh,
         borderColor: colorScheme.outlineVariant,
         foregroundColor: colorScheme.onSurface,
-        usesTranslucency: false,
+        shadows: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.24 : 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        blurSigma: 0,
+        usesBlur: false,
       );
     }
 
     return _MobilePillVisualStyle(
-      backgroundColor: isDark
-          ? colorScheme.surface.withValues(alpha: 0.72)
-          : colorScheme.surface.withValues(alpha: 0.82),
-      borderColor: colorScheme.outlineVariant.withValues(
-        alpha: isDark ? 0.72 : 0.58,
+      backgroundColor: colorScheme.surface.withValues(
+        alpha: isDark ? 0.58 : 0.72,
+      ),
+      borderColor: colorScheme.onSurface.withValues(
+        alpha: isDark ? 0.14 : 0.12,
       ),
       foregroundColor: colorScheme.onSurface,
-      usesTranslucency: true,
+      shadows: <BoxShadow>[
+        BoxShadow(
+          color: Colors.black.withValues(alpha: isDark ? 0.32 : 0.14),
+          blurRadius: 24,
+          spreadRadius: -4,
+          offset: const Offset(0, 10),
+        ),
+        BoxShadow(
+          color: Colors.white.withValues(alpha: isDark ? 0.04 : 0.18),
+          blurRadius: 1,
+          offset: const Offset(0, -1),
+        ),
+      ],
+      blurSigma: 22,
+      usesBlur: true,
     );
   }
 
   final Color backgroundColor;
   final Color borderColor;
   final Color foregroundColor;
-  final bool usesTranslucency;
+  final List<BoxShadow> shadows;
+  final double blurSigma;
+  final bool usesBlur;
 }
 
 class _MobilePillSurface extends StatelessWidget {
-  const _MobilePillSurface({
-    required this.child,
-    this.keyValue,
-    this.clipBehavior = Clip.antiAlias,
-  });
+  const _MobilePillSurface({required this.child, this.keyValue});
 
   final Widget child;
   final String? keyValue;
-  final Clip clipBehavior;
 
   @override
   Widget build(BuildContext context) {
@@ -569,20 +591,42 @@ class _MobilePillSurface extends StatelessWidget {
       context,
     );
 
-    return Material(
-      key: keyValue == null ? null : ValueKey<String>(keyValue!),
-      color: style.backgroundColor,
-      shape: RoundedRectangleBorder(
+    final Widget surface = DecoratedBox(
+      decoration: BoxDecoration(
+        color: style.backgroundColor,
         borderRadius: AppRadius.borderFull,
-        side: BorderSide(color: style.borderColor),
+        border: Border.all(color: style.borderColor),
       ),
-      clipBehavior: clipBehavior,
-      child: IconTheme(
-        data: IconThemeData(color: style.foregroundColor),
-        child: DefaultTextStyle.merge(
-          style: TextStyle(color: style.foregroundColor),
-          child: child,
+      child: Material(
+        color: Colors.transparent,
+        type: MaterialType.transparency,
+        child: IconTheme(
+          data: IconThemeData(color: style.foregroundColor),
+          child: DefaultTextStyle.merge(
+            style: TextStyle(color: style.foregroundColor),
+            child: child,
+          ),
         ),
+      ),
+    );
+
+    return Container(
+      key: keyValue == null ? null : ValueKey<String>(keyValue!),
+      decoration: BoxDecoration(
+        borderRadius: AppRadius.borderFull,
+        boxShadow: style.shadows,
+      ),
+      child: ClipRRect(
+        borderRadius: AppRadius.borderFull,
+        child: style.usesBlur
+            ? BackdropFilter(
+                filter: ui.ImageFilter.blur(
+                  sigmaX: style.blurSigma,
+                  sigmaY: style.blurSigma,
+                ),
+                child: surface,
+              )
+            : surface,
       ),
     );
   }
