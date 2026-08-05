@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_colors.dart';
 import 'package:sofawatch/app/theme/tokens/app_durations.dart';
 import 'package:sofawatch/app/theme/tokens/app_radius.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
 import 'package:sofawatch/app/theme/tokens/app_typography.dart';
+import 'package:sofawatch/features/search/presentation/views/search_mobile_view.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({required this.navigationShell, super.key});
@@ -303,10 +303,6 @@ class _MobileAppShell extends StatefulWidget {
 class _MobileAppShellState extends State<_MobileAppShell> {
   _DualPillMode _mode = _DualPillMode.navigation;
 
-  // bool get _isNavigationMode {
-  //   return _mode == _DualPillMode.navigation;
-  // }
-
   bool get _isSearchMode {
     return _mode == _DualPillMode.search;
   }
@@ -321,31 +317,41 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     });
   }
 
-  Future<void> _openSearch() async {
+  void _handleSearchPressed() {
     if (_isSearchMode) {
       return;
     }
 
     _setMode(_DualPillMode.search);
-
-    try {
-      await context.pushNamed(AppRoute.search.name);
-    } finally {
-      if (mounted) {
-        _setMode(_DualPillMode.navigation);
-      }
-    }
   }
 
-  void _handleSearchPressed() {
-    _openSearch();
+  Widget _buildBody() {
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        IgnorePointer(ignoring: _isSearchMode, child: widget.navigationShell),
+        if (_isSearchMode) const Positioned.fill(child: SearchMobileView()),
+      ],
+    );
+  }
+
+  Widget _buildPrimaryPill() {
+    return _MobilePrimaryNavigationPill(
+      currentIndex: widget.navigationShell.currentIndex,
+      navigationItems: widget.navigationItems,
+      onDestinationSelected: widget.onDestinationSelected,
+    );
+  }
+
+  Widget _buildActionPill() {
+    return _MobileSearchPill(onPressed: _handleSearchPressed);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      body: widget.navigationShell,
+      body: _buildBody(),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(
           AppSpacing.md,
@@ -356,15 +362,9 @@ class _MobileAppShellState extends State<_MobileAppShell> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: <Widget>[
-            Expanded(
-              child: _MobilePrimaryNavigationPill(
-                currentIndex: widget.navigationShell.currentIndex,
-                navigationItems: widget.navigationItems,
-                onDestinationSelected: widget.onDestinationSelected,
-              ),
-            ),
+            Expanded(child: _buildPrimaryPill()),
             const SizedBox(width: AppSpacing.md),
-            _MobileSearchPill(onPressed: _handleSearchPressed),
+            _buildActionPill(),
           ],
         ),
       ),
