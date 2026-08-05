@@ -21,6 +21,7 @@ import 'package:sofawatch/features/server_setup/application/cubit/server_setup_c
 import 'package:sofawatch/features/server_setup/domain/services/server_connection_tester.dart';
 import 'package:sofawatch/features/server_setup/presentation/pages/server_setup_page.dart';
 import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
+import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 
 GoRouter createAppRouter({required ApiClient apiClient}) {
   final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -100,12 +101,54 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
         parentNavigatorKey: rootNavigatorKey,
         name: AppRoute.search.name,
         path: RoutePaths.search,
-        builder: (BuildContext context, GoRouterState state) {
-          return BlocProvider<SearchBloc>(
+        pageBuilder: (BuildContext context, GoRouterState state) {
+          final Widget searchPage = BlocProvider<SearchBloc>(
             create: (BuildContext context) {
               return SearchBloc(context.read<SearchRepository>());
             },
             child: const SearchPage(),
+          );
+
+          final double screenWidth = MediaQuery.sizeOf(context).width;
+
+          final bool useDesktopModal = screenWidth >= AppBreakpoints.tablet;
+
+          if (!useDesktopModal) {
+            return MaterialPage<void>(key: state.pageKey, child: searchPage);
+          }
+
+          return CustomTransitionPage<void>(
+            key: state.pageKey,
+            opaque: false,
+            barrierDismissible: true,
+            barrierColor: Colors.black.withValues(alpha: 0.72),
+            transitionDuration: const Duration(milliseconds: 220),
+            reverseTransitionDuration: const Duration(milliseconds: 180),
+            child: searchPage,
+            transitionsBuilder:
+                (
+                  BuildContext context,
+                  Animation<double> animation,
+                  Animation<double> secondaryAnimation,
+                  Widget child,
+                ) {
+                  final Animation<double> curvedAnimation = CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                    reverseCurve: Curves.easeInCubic,
+                  );
+
+                  return FadeTransition(
+                    opacity: curvedAnimation,
+                    child: ScaleTransition(
+                      scale: Tween<double>(
+                        begin: 0.97,
+                        end: 1,
+                      ).animate(curvedAnimation),
+                      child: child,
+                    ),
+                  );
+                },
           );
         },
       ),
