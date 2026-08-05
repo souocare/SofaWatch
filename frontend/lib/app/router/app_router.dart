@@ -8,6 +8,7 @@ import 'package:sofawatch/app/router/details_modal_page.dart';
 import 'package:sofawatch/app/router/details_placeholder_page.dart';
 import 'package:sofawatch/app/router/not_found_page.dart';
 import 'package:sofawatch/app/router/route_paths.dart';
+import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
 import 'package:sofawatch/features/explore/presentation/pages/explore_page.dart';
@@ -21,7 +22,6 @@ import 'package:sofawatch/features/server_setup/application/cubit/server_setup_c
 import 'package:sofawatch/features/server_setup/domain/services/server_connection_tester.dart';
 import 'package:sofawatch/features/server_setup/presentation/pages/server_setup_page.dart';
 import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
-import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 
 GoRouter createAppRouter({required ApiClient apiClient}) {
   final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
