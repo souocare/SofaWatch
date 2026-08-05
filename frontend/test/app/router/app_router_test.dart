@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/app_dependencies.dart';
@@ -6,6 +7,7 @@ import 'package:sofawatch/app/router/app_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/app_theme.dart';
 import 'package:sofawatch/core/api/api_client.dart';
+import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
 
 import '../../fakes/fake_search_repository.dart';
 import '../../fakes/fake_server_configuration_repository.dart';
@@ -128,6 +130,146 @@ void main() {
     await tester.tap(find.text('Go to Home'));
 
     await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('home-page-title')),
+      findsOneWidget,
+    );
+  });
+  testWidgets('opens the global Search route on mobile', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+
+    addTearDown(() async {
+      await tester.binding.setSurfaceSize(null);
+    });
+
+    router.goNamed(AppRoute.search.name);
+
+    await tester.pumpWidget(buildTestApp());
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('search-mobile-view')),
+      findsOneWidget,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('search-mobile-title')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('opens the global Search route as a desktop modal', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 844));
+
+    addTearDown(() async {
+      await tester.binding.setSurfaceSize(null);
+    });
+
+    router.go('/home');
+
+    await tester.pumpWidget(buildTestApp());
+
+    await tester.pumpAndSettle();
+
+    router.pushNamed(AppRoute.search.name);
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('search-desktop-modal')),
+      findsOneWidget,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('search-text-field')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('closes the desktop Search modal and returns to Home', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 844));
+
+    addTearDown(() async {
+      await tester.binding.setSurfaceSize(null);
+    });
+
+    router.go('/home');
+
+    await tester.pumpWidget(buildTestApp());
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('home-page-title')),
+      findsOneWidget,
+    );
+
+    router.pushNamed(AppRoute.search.name);
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('search-desktop-modal')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('search-desktop-close-button')),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('search-desktop-modal')),
+      findsNothing,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('home-page-title')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('closes the SearchBloc when the Search route is popped', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+
+    addTearDown(() async {
+      await tester.binding.setSurfaceSize(null);
+    });
+
+    router.go('/home');
+
+    await tester.pumpWidget(buildTestApp());
+
+    await tester.pumpAndSettle();
+
+    router.pushNamed(AppRoute.search.name);
+
+    await tester.pumpAndSettle();
+
+    final BuildContext searchContext = tester.element(
+      find.byKey(const ValueKey<String>('search-mobile-view')),
+    );
+
+    final SearchBloc searchBloc = BlocProvider.of<SearchBloc>(searchContext);
+
+    expect(searchBloc.isClosed, isFalse);
+
+    router.pop();
+
+    await tester.pumpAndSettle();
+
+    expect(searchBloc.isClosed, isTrue);
 
     expect(
       find.byKey(const ValueKey<String>('home-page-title')),
