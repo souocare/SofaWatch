@@ -4,8 +4,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_colors.dart';
@@ -304,7 +304,7 @@ class _WebBrand extends StatelessWidget {
   }
 }
 
-enum _DualPillMode { navigation, search }
+enum _DualPillVisualState { navigation, openingSearch, search, closingSearch }
 
 class _MobileAppShell extends StatefulWidget {
   const _MobileAppShell({
@@ -327,15 +327,39 @@ class _MobileAppShellState extends State<_MobileAppShell> {
   static const double _minimumHorizontalMargin = AppSpacing.sm;
   static const double _minimumBottomMargin = AppSpacing.sm;
 
-  _DualPillMode _mode = _DualPillMode.navigation;
+  _DualPillVisualState _visualState = _DualPillVisualState.navigation;
 
   final FocusNode _searchFocusNode = FocusNode();
 
   SearchBloc? _searchBloc;
   int? _searchOriginBranchIndex;
 
-  bool get _isSearchMode {
-    return _mode == _DualPillMode.search;
+  bool get _isNavigationState {
+    return _visualState == _DualPillVisualState.navigation;
+  }
+
+  bool get _isOpeningSearch {
+    return _visualState == _DualPillVisualState.openingSearch;
+  }
+
+  bool get _isSearchState {
+    return _visualState == _DualPillVisualState.search;
+  }
+
+  bool get _isClosingSearch {
+    return _visualState == _DualPillVisualState.closingSearch;
+  }
+
+  bool get _isSearchExperienceVisible {
+    return !_isNavigationState;
+  }
+
+  bool get _usesSearchPillLayout {
+    return _isOpeningSearch || _isSearchState || _isClosingSearch;
+  }
+
+  bool get _isTransitioning {
+    return _isOpeningSearch || _isClosingSearch;
   }
 
   int get _selectedBranchIndex {
@@ -347,7 +371,7 @@ class _MobileAppShellState extends State<_MobileAppShell> {
   }
 
   void _handleSearchPressed() {
-    if (_isSearchMode) {
+    if (!_isNavigationState || _isTransitioning) {
       return;
     }
 
@@ -358,40 +382,60 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     setState(() {
       _searchOriginBranchIndex = originBranchIndex;
       _searchBloc = searchBloc;
-      _mode = _DualPillMode.search;
+      _visualState = _DualPillVisualState.openingSearch;
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_isSearchMode) {
+      if (!mounted || !_isOpeningSearch) {
         return;
       }
 
-      _searchFocusNode.requestFocus();
+      setState(() {
+        _visualState = _DualPillVisualState.search;
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_isSearchState) {
+          return;
+        }
+
+        _searchFocusNode.requestFocus();
+      });
     });
   }
 
   void _closeSearch() {
-    if (!_isSearchMode) {
+    if (!_isSearchState || _isTransitioning) {
       return;
     }
-
-    final SearchBloc? searchBloc = _searchBloc;
 
     _searchFocusNode.unfocus();
     FocusManager.instance.primaryFocus?.unfocus();
 
     setState(() {
-      _mode = _DualPillMode.navigation;
-      _searchBloc = null;
-      _searchOriginBranchIndex = null;
+      _visualState = _DualPillVisualState.closingSearch;
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (searchBloc == null || searchBloc.isClosed) {
+      if (!mounted || !_isClosingSearch) {
         return;
       }
 
-      unawaited(searchBloc.close());
+      final SearchBloc? searchBloc = _searchBloc;
+
+      setState(() {
+        _visualState = _DualPillVisualState.navigation;
+        _searchBloc = null;
+        _searchOriginBranchIndex = null;
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (searchBloc == null || searchBloc.isClosed) {
+          return;
+        }
+
+        unawaited(searchBloc.close());
+      });
     });
   }
 
@@ -399,8 +443,12 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
-        IgnorePointer(ignoring: _isSearchMode, child: widget.navigationShell),
-        if (_isSearchMode) const Positioned.fill(child: SearchMobileView()),
+        IgnorePointer(
+          ignoring: _isSearchExperienceVisible,
+          child: widget.navigationShell,
+        ),
+        if (_isSearchExperienceVisible)
+          const Positioned.fill(child: SearchMobileView()),
       ],
     );
   }
@@ -409,7 +457,7 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     required double compactSize,
     required double navigationHeight,
   }) {
-    if (_isSearchMode) {
+    if (_usesSearchPillLayout) {
       return _MobileCompactNavigationPill(
         navigationItem: _selectedNavigationItem,
         size: compactSize,
@@ -431,7 +479,7 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     required String hintText,
   }) {
     return _MobileSearchPill(
-      isExpanded: _isSearchMode,
+      isExpanded: _usesSearchPillLayout,
       compactSize: compactSize,
       compactField: useCompactField,
       hintText: hintText,
@@ -466,7 +514,7 @@ class _MobileAppShellState extends State<_MobileAppShell> {
           hintText = 'Search movies and TV shows';
         }
 
-        if (_isSearchMode) {
+        if (_usesSearchPillLayout) {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
