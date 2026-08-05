@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -308,6 +309,9 @@ class _MobileAppShell extends StatefulWidget {
 }
 
 class _MobileAppShellState extends State<_MobileAppShell> {
+  static const double _minimumHorizontalMargin = AppSpacing.sm;
+  static const double _minimumBottomMargin = AppSpacing.sm;
+
   _DualPillMode _mode = _DualPillMode.navigation;
 
   final FocusNode _searchFocusNode = FocusNode();
@@ -415,7 +419,7 @@ class _MobileAppShellState extends State<_MobileAppShell> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: <Widget>[
           _buildNavigationPill(),
-          const SizedBox(width: AppSpacing.md),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(child: _buildSearchPill()),
         ],
       );
@@ -425,22 +429,29 @@ class _MobileAppShellState extends State<_MobileAppShell> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: <Widget>[
         Expanded(child: _buildNavigationPill()),
-        const SizedBox(width: AppSpacing.md),
+        const SizedBox(width: AppSpacing.sm),
         _buildSearchPill(),
       ],
     );
   }
 
   Widget _buildScaffold() {
+    final double deviceBottomPadding = MediaQuery.viewPaddingOf(context).bottom;
+
+    final double bottomMargin = math.max(
+      deviceBottomPadding,
+      _minimumBottomMargin,
+    );
+
     return Scaffold(
       extendBody: true,
       body: _buildBody(),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
+      bottomNavigationBar: Padding(
+        padding: EdgeInsets.fromLTRB(
+          _minimumHorizontalMargin,
           0,
-          AppSpacing.md,
-          AppSpacing.md,
+          _minimumHorizontalMargin,
+          bottomMargin,
         ),
         child: _buildBottomNavigation(),
       ),
@@ -639,36 +650,113 @@ class _MobilePrimaryNavigationPill extends StatelessWidget {
     required this.onDestinationSelected,
   });
 
+  static const double _height = 54;
+
   final int currentIndex;
   final List<_NavigationItem> navigationItems;
   final ValueChanged<int> onDestinationSelected;
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      height: _height,
+      child: _MobilePillSurface(
+        keyValue: 'mobile-primary-navigation-pill',
+        child: Row(
+          key: const ValueKey<String>('mobile-bottom-navigation'),
+          children: <Widget>[
+            for (int index = 0; index < navigationItems.length; index++)
+              Expanded(
+                child: _MobileNavigationPillItem(
+                  navigationItem: navigationItems[index],
+                  selected: currentIndex == index,
+                  onPressed: () {
+                    onDestinationSelected(index);
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-    return _MobilePillSurface(
-      keyValue: 'mobile-primary-navigation-pill',
-      child: NavigationBar(
-        key: const ValueKey<String>('mobile-bottom-navigation'),
-        selectedIndex: currentIndex,
-        onDestinationSelected: onDestinationSelected,
-        height: 72,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.transparent,
-        indicatorColor: colorScheme.primaryContainer,
-        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-        destinations: <NavigationDestination>[
-          for (final _NavigationItem item in navigationItems)
-            NavigationDestination(
-              icon: Icon(item.icon),
-              selectedIcon: Icon(item.selectedIcon),
-              label: item.label,
-              tooltip: item.label,
+class _MobileNavigationPillItem extends StatelessWidget {
+  const _MobileNavigationPillItem({
+    required this.navigationItem,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  static const double _iconSize = 22;
+  static const double _iconLabelSpacing = 1;
+
+  final _NavigationItem navigationItem;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color selectedColor = AppColors.primarySoft;
+    final Color unselectedColor = AppColors.onSurfaceVariant;
+
+    final Color foregroundColor = selected ? selectedColor : unselectedColor;
+
+    return Tooltip(
+      message: navigationItem.label,
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: navigationItem.label,
+        child: InkWell(
+          key: ValueKey<String>(
+            'mobile-navigation-${navigationItem.label.toLowerCase()}',
+          ),
+          onTap: onPressed,
+          customBorder: RoundedRectangleBorder(
+            borderRadius: AppRadius.borderFull,
+          ),
+          child: SizedBox.expand(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Icon(
+                    selected
+                        ? navigationItem.selectedIcon
+                        : navigationItem.icon,
+                    key: ValueKey<String>(
+                      selected
+                          ? 'mobile-${navigationItem.label.toLowerCase()}-selected-icon'
+                          : 'mobile-${navigationItem.label.toLowerCase()}-icon',
+                    ),
+                    size: _iconSize,
+                    color: foregroundColor,
+                  ),
+                  if (selected) ...<Widget>[
+                    const SizedBox(height: _iconLabelSpacing),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      child: Text(
+                        navigationItem.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.fade,
+                        softWrap: false,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: foregroundColor,
+                          fontWeight: FontWeight.w600,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
-        ],
+          ),
+        ),
       ),
     );
   }
@@ -680,7 +768,7 @@ class _MobileCompactNavigationPill extends StatelessWidget {
     required this.onPressed,
   });
 
-  static const double _size = 72;
+  static const double _size = 54;
 
   final _NavigationItem navigationItem;
   final VoidCallback onPressed;
@@ -724,7 +812,7 @@ class _MobileSearchPill extends StatelessWidget {
     required this.onPressed,
   });
 
-  static const double _compactSize = 72;
+  static const double _compactSize = 54;
 
   final bool isExpanded;
   final FocusNode focusNode;
@@ -768,7 +856,7 @@ class _MobileSearchPill extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,
-          vertical: AppSpacing.sm,
+          // vertical: AppSpacing.sm,
         ),
         child: SearchTextField(focusNode: focusNode),
       ),

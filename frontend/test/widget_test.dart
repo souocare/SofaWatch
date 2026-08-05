@@ -16,13 +16,18 @@ void main() {
       findsOneWidget,
     );
 
-    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('mobile-bottom-navigation')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('switches between the main tabs', (WidgetTester tester) async {
     await tester.pumpSofaWatchApp();
 
-    await tester.tap(find.text('Shows').last);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('mobile-navigation-shows')),
+    );
     await tester.pumpAndSettle();
 
     expect(
@@ -30,7 +35,9 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Movies').last);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('mobile-navigation-movies')),
+    );
     await tester.pumpAndSettle();
 
     expect(
@@ -38,7 +45,9 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Explore').last);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('mobile-navigation-explore')),
+    );
     await tester.pumpAndSettle();
 
     expect(
@@ -46,7 +55,9 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Profile').last);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('mobile-navigation-profile')),
+    );
     await tester.pumpAndSettle();
 
     expect(
@@ -60,7 +71,9 @@ void main() {
   ) async {
     await tester.pumpSofaWatchApp();
 
-    await tester.tap(find.text('Shows').last);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('mobile-navigation-shows')),
+    );
     await tester.pumpAndSettle();
 
     expect(
@@ -68,7 +81,9 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Home').last);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('mobile-navigation-home')),
+    );
     await tester.pumpAndSettle();
 
     expect(
@@ -76,7 +91,9 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Shows').last);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('mobile-navigation-shows')),
+    );
     await tester.pumpAndSettle();
 
     expect(
