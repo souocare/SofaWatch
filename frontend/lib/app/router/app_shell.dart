@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_colors.dart';
 import 'package:sofawatch/app/theme/tokens/app_durations.dart';
 import 'package:sofawatch/app/theme/tokens/app_radius.dart';
@@ -291,22 +292,40 @@ class _MobileAppShell extends StatelessWidget {
   final List<_NavigationItem> navigationItems;
   final ValueChanged<int> onDestinationSelected;
 
+  void _openSearch(BuildContext context) {
+    context.pushNamed(AppRoute.search.name);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBody: true,
       body: navigationShell,
-      bottomNavigationBar: NavigationBar(
-        key: const ValueKey<String>('mobile-bottom-navigation'),
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: onDestinationSelected,
-        destinations: <NavigationDestination>[
-          for (final _NavigationItem item in navigationItems)
-            NavigationDestination(
-              icon: Icon(item.icon),
-              selectedIcon: Icon(item.selectedIcon),
-              label: item.label,
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          0,
+          AppSpacing.md,
+          AppSpacing.md,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: <Widget>[
+            Expanded(
+              child: _MobilePrimaryNavigationPill(
+                currentIndex: navigationShell.currentIndex,
+                navigationItems: navigationItems,
+                onDestinationSelected: onDestinationSelected,
+              ),
             ),
-        ],
+            const SizedBox(width: AppSpacing.md),
+            _MobileSearchPill(
+              onPressed: () {
+                _openSearch(context);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -342,6 +361,94 @@ class _BrandLogoPlaceholder extends StatelessWidget {
         Icons.live_tv_outlined,
         color: AppColors.primarySoft,
         size: 24,
+      ),
+    );
+  }
+}
+
+class _MobilePrimaryNavigationPill extends StatelessWidget {
+  const _MobilePrimaryNavigationPill({
+    required this.currentIndex,
+    required this.navigationItems,
+    required this.onDestinationSelected,
+  });
+
+  final int currentIndex;
+  final List<_NavigationItem> navigationItems;
+  final ValueChanged<int> onDestinationSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
+    return ClipRRect(
+      borderRadius: AppRadius.borderFull,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHigh,
+          borderRadius: AppRadius.borderFull,
+          border: Border.all(color: colorScheme.outlineVariant),
+        ),
+        child: NavigationBar(
+          key: const ValueKey<String>('mobile-bottom-navigation'),
+          selectedIndex: currentIndex,
+          onDestinationSelected: onDestinationSelected,
+          height: 72,
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          indicatorColor: colorScheme.primaryContainer,
+          labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+          destinations: <NavigationDestination>[
+            for (final _NavigationItem item in navigationItems)
+              NavigationDestination(
+                icon: Icon(item.icon),
+                selectedIcon: Icon(item.selectedIcon),
+                label: item.label,
+                tooltip: item.label,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MobileSearchPill extends StatelessWidget {
+  const _MobileSearchPill({required this.onPressed});
+
+  static const double _size = 72;
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
+    return SizedBox.square(
+      dimension: _size,
+      child: Material(
+        key: const ValueKey<String>('mobile-search-pill'),
+        color: colorScheme.surfaceContainerHigh,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadius.borderFull,
+          side: BorderSide(color: colorScheme.outlineVariant),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Tooltip(
+          message: 'Search',
+          child: InkWell(
+            key: const ValueKey<String>('mobile-search-pill-action'),
+            onTap: onPressed,
+            customBorder: RoundedRectangleBorder(
+              borderRadius: AppRadius.borderFull,
+            ),
+            child: Icon(
+              Icons.search_rounded,
+              size: 28,
+              color: colorScheme.onSurface,
+            ),
+          ),
+        ),
       ),
     );
   }
