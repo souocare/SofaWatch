@@ -39,9 +39,7 @@ def enable_sqlite_foreign_keys(
         SQLite3Connection,
     ):
         cursor = dbapi_connection.cursor()
-        cursor.execute(
-            "PRAGMA foreign_keys=ON"
-        )
+        cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
 
@@ -103,9 +101,7 @@ def client(
     def override_get_db_session() -> Generator[Session, None, None]:
         yield db_session
 
-    app.dependency_overrides[
-        get_db_session
-    ] = override_get_db_session
+    app.dependency_overrides[get_db_session] = override_get_db_session
 
     with TestClient(app) as test_client:
         yield test_client

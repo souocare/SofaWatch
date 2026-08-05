@@ -839,6 +839,7 @@ def test_get_next_unwatched_for_show_returns_none_when_all_are_watched(
 
     assert result is None
 
+
 def test_count_watched_for_show_ignores_specials(
     db_session: Session,
 ) -> None:
@@ -900,10 +901,13 @@ def test_count_watched_for_show_ignores_specials(
 
     repository = EpisodeProgressRepository(db_session)
 
-    assert repository.count_watched_for_show(
-        user_id=user.id,
-        show_id=show.id,
-    ) == 1
+    assert (
+        repository.count_watched_for_show(
+            user_id=user.id,
+            show_id=show.id,
+        )
+        == 1
+    )
 
 
 def test_count_watched_aired_for_season(
@@ -961,11 +965,14 @@ def test_count_watched_aired_for_season(
 
     repository = EpisodeProgressRepository(db_session)
 
-    assert repository.count_watched_aired_for_season(
-        user_id=user.id,
-        season_id=season.id,
-        as_of=date(2026, 7, 29),
-    ) == 1
+    assert (
+        repository.count_watched_aired_for_season(
+            user_id=user.id,
+            season_id=season.id,
+            as_of=date(2026, 7, 29),
+        )
+        == 1
+    )
 
 
 def test_count_watched_aired_for_show_excludes_specials_and_future(
@@ -1038,11 +1045,14 @@ def test_count_watched_aired_for_show_excludes_specials_and_future(
 
     repository = EpisodeProgressRepository(db_session)
 
-    assert repository.count_watched_aired_for_show(
-        user_id=user.id,
-        show_id=show.id,
-        as_of=date(2026, 7, 29),
-    ) == 1
+    assert (
+        repository.count_watched_aired_for_show(
+            user_id=user.id,
+            show_id=show.id,
+            as_of=date(2026, 7, 29),
+        )
+        == 1
+    )
 
 
 def test_get_next_unwatched_for_show_ignores_future_episodes(
@@ -1085,6 +1095,7 @@ def test_get_next_unwatched_for_show_ignores_future_episodes(
 
     assert result is None
 
+
 def test_get_next_unwatched_for_show_ignores_unknown_air_date(
     db_session: Session,
 ) -> None:
@@ -1124,6 +1135,7 @@ def test_get_next_unwatched_for_show_ignores_unknown_air_date(
     )
 
     assert result is None
+
 
 def test_get_next_upcoming_for_show_returns_earliest_future_episode(
     db_session: Session,
@@ -1171,6 +1183,7 @@ def test_get_next_upcoming_for_show_returns_earliest_future_episode(
 
     assert result is not None
     assert result.id == expected.id
+
 
 def test_get_next_upcoming_for_show_ignores_specials_and_unknown_dates(
     db_session: Session,
@@ -1273,5 +1286,3 @@ def test_get_next_upcoming_for_show_returns_none_when_no_future_episode_exists(
     )
 
     assert result is None
-
-

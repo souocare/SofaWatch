@@ -14,6 +14,12 @@ from app.schemas.tmdb_show import (
     ShowSearchResult,
     ShowSeasonSummary,
 )
+from app.schemas.search import (
+    SearchMediaType,
+    SearchMediaTypeFilter,
+    SearchResponse,
+    SearchResult,
+)
 
 __all__ = [
     "GenreCreate",
@@ -27,4 +33,8 @@ __all__ = [
     "ShowSearchResult",
     "ShowSeasonSummary",
     "ShowSummaryResponse",
+    "SearchMediaType",
+    "SearchMediaTypeFilter",
+    "SearchResponse",
+    "SearchResult",
 ]

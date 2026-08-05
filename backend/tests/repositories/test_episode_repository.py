@@ -783,9 +783,12 @@ def test_count_regular_by_show_id_excludes_specials(
 
     repository = EpisodeRepository(db_session)
 
-    assert repository.count_regular_by_show_id(
-        show.id,
-    ) == 2
+    assert (
+        repository.count_regular_by_show_id(
+            show.id,
+        )
+        == 2
+    )
 
 
 def test_count_aired_by_show_id_excludes_future_unknown_and_specials(
@@ -844,9 +847,10 @@ def test_count_aired_by_show_id_excludes_future_unknown_and_specials(
 
     repository = EpisodeRepository(db_session)
 
-    assert repository.count_aired_by_show_id(
-        show.id,
-        as_of=date(2026, 7, 29),
-    ) == 1
-
-
+    assert (
+        repository.count_aired_by_show_id(
+            show.id,
+            as_of=date(2026, 7, 29),
+        )
+        == 1
+    )

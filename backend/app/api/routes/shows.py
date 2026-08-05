@@ -325,10 +325,7 @@ def get_show_progress(
     "/{show_id}/next-episode",
     response_model=NextEpisodeResponse,
     summary="Get next episode",
-    description=(
-        "Return the next aired unwatched regular episode "
-        "for the current user."
-    ),
+    description=("Return the next aired unwatched regular episode for the current user."),
 )
 def get_next_episode(
     show_id: Annotated[
@@ -361,10 +358,7 @@ def get_next_episode(
     "/{show_id}/next-upcoming",
     response_model=NextUpcomingEpisodeResponse,
     summary="Get next upcoming episode",
-    description=(
-        "Return the next known future regular episode "
-        "of a TV series."
-    ),
+    description=("Return the next known future regular episode of a TV series."),
 )
 def get_next_upcoming_episode(
     show_id: Annotated[

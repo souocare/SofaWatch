@@ -88,16 +88,13 @@ def test_import_show_returns_imported_show(
 
     assert response_data["tmdb_id"] == TMDB_ID
     assert response_data["title"] == "Severance"
-    assert response_data["poster_url"] == (
-        f"/api/v1/images/shows/{imported_show.id}/poster"
-    )
+    assert response_data["poster_url"] == (f"/api/v1/images/shows/{imported_show.id}/poster")
 
     assert response_data["backdrop_url"] is None
     assert response_data["original_title"] == "Severance"
     assert response_data["overview"] == ("Employees undergo a severance procedure.")
     assert response_data["metadata_language"] == "en-US"
     response_data = response.json()
-
 
     show_import_service.import_show.assert_called_once_with(
         tmdb_id=TMDB_ID,

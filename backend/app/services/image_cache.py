@@ -52,11 +52,9 @@ class ImageCacheService:
         return self._cache_image(
             tmdb_path=tmdb_path,
             size=self._POSTER_SIZE,
-            destination_factory=lambda extension: (
-                self._storage.show_poster_path(
-                    show_id,
-                    extension=extension,
-                )
+            destination_factory=lambda extension: self._storage.show_poster_path(
+                show_id,
+                extension=extension,
             ),
         )
 
@@ -71,11 +69,9 @@ class ImageCacheService:
         return self._cache_image(
             tmdb_path=tmdb_path,
             size=self._BACKDROP_SIZE,
-            destination_factory=lambda extension: (
-                self._storage.show_backdrop_path(
-                    show_id,
-                    extension=extension,
-                )
+            destination_factory=lambda extension: self._storage.show_backdrop_path(
+                show_id,
+                extension=extension,
             ),
         )
 
@@ -90,11 +86,9 @@ class ImageCacheService:
         return self._cache_image(
             tmdb_path=tmdb_path,
             size=self._POSTER_SIZE,
-            destination_factory=lambda extension: (
-                self._storage.season_poster_path(
-                    season_id,
-                    extension=extension,
-                )
+            destination_factory=lambda extension: self._storage.season_poster_path(
+                season_id,
+                extension=extension,
             ),
         )
 
@@ -109,11 +103,9 @@ class ImageCacheService:
         return self._cache_image(
             tmdb_path=tmdb_path,
             size=self._STILL_SIZE,
-            destination_factory=lambda extension: (
-                self._storage.episode_still_path(
-                    episode_id,
-                    extension=extension,
-                )
+            destination_factory=lambda extension: self._storage.episode_still_path(
+                episode_id,
+                extension=extension,
             ),
         )
 
@@ -128,10 +120,7 @@ class ImageCacheService:
 
         normalized_path = tmdb_path.lstrip("/")
 
-        image_url = (
-            f"{self._settings.tmdb_image_base_url.rstrip('/')}/"
-            f"{size}/{normalized_path}"
-        )
+        image_url = f"{self._settings.tmdb_image_base_url.rstrip('/')}/{size}/{normalized_path}"
 
         try:
             response = self._http_client.get(
@@ -139,31 +128,30 @@ class ImageCacheService:
             )
             response.raise_for_status()
         except httpx.HTTPError as error:
-            raise ImageCacheError(
-                "The provider image could not be downloaded."
-            ) from error
+            raise ImageCacheError("The provider image could not be downloaded.") from error
 
-        content_type = response.headers.get(
-            "content-type",
-            "",
-        ).split(";")[0].strip().lower()
+        content_type = (
+            response.headers.get(
+                "content-type",
+                "",
+            )
+            .split(";")[0]
+            .strip()
+            .lower()
+        )
 
         extension = self._CONTENT_TYPE_EXTENSIONS.get(
             content_type,
         )
 
         if extension is None:
-            raise ImageCacheError(
-                f"Unsupported image content type: {content_type or 'unknown'}."
-            )
+            raise ImageCacheError(f"Unsupported image content type: {content_type or 'unknown'}.")
 
         destination = destination_factory(
             extension,
         )
 
-        temporary_path = destination.with_suffix(
-            f"{destination.suffix}.tmp"
-        )
+        temporary_path = destination.with_suffix(f"{destination.suffix}.tmp")
 
         try:
             temporary_path.write_bytes(
@@ -177,9 +165,7 @@ class ImageCacheService:
                 missing_ok=True,
             )
 
-            raise ImageCacheError(
-                "The image could not be written to local storage."
-            ) from error
+            raise ImageCacheError("The image could not be written to local storage.") from error
 
         return self._storage.to_relative_path(
             destination,

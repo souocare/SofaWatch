@@ -43,9 +43,7 @@ def http_exception_handler(
     del request
 
     message = (
-        error.detail
-        if isinstance(error.detail, str)
-        else "The request could not be completed."
+        error.detail if isinstance(error.detail, str) else "The request could not be completed."
     )
 
     return JSONResponse(
@@ -79,7 +77,8 @@ def validation_exception_handler(
         field_parts = [
             str(part)
             for part in location
-            if part not in {
+            if part
+            not in {
                 "body",
                 "path",
                 "query",

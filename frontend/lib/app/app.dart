@@ -58,8 +58,14 @@ class _SofaWatchAppState extends State<SofaWatchApp> {
       serverConfigurationRepository:
           bootstrapData.serverConfigurationRepository,
       apiClient: _apiClient,
+      searchRepository: bootstrapData.searchRepository,
       serverConnectionTester: bootstrapData.serverConnectionTester,
-      child: app,
+      child: MaterialApp.router(
+        routerConfig: _router,
+        theme: AppTheme.dark,
+        darkTheme: AppTheme.dark,
+        themeMode: ThemeMode.dark,
+      ),
     );
   }
 }

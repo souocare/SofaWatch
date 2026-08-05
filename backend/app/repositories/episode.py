@@ -120,7 +120,7 @@ class EpisodeRepository:
             )
             or 0
         )
-    
+
     def count_aired_by_season_id(
         self,
         season_id: UUID,
@@ -141,7 +141,6 @@ class EpisodeRepository:
             )
             or 0
         )
-
 
     def count_regular_by_show_id(
         self,
@@ -164,7 +163,6 @@ class EpisodeRepository:
             )
             or 0
         )
-
 
     def count_aired_by_show_id(
         self,

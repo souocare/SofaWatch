@@ -77,9 +77,7 @@ def test_validation_error_uses_standard_response(
     response_data = response.json()
 
     assert response_data["error"]["code"] == "validation_error"
-    assert response_data["error"]["message"] == (
-        "The request contains invalid data."
-    )
+    assert response_data["error"]["message"] == ("The request contains invalid data.")
 
     assert response_data["error"]["details"]
 

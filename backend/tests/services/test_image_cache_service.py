@@ -33,9 +33,7 @@ def create_service(
         image_storage_path=str(
             tmp_path / "images",
         ),
-        tmdb_image_base_url=(
-            "https://image.tmdb.org/t/p"
-        ),
+        tmdb_image_base_url=("https://image.tmdb.org/t/p"),
         tmdb_timeout_seconds=10.0,
     )
 
@@ -72,10 +70,7 @@ def test_cache_show_poster_downloads_and_stores_image(
     def handler(
         request: httpx.Request,
     ) -> httpx.Response:
-        assert request.url == (
-            "https://image.tmdb.org/t/p/"
-            "w500/poster.jpg"
-        )
+        assert request.url == ("https://image.tmdb.org/t/p/w500/poster.jpg")
 
         return httpx.Response(
             status_code=200,
@@ -99,9 +94,7 @@ def test_cache_show_poster_downloads_and_stores_image(
     finally:
         http_client.close()
 
-    assert relative_path == (
-        f"shows/{show_id}/poster.jpg"
-    )
+    assert relative_path == (f"shows/{show_id}/poster.jpg")
 
     absolute_path = storage.from_relative_path(
         relative_path,
@@ -121,10 +114,7 @@ def test_cache_show_backdrop_uses_original_size(
     def handler(
         request: httpx.Request,
     ) -> httpx.Response:
-        assert request.url == (
-            "https://image.tmdb.org/t/p/"
-            "original/backdrop.webp"
-        )
+        assert request.url == ("https://image.tmdb.org/t/p/original/backdrop.webp")
 
         return httpx.Response(
             status_code=200,
@@ -148,13 +138,14 @@ def test_cache_show_backdrop_uses_original_size(
     finally:
         http_client.close()
 
-    assert relative_path == (
-        f"shows/{show_id}/backdrop.webp"
-    )
+    assert relative_path == (f"shows/{show_id}/backdrop.webp")
 
-    assert storage.from_relative_path(
-        relative_path,
-    ).read_bytes() == IMAGE_BYTES
+    assert (
+        storage.from_relative_path(
+            relative_path,
+        ).read_bytes()
+        == IMAGE_BYTES
+    )
 
 
 def test_cache_season_poster_stores_png_image(
@@ -189,9 +180,7 @@ def test_cache_season_poster_stores_png_image(
     finally:
         http_client.close()
 
-    assert relative_path == (
-        f"seasons/{season_id}/poster.png"
-    )
+    assert relative_path == (f"seasons/{season_id}/poster.png")
 
     assert storage.from_relative_path(
         relative_path,
@@ -208,10 +197,7 @@ def test_cache_episode_still_uses_w500_size(
     def handler(
         request: httpx.Request,
     ) -> httpx.Response:
-        assert request.url == (
-            "https://image.tmdb.org/t/p/"
-            "w500/still.jpg"
-        )
+        assert request.url == ("https://image.tmdb.org/t/p/w500/still.jpg")
 
         return httpx.Response(
             status_code=200,
@@ -235,9 +221,7 @@ def test_cache_episode_still_uses_w500_size(
     finally:
         http_client.close()
 
-    assert relative_path == (
-        f"episodes/{episode_id}/still.jpg"
-    )
+    assert relative_path == (f"episodes/{episode_id}/still.jpg")
 
     assert storage.from_relative_path(
         relative_path,
@@ -367,9 +351,7 @@ def test_cache_image_raises_when_provider_returns_error(
     try:
         with pytest.raises(
             ImageCacheError,
-            match=(
-                "provider image could not be downloaded"
-            ),
+            match=("provider image could not be downloaded"),
         ):
             service.cache_show_poster(
                 show_id=show_id,
@@ -410,11 +392,7 @@ def test_failed_download_does_not_leave_cached_file(
     finally:
         http_client.close()
 
-    show_directory = (
-        storage.base_path
-        / "shows"
-        / str(show_id)
-    )
+    show_directory = storage.base_path / "shows" / str(show_id)
 
     assert not show_directory.exists()
 

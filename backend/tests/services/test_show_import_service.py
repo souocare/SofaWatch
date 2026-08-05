@@ -1198,8 +1198,7 @@ def test_sync_show_refreshes_stale_metadata(
         original_language="en",
         metadata_language="en-US",
         metadata_updated_at=(
-            datetime.now(UTC)
-            - timedelta(days=settings.metadata_refresh_days + 1)
+            datetime.now(UTC) - timedelta(days=settings.metadata_refresh_days + 1)
         ),
     )
 
@@ -1233,6 +1232,7 @@ def test_sync_show_refreshes_stale_metadata(
         language="en-US",
     )
 
+
 def test_sync_show_skips_ended_show(
     db_session: Session,
     settings: Settings,
@@ -1249,8 +1249,7 @@ def test_sync_show_skips_ended_show(
         status="Ended",
         metadata_language="en-US",
         metadata_updated_at=(
-            datetime.now(UTC)
-            - timedelta(days=settings.metadata_refresh_days + 100)
+            datetime.now(UTC) - timedelta(days=settings.metadata_refresh_days + 100)
         ),
     )
 
@@ -1275,9 +1274,6 @@ def test_sync_show_skips_ended_show(
 
     assert result.outcome is ShowSyncOutcome.SKIPPED
     tmdb_show_details_service.get_details.assert_not_called()
-
-
-
 
 
 def test_import_show_keeps_episodes_missing_from_tmdb_response(

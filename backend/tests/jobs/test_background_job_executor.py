@@ -369,6 +369,7 @@ def test_execute_persists_handler_result(
         "failed": 0,
     }
 
+
 def test_execute_preserves_result_from_failed_handler(
     executor: BackgroundJobExecutor,
 ) -> None:
@@ -402,4 +403,3 @@ def test_execute_preserves_result_from_failed_handler(
         "skipped": 5,
         "failed": 1,
     }
-

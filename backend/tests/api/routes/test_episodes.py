@@ -152,9 +152,7 @@ def test_get_episode_returns_detailed_response(
         "vote_count": 42,
         "tmdb_still_path": "/episode-1.jpg",
         "local_still_path": "/media/severance/s01e01.jpg",
-        "still_url": (
-            f"/api/v1/images/episodes/{episode.id}/still"
-        ),
+        "still_url": (f"/api/v1/images/episodes/{episode.id}/still"),
     }
 
 

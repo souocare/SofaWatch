@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -227,3 +227,100 @@ class TMDBSeasonDetails(BaseModel):
         """Convert TMDB empty date strings into null values."""
 
         return None if value == "" else value
+
+
+class TMDBMovieSearchResult(BaseModel):
+    """Movie returned by the TMDB movie search endpoint."""
+
+    id: int
+
+    title: str
+    original_title: str
+    overview: str
+
+    release_date: date | None = None
+
+    poster_path: str | None = None
+    backdrop_path: str | None = None
+
+    original_language: str
+    genre_ids: list[int] = Field(default_factory=list)
+
+    popularity: float
+    vote_average: float
+    vote_count: int
+
+    adult: bool = False
+    video: bool = False
+
+    model_config = ConfigDict(extra="ignore")
+
+    @field_validator("release_date", mode="before")
+    @classmethod
+    def normalize_empty_release_date(
+        cls,
+        value: Any,
+    ) -> Any:
+        """Convert TMDB empty movie release dates into null values."""
+
+        if value == "":
+            return None
+
+        return value
+
+
+class TMDBMovieSearchResponse(BaseModel):
+    """Paginated response returned by the TMDB movie search endpoint."""
+
+    page: int
+    results: list[TMDBMovieSearchResult]
+    total_pages: int
+    total_results: int
+
+    model_config = ConfigDict(extra="ignore")
+
+
+class TMDBMultiMovieSearchResult(TMDBMovieSearchResult):
+    """Movie returned by the TMDB multi-search endpoint."""
+
+    media_type: Literal["movie"]
+
+
+class TMDBMultiTVSearchResult(TMDBTVSearchResult):
+    """TV series returned by the TMDB multi-search endpoint."""
+
+    media_type: Literal["tv"]
+
+
+class TMDBMultiPersonSearchResult(BaseModel):
+    """Person returned by the TMDB multi-search endpoint."""
+
+    id: int
+    media_type: Literal["person"]
+
+    name: str
+    original_name: str | None = None
+
+    profile_path: str | None = None
+    known_for_department: str | None = None
+
+    popularity: float = 0.0
+
+    model_config = ConfigDict(extra="ignore")
+
+
+type TMDBMultiSearchResult = Annotated[
+    TMDBMultiMovieSearchResult | TMDBMultiTVSearchResult | TMDBMultiPersonSearchResult,
+    Field(discriminator="media_type"),
+]
+
+
+class TMDBMultiSearchResponse(BaseModel):
+    """Paginated response returned by the TMDB multi-search endpoint."""
+
+    page: int
+    results: list[TMDBMultiSearchResult]
+    total_pages: int
+    total_results: int
+
+    model_config = ConfigDict(extra="ignore")

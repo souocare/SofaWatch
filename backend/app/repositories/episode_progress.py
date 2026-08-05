@@ -107,9 +107,7 @@ class EpisodeProgressRepository:
     ) -> Episode | None:
         """Return the next aired unwatched regular episode of a TV series."""
 
-        watched_episode_ids = select(
-            EpisodeProgress.episode_id
-        ).where(
+        watched_episode_ids = select(EpisodeProgress.episode_id).where(
             EpisodeProgress.user_id == user_id,
             EpisodeProgress.is_watched.is_(True),
         )
@@ -133,7 +131,7 @@ class EpisodeProgressRepository:
             )
             .limit(1)
         )
-    
+
     def get_next_upcoming_for_show(
         self,
         *,
@@ -161,7 +159,7 @@ class EpisodeProgressRepository:
             )
             .limit(1)
         )
-    
+
     def count_watched_aired_for_season(
         self,
         *,
@@ -189,7 +187,6 @@ class EpisodeProgressRepository:
             )
             or 0
         )
-
 
     def count_watched_aired_for_show(
         self,

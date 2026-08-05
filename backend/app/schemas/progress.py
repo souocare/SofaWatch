@@ -59,6 +59,7 @@ class NextEpisodeResponse(BaseModel):
     show_id: UUID
     next_episode: EpisodeResponse | None
 
+
 class NextUpcomingEpisodeResponse(BaseModel):
     """Next future episode of a TV series."""
 

@@ -32,9 +32,7 @@ def client_with_image_service(
     def override_get_image_service() -> Mock:
         return image_service
 
-    app.dependency_overrides[get_image_service] = (
-        override_get_image_service
-    )
+    app.dependency_overrides[get_image_service] = override_get_image_service
 
     return client
 
@@ -252,9 +250,7 @@ def test_image_endpoint_returns_image_not_found_error(
         method_name,
     )
 
-    method.side_effect = ImageNotAvailableError(
-        "The requested image is not available."
-    )
+    method.side_effect = ImageNotAvailableError("The requested image is not available.")
 
     response = client_with_image_service.get(
         url.format(
@@ -279,10 +275,8 @@ def test_image_endpoint_returns_download_failure(
 
     show_id = uuid4()
 
-    image_service.resolve_show_poster.side_effect = (
-        ImageCacheError(
-            "The provider image could not be downloaded."
-        )
+    image_service.resolve_show_poster.side_effect = ImageCacheError(
+        "The provider image could not be downloaded."
     )
 
     response = client_with_image_service.get(
@@ -313,8 +307,6 @@ def test_image_endpoint_rejects_invalid_uuid(
     response_data = response.json()
 
     assert response_data["error"]["code"] == "validation_error"
-    assert response_data["error"]["message"] == (
-        "The request contains invalid data."
-    )
+    assert response_data["error"]["message"] == ("The request contains invalid data.")
 
     image_service.resolve_show_poster.assert_not_called()

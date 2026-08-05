@@ -312,6 +312,327 @@ def test_search_tv_shows_rejects_invalid_schema(
         http_client.close()
 
 
+def test_search_movies_returns_validated_response(
+    settings: Settings,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path.endswith("/search/movie")
+
+        assert request.url.params["query"] == "Dune"
+        assert request.url.params["page"] == "1"
+        assert request.url.params["language"] == "en-US"
+        assert request.url.params["include_adult"] == "false"
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "page": 1,
+                "results": [
+                    {
+                        "id": 438631,
+                        "title": "Dune",
+                        "original_title": "Dune",
+                        "overview": "Paul Atreides travels to Arrakis.",
+                        "release_date": "2021-09-15",
+                        "poster_path": "/dune-poster.jpg",
+                        "backdrop_path": "/dune-backdrop.jpg",
+                        "original_language": "en",
+                        "genre_ids": [878, 12],
+                        "popularity": 95.4,
+                        "vote_average": 7.8,
+                        "vote_count": 13000,
+                        "adult": False,
+                        "video": False,
+                    }
+                ],
+                "total_pages": 3,
+                "total_results": 50,
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        handler,
+    )
+
+    try:
+        response = tmdb_client.search_movies(
+            query="Dune",
+        )
+    finally:
+        http_client.close()
+
+    assert response.page == 1
+    assert response.total_pages == 3
+    assert response.total_results == 50
+    assert len(response.results) == 1
+
+    movie = response.results[0]
+
+    assert movie.id == 438631
+    assert movie.title == "Dune"
+    assert movie.original_title == "Dune"
+    assert movie.release_date is not None
+    assert movie.release_date.isoformat() == "2021-09-15"
+    assert movie.genre_ids == [878, 12]
+
+
+def test_search_movies_strips_query_and_uses_custom_parameters(
+    settings: Settings,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/search/movie")
+        assert request.url.params["query"] == "Blade Runner"
+        assert request.url.params["page"] == "2"
+        assert request.url.params["language"] == "pt-PT"
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "page": 2,
+                "results": [],
+                "total_pages": 2,
+                "total_results": 30,
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        handler,
+    )
+
+    try:
+        response = tmdb_client.search_movies(
+            query="  Blade Runner  ",
+            page=2,
+            language="pt-PT",
+        )
+    finally:
+        http_client.close()
+
+    assert response.page == 2
+    assert response.results == []
+
+
+def test_search_movies_rejects_empty_query(
+    settings: Settings,
+) -> None:
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        lambda request: httpx.Response(
+            200,
+            request=request,
+        ),
+    )
+
+    try:
+        with pytest.raises(
+            ValueError,
+            match="search query cannot be empty",
+        ):
+            tmdb_client.search_movies(
+                query="   ",
+            )
+    finally:
+        http_client.close()
+
+
+def test_search_movies_rejects_invalid_page(
+    settings: Settings,
+) -> None:
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        lambda request: httpx.Response(
+            200,
+            request=request,
+        ),
+    )
+
+    try:
+        with pytest.raises(
+            ValueError,
+            match="page must be greater than or equal to 1",
+        ):
+            tmdb_client.search_movies(
+                query="Dune",
+                page=0,
+            )
+    finally:
+        http_client.close()
+
+
+def test_search_multi_returns_movies_tv_and_people(
+    settings: Settings,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path.endswith("/search/multi")
+
+        assert request.url.params["query"] == "Dune"
+        assert request.url.params["page"] == "1"
+        assert request.url.params["language"] == "en-US"
+        assert request.url.params["include_adult"] == "false"
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "page": 1,
+                "results": [
+                    {
+                        "media_type": "movie",
+                        "id": 438631,
+                        "title": "Dune",
+                        "original_title": "Dune",
+                        "overview": "Paul Atreides travels to Arrakis.",
+                        "release_date": "2021-09-15",
+                        "poster_path": "/dune.jpg",
+                        "backdrop_path": "/dune-backdrop.jpg",
+                        "original_language": "en",
+                        "genre_ids": [878, 12],
+                        "popularity": 95.4,
+                        "vote_average": 7.8,
+                        "vote_count": 13000,
+                    },
+                    {
+                        "media_type": "tv",
+                        "id": 95396,
+                        "name": "Severance",
+                        "original_name": "Severance",
+                        "overview": "Employees undergo a severance procedure.",
+                        "first_air_date": "2022-02-17",
+                        "poster_path": "/severance.jpg",
+                        "backdrop_path": "/severance-backdrop.jpg",
+                        "original_language": "en",
+                        "genre_ids": [18, 9648],
+                        "popularity": 120.5,
+                        "vote_average": 8.4,
+                        "vote_count": 2100,
+                    },
+                    {
+                        "media_type": "person",
+                        "id": 500,
+                        "name": "Example Person",
+                        "original_name": "Example Person",
+                        "profile_path": "/person.jpg",
+                        "known_for_department": "Acting",
+                        "popularity": 50.0,
+                    },
+                ],
+                "total_pages": 1,
+                "total_results": 3,
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        handler,
+    )
+
+    try:
+        response = tmdb_client.search_multi(
+            query="Dune",
+        )
+    finally:
+        http_client.close()
+
+    assert response.page == 1
+    assert response.total_results == 3
+    assert len(response.results) == 3
+
+    assert response.results[0].media_type == "movie"
+    assert response.results[1].media_type == "tv"
+    assert response.results[2].media_type == "person"
+
+
+def test_search_multi_strips_query_and_uses_custom_parameters(
+    settings: Settings,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/search/multi")
+        assert request.url.params["query"] == "The Last of Us"
+        assert request.url.params["page"] == "4"
+        assert request.url.params["language"] == "pt-PT"
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "page": 4,
+                "results": [],
+                "total_pages": 4,
+                "total_results": 75,
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        handler,
+    )
+
+    try:
+        response = tmdb_client.search_multi(
+            query="  The Last of Us  ",
+            page=4,
+            language="pt-PT",
+        )
+    finally:
+        http_client.close()
+
+    assert response.page == 4
+    assert response.results == []
+
+
+def test_search_multi_rejects_empty_query(
+    settings: Settings,
+) -> None:
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        lambda request: httpx.Response(
+            200,
+            request=request,
+        ),
+    )
+
+    try:
+        with pytest.raises(
+            ValueError,
+            match="search query cannot be empty",
+        ):
+            tmdb_client.search_multi(
+                query="   ",
+            )
+    finally:
+        http_client.close()
+
+
+def test_search_multi_rejects_invalid_page(
+    settings: Settings,
+) -> None:
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        lambda request: httpx.Response(
+            200,
+            request=request,
+        ),
+    )
+
+    try:
+        with pytest.raises(
+            ValueError,
+            match="page must be greater than or equal to 1",
+        ):
+            tmdb_client.search_multi(
+                query="Dune",
+                page=0,
+            )
+    finally:
+        http_client.close()
+
+
 def test_tmdb_client_requires_api_token(
     settings: Settings,
 ) -> None:

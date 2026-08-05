@@ -548,7 +548,6 @@ def test_list_shows_returns_empty_paginated_response(
     }
 
 
-
 def test_list_shows_applies_pagination(
     client: TestClient,
     db_session: Session,

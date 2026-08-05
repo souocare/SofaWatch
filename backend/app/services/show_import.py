@@ -23,6 +23,7 @@ from app.services.tmdb_show_details import TMDBShowDetailsService
 from dataclasses import dataclass
 from enum import StrEnum
 
+
 class ShowSyncOutcome(StrEnum):
     """Outcome of an automatic TV series metadata synchronization."""
 
@@ -36,6 +37,7 @@ class ShowSyncResult:
 
     show: Show
     outcome: ShowSyncOutcome
+
 
 class ShowImportService:
     """Import and refresh TV series metadata."""

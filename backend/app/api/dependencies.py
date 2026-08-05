@@ -32,6 +32,7 @@ from app.services.show_import import ShowImportService
 from app.services.tmdb_season_details import TMDBSeasonDetailsService
 from app.services.tmdb_show_details import TMDBShowDetailsService
 from app.services.tmdb_show_search import ShowSearchService
+from app.services.media_search import MediaSearchService
 from app.core.storage import ImageStorage
 from app.services.image import ImageService
 from app.services.image_cache import ImageCacheService
@@ -69,6 +70,30 @@ def get_tmdb_client(
 TMDBClientDependency = Annotated[
     TMDBClient,
     Depends(get_tmdb_client),
+]
+
+
+def get_media_search_service(
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
+    tmdb_client: Annotated[
+        TMDBClient,
+        Depends(get_tmdb_client),
+    ],
+) -> MediaSearchService:
+    """Provide the general media search service."""
+
+    return MediaSearchService(
+        settings=settings,
+        tmdb_client=tmdb_client,
+    )
+
+
+MediaSearchServiceDependency = Annotated[
+    MediaSearchService,
+    Depends(get_media_search_service),
 ]
 
 

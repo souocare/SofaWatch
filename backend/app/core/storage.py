@@ -92,9 +92,13 @@ class ImageStorage:
     ) -> str:
         """Return a cache path relative to the image storage root."""
 
-        return path.resolve().relative_to(
-            self._base_path,
-        ).as_posix()
+        return (
+            path.resolve()
+            .relative_to(
+                self._base_path,
+            )
+            .as_posix()
+        )
 
     def from_relative_path(
         self,
@@ -102,17 +106,12 @@ class ImageStorage:
     ) -> Path:
         """Resolve a stored relative cache path safely."""
 
-        resolved_path = (
-            self._base_path
-            / relative_path
-        ).resolve()
+        resolved_path = (self._base_path / relative_path).resolve()
 
         if not resolved_path.is_relative_to(
             self._base_path,
         ):
-            raise ValueError(
-                "Image path is outside the configured storage directory."
-            )
+            raise ValueError("Image path is outside the configured storage directory.")
 
         return resolved_path
 
@@ -125,11 +124,7 @@ class ImageStorage:
     ) -> Path:
         """Build and create a resource-specific cache directory."""
 
-        directory = (
-            self._base_path
-            / category
-            / str(resource_id)
-        )
+        directory = self._base_path / category / str(resource_id)
 
         directory.mkdir(
             parents=True,

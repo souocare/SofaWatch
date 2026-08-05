@@ -2,12 +2,14 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
+import 'package:sofawatch/features/search/domain/repositories/search_repository.dart';
 import 'package:sofawatch/features/server_setup/domain/services/server_connection_tester.dart';
 
 class AppDependencies extends StatelessWidget {
   const AppDependencies({
     required this.serverConfigurationRepository,
     required this.apiClient,
+    required this.searchRepository,
     required this.serverConnectionTester,
     required this.child,
     super.key,
@@ -15,6 +17,7 @@ class AppDependencies extends StatelessWidget {
 
   final ServerConfigurationRepository serverConfigurationRepository;
   final ApiClient apiClient;
+  final SearchRepository searchRepository;
   final ServerConnectionTester serverConnectionTester;
   final Widget child;
 
@@ -26,6 +29,7 @@ class AppDependencies extends StatelessWidget {
           value: serverConfigurationRepository,
         ),
         RepositoryProvider<ApiClient>.value(value: apiClient),
+        RepositoryProvider<SearchRepository>.value(value: searchRepository),
         RepositoryProvider<ServerConnectionTester>.value(
           value: serverConnectionTester,
         ),

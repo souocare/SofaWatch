@@ -52,9 +52,7 @@ class ImageService:
         )
 
         if show is None:
-            raise ImageOwnerNotFoundError(
-                "TV series not found."
-            )
+            raise ImageOwnerNotFoundError("TV series not found.")
 
         return self._resolve_image(
             local_path=show.local_poster_path,
@@ -81,9 +79,7 @@ class ImageService:
         )
 
         if show is None:
-            raise ImageOwnerNotFoundError(
-                "TV series not found."
-            )
+            raise ImageOwnerNotFoundError("TV series not found.")
 
         return self._resolve_image(
             local_path=show.local_backdrop_path,
@@ -110,9 +106,7 @@ class ImageService:
         )
 
         if season is None:
-            raise ImageOwnerNotFoundError(
-                "TV season not found."
-            )
+            raise ImageOwnerNotFoundError("TV season not found.")
 
         return self._resolve_image(
             local_path=season.local_poster_path,
@@ -139,9 +133,7 @@ class ImageService:
         )
 
         if episode is None:
-            raise ImageOwnerNotFoundError(
-                "TV episode not found."
-            )
+            raise ImageOwnerNotFoundError("TV episode not found.")
 
         return self._resolve_image(
             local_path=episode.local_still_path,
@@ -176,9 +168,7 @@ class ImageService:
                 return cached_path
 
         if not provider_path:
-            raise ImageNotAvailableError(
-                "The requested image is not available."
-            )
+            raise ImageNotAvailableError("The requested image is not available.")
 
         relative_path = cache_image()
         absolute_path = self._storage.from_relative_path(

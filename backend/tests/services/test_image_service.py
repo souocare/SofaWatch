@@ -227,9 +227,7 @@ def test_resolve_show_poster_ignores_unsafe_local_path(
     show_repository.get_by_id.return_value = show
 
     storage.from_relative_path.side_effect = [
-        ValueError(
-            "Image path is outside the configured storage directory."
-        ),
+        ValueError("Image path is outside the configured storage directory."),
         downloaded_path,
     ]
 

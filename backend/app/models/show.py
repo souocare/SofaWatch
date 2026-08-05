@@ -207,7 +207,6 @@ class Show(TimestampMixin, Base):
     def __repr__(self) -> str:
         return f"Show(id={self.id!r}, tmdb_id={self.tmdb_id!r}, title={self.title!r})"
 
-
     @property
     def poster_url(self) -> str | None:
         """Return the SofaWatch poster endpoint when artwork is available."""
@@ -216,7 +215,6 @@ class Show(TimestampMixin, Base):
             return None
 
         return f"/api/v1/images/shows/{self.id}/poster"
-
 
     @property
     def backdrop_url(self) -> str | None:

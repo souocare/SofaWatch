@@ -17,6 +17,7 @@ from app.services.tmdb_show_details import TMDBShowDetailsService
 
 logger = logging.getLogger(__name__)
 
+
 class MetadataSyncError(RuntimeError):
     """Raised when one or more TV series fail during metadata sync."""
 
@@ -28,6 +29,7 @@ class MetadataSyncError(RuntimeError):
     ) -> None:
         super().__init__(message)
         self.result = result
+
 
 def run_metadata_sync() -> dict[str, object]:
     """Synchronize metadata for all locally stored TV series."""
@@ -84,13 +86,12 @@ def run_metadata_sync() -> dict[str, object]:
                     skipped += 1
             except Exception:
                 failed += 1
-                
+
                 logger.exception(
                     "Failed to refresh '%s' (%s).",
                     show.title,
                     show.tmdb_id,
                 )
-                
 
         result = {
             "checked": checked,
@@ -100,10 +101,7 @@ def run_metadata_sync() -> dict[str, object]:
         }
 
         logger.info(
-            (
-                "Metadata sync finished: "
-                "%s checked, %s refreshed, %s skipped, %s failed."
-            ),
+            ("Metadata sync finished: %s checked, %s refreshed, %s skipped, %s failed."),
             checked,
             refreshed,
             skipped,
@@ -112,12 +110,8 @@ def run_metadata_sync() -> dict[str, object]:
 
         if failed > 0:
             raise MetadataSyncError(
-                (
-                    "Metadata sync finished with "
-                    f"{failed} failed TV series out of {checked}."
-                ),
+                (f"Metadata sync finished with {failed} failed TV series out of {checked}."),
                 result=result,
             )
 
         return result
-

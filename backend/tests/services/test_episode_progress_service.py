@@ -32,6 +32,7 @@ def as_utc(
         UTC,
     )
 
+
 def persist_user(
     db_session: Session,
 ) -> User:
@@ -42,6 +43,7 @@ def persist_user(
     db_session.add(user)
     db_session.flush()
     return user
+
 
 def persist_show(
     db_session: Session,
@@ -64,6 +66,7 @@ def persist_show(
 
     return show
 
+
 def persist_season(
     db_session: Session,
     *,
@@ -79,6 +82,7 @@ def persist_season(
     db_session.flush()
     return season
 
+
 def persist_episode(
     db_session: Session,
     *,
@@ -93,6 +97,7 @@ def persist_episode(
     db_session.add(episode)
     db_session.flush()
     return episode
+
 
 @pytest.fixture
 def progress_repository() -> Mock:
@@ -551,8 +556,6 @@ def test_get_season_progress_returns_none_when_season_does_not_exist(
     progress_repository.count_watched_aired_for_season.assert_not_called()
 
 
-
-
 def test_get_show_progress_returns_none_when_show_does_not_exist(
     progress_service: EpisodeProgressService,
     show_repository: Mock,
@@ -577,7 +580,6 @@ def test_get_show_progress_returns_none_when_show_does_not_exist(
     episode_repository.count_aired_by_show_id.assert_not_called()
     progress_repository.count_watched_for_show.assert_not_called()
     progress_repository.count_watched_aired_for_show.assert_not_called()
-
 
 
 def test_get_show_progress_handles_show_without_episodes(
@@ -708,6 +710,7 @@ def test_get_next_episode_returns_null_when_show_is_complete(
     assert result.show_id == show_id
     assert result.next_episode is None
 
+
 def test_get_season_progress_calculates_progress(
     progress_service: EpisodeProgressService,
     season_repository: Mock,
@@ -778,6 +781,7 @@ def test_get_season_progress_is_not_caught_up_when_aired_episode_is_unwatched(
     assert result.aired_progress_percentage == 60.0
     assert result.caught_up is False
 
+
 def test_get_season_progress_handles_empty_season(
     progress_service: EpisodeProgressService,
     season_repository: Mock,
@@ -815,6 +819,7 @@ def test_get_season_progress_handles_empty_season(
     assert result.aired_progress_percentage == 0.0
 
     assert result.caught_up is False
+
 
 def test_get_show_progress_calculates_progress(
     progress_service: EpisodeProgressService,
@@ -887,7 +892,6 @@ def test_get_show_progress_is_not_caught_up_when_aired_episode_is_unwatched(
     assert result.progress_percentage == 30.0
     assert result.aired_progress_percentage == 60.0
     assert result.caught_up is False
-
 
 
 def test_get_show_progress_handles_show_without_episodes(
@@ -978,9 +982,7 @@ def test_get_next_upcoming_episode_returns_future_episode(
         local_still_path=None,
     )
 
-    progress_repository.get_next_upcoming_for_show.return_value = (
-        episode
-    )
+    progress_repository.get_next_upcoming_for_show.return_value = episode
 
     result = progress_service.get_next_upcoming_episode(
         show_id=show_id,
@@ -995,6 +997,7 @@ def test_get_next_upcoming_episode_returns_future_episode(
         show_id=show_id,
         after=date.today(),
     )
+
 
 def test_get_next_upcoming_episode_returns_null_when_none_is_known(
     progress_service: EpisodeProgressService,
@@ -1019,7 +1022,6 @@ def test_get_next_upcoming_episode_returns_null_when_none_is_known(
     assert result.show_id == show_id
     assert result.next_episode is None
 
-    
 
 def test_get_season_progress_calculates_percentage(
     progress_service: EpisodeProgressService,
@@ -1101,4 +1103,3 @@ def test_get_show_progress_calculates_percentage(
     assert result.aired_progress_percentage == 100.0
 
     assert result.caught_up is True
-

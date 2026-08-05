@@ -206,11 +206,7 @@ def test_metadata_sync_continues_when_one_show_fails() -> None:
                 "TMDB failed for this show.",
             )
 
-        show = next(
-            show
-            for show in shows
-            if show.tmdb_id == tmdb_id
-        )
+        show = next(show for show in shows if show.tmdb_id == tmdb_id)
 
         return ShowSyncResult(
             show=show,

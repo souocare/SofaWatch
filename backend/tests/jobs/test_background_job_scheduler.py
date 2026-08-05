@@ -109,8 +109,6 @@ def test_is_due_when_next_run_equals_now(
     )
 
 
-
-
 def test_is_not_due_when_next_run_is_in_the_future(
     scheduler: BackgroundJobScheduler,
 ) -> None:

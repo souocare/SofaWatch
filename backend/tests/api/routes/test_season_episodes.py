@@ -183,9 +183,7 @@ def test_list_season_episodes_returns_stored_episodes(
         "vote_count": 42,
         "tmdb_still_path": "/episode-1.jpg",
         "local_still_path": None,
-        "still_url": (
-            f"/api/v1/images/episodes/{episode.id}/still"
-        ),
+        "still_url": (f"/api/v1/images/episodes/{episode.id}/still"),
     }
 
 

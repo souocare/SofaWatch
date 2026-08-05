@@ -32,9 +32,7 @@ def test_base_path_is_resolved_from_settings(
         tmp_path,
     )
 
-    assert storage.base_path == (
-        tmp_path / "images"
-    ).resolve()
+    assert storage.base_path == (tmp_path / "images").resolve()
 
 
 def test_ensure_base_path_creates_storage_directory(
@@ -68,12 +66,7 @@ def test_show_poster_path_creates_resource_directory(
         extension="jpg",
     )
 
-    assert result == (
-        storage.base_path
-        / "shows"
-        / str(show_id)
-        / "poster.jpg"
-    )
+    assert result == (storage.base_path / "shows" / str(show_id) / "poster.jpg")
     assert result.parent.is_dir()
 
 
@@ -92,12 +85,7 @@ def test_show_backdrop_path_creates_resource_directory(
         extension="webp",
     )
 
-    assert result == (
-        storage.base_path
-        / "shows"
-        / str(show_id)
-        / "backdrop.webp"
-    )
+    assert result == (storage.base_path / "shows" / str(show_id) / "backdrop.webp")
     assert result.parent.is_dir()
 
 
@@ -116,12 +104,7 @@ def test_season_poster_path_creates_resource_directory(
         extension="png",
     )
 
-    assert result == (
-        storage.base_path
-        / "seasons"
-        / str(season_id)
-        / "poster.png"
-    )
+    assert result == (storage.base_path / "seasons" / str(season_id) / "poster.png")
     assert result.parent.is_dir()
 
 
@@ -140,12 +123,7 @@ def test_episode_still_path_creates_resource_directory(
         extension="jpg",
     )
 
-    assert result == (
-        storage.base_path
-        / "episodes"
-        / str(episode_id)
-        / "still.jpg"
-    )
+    assert result == (storage.base_path / "episodes" / str(episode_id) / "still.jpg")
     assert result.parent.is_dir()
 
 
@@ -168,9 +146,7 @@ def test_to_relative_path_returns_portable_path(
         path,
     )
 
-    assert result == (
-        f"shows/{show_id}/poster.jpg"
-    )
+    assert result == (f"shows/{show_id}/poster.jpg")
 
 
 def test_from_relative_path_resolves_stored_path(
@@ -187,12 +163,7 @@ def test_from_relative_path_resolves_stored_path(
         f"shows/{show_id}/poster.jpg",
     )
 
-    assert result == (
-        storage.base_path
-        / "shows"
-        / str(show_id)
-        / "poster.jpg"
-    )
+    assert result == (storage.base_path / "shows" / str(show_id) / "poster.jpg")
 
 
 def test_from_relative_path_rejects_path_traversal(

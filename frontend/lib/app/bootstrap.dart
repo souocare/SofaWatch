@@ -14,6 +14,7 @@ import 'package:sofawatch/core/storage/key_value_store.dart';
 import 'package:sofawatch/core/storage/shared_preferences_key_value_store.dart';
 import 'package:sofawatch/features/server_setup/data/services/api_server_connection_tester.dart';
 import 'package:sofawatch/features/server_setup/domain/services/server_connection_tester.dart';
+import 'package:sofawatch/features/search/data/repositories/api_search_repository.dart';
 
 Future<void> bootstrap(
   FutureOr<Widget> Function(AppBootstrapData data) builder,
@@ -43,6 +44,7 @@ Future<void> bootstrap(
     apiClient: apiClient,
     serverConnectionTester: serverConnectionTester,
     initialServerConfiguration: initialServerConfiguration,
+    searchRepository: ApiSearchRepository(apiClient),
   );
 
   final Widget app = await builder(data);

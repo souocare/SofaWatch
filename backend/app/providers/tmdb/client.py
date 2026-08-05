@@ -13,6 +13,8 @@ from app.providers.tmdb.exceptions import (
     TMDBResponseError,
 )
 from app.providers.tmdb.schemas import (
+    TMDBMovieSearchResponse,
+    TMDBMultiSearchResponse,
     TMDBSeasonDetails,
     TMDBTVDetails,
     TMDBTVSearchResponse,
@@ -119,6 +121,36 @@ class TMDBClient:
             },
         )
 
+    def search_movies(
+        self,
+        *,
+        query: str,
+        page: int = 1,
+        language: str | None = None,
+    ) -> TMDBMovieSearchResponse:
+        """Search for movies by title in TMDB."""
+
+        normalized_query = query.strip()
+
+        if not normalized_query:
+            raise ValueError("The search query cannot be empty.")
+
+        if page < 1:
+            raise ValueError("The page must be greater than or equal to 1.")
+
+        request_language = language or self._settings.default_language
+
+        return self.get(
+            "/search/movie",
+            response_model=TMDBMovieSearchResponse,
+            params={
+                "query": normalized_query,
+                "page": page,
+                "language": request_language,
+                "include_adult": False,
+            },
+        )
+
     def get_tv_show_details(
         self,
         *,
@@ -137,6 +169,36 @@ class TMDBClient:
             response_model=TMDBTVDetails,
             params={
                 "language": request_language,
+            },
+        )
+
+    def search_multi(
+        self,
+        *,
+        query: str,
+        page: int = 1,
+        language: str | None = None,
+    ) -> TMDBMultiSearchResponse:
+        """Search for movies, TV series and people in TMDB."""
+
+        normalized_query = query.strip()
+
+        if not normalized_query:
+            raise ValueError("The search query cannot be empty.")
+
+        if page < 1:
+            raise ValueError("The page must be greater than or equal to 1.")
+
+        request_language = language or self._settings.default_language
+
+        return self.get(
+            "/search/multi",
+            response_model=TMDBMultiSearchResponse,
+            params={
+                "query": normalized_query,
+                "page": page,
+                "language": request_language,
+                "include_adult": False,
             },
         )
 

@@ -7,8 +7,6 @@ def test_sqlite_foreign_keys_are_enabled(
 ) -> None:
     """Ensure SQLite enforces foreign key constraints."""
 
-    enabled = db_session.scalar(
-        text("PRAGMA foreign_keys")
-    )
+    enabled = db_session.scalar(text("PRAGMA foreign_keys"))
 
     assert enabled == 1

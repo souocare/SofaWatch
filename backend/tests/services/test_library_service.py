@@ -15,6 +15,7 @@ from app.services.library import LibraryService
 from app.models.show import Show
 from app.models.user import User
 
+
 @pytest.fixture
 def library_repository() -> Mock:
     """Provide a mocked library repository."""
@@ -53,6 +54,7 @@ def make_show(
     return SimpleNamespace(
         id=show_id,
     )
+
 
 def persist_user(
     db_session: Session,
