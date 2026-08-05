@@ -509,6 +509,85 @@ class _BrandLogoPlaceholder extends StatelessWidget {
   }
 }
 
+class _MobilePillVisualStyle {
+  const _MobilePillVisualStyle({
+    required this.backgroundColor,
+    required this.borderColor,
+    required this.foregroundColor,
+    required this.usesTranslucency,
+  });
+
+  factory _MobilePillVisualStyle.resolve(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme colorScheme = theme.colorScheme;
+
+    final bool isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+    final bool isDark = theme.brightness == Brightness.dark;
+
+    if (!isIOS) {
+      return _MobilePillVisualStyle(
+        backgroundColor: colorScheme.surfaceContainerHigh,
+        borderColor: colorScheme.outlineVariant,
+        foregroundColor: colorScheme.onSurface,
+        usesTranslucency: false,
+      );
+    }
+
+    return _MobilePillVisualStyle(
+      backgroundColor: isDark
+          ? colorScheme.surface.withValues(alpha: 0.72)
+          : colorScheme.surface.withValues(alpha: 0.82),
+      borderColor: colorScheme.outlineVariant.withValues(
+        alpha: isDark ? 0.72 : 0.58,
+      ),
+      foregroundColor: colorScheme.onSurface,
+      usesTranslucency: true,
+    );
+  }
+
+  final Color backgroundColor;
+  final Color borderColor;
+  final Color foregroundColor;
+  final bool usesTranslucency;
+}
+
+class _MobilePillSurface extends StatelessWidget {
+  const _MobilePillSurface({
+    required this.child,
+    this.keyValue,
+    this.clipBehavior = Clip.antiAlias,
+  });
+
+  final Widget child;
+  final String? keyValue;
+  final Clip clipBehavior;
+
+  @override
+  Widget build(BuildContext context) {
+    final _MobilePillVisualStyle style = _MobilePillVisualStyle.resolve(
+      context,
+    );
+
+    return Material(
+      key: keyValue == null ? null : ValueKey<String>(keyValue!),
+      color: style.backgroundColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadius.borderFull,
+        side: BorderSide(color: style.borderColor),
+      ),
+      clipBehavior: clipBehavior,
+      child: IconTheme(
+        data: IconThemeData(color: style.foregroundColor),
+        child: DefaultTextStyle.merge(
+          style: TextStyle(color: style.foregroundColor),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
 class _MobilePrimaryNavigationPill extends StatelessWidget {
   const _MobilePrimaryNavigationPill({
     required this.currentIndex,
@@ -524,33 +603,28 @@ class _MobilePrimaryNavigationPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
 
-    return ClipRRect(
-      borderRadius: AppRadius.borderFull,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHigh,
-          borderRadius: AppRadius.borderFull,
-          border: Border.all(color: colorScheme.outlineVariant),
-        ),
-        child: NavigationBar(
-          key: const ValueKey<String>('mobile-bottom-navigation'),
-          selectedIndex: currentIndex,
-          onDestinationSelected: onDestinationSelected,
-          height: 72,
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          indicatorColor: colorScheme.primaryContainer,
-          labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-          destinations: <NavigationDestination>[
-            for (final _NavigationItem item in navigationItems)
-              NavigationDestination(
-                icon: Icon(item.icon),
-                selectedIcon: Icon(item.selectedIcon),
-                label: item.label,
-                tooltip: item.label,
-              ),
-          ],
-        ),
+    return _MobilePillSurface(
+      keyValue: 'mobile-primary-navigation-pill',
+      child: NavigationBar(
+        key: const ValueKey<String>('mobile-bottom-navigation'),
+        selectedIndex: currentIndex,
+        onDestinationSelected: onDestinationSelected,
+        height: 72,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        indicatorColor: colorScheme.primaryContainer,
+        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+        destinations: <NavigationDestination>[
+          for (final _NavigationItem item in navigationItems)
+            NavigationDestination(
+              icon: Icon(item.icon),
+              selectedIcon: Icon(item.selectedIcon),
+              label: item.label,
+              tooltip: item.label,
+            ),
+        ],
       ),
     );
   }
@@ -569,18 +643,10 @@ class _MobileCompactNavigationPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-
     return SizedBox.square(
       dimension: _size,
-      child: Material(
-        key: const ValueKey<String>('mobile-compact-navigation-pill'),
-        color: colorScheme.surfaceContainerHigh,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppRadius.borderFull,
-          side: BorderSide(color: colorScheme.outlineVariant),
-        ),
-        clipBehavior: Clip.antiAlias,
+      child: _MobilePillSurface(
+        keyValue: 'mobile-compact-navigation-pill',
         child: Tooltip(
           message: 'Return to ${navigationItem.label}',
           child: Semantics(
@@ -597,7 +663,6 @@ class _MobileCompactNavigationPill extends StatelessWidget {
                   navigationItem.selectedIcon,
                   key: const ValueKey<String>('mobile-compact-navigation-icon'),
                   size: 28,
-                  color: colorScheme.onSurface,
                 ),
               ),
             ),
@@ -623,19 +688,11 @@ class _MobileSearchPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-
     if (!isExpanded) {
       return SizedBox.square(
         dimension: _compactSize,
-        child: Material(
-          key: const ValueKey<String>('mobile-search-pill'),
-          color: colorScheme.surfaceContainerHigh,
-          shape: RoundedRectangleBorder(
-            borderRadius: AppRadius.borderFull,
-            side: BorderSide(color: colorScheme.outlineVariant),
-          ),
-          clipBehavior: Clip.antiAlias,
+        child: _MobilePillSurface(
+          keyValue: 'mobile-search-pill',
           child: Tooltip(
             message: 'Search',
             child: Semantics(
@@ -647,12 +704,11 @@ class _MobileSearchPill extends StatelessWidget {
                 customBorder: RoundedRectangleBorder(
                   borderRadius: AppRadius.borderFull,
                 ),
-                child: Center(
+                child: const Center(
                   child: Icon(
                     Icons.search_rounded,
-                    key: const ValueKey<String>('mobile-search-icon'),
+                    key: ValueKey<String>('mobile-search-icon'),
                     size: 28,
-                    color: colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -662,14 +718,9 @@ class _MobileSearchPill extends StatelessWidget {
       );
     }
 
-    return Material(
-      key: const ValueKey<String>('mobile-search-expanded-pill'),
-      color: colorScheme.surfaceContainerHigh,
-      shape: RoundedRectangleBorder(
-        borderRadius: AppRadius.borderFull,
-        side: BorderSide(color: colorScheme.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
+    // Esta é a Search pill expandida.
+    return _MobilePillSurface(
+      keyValue: 'mobile-search-expanded-pill',
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,
