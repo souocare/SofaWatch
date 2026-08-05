@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_colors.dart';
 import 'package:sofawatch/app/theme/tokens/app_durations.dart';
 import 'package:sofawatch/app/theme/tokens/app_radius.dart';
@@ -158,11 +159,24 @@ class _WebNavigationTab extends StatelessWidget {
 class _WebNavigationActions extends StatelessWidget {
   const _WebNavigationActions();
 
+  void _openSearch(BuildContext context) {
+    context.pushNamed(AppRoute.search.name);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
+        IconButton(
+          key: const ValueKey<String>('web-search-action'),
+          tooltip: 'Search',
+          onPressed: () {
+            _openSearch(context);
+          },
+          icon: const Icon(Icons.search_rounded),
+        ),
+        const SizedBox(width: AppSpacing.sm),
         IconButton(
           tooltip: 'Notifications',
           onPressed: () {
