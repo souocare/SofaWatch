@@ -317,14 +317,8 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     return _mode == _DualPillMode.search;
   }
 
-  void _setMode(_DualPillMode mode) {
-    if (_mode == mode) {
-      return;
-    }
-
-    setState(() {
-      _mode = mode;
-    });
+  _NavigationItem get _selectedNavigationItem {
+    return widget.navigationItems[widget.navigationShell.currentIndex];
   }
 
   void _handleSearchPressed() {
@@ -364,9 +358,11 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (searchBloc != null && !searchBloc.isClosed) {
-        unawaited(searchBloc.close());
+      if (searchBloc == null || searchBloc.isClosed) {
+        return;
       }
+
+      unawaited(searchBloc.close());
     });
   }
 
@@ -380,9 +376,12 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     );
   }
 
-  Widget _buildPrimaryPill() {
+  Widget _buildNavigationPill() {
     if (_isSearchMode) {
-      return _MobileSearchFieldPill(focusNode: _searchFocusNode);
+      return _MobileCompactNavigationPill(
+        navigationItem: _selectedNavigationItem,
+        onPressed: _closeSearch,
+      );
     }
 
     return _MobilePrimaryNavigationPill(
@@ -392,10 +391,33 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     );
   }
 
-  Widget _buildActionPill() {
+  Widget _buildSearchPill() {
     return _MobileSearchPill(
-      isSearchMode: _isSearchMode,
-      onPressed: _isSearchMode ? _closeSearch : _handleSearchPressed,
+      isExpanded: _isSearchMode,
+      focusNode: _searchFocusNode,
+      onPressed: _handleSearchPressed,
+    );
+  }
+
+  Widget _buildBottomNavigation() {
+    if (_isSearchMode) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: <Widget>[
+          _buildNavigationPill(),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(child: _buildSearchPill()),
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        Expanded(child: _buildNavigationPill()),
+        const SizedBox(width: AppSpacing.md),
+        _buildSearchPill(),
+      ],
     );
   }
 
@@ -410,14 +432,7 @@ class _MobileAppShellState extends State<_MobileAppShell> {
           AppSpacing.md,
           AppSpacing.md,
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: <Widget>[
-            Expanded(child: _buildPrimaryPill()),
-            const SizedBox(width: AppSpacing.md),
-            _buildActionPill(),
-          ],
-        ),
+        child: _buildBottomNavigation(),
       ),
     );
   }
@@ -532,55 +547,16 @@ class _MobilePrimaryNavigationPill extends StatelessWidget {
   }
 }
 
-class _MobileSearchFieldPill extends StatelessWidget {
-  const _MobileSearchFieldPill({required this.focusNode});
-
-  final FocusNode focusNode;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-
-    return Material(
-      color: colorScheme.surfaceContainerHigh,
-      shape: RoundedRectangleBorder(
-        borderRadius: AppRadius.borderFull,
-        side: BorderSide(color: colorScheme.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        child: SearchTextField(focusNode: focusNode),
-      ),
-    );
-  }
-}
-
-class _MobileSearchPill extends StatelessWidget {
-  const _MobileSearchPill({
-    required this.isSearchMode,
+class _MobileCompactNavigationPill extends StatelessWidget {
+  const _MobileCompactNavigationPill({
+    required this.navigationItem,
     required this.onPressed,
   });
 
   static const double _size = 72;
 
-  final bool isSearchMode;
+  final _NavigationItem navigationItem;
   final VoidCallback onPressed;
-
-  String get _tooltip {
-    return isSearchMode ? 'Close search' : 'Search';
-  }
-
-  String get _semanticLabel {
-    return isSearchMode ? 'Close search' : 'Open search';
-  }
-
-  IconData get _icon {
-    return isSearchMode ? Icons.close_rounded : Icons.search_rounded;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -589,7 +565,7 @@ class _MobileSearchPill extends StatelessWidget {
     return SizedBox.square(
       dimension: _size,
       child: Material(
-        key: const ValueKey<String>('mobile-search-pill'),
+        key: const ValueKey<String>('mobile-compact-navigation-pill'),
         color: colorScheme.surfaceContainerHigh,
         shape: RoundedRectangleBorder(
           borderRadius: AppRadius.borderFull,
@@ -597,28 +573,20 @@ class _MobileSearchPill extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: Tooltip(
-          message: _tooltip,
+          message: 'Return to ${navigationItem.label}',
           child: Semantics(
             button: true,
-            label: _semanticLabel,
+            label: 'Close search and return to ${navigationItem.label}',
             child: InkWell(
-              key: ValueKey<String>(
-                isSearchMode
-                    ? 'mobile-search-close-action'
-                    : 'mobile-search-pill-action',
-              ),
+              key: const ValueKey<String>('mobile-search-close-action'),
               onTap: onPressed,
               customBorder: RoundedRectangleBorder(
                 borderRadius: AppRadius.borderFull,
               ),
               child: Center(
                 child: Icon(
-                  _icon,
-                  key: ValueKey<String>(
-                    isSearchMode
-                        ? 'mobile-search-close-icon'
-                        : 'mobile-search-icon',
-                  ),
+                  navigationItem.selectedIcon,
+                  key: const ValueKey<String>('mobile-compact-navigation-icon'),
                   size: 28,
                   color: colorScheme.onSurface,
                 ),
@@ -626,6 +594,79 @@ class _MobileSearchPill extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MobileSearchPill extends StatelessWidget {
+  const _MobileSearchPill({
+    required this.isExpanded,
+    required this.focusNode,
+    required this.onPressed,
+  });
+
+  static const double _compactSize = 72;
+
+  final bool isExpanded;
+  final FocusNode focusNode;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
+    if (!isExpanded) {
+      return SizedBox.square(
+        dimension: _compactSize,
+        child: Material(
+          key: const ValueKey<String>('mobile-search-pill'),
+          color: colorScheme.surfaceContainerHigh,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppRadius.borderFull,
+            side: BorderSide(color: colorScheme.outlineVariant),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Tooltip(
+            message: 'Search',
+            child: Semantics(
+              button: true,
+              label: 'Open search',
+              child: InkWell(
+                key: const ValueKey<String>('mobile-search-pill-action'),
+                onTap: onPressed,
+                customBorder: RoundedRectangleBorder(
+                  borderRadius: AppRadius.borderFull,
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.search_rounded,
+                    key: const ValueKey<String>('mobile-search-icon'),
+                    size: 28,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Material(
+      key: const ValueKey<String>('mobile-search-expanded-pill'),
+      color: colorScheme.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadius.borderFull,
+        side: BorderSide(color: colorScheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.sm,
+        ),
+        child: SearchTextField(focusNode: focusNode),
       ),
     );
   }
