@@ -7,6 +7,7 @@ import 'package:sofawatch/app/theme/tokens/app_radius.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
 import 'package:sofawatch/app/theme/tokens/app_typography.dart';
 import 'package:sofawatch/features/search/presentation/views/search_mobile_view.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_text_field.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({required this.navigationShell, super.key});
@@ -302,6 +303,13 @@ class _MobileAppShell extends StatefulWidget {
 
 class _MobileAppShellState extends State<_MobileAppShell> {
   _DualPillMode _mode = _DualPillMode.navigation;
+  final FocusNode _searchFocusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
 
   bool get _isSearchMode {
     return _mode == _DualPillMode.search;
@@ -323,6 +331,12 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     }
 
     _setMode(_DualPillMode.search);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _searchFocusNode.requestFocus();
+      }
+    });
   }
 
   Widget _buildBody() {
@@ -336,6 +350,10 @@ class _MobileAppShellState extends State<_MobileAppShell> {
   }
 
   Widget _buildPrimaryPill() {
+    if (_isSearchMode) {
+      return _MobileSearchFieldPill(focusNode: _searchFocusNode);
+    }
+
     return _MobilePrimaryNavigationPill(
       currentIndex: widget.navigationShell.currentIndex,
       navigationItems: widget.navigationItems,
@@ -449,6 +467,33 @@ class _MobilePrimaryNavigationPill extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _MobileSearchFieldPill extends StatelessWidget {
+  const _MobileSearchFieldPill({required this.focusNode});
+
+  final FocusNode focusNode;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
+    return Material(
+      color: colorScheme.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadius.borderFull,
+        side: BorderSide(color: colorScheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: SearchTextField(focusNode: focusNode),
       ),
     );
   }
