@@ -281,7 +281,9 @@ class _WebBrand extends StatelessWidget {
   }
 }
 
-class _MobileAppShell extends StatelessWidget {
+enum _DualPillMode { navigation, search }
+
+class _MobileAppShell extends StatefulWidget {
   const _MobileAppShell({
     required this.navigationShell,
     required this.navigationItems,
@@ -292,15 +294,58 @@ class _MobileAppShell extends StatelessWidget {
   final List<_NavigationItem> navigationItems;
   final ValueChanged<int> onDestinationSelected;
 
-  void _openSearch(BuildContext context) {
-    context.pushNamed(AppRoute.search.name);
+  @override
+  State<_MobileAppShell> createState() {
+    return _MobileAppShellState();
+  }
+}
+
+class _MobileAppShellState extends State<_MobileAppShell> {
+  _DualPillMode _mode = _DualPillMode.navigation;
+
+  // bool get _isNavigationMode {
+  //   return _mode == _DualPillMode.navigation;
+  // }
+
+  bool get _isSearchMode {
+    return _mode == _DualPillMode.search;
+  }
+
+  void _setMode(_DualPillMode mode) {
+    if (_mode == mode) {
+      return;
+    }
+
+    setState(() {
+      _mode = mode;
+    });
+  }
+
+  Future<void> _openSearch() async {
+    if (_isSearchMode) {
+      return;
+    }
+
+    _setMode(_DualPillMode.search);
+
+    try {
+      await context.pushNamed(AppRoute.search.name);
+    } finally {
+      if (mounted) {
+        _setMode(_DualPillMode.navigation);
+      }
+    }
+  }
+
+  void _handleSearchPressed() {
+    _openSearch();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      body: navigationShell,
+      body: widget.navigationShell,
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(
           AppSpacing.md,
@@ -313,17 +358,13 @@ class _MobileAppShell extends StatelessWidget {
           children: <Widget>[
             Expanded(
               child: _MobilePrimaryNavigationPill(
-                currentIndex: navigationShell.currentIndex,
-                navigationItems: navigationItems,
-                onDestinationSelected: onDestinationSelected,
+                currentIndex: widget.navigationShell.currentIndex,
+                navigationItems: widget.navigationItems,
+                onDestinationSelected: widget.onDestinationSelected,
               ),
             ),
             const SizedBox(width: AppSpacing.md),
-            _MobileSearchPill(
-              onPressed: () {
-                _openSearch(context);
-              },
-            ),
+            _MobileSearchPill(onPressed: _handleSearchPressed),
           ],
         ),
       ),
