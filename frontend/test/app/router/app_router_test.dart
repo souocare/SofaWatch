@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sofawatch/app/app_dependencies.dart';
 import 'package:sofawatch/app/router/app_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/app_theme.dart';
 import 'package:sofawatch/core/api/api_client.dart';
+
+import '../../fakes/fake_search_repository.dart';
+import '../../fakes/fake_server_configuration_repository.dart';
+import '../../fakes/fake_server_connection_tester.dart';
 
 void main() {
   late GoRouter router;
@@ -20,11 +25,17 @@ void main() {
   });
 
   Widget buildTestApp() {
-    return MaterialApp.router(
-      routerConfig: router,
-      theme: AppTheme.dark,
-      darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.dark,
+    return AppDependencies(
+      serverConfigurationRepository: FakeServerConfigurationRepository(),
+      apiClient: ApiClient(baseUrl: Uri.parse('https://server.example.com')),
+      searchRepository: FakeSearchRepository(),
+      serverConnectionTester: FakeServerConnectionTester(),
+      child: MaterialApp.router(
+        routerConfig: router,
+        theme: AppTheme.dark,
+        darkTheme: AppTheme.dark,
+        themeMode: ThemeMode.dark,
+      ),
     );
   }
 
@@ -117,6 +128,54 @@ void main() {
     await tester.tap(find.text('Go to Home'));
 
     await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('home-page-title')),
+      findsOneWidget,
+    );
+  });
+  testWidgets('opens the global Search route', (WidgetTester tester) async {
+    router.goNamed(AppRoute.search.name);
+
+    await tester.pumpWidget(buildTestApp());
+
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey<String>('search-page')), findsOneWidget);
+
+    expect(
+      find.byKey(const ValueKey<String>('search-page-title')),
+      findsOneWidget,
+    );
+
+    expect(find.text('Search movies and TV shows.'), findsOneWidget);
+  });
+
+  testWidgets('closes Search and returns to the previous route', (
+    WidgetTester tester,
+  ) async {
+    router.go('/home');
+
+    await tester.pumpWidget(buildTestApp());
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('home-page-title')),
+      findsOneWidget,
+    );
+
+    router.pushNamed(AppRoute.search.name);
+
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey<String>('search-page')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey<String>('search-close-button')));
+
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey<String>('search-page')), findsNothing);
 
     expect(
       find.byKey(const ValueKey<String>('home-page-title')),

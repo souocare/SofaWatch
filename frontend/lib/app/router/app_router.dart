@@ -14,6 +14,9 @@ import 'package:sofawatch/features/explore/presentation/pages/explore_page.dart'
 import 'package:sofawatch/features/home/presentation/pages/home_page.dart';
 import 'package:sofawatch/features/movies/presentation/pages/movies_page.dart';
 import 'package:sofawatch/features/profile/presentation/pages/profile_page.dart';
+import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
+import 'package:sofawatch/features/search/domain/repositories/search_repository.dart';
+import 'package:sofawatch/features/search/presentation/pages/search_page.dart';
 import 'package:sofawatch/features/server_setup/application/cubit/server_setup_cubit.dart';
 import 'package:sofawatch/features/server_setup/domain/services/server_connection_tester.dart';
 import 'package:sofawatch/features/server_setup/presentation/pages/server_setup_page.dart';
@@ -90,6 +93,19 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
               );
             },
             child: const ServerSetupPage(),
+          );
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        name: AppRoute.search.name,
+        path: RoutePaths.search,
+        builder: (BuildContext context, GoRouterState state) {
+          return BlocProvider<SearchBloc>(
+            create: (BuildContext context) {
+              return SearchBloc(context.read<SearchRepository>());
+            },
+            child: const SearchPage(),
           );
         },
       ),

@@ -2,6 +2,7 @@ abstract final class RoutePaths {
   static const String root = '/';
 
   static const String serverSetup = '/server-setup';
+  static const String search = '/search';
 
   static const String home = '/home';
 
