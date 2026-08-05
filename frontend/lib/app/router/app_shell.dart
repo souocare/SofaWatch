@@ -312,13 +312,18 @@ class _MobileAppShellState extends State<_MobileAppShell> {
   final FocusNode _searchFocusNode = FocusNode();
 
   SearchBloc? _searchBloc;
+  int? _searchOriginBranchIndex;
 
   bool get _isSearchMode {
     return _mode == _DualPillMode.search;
   }
 
+  int get _selectedBranchIndex {
+    return _searchOriginBranchIndex ?? widget.navigationShell.currentIndex;
+  }
+
   _NavigationItem get _selectedNavigationItem {
-    return widget.navigationItems[widget.navigationShell.currentIndex];
+    return widget.navigationItems[_selectedBranchIndex];
   }
 
   void _handleSearchPressed() {
@@ -326,9 +331,12 @@ class _MobileAppShellState extends State<_MobileAppShell> {
       return;
     }
 
+    final int originBranchIndex = widget.navigationShell.currentIndex;
+
     final SearchBloc searchBloc = SearchBloc(context.read<SearchRepository>());
 
     setState(() {
+      _searchOriginBranchIndex = originBranchIndex;
       _searchBloc = searchBloc;
       _mode = _DualPillMode.search;
     });
@@ -355,6 +363,7 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     setState(() {
       _mode = _DualPillMode.navigation;
       _searchBloc = null;
+      _searchOriginBranchIndex = null;
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
