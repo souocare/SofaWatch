@@ -332,6 +332,7 @@ class _MobileAppShellState extends State<_MobileAppShell>
 
   late final AnimationController _pillTransitionController;
   late final Animation<double> _pillTransition;
+  late final Animation<double> _searchContentOpacity;
 
   _DualPillVisualState _visualState = _DualPillVisualState.navigation;
 
@@ -376,8 +377,25 @@ class _MobileAppShellState extends State<_MobileAppShell>
     return _searchOriginBranchIndex ?? widget.navigationShell.currentIndex;
   }
 
+  bool get _isOnSearchOriginBranch {
+    final int? originBranchIndex = _searchOriginBranchIndex;
+
+    return originBranchIndex == null ||
+        widget.navigationShell.currentIndex == originBranchIndex;
+  }
+
   _NavigationItem get _selectedNavigationItem {
     return widget.navigationItems[_selectedBranchIndex];
+  }
+
+  void _restoreSearchOriginBranch() {
+    final int? originBranchIndex = _searchOriginBranchIndex;
+
+    if (originBranchIndex == null || _isOnSearchOriginBranch) {
+      return;
+    }
+
+    widget.navigationShell.goBranch(originBranchIndex, initialLocation: false);
   }
 
   Future<void> _handleSearchPressed() async {
@@ -414,6 +432,20 @@ class _MobileAppShellState extends State<_MobileAppShell>
     });
   }
 
+  // void _restoreSearchOriginBranch() {
+  //   final int? originBranchIndex = _searchOriginBranchIndex;
+
+  //   if (originBranchIndex == null) {
+  //     return;
+  //   }
+
+  //   if (widget.navigationShell.currentIndex == originBranchIndex) {
+  //     return;
+  //   }
+
+  //   widget.navigationShell.goBranch(originBranchIndex, initialLocation: false);
+  // }
+
   Future<void> _closeSearch() async {
     if (!_isSearchState || _isTransitioning) {
       return;
@@ -421,6 +453,8 @@ class _MobileAppShellState extends State<_MobileAppShell>
 
     _searchFocusNode.unfocus();
     FocusManager.instance.primaryFocus?.unfocus();
+
+    unawaited(SystemChannels.textInput.invokeMethod<void>('TextInput.hide'));
 
     setState(() {
       _visualState = _DualPillVisualState.closingSearch;
@@ -433,6 +467,8 @@ class _MobileAppShellState extends State<_MobileAppShell>
     }
 
     final SearchBloc? searchBloc = _searchBloc;
+
+    _restoreSearchOriginBranch();
 
     setState(() {
       _visualState = _DualPillVisualState.navigation;
@@ -447,11 +483,14 @@ class _MobileAppShellState extends State<_MobileAppShell>
 
   Widget _buildSearchOverlay() {
     return Positioned.fill(
-      child: Semantics(
-        container: true,
-        explicitChildNodes: true,
-        label: 'Search',
-        child: const SearchMobileView(),
+      child: FadeTransition(
+        opacity: _searchContentOpacity,
+        child: Semantics(
+          container: true,
+          explicitChildNodes: true,
+          label: 'Search',
+          child: const SearchMobileView(),
+        ),
       ),
     );
   }
@@ -671,6 +710,12 @@ class _MobileAppShellState extends State<_MobileAppShell>
       parent: _pillTransitionController,
       curve: Curves.easeOutCubic,
       reverseCurve: Curves.easeInOutCubic,
+    );
+
+    _searchContentOpacity = CurvedAnimation(
+      parent: _pillTransitionController,
+      curve: const Interval(0.42, 1, curve: Curves.easeOutCubic),
+      reverseCurve: const Interval(0.42, 1, curve: Curves.easeInCubic),
     );
   }
 
