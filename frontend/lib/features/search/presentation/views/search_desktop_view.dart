@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +14,8 @@ class SearchDesktopView extends StatelessWidget {
   static const double _maximumModalHeight = 720;
   static const double _minimumModalHeight = 420;
 
+  static const double _minimumViewportMargin = AppSpacing.lg;
+
   void _closeSearch(BuildContext context) {
     final GoRouter router = GoRouter.of(context);
 
@@ -25,9 +29,6 @@ class SearchDesktopView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final ColorScheme colorScheme = theme.colorScheme;
-
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
         const SingleActivator(LogicalKeyboardKey.escape): () {
@@ -35,72 +36,136 @@ class SearchDesktopView extends StatelessWidget {
         },
       },
       child: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: _maximumModalWidth,
-                maxHeight: _maximumModalHeight,
-                minHeight: _minimumModalHeight,
-              ),
-              child: Material(
-                key: const ValueKey<String>('search-desktop-modal'),
-                color: colorScheme.surface,
-                elevation: 24,
-                clipBehavior: Clip.antiAlias,
-                borderRadius: BorderRadius.circular(28),
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.xl),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: Text(
-                              'Search',
-                              key: const ValueKey<String>(
-                                'search-desktop-title',
-                              ),
-                              style: theme.textTheme.headlineMedium,
-                            ),
-                          ),
-                          IconButton(
-                            key: const ValueKey<String>(
-                              'search-desktop-close-button',
-                            ),
-                            tooltip: 'Close search',
-                            onPressed: () {
-                              _closeSearch(context);
-                            },
-                            icon: const Icon(Icons.close_rounded),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      const SearchTextField(autofocus: true),
-                      const SizedBox(height: AppSpacing.xl),
-                      Divider(height: 1, color: colorScheme.outlineVariant),
-                      const SizedBox(height: AppSpacing.xl),
-                      Expanded(
-                        child: Center(
-                          child: Text(
-                            'Search for movies and TV shows.',
-                            key: const ValueKey<String>(
-                              'search-desktop-placeholder',
-                            ),
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final double availableWidth = math.max(
+              0,
+              constraints.maxWidth - (_minimumViewportMargin * 2),
+            );
+
+            final double availableHeight = math.max(
+              0,
+              constraints.maxHeight - (_minimumViewportMargin * 2),
+            );
+
+            final double modalWidth = math.min(
+              _maximumModalWidth,
+              availableWidth,
+            );
+
+            final double modalMaximumHeight = math.min(
+              _maximumModalHeight,
+              availableHeight,
+            );
+
+            final double modalMinimumHeight = math.min(
+              _minimumModalHeight,
+              modalMaximumHeight,
+            );
+
+            return Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth: modalWidth,
+                  maxWidth: modalWidth,
+                  minHeight: modalMinimumHeight,
+                  maxHeight: modalMaximumHeight,
+                ),
+                child: _SearchDesktopModal(
+                  onClose: () {
+                    _closeSearch(context);
+                  },
                 ),
               ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchDesktopModal extends StatelessWidget {
+  const _SearchDesktopModal({required this.onClose});
+
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme colorScheme = theme.colorScheme;
+
+    return Material(
+      key: const ValueKey<String>('search-desktop-modal'),
+      color: colorScheme.surface,
+      elevation: 24,
+      clipBehavior: Clip.antiAlias,
+      borderRadius: BorderRadius.circular(28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xl,
+              AppSpacing.xl,
+              AppSpacing.lg,
+              0,
+            ),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    'Search',
+                    key: const ValueKey<String>('search-desktop-title'),
+                    style: theme.textTheme.headlineMedium,
+                  ),
+                ),
+                IconButton(
+                  key: const ValueKey<String>('search-desktop-close-button'),
+                  tooltip: 'Close search',
+                  onPressed: onClose,
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.xl,
+              AppSpacing.lg,
+              AppSpacing.xl,
+              0,
+            ),
+            child: SearchTextField(autofocus: true),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          Divider(height: 1, color: colorScheme.outlineVariant),
+          const Expanded(child: _SearchDesktopScrollableContent()),
+        ],
+      ),
+    );
+  }
+}
+
+class _SearchDesktopScrollableContent extends StatelessWidget {
+  const _SearchDesktopScrollableContent();
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
+    return SingleChildScrollView(
+      key: const ValueKey<String>('search-desktop-scrollable-content'),
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 220),
+        child: Center(
+          child: Text(
+            'Search for movies and TV shows.',
+            key: const ValueKey<String>('search-desktop-placeholder'),
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ),
