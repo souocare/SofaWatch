@@ -580,6 +580,7 @@ class _MobileAppShellState extends State<_MobileAppShell>
                                 child: _MobileCompactNavigationPill(
                                   navigationItem: _selectedNavigationItem,
                                   size: compactSize,
+                                  enabled: _isSearchState,
                                   onPressed: _closeSearch,
                                 ),
                               ),
@@ -848,6 +849,7 @@ class _AccessiblePillAction extends StatelessWidget {
     required this.tooltip,
     required this.child,
     this.selected = false,
+    this.enabled = true,
     this.keyValue,
   });
 
@@ -856,6 +858,7 @@ class _AccessiblePillAction extends StatelessWidget {
   final String tooltip;
   final Widget child;
   final bool selected;
+  final bool enabled;
   final String? keyValue;
 
   @override
@@ -865,9 +868,13 @@ class _AccessiblePillAction extends StatelessWidget {
       child: Semantics(
         button: true,
         selected: selected,
+        enabled: enabled,
         label: semanticLabel,
         child: FocusableActionDetector(
-          mouseCursor: SystemMouseCursors.click,
+          enabled: enabled,
+          mouseCursor: enabled
+              ? SystemMouseCursors.click
+              : SystemMouseCursors.basic,
           shortcuts: const <ShortcutActivator, Intent>{
             SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
             SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
@@ -875,14 +882,17 @@ class _AccessiblePillAction extends StatelessWidget {
           actions: <Type, Action<Intent>>{
             ActivateIntent: CallbackAction<ActivateIntent>(
               onInvoke: (ActivateIntent intent) {
-                onPressed();
+                if (enabled) {
+                  onPressed();
+                }
+
                 return null;
               },
             ),
           },
           child: InkWell(
             key: keyValue == null ? null : ValueKey<String>(keyValue!),
-            onTap: onPressed,
+            onTap: enabled ? onPressed : null,
             customBorder: RoundedRectangleBorder(
               borderRadius: AppRadius.borderFull,
             ),
@@ -1047,11 +1057,13 @@ class _MobileCompactNavigationPill extends StatelessWidget {
     required this.navigationItem,
     required this.onPressed,
     required this.size,
+    required this.enabled,
   });
 
   final _NavigationItem navigationItem;
   final VoidCallback onPressed;
   final double size;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -1065,6 +1077,7 @@ class _MobileCompactNavigationPill extends StatelessWidget {
           keyValue: 'mobile-search-close-action',
           tooltip: 'Return to ${navigationItem.label}',
           semanticLabel: 'Close search and return to ${navigationItem.label}',
+          enabled: enabled,
           onPressed: onPressed,
           child: Center(
             child: Icon(
