@@ -121,10 +121,16 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
             key: state.pageKey,
             opaque: false,
             barrierDismissible: true,
-            barrierColor: Colors.black.withValues(alpha: 0.72),
+            barrierColor: Colors.black.withValues(alpha: 0.48),
+            barrierLabel: 'Dismiss search',
             transitionDuration: const Duration(milliseconds: 220),
             reverseTransitionDuration: const Duration(milliseconds: 180),
-            child: searchPage,
+            child: BlocProvider<SearchBloc>(
+              create: (BuildContext context) {
+                return SearchBloc(context.read<SearchRepository>());
+              },
+              child: const SearchPage(),
+            ),
             transitionsBuilder:
                 (
                   BuildContext context,
@@ -142,7 +148,7 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                     opacity: curvedAnimation,
                     child: ScaleTransition(
                       scale: Tween<double>(
-                        begin: 0.97,
+                        begin: 0.985,
                         end: 1,
                       ).animate(curvedAnimation),
                       child: child,

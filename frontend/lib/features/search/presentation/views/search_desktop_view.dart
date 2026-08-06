@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +14,7 @@ class SearchDesktopView extends StatelessWidget {
   static const double _maximumModalWidth = 780;
   static const double _maximumModalHeight = 720;
   static const double _minimumModalHeight = 420;
+  static const double _backdropBlurSigma = 7;
 
   static const double _minimumViewportMargin = AppSpacing.lg;
 
@@ -35,50 +37,58 @@ class SearchDesktopView extends StatelessWidget {
           _closeSearch(context);
         },
       },
-      child: SafeArea(
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final double availableWidth = math.max(
-              0,
-              constraints.maxWidth - (_minimumViewportMargin * 2),
-            );
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(
+            sigmaX: _backdropBlurSigma,
+            sigmaY: _backdropBlurSigma,
+          ),
+          child: SafeArea(
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final double availableWidth = math.max(
+                  0,
+                  constraints.maxWidth - (_minimumViewportMargin * 2),
+                );
 
-            final double availableHeight = math.max(
-              0,
-              constraints.maxHeight - (_minimumViewportMargin * 2),
-            );
+                final double availableHeight = math.max(
+                  0,
+                  constraints.maxHeight - (_minimumViewportMargin * 2),
+                );
 
-            final double modalWidth = math.min(
-              _maximumModalWidth,
-              availableWidth,
-            );
+                final double modalWidth = math.min(
+                  _maximumModalWidth,
+                  availableWidth,
+                );
 
-            final double modalMaximumHeight = math.min(
-              _maximumModalHeight,
-              availableHeight,
-            );
+                final double modalMaximumHeight = math.min(
+                  _maximumModalHeight,
+                  availableHeight,
+                );
 
-            final double modalMinimumHeight = math.min(
-              _minimumModalHeight,
-              modalMaximumHeight,
-            );
+                final double modalMinimumHeight = math.min(
+                  _minimumModalHeight,
+                  modalMaximumHeight,
+                );
 
-            return Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minWidth: modalWidth,
-                  maxWidth: modalWidth,
-                  minHeight: modalMinimumHeight,
-                  maxHeight: modalMaximumHeight,
-                ),
-                child: _SearchDesktopModal(
-                  onClose: () {
-                    _closeSearch(context);
-                  },
-                ),
-              ),
-            );
-          },
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minWidth: modalWidth,
+                      maxWidth: modalWidth,
+                      minHeight: modalMinimumHeight,
+                      maxHeight: modalMaximumHeight,
+                    ),
+                    child: _SearchDesktopModal(
+                      onClose: () {
+                        _closeSearch(context);
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -97,10 +107,17 @@ class _SearchDesktopModal extends StatelessWidget {
 
     return Material(
       key: const ValueKey<String>('search-desktop-modal'),
-      color: colorScheme.surface,
-      elevation: 24,
+      color: colorScheme.surfaceContainerHigh,
+      surfaceTintColor: Colors.transparent,
+      elevation: 28,
+      shadowColor: Colors.black.withValues(alpha: 0.48),
       clipBehavior: Clip.antiAlias,
-      borderRadius: BorderRadius.circular(28),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.72),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -120,11 +137,15 @@ class _SearchDesktopModal extends StatelessWidget {
                     style: theme.textTheme.headlineMedium,
                   ),
                 ),
-                IconButton(
-                  key: const ValueKey<String>('search-desktop-close-button'),
-                  tooltip: 'Close search',
-                  onPressed: onClose,
-                  icon: const Icon(Icons.close_rounded),
+                Semantics(
+                  button: true,
+                  label: 'Close search',
+                  child: IconButton(
+                    key: const ValueKey<String>('search-desktop-close-button'),
+                    tooltip: 'Close search',
+                    onPressed: onClose,
+                    icon: const Icon(Icons.close_rounded),
+                  ),
                 ),
               ],
             ),
