@@ -459,10 +459,11 @@ class _MobileAppShellState extends State<_MobileAppShell>
     required double compactSize,
     required bool useCompactField,
     required String hintText,
-    required bool showExpandedContent,
+    required double transitionProgress,
   }) {
     return _MobileSearchPill(
-      isExpanded: showExpandedContent,
+      isExpanded: _usesSearchPillLayout,
+      transitionProgress: transitionProgress,
       compactSize: compactSize,
       compactField: useCompactField,
       hintText: hintText,
@@ -542,8 +543,6 @@ class _MobileAppShellState extends State<_MobileAppShell>
 
                 final bool showCompactNavigation = progress >= 0.48;
 
-                final bool showExpandedSearchContent = progress >= 0.48;
-
                 return Stack(
                   clipBehavior: Clip.hardEdge,
                   children: <Widget>[
@@ -600,7 +599,7 @@ class _MobileAppShellState extends State<_MobileAppShell>
                           compactSize: compactSize,
                           useCompactField: isNarrow,
                           hintText: hintText,
-                          showExpandedContent: showExpandedSearchContent,
+                          transitionProgress: progress,
                         ),
                       ),
                     ),
@@ -1083,6 +1082,7 @@ class _MobileCompactNavigationPill extends StatelessWidget {
 class _MobileSearchPill extends StatelessWidget {
   const _MobileSearchPill({
     required this.isExpanded,
+    required this.transitionProgress,
     required this.compactSize,
     required this.compactField,
     required this.hintText,
@@ -1091,56 +1091,100 @@ class _MobileSearchPill extends StatelessWidget {
   });
 
   final bool isExpanded;
+  final double transitionProgress;
   final double compactSize;
   final bool compactField;
   final String hintText;
   final FocusNode focusNode;
   final VoidCallback onPressed;
 
+  double _interval(
+    double progress, {
+    required double begin,
+    required double end,
+  }) {
+    if (progress <= begin) {
+      return 0;
+    }
+
+    if (progress >= end) {
+      return 1;
+    }
+
+    return (progress - begin) / (end - begin);
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (!isExpanded) {
-      final double effectiveSize = math.max(compactSize, 48);
+    final double progress = transitionProgress.clamp(0.0, 1.0);
 
-      return SizedBox.square(
-        dimension: effectiveSize,
-        child: _MobilePillSurface(
-          keyValue: 'mobile-search-pill',
-          child: _AccessiblePillAction(
-            keyValue: 'mobile-search-pill-action',
-            tooltip: 'Search',
-            semanticLabel: 'Open search',
-            onPressed: onPressed,
-            child: Center(
-              child: Icon(
-                Icons.search_rounded,
-                key: const ValueKey<String>('mobile-search-icon'),
-                size: effectiveSize <= 48 ? 24 : 28,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
+    final double compactIconOpacity =
+        1 - _interval(progress, begin: 0, end: 0.28);
+
+    final double fieldOpacity = _interval(progress, begin: 0.30, end: 0.66);
+
+    final double prefixIconOpacity = _interval(
+      progress,
+      begin: 0.44,
+      end: 0.76,
+    );
+
+    final double hintOpacity = _interval(progress, begin: 0.58, end: 0.92);
+
+    final bool showExpandedField = isExpanded && progress >= 0.28;
+
+    final double effectiveCompactSize = math.max(compactSize, 48);
 
     return SizedBox(
       height: compactField ? 48 : 54,
-      child: Semantics(
-        container: true,
-        explicitChildNodes: true,
-        label: 'Search mode active',
-        child: _MobilePillSurface(
-          keyValue: 'mobile-search-expanded-pill',
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: compactField ? 4 : AppSpacing.sm,
+      child: _MobilePillSurface(
+        keyValue: isExpanded
+            ? 'mobile-search-expanded-pill'
+            : 'mobile-search-pill',
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            IgnorePointer(
+              ignoring: isExpanded,
+              child: Opacity(
+                opacity: compactIconOpacity,
+                child: _AccessiblePillAction(
+                  keyValue: 'mobile-search-pill-action',
+                  tooltip: 'Search',
+                  semanticLabel: 'Open search',
+                  onPressed: onPressed,
+                  child: Center(
+                    child: Icon(
+                      Icons.search_rounded,
+                      key: const ValueKey<String>('mobile-search-icon'),
+                      size: effectiveCompactSize <= 48 ? 24 : 28,
+                    ),
+                  ),
+                ),
+              ),
             ),
-            child: SearchTextField(
-              focusNode: focusNode,
-              hintText: hintText,
-              compact: compactField,
-            ),
-          ),
+            if (showExpandedField)
+              Opacity(
+                opacity: fieldOpacity,
+                child: Semantics(
+                  container: true,
+                  explicitChildNodes: true,
+                  label: 'Search mode active',
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: compactField ? 4 : AppSpacing.sm,
+                    ),
+                    child: SearchTextField(
+                      focusNode: focusNode,
+                      hintText: hintText,
+                      compact: compactField,
+                      prefixIconOpacity: prefixIconOpacity,
+                      hintOpacity: hintOpacity,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

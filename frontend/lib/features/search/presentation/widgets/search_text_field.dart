@@ -9,6 +9,8 @@ class SearchTextField extends StatefulWidget {
     this.focusNode,
     this.hintText = 'Search movies and TV shows',
     this.compact = false,
+    this.prefixIconOpacity = 1,
+    this.hintOpacity = 1,
     super.key,
   });
 
@@ -16,6 +18,9 @@ class SearchTextField extends StatefulWidget {
   final FocusNode? focusNode;
   final String hintText;
   final bool compact;
+
+  final double prefixIconOpacity;
+  final double hintOpacity;
 
   @override
   State<SearchTextField> createState() {
@@ -88,11 +93,19 @@ class _SearchTextFieldState extends State<SearchTextField> {
       onSubmitted: _handleSubmitted,
       decoration: InputDecoration(
         hintText: widget.hintText,
+        hintStyle: theme.textTheme.bodyLarge?.copyWith(
+          color: colorScheme.onSurfaceVariant.withValues(
+            alpha: 0.72 * widget.hintOpacity,
+          ),
+        ),
         isDense: widget.compact,
         contentPadding: widget.compact
             ? const EdgeInsets.symmetric(vertical: 10)
             : null,
-        prefixIcon: const Icon(Icons.search_rounded),
+        prefixIcon: Opacity(
+          opacity: widget.prefixIconOpacity,
+          child: const Icon(Icons.search_rounded),
+        ),
         suffixIcon: _controller.text.isEmpty
             ? null
             : IconButton(
