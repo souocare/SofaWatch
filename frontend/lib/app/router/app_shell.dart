@@ -360,6 +360,10 @@ class _MobileAppShellState extends State<_MobileAppShell>
     return !_isNavigationState;
   }
 
+  bool get _shouldBlockCurrentBranch {
+    return _isSearchExperienceVisible;
+  }
+
   bool get _usesSearchPillLayout {
     return _isOpeningSearch || _isSearchState || _isClosingSearch;
   }
@@ -441,16 +445,30 @@ class _MobileAppShellState extends State<_MobileAppShell>
     }
   }
 
+  Widget _buildSearchOverlay() {
+    return Positioned.fill(
+      child: Semantics(
+        container: true,
+        explicitChildNodes: true,
+        label: 'Search',
+        child: const SearchMobileView(),
+      ),
+    );
+  }
+
   Widget _buildBody() {
     return Stack(
+      key: const ValueKey<String>('mobile-shell-body-stack'),
       fit: StackFit.expand,
       children: <Widget>[
-        IgnorePointer(
-          ignoring: _isSearchExperienceVisible,
-          child: widget.navigationShell,
+        ExcludeSemantics(
+          excluding: _shouldBlockCurrentBranch,
+          child: IgnorePointer(
+            ignoring: _shouldBlockCurrentBranch,
+            child: widget.navigationShell,
+          ),
         ),
-        if (_isSearchExperienceVisible)
-          const Positioned.fill(child: SearchMobileView()),
+        if (_isSearchExperienceVisible) _buildSearchOverlay(),
       ],
     );
   }
