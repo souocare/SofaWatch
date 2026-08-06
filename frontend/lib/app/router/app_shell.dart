@@ -470,6 +470,7 @@ class _MobileAppShellState extends State<_MobileAppShell> {
       navigationItems: widget.navigationItems,
       height: navigationHeight,
       onDestinationSelected: widget.onDestinationSelected,
+      visualState: _visualState,
     );
   }
 
@@ -824,12 +825,14 @@ class _MobilePrimaryNavigationPill extends StatelessWidget {
     required this.navigationItems,
     required this.height,
     required this.onDestinationSelected,
+    required this.visualState,
   });
 
   final int currentIndex;
   final List<_NavigationItem> navigationItems;
   final double height;
   final ValueChanged<int> onDestinationSelected;
+  final _DualPillVisualState visualState;
 
   @override
   Widget build(BuildContext context) {
@@ -846,6 +849,7 @@ class _MobilePrimaryNavigationPill extends StatelessWidget {
                   navigationItem: navigationItems[index],
                   selected: currentIndex == index,
                   compact: height < 54,
+                  visualState: visualState,
                   onPressed: () {
                     onDestinationSelected(index);
                   },
@@ -864,15 +868,32 @@ class _MobileNavigationPillItem extends StatelessWidget {
     required this.selected,
     required this.compact,
     required this.onPressed,
+    required this.visualState,
   });
 
   static const double _iconSize = 22;
   static const double _iconLabelSpacing = 1;
+  bool get _isOpening {
+    return visualState == _DualPillVisualState.openingSearch;
+  }
+
+  bool get _isClosing {
+    return visualState == _DualPillVisualState.closingSearch;
+  }
+
+  bool get _hideUnselectedIcons {
+    return _isOpening;
+  }
+
+  bool get _hideLabels {
+    return _isOpening;
+  }
 
   final _NavigationItem navigationItem;
   final bool selected;
   final bool compact;
   final VoidCallback onPressed;
+  final _DualPillVisualState visualState;
 
   @override
   Widget build(BuildContext context) {
@@ -890,37 +911,50 @@ class _MobileNavigationPillItem extends StatelessWidget {
       tooltip: navigationItem.label,
       semanticLabel: semanticLabel,
       selected: selected,
-      onPressed: onPressed,
+      onPressed: visualState == _DualPillVisualState.navigation
+          ? onPressed
+          : () {},
       child: SizedBox.expand(
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              Icon(
-                selected ? navigationItem.selectedIcon : navigationItem.icon,
-                key: ValueKey<String>(
-                  selected
-                      ? 'mobile-${navigationItem.label.toLowerCase()}-selected-icon'
-                      : 'mobile-${navigationItem.label.toLowerCase()}-icon',
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                opacity: (!_hideUnselectedIcons || selected) ? 1 : 0,
+                child: Icon(
+                  selected ? navigationItem.selectedIcon : navigationItem.icon,
+                  key: ValueKey<String>(
+                    selected
+                        ? 'mobile-${navigationItem.label.toLowerCase()}-selected-icon'
+                        : 'mobile-${navigationItem.label.toLowerCase()}-icon',
+                  ),
+                  size: compact ? 20 : _iconSize,
+                  color: foregroundColor,
                 ),
-                size: compact ? 20 : _iconSize,
-                color: foregroundColor,
               ),
+
               if (selected) ...<Widget>[
                 const SizedBox(height: _iconLabelSpacing),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: Text(
-                    navigationItem.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.fade,
-                    softWrap: false,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: foregroundColor,
-                      fontWeight: FontWeight.w600,
-                      height: 1,
-                      fontSize: compact ? 10 : null,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 140),
+                    curve: Curves.easeOut,
+                    opacity: _hideLabels ? 0 : 1,
+                    child: Text(
+                      navigationItem.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.fade,
+                      softWrap: false,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: foregroundColor,
+                        fontWeight: FontWeight.w600,
+                        height: 1,
+                        fontSize: compact ? 10 : null,
+                      ),
                     ),
                   ),
                 ),
