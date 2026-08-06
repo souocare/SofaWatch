@@ -323,9 +323,15 @@ class _MobileAppShell extends StatefulWidget {
   }
 }
 
-class _MobileAppShellState extends State<_MobileAppShell> {
+class _MobileAppShellState extends State<_MobileAppShell>
+    with SingleTickerProviderStateMixin {
   static const double _minimumHorizontalMargin = AppSpacing.sm;
   static const double _minimumBottomMargin = AppSpacing.sm;
+
+  static const Duration _pillTransitionDuration = Duration(milliseconds: 320);
+
+  late final AnimationController _pillTransitionController;
+  late final Animation<double> _pillTransition;
 
   _DualPillVisualState _visualState = _DualPillVisualState.navigation;
 
@@ -370,7 +376,7 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     return widget.navigationItems[_selectedBranchIndex];
   }
 
-  void _handleSearchPressed() {
+  Future<void> _handleSearchPressed() async {
     if (!_isNavigationState || _isTransitioning) {
       return;
     }
@@ -385,26 +391,26 @@ class _MobileAppShellState extends State<_MobileAppShell> {
       _visualState = _DualPillVisualState.openingSearch;
     });
 
+    await _pillTransitionController.forward(from: 0);
+
+    if (!mounted || !_isOpeningSearch) {
+      return;
+    }
+
+    setState(() {
+      _visualState = _DualPillVisualState.search;
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_isOpeningSearch) {
+      if (!mounted || !_isSearchState) {
         return;
       }
 
-      setState(() {
-        _visualState = _DualPillVisualState.search;
-      });
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_isSearchState) {
-          return;
-        }
-
-        _searchFocusNode.requestFocus();
-      });
+      _searchFocusNode.requestFocus();
     });
   }
 
-  void _closeSearch() {
+  Future<void> _closeSearch() async {
     if (!_isSearchState || _isTransitioning) {
       return;
     }
@@ -416,27 +422,23 @@ class _MobileAppShellState extends State<_MobileAppShell> {
       _visualState = _DualPillVisualState.closingSearch;
     });
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_isClosingSearch) {
-        return;
-      }
+    await _pillTransitionController.reverse(from: 1);
 
-      final SearchBloc? searchBloc = _searchBloc;
+    if (!mounted || !_isClosingSearch) {
+      return;
+    }
 
-      setState(() {
-        _visualState = _DualPillVisualState.navigation;
-        _searchBloc = null;
-        _searchOriginBranchIndex = null;
-      });
+    final SearchBloc? searchBloc = _searchBloc;
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (searchBloc == null || searchBloc.isClosed) {
-          return;
-        }
-
-        unawaited(searchBloc.close());
-      });
+    setState(() {
+      _visualState = _DualPillVisualState.navigation;
+      _searchBloc = null;
+      _searchOriginBranchIndex = null;
     });
+
+    if (searchBloc != null && !searchBloc.isClosed) {
+      unawaited(searchBloc.close());
+    }
   }
 
   Widget _buildBody() {
@@ -453,34 +455,14 @@ class _MobileAppShellState extends State<_MobileAppShell> {
     );
   }
 
-  Widget _buildNavigationPill({
-    required double compactSize,
-    required double navigationHeight,
-  }) {
-    if (_usesSearchPillLayout) {
-      return _MobileCompactNavigationPill(
-        navigationItem: _selectedNavigationItem,
-        size: compactSize,
-        onPressed: _closeSearch,
-      );
-    }
-
-    return _MobilePrimaryNavigationPill(
-      currentIndex: widget.navigationShell.currentIndex,
-      navigationItems: widget.navigationItems,
-      height: navigationHeight,
-      onDestinationSelected: widget.onDestinationSelected,
-      visualState: _visualState,
-    );
-  }
-
   Widget _buildSearchPill({
     required double compactSize,
     required bool useCompactField,
     required String hintText,
+    required bool showExpandedContent,
   }) {
     return _MobileSearchPill(
-      isExpanded: _usesSearchPillLayout,
+      isExpanded: showExpandedContent,
       compactSize: compactSize,
       compactField: useCompactField,
       hintText: hintText,
@@ -500,9 +482,7 @@ class _MobileAppShellState extends State<_MobileAppShell> {
         final bool isVeryNarrow = constraints.maxWidth < 330;
 
         final double compactSize = isNarrow ? 48 : 54;
-
         final double navigationHeight = isLandscape ? 48 : 54;
-
         final double spacing = isNarrow ? 6 : AppSpacing.sm;
 
         final String hintText;
@@ -515,42 +495,98 @@ class _MobileAppShellState extends State<_MobileAppShell> {
           hintText = 'Search movies and TV shows';
         }
 
-        if (_usesSearchPillLayout) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: <Widget>[
-              _buildNavigationPill(
-                compactSize: compactSize,
-                navigationHeight: navigationHeight,
-              ),
-              SizedBox(width: spacing),
-              Expanded(
-                child: _buildSearchPill(
-                  compactSize: compactSize,
-                  useCompactField: isNarrow,
-                  hintText: hintText,
-                ),
-              ),
-            ],
-          );
-        }
+        final double availableWidth = constraints.maxWidth;
 
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: <Widget>[
-            Expanded(
-              child: _buildNavigationPill(
-                compactSize: compactSize,
-                navigationHeight: navigationHeight,
-              ),
-            ),
-            SizedBox(width: spacing),
-            _buildSearchPill(
-              compactSize: compactSize,
-              useCompactField: isNarrow,
-              hintText: hintText,
-            ),
-          ],
+        final double expandedNavigationWidth = math.max(
+          compactSize,
+          availableWidth - compactSize - spacing,
+        );
+
+        return SizedBox(
+          height: math.max(navigationHeight, compactSize),
+          child: AnimatedBuilder(
+            animation: _pillTransition,
+            builder: (BuildContext context, Widget? child) {
+              final double progress = _pillTransition.value;
+
+              final double navigationPillWidth = ui.lerpDouble(
+                expandedNavigationWidth,
+                compactSize,
+                progress,
+              )!;
+
+              final double searchPillWidth = math.max(
+                compactSize,
+                availableWidth - navigationPillWidth - spacing,
+              );
+
+              final bool showCompactNavigation = progress >= 0.48;
+
+              final bool showExpandedSearchContent = progress >= 0.48;
+
+              return Stack(
+                clipBehavior: Clip.none,
+                children: <Widget>[
+                  Positioned(
+                    left: 0,
+                    bottom: 0,
+                    width: navigationPillWidth,
+                    height: navigationHeight,
+                    child: ClipRRect(
+                      borderRadius: AppRadius.borderFull,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: <Widget>[
+                          IgnorePointer(
+                            ignoring:
+                                _visualState != _DualPillVisualState.navigation,
+                            child: Opacity(
+                              opacity: showCompactNavigation ? 0 : 1,
+                              child: _MobilePrimaryNavigationPill(
+                                currentIndex:
+                                    widget.navigationShell.currentIndex,
+                                navigationItems: widget.navigationItems,
+                                height: navigationHeight,
+                                visualState: _visualState,
+                                onDestinationSelected:
+                                    widget.onDestinationSelected,
+                              ),
+                            ),
+                          ),
+                          IgnorePointer(
+                            ignoring: !_isSearchState,
+                            child: Opacity(
+                              opacity: showCompactNavigation ? 1 : 0,
+                              child: _MobileCompactNavigationPill(
+                                navigationItem: _selectedNavigationItem,
+                                size: compactSize,
+                                onPressed: _closeSearch,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    width: searchPillWidth,
+                    height: navigationHeight,
+                    child: ClipRRect(
+                      borderRadius: AppRadius.borderFull,
+                      child: _buildSearchPill(
+                        compactSize: compactSize,
+                        useCompactField: isNarrow,
+                        hintText: hintText,
+                        showExpandedContent: showExpandedSearchContent,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         );
       },
     );
@@ -582,8 +618,26 @@ class _MobileAppShellState extends State<_MobileAppShell> {
   }
 
   @override
+  void initState() {
+    super.initState();
+
+    _pillTransitionController = AnimationController(
+      vsync: this,
+      duration: _pillTransitionDuration,
+      reverseDuration: _pillTransitionDuration,
+    );
+
+    _pillTransition = CurvedAnimation(
+      parent: _pillTransitionController,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInOutCubic,
+    );
+  }
+
+  @override
   void dispose() {
     _searchFocusNode.dispose();
+    _pillTransitionController.dispose();
 
     final SearchBloc? searchBloc = _searchBloc;
 
