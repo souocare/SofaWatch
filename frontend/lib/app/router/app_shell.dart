@@ -497,95 +497,117 @@ class _MobileAppShellState extends State<_MobileAppShell>
 
         final double availableWidth = constraints.maxWidth;
 
-        final double expandedNavigationWidth = math.max(
-          compactSize,
-          availableWidth - compactSize - spacing,
-        );
-
         return SizedBox(
+          width: availableWidth,
           height: math.max(navigationHeight, compactSize),
-          child: AnimatedBuilder(
-            animation: _pillTransition,
-            builder: (BuildContext context, Widget? child) {
-              final double progress = _pillTransition.value;
+          child: ClipRect(
+            child: AnimatedBuilder(
+              animation: _pillTransition,
+              builder: (BuildContext context, Widget? child) {
+                final double progress = _pillTransition.value.clamp(0.0, 1.0);
 
-              final double navigationPillWidth = ui.lerpDouble(
-                expandedNavigationWidth,
-                compactSize,
-                progress,
-              )!;
+                final double minimumCombinedWidth = compactSize + compactSize;
 
-              final double searchPillWidth = math.max(
-                compactSize,
-                availableWidth - navigationPillWidth - spacing,
-              );
+                final double effectiveSpacing = math.min(
+                  spacing,
+                  math.max(0, availableWidth - minimumCombinedWidth),
+                );
 
-              final bool showCompactNavigation = progress >= 0.48;
+                final double usableWidth = math.max(
+                  minimumCombinedWidth,
+                  availableWidth - effectiveSpacing,
+                );
 
-              final bool showExpandedSearchContent = progress >= 0.48;
+                final double expandedNavigationWidth = math.max(
+                  compactSize,
+                  usableWidth - compactSize,
+                );
 
-              return Stack(
-                clipBehavior: Clip.none,
-                children: <Widget>[
-                  Positioned(
-                    left: 0,
-                    bottom: 0,
-                    width: navigationPillWidth,
-                    height: navigationHeight,
-                    child: ClipRRect(
-                      borderRadius: AppRadius.borderFull,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: <Widget>[
-                          IgnorePointer(
-                            ignoring:
-                                _visualState != _DualPillVisualState.navigation,
-                            child: Opacity(
-                              opacity: showCompactNavigation ? 0 : 1,
-                              child: _MobilePrimaryNavigationPill(
-                                currentIndex:
-                                    widget.navigationShell.currentIndex,
-                                navigationItems: widget.navigationItems,
-                                height: navigationHeight,
-                                visualState: _visualState,
-                                onDestinationSelected:
-                                    widget.onDestinationSelected,
+                final double expandedSearchWidth = math.max(
+                  compactSize,
+                  usableWidth - compactSize,
+                );
+
+                final double navigationPillWidth = ui.lerpDouble(
+                  expandedNavigationWidth,
+                  compactSize,
+                  progress,
+                )!;
+
+                final double searchPillWidth = ui.lerpDouble(
+                  compactSize,
+                  expandedSearchWidth,
+                  progress,
+                )!;
+
+                final bool showCompactNavigation = progress >= 0.48;
+
+                final bool showExpandedSearchContent = progress >= 0.48;
+
+                return Stack(
+                  clipBehavior: Clip.hardEdge,
+                  children: <Widget>[
+                    Positioned(
+                      left: 0,
+                      bottom: 0,
+                      width: navigationPillWidth,
+                      height: navigationHeight,
+                      child: ClipRRect(
+                        borderRadius: AppRadius.borderFull,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: <Widget>[
+                            IgnorePointer(
+                              ignoring:
+                                  _visualState !=
+                                  _DualPillVisualState.navigation,
+                              child: Opacity(
+                                opacity: showCompactNavigation ? 0 : 1,
+                                child: _MobilePrimaryNavigationPill(
+                                  currentIndex:
+                                      widget.navigationShell.currentIndex,
+                                  navigationItems: widget.navigationItems,
+                                  height: navigationHeight,
+                                  visualState: _visualState,
+                                  onDestinationSelected:
+                                      widget.onDestinationSelected,
+                                ),
                               ),
                             ),
-                          ),
-                          IgnorePointer(
-                            ignoring: !_isSearchState,
-                            child: Opacity(
-                              opacity: showCompactNavigation ? 1 : 0,
-                              child: _MobileCompactNavigationPill(
-                                navigationItem: _selectedNavigationItem,
-                                size: compactSize,
-                                onPressed: _closeSearch,
+                            IgnorePointer(
+                              ignoring: !_isSearchState,
+                              child: Opacity(
+                                opacity: showCompactNavigation ? 1 : 0,
+                                child: _MobileCompactNavigationPill(
+                                  navigationItem: _selectedNavigationItem,
+                                  size: compactSize,
+                                  onPressed: _closeSearch,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    width: searchPillWidth,
-                    height: navigationHeight,
-                    child: ClipRRect(
-                      borderRadius: AppRadius.borderFull,
-                      child: _buildSearchPill(
-                        compactSize: compactSize,
-                        useCompactField: isNarrow,
-                        hintText: hintText,
-                        showExpandedContent: showExpandedSearchContent,
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      width: searchPillWidth,
+                      height: navigationHeight,
+                      child: ClipRRect(
+                        borderRadius: AppRadius.borderFull,
+                        child: _buildSearchPill(
+                          compactSize: compactSize,
+                          useCompactField: isNarrow,
+                          hintText: hintText,
+                          showExpandedContent: showExpandedSearchContent,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              );
-            },
+                  ],
+                );
+              },
+            ),
           ),
         );
       },
