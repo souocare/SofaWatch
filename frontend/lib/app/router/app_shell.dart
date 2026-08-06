@@ -392,6 +392,16 @@ class _MobileAppShellState extends State<_MobileAppShell>
     return widget.navigationItems[_selectedBranchIndex];
   }
 
+  void _handleSystemBack({required bool didPop}) {
+    if (didPop) {
+      return;
+    }
+
+    if (_isSearchState) {
+      unawaited(_closeSearch());
+    }
+  }
+
   void _restoreSearchOriginBranch() {
     final int? originBranchIndex = _searchOriginBranchIndex;
 
@@ -725,18 +735,24 @@ class _MobileAppShellState extends State<_MobileAppShell>
         ? 4
         : math.max(deviceBottomPadding, _minimumBottomMargin);
 
-    return Scaffold(
-      extendBody: true,
-      resizeToAvoidBottomInset: true,
-      body: _buildBody(),
-      bottomNavigationBar: Padding(
-        padding: EdgeInsets.fromLTRB(
-          _minimumHorizontalMargin,
-          0,
-          _minimumHorizontalMargin,
-          bottomMargin,
+    return PopScope<Object?>(
+      canPop: _isNavigationState,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        _handleSystemBack(didPop: didPop);
+      },
+      child: Scaffold(
+        extendBody: true,
+        resizeToAvoidBottomInset: true,
+        body: _buildBody(),
+        bottomNavigationBar: Padding(
+          padding: EdgeInsets.fromLTRB(
+            _minimumHorizontalMargin,
+            0,
+            _minimumHorizontalMargin,
+            bottomMargin,
+          ),
+          child: _buildBottomNavigation(),
         ),
-        child: _buildBottomNavigation(),
       ),
     );
   }
