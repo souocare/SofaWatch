@@ -365,6 +365,10 @@ class _MobileAppShellState extends State<_MobileAppShell>
     return _isSearchExperienceVisible;
   }
 
+  bool get _shouldReduceMotion {
+    return MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+  }
+
   bool get _usesSearchPillLayout {
     return _isOpeningSearch || _isSearchState || _isClosingSearch;
   }
@@ -406,6 +410,28 @@ class _MobileAppShellState extends State<_MobileAppShell>
     final int originBranchIndex = widget.navigationShell.currentIndex;
 
     final SearchBloc searchBloc = SearchBloc(context.read<SearchRepository>());
+
+    final bool reduceMotion = _shouldReduceMotion;
+
+    if (reduceMotion) {
+      _pillTransitionController.value = 1;
+
+      setState(() {
+        _searchOriginBranchIndex = originBranchIndex;
+        _searchBloc = searchBloc;
+        _visualState = _DualPillVisualState.search;
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_isSearchState) {
+          return;
+        }
+
+        _searchFocusNode.requestFocus();
+      });
+
+      return;
+    }
 
     setState(() {
       _searchOriginBranchIndex = originBranchIndex;
@@ -456,6 +482,27 @@ class _MobileAppShellState extends State<_MobileAppShell>
 
     unawaited(SystemChannels.textInput.invokeMethod<void>('TextInput.hide'));
 
+    final bool reduceMotion = _shouldReduceMotion;
+    final SearchBloc? searchBloc = _searchBloc;
+
+    if (reduceMotion) {
+      _pillTransitionController.value = 0;
+
+      _restoreSearchOriginBranch();
+
+      setState(() {
+        _visualState = _DualPillVisualState.navigation;
+        _searchBloc = null;
+        _searchOriginBranchIndex = null;
+      });
+
+      if (searchBloc != null && !searchBloc.isClosed) {
+        unawaited(searchBloc.close());
+      }
+
+      return;
+    }
+
     setState(() {
       _visualState = _DualPillVisualState.closingSearch;
     });
@@ -465,8 +512,6 @@ class _MobileAppShellState extends State<_MobileAppShell>
     if (!mounted || !_isClosingSearch) {
       return;
     }
-
-    final SearchBloc? searchBloc = _searchBloc;
 
     _restoreSearchOriginBranch();
 
