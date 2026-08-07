@@ -22,6 +22,10 @@ import 'package:sofawatch/features/server_setup/application/cubit/server_setup_c
 import 'package:sofawatch/features/server_setup/domain/services/server_connection_tester.dart';
 import 'package:sofawatch/features/server_setup/presentation/pages/server_setup_page.dart';
 import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
+import 'package:sofawatch/app/router/details_placeholder_page.dart';
+import 'package:sofawatch/features/show_details/application/cubit/show_details_cubit.dart';
+import 'package:sofawatch/features/show_details/data/repositories/api_show_details_repository.dart';
+import 'package:sofawatch/features/show_details/presentation/pages/show_details_page.dart';
 
 GoRouter createAppRouter({required ApiClient apiClient}) {
   final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -231,13 +235,28 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
         name: AppRoute.showDetails.name,
         path: RoutePaths.showDetails,
         pageBuilder: (BuildContext context, GoRouterState state) {
-          final String showId = state.pathParameters['showId']!;
+          final String rawTmdbId = state.pathParameters['showId']!;
+          final int? tmdbId = int.tryParse(rawTmdbId);
+
+          if (tmdbId == null || tmdbId <= 0) {
+            return buildDetailsModalPage(
+              state: state,
+              child: NotFoundPage(location: state.uri.toString()),
+            );
+          }
 
           return buildDetailsModalPage(
             state: state,
-            child: DetailsPlaceholderPage(
-              title: 'Show Details',
-              resourceId: showId,
+            child: BlocProvider<ShowDetailsCubit>(
+              create: (BuildContext context) {
+                return ShowDetailsCubit(
+                  repository: ApiShowDetailsRepository(
+                    context.read<ApiClient>(),
+                  ),
+                  tmdbId: tmdbId,
+                )..load();
+              },
+              child: const ShowDetailsPage(),
             ),
           );
         },
