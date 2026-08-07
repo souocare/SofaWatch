@@ -4,6 +4,7 @@ import 'package:sofawatch/features/search/domain/entities/search_media_type.dart
 import 'package:sofawatch/features/search/domain/entities/search_result.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_result_row.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_results_section.dart';
+import 'package:sofawatch/core/errors/app_exception.dart';
 
 void main() {
   group('SearchResultsSection', () {
@@ -158,6 +159,174 @@ void main() {
       expect(row.compact, isTrue);
     });
   });
+  testWidgets('shows a loading indicator while loading the next page', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultsSection(
+      tester,
+      results: <SearchResult>[_csiResult, _duneResult],
+      isLoadingMore: true,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('search-pagination-loading')),
+      findsOneWidget,
+    );
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    // Os resultados existentes continuam visíveis.
+    expect(find.text('CSI: Crime Scene Investigation'), findsOneWidget);
+    expect(find.text('Dune'), findsOneWidget);
+  });
+
+  testWidgets('does not show a pagination footer in the idle state', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultsSection(
+      tester,
+      results: <SearchResult>[_csiResult, _duneResult],
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('search-pagination-loading')),
+      findsNothing,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('search-pagination-error')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('shows a non-blocking pagination error', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultsSection(
+      tester,
+      results: <SearchResult>[_csiResult, _duneResult],
+      paginationError: const AppException.connectionTimeout(),
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('search-pagination-error')),
+      findsOneWidget,
+    );
+
+    expect(find.text('Could not load more results.'), findsOneWidget);
+
+    expect(
+      find.byKey(const ValueKey<String>('search-pagination-retry')),
+      findsOneWidget,
+    );
+
+    // O erro de paginação não substitui a lista.
+    expect(find.text('CSI: Crime Scene Investigation'), findsOneWidget);
+    expect(find.text('Dune'), findsOneWidget);
+  });
+
+  testWidgets('calls onPaginationRetry when Retry is pressed', (
+    WidgetTester tester,
+  ) async {
+    int retryCount = 0;
+
+    await _pumpResultsSection(
+      tester,
+      results: <SearchResult>[_csiResult, _duneResult],
+      paginationError: const AppException.connectionTimeout(),
+      onPaginationRetry: () {
+        retryCount++;
+      },
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('search-pagination-retry')),
+    );
+
+    await tester.pump();
+
+    expect(retryCount, 1);
+  });
+
+  testWidgets('requests more results when approaching the end of the list', (
+    WidgetTester tester,
+  ) async {
+    int loadMoreCount = 0;
+
+    await _pumpResultsSection(
+      tester,
+      results: _manyResults,
+      scrollable: true,
+      surfaceHeight: 320,
+      onLoadMore: () {
+        loadMoreCount++;
+      },
+    );
+
+    final Finder scrollView = find.byKey(
+      const ValueKey<String>('search-results-scroll-view'),
+    );
+
+    expect(scrollView, findsOneWidget);
+
+    await tester.drag(scrollView, const Offset(0, -2000));
+
+    await tester.pump();
+
+    expect(loadMoreCount, greaterThan(0));
+  });
+
+  testWidgets('does not request more while pagination is already loading', (
+    WidgetTester tester,
+  ) async {
+    int loadMoreCount = 0;
+
+    await _pumpResultsSection(
+      tester,
+      results: _manyResults,
+      scrollable: true,
+      surfaceHeight: 320,
+      isLoadingMore: true,
+      onLoadMore: () {
+        loadMoreCount++;
+      },
+    );
+
+    await tester.drag(
+      find.byKey(const ValueKey<String>('search-results-scroll-view')),
+      const Offset(0, -2000),
+    );
+
+    await tester.pump();
+
+    expect(loadMoreCount, 0);
+  });
+
+  testWidgets('does not automatically load more after a pagination error', (
+    WidgetTester tester,
+  ) async {
+    int loadMoreCount = 0;
+
+    await _pumpResultsSection(
+      tester,
+      results: _manyResults,
+      scrollable: true,
+      surfaceHeight: 320,
+      paginationError: const AppException.connectionTimeout(),
+      onLoadMore: () {
+        loadMoreCount++;
+      },
+    );
+
+    await tester.drag(
+      find.byKey(const ValueKey<String>('search-results-scroll-view')),
+      const Offset(0, -2000),
+    );
+
+    await tester.pump();
+
+    expect(loadMoreCount, 0);
+  });
 }
 
 Future<void> _pumpResultsSection(
@@ -165,6 +334,11 @@ Future<void> _pumpResultsSection(
   required List<SearchResult> results,
   bool scrollable = false,
   bool compact = false,
+  bool isLoadingMore = false,
+  double surfaceHeight = 700,
+  AppException? paginationError,
+  VoidCallback? onLoadMore,
+  VoidCallback? onPaginationRetry,
   ValueChanged<SearchResult>? onResultPressed,
   ValueChanged<SearchResult>? onResultActionPressed,
 }) async {
@@ -173,11 +347,15 @@ Future<void> _pumpResultsSection(
       home: Scaffold(
         body: SizedBox(
           width: 700,
-          height: 700,
+          height: surfaceHeight,
           child: SearchResultsSection(
             results: results,
             scrollable: scrollable,
             compact: compact,
+            isLoadingMore: isLoadingMore,
+            paginationError: paginationError,
+            onLoadMore: onLoadMore,
+            onPaginationRetry: onPaginationRetry,
             onResultPressed: onResultPressed ?? (_) {},
             onResultActionPressed: onResultActionPressed,
           ),
@@ -225,3 +403,20 @@ final SearchResult _severanceResult = SearchResult(
   voteCount: 2100,
   releaseDate: DateTime(2022, 2, 18),
 );
+
+final List<SearchResult> _manyResults = List<SearchResult>.generate(20, (
+  int index,
+) {
+  return SearchResult(
+    mediaType: index.isEven ? SearchMediaType.show : SearchMediaType.movie,
+    tmdbId: 10000 + index,
+    title: 'Search Result $index',
+    originalTitle: 'Search Result $index',
+    originalLanguage: 'en',
+    genreIds: const <int>[],
+    popularity: index.toDouble(),
+    voteAverage: 7,
+    voteCount: 100,
+    releaseDate: DateTime(2000 + index),
+  );
+});

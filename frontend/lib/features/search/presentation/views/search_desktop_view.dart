@@ -9,13 +9,13 @@ import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/router/route_paths.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
 import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
+import 'package:sofawatch/features/search/application/bloc/search_event.dart';
 import 'package:sofawatch/features/search/application/bloc/search_state.dart';
 import 'package:sofawatch/features/search/domain/entities/search_result.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_media_type_filter_bar.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_minimum_characters_hint.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_results_section.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_text_field.dart';
-import 'package:sofawatch/features/search/application/bloc/search_event.dart';
-import 'package:sofawatch/features/search/presentation/widgets/search_media_type_filter_bar.dart';
 
 class SearchDesktopView extends StatelessWidget {
   const SearchDesktopView({super.key});
@@ -237,8 +237,50 @@ class _SearchDesktopModal extends StatelessWidget {
   }
 }
 
-class _SearchDesktopScrollableContent extends StatelessWidget {
+class _SearchDesktopScrollableContent extends StatefulWidget {
   const _SearchDesktopScrollableContent();
+
+  @override
+  State<_SearchDesktopScrollableContent> createState() {
+    return _SearchDesktopScrollableContentState();
+  }
+}
+
+class _SearchDesktopScrollableContentState
+    extends State<_SearchDesktopScrollableContent> {
+  static const double _loadMoreThreshold = 240;
+
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+
+    _scrollController.addListener(_handleScroll);
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+
+    final SearchState state = context.read<SearchBloc>().state;
+
+    if (!state.hasResults ||
+        state.isLoadingMore ||
+        state.paginationError != null ||
+        state.results.data?.hasNextPage != true) {
+      return;
+    }
+
+    final ScrollPosition position = _scrollController.position;
+
+    final double distanceFromEnd = position.maxScrollExtent - position.pixels;
+
+    if (distanceFromEnd <= _loadMoreThreshold) {
+      context.read<SearchBloc>().add(const SearchNextPageRequested());
+    }
+  }
 
   void _openResult(BuildContext context, SearchResult result) {
     if (result.isShow) {
@@ -261,9 +303,18 @@ class _SearchDesktopScrollableContent extends StatelessWidget {
   }
 
   @override
+  void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
+
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       key: const ValueKey<String>('search-desktop-scrollable-content'),
+      controller: _scrollController,
       padding: const EdgeInsets.all(AppSpacing.xl),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 220),
@@ -271,7 +322,9 @@ class _SearchDesktopScrollableContent extends StatelessWidget {
           buildWhen: (SearchState previous, SearchState current) {
             return previous.query != current.query ||
                 previous.mediaType != current.mediaType ||
-                previous.results != current.results;
+                previous.results != current.results ||
+                previous.isLoadingMore != current.isLoadingMore ||
+                previous.paginationError != current.paginationError;
           },
           builder: (BuildContext context, SearchState state) {
             if (state.needsMoreCharacters) {
@@ -284,6 +337,11 @@ class _SearchDesktopScrollableContent extends StatelessWidget {
               return SearchResultsSection(
                 results: state.results.data!.results,
                 scrollable: false,
+                isLoadingMore: state.isLoadingMore,
+                paginationError: state.paginationError,
+                onPaginationRetry: () {
+                  context.read<SearchBloc>().add(const SearchRetryRequested());
+                },
                 onResultPressed: (SearchResult result) {
                   _openResult(context, result);
                 },

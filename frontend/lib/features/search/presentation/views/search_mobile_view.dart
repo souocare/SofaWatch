@@ -76,7 +76,9 @@ class _SearchMobileContent extends StatelessWidget {
       buildWhen: (SearchState previous, SearchState current) {
         return previous.query != current.query ||
             previous.mediaType != current.mediaType ||
-            previous.results != current.results;
+            previous.results != current.results ||
+            previous.isLoadingMore != current.isLoadingMore ||
+            previous.paginationError != current.paginationError;
       },
       builder: (BuildContext context, SearchState state) {
         return Column(
@@ -109,6 +111,14 @@ class _SearchMobileContent extends StatelessWidget {
         results: state.results.data!.results,
         scrollable: true,
         compact: true,
+        isLoadingMore: state.isLoadingMore,
+        paginationError: state.paginationError,
+        onLoadMore: () {
+          context.read<SearchBloc>().add(const SearchNextPageRequested());
+        },
+        onPaginationRetry: () {
+          context.read<SearchBloc>().add(const SearchRetryRequested());
+        },
         onResultPressed: (SearchResult result) {
           _openResult(context, result);
         },
