@@ -33,7 +33,7 @@ class SearchResultRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double thumbnailWidth = compact ? 52 : 60;
-    final double thumbnailHeight = compact ? 76 : 88;
+    final double thumbnailHeight = thumbnailWidth * 1.5;
 
     return Semantics(
       button: true,
@@ -96,24 +96,92 @@ class _SearchResultThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
+    return SizedBox(
       key: ValueKey<String>(
         'search-result-thumbnail-${result.mediaType.name}-${result.tmdbId}',
       ),
       width: width,
       height: height,
+      child: ClipRRect(
+        borderRadius: AppRadius.borderSmall,
+        child: AspectRatio(
+          aspectRatio: 2 / 3,
+          child: _buildThumbnailContent(context),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThumbnailContent(BuildContext context) {
+    final Uri? posterUrl = result.posterUrl;
+
+    if (posterUrl == null) {
+      return _SearchResultPosterPlaceholder(result: result);
+    }
+
+    return Image.network(
+      posterUrl.toString(),
+      key: ValueKey<String>(
+        'search-result-poster-${result.mediaType.name}-${result.tmdbId}',
+      ),
+      fit: BoxFit.cover,
+      frameBuilder:
+          (
+            BuildContext context,
+            Widget child,
+            int? frame,
+            bool wasSynchronouslyLoaded,
+          ) {
+            if (wasSynchronouslyLoaded || frame != null) {
+              return child;
+            }
+
+            return _SearchResultPosterPlaceholder(
+              result: result,
+              showLoadingIndicator: true,
+            );
+          },
+      errorBuilder:
+          (BuildContext context, Object error, StackTrace? stackTrace) {
+            return _SearchResultPosterPlaceholder(result: result);
+          },
+    );
+  }
+}
+
+class _SearchResultPosterPlaceholder extends StatelessWidget {
+  const _SearchResultPosterPlaceholder({
+    required this.result,
+    this.showLoadingIndicator = false,
+  });
+
+  final SearchResult result;
+  final bool showLoadingIndicator;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      key: ValueKey<String>(
+        'search-result-poster-placeholder-'
+        '${result.mediaType.name}-${result.tmdbId}',
+      ),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest,
-        borderRadius: AppRadius.borderSmall,
         border: Border.all(color: colorScheme.outlineVariant),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Icon(
-        result.isShow ? Icons.tv_outlined : Icons.movie_outlined,
-        color: colorScheme.onSurfaceVariant,
-        size: 26,
+      child: Center(
+        child: showLoadingIndicator
+            ? const SizedBox.square(
+                dimension: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(
+                result.isShow ? Icons.tv_outlined : Icons.movie_outlined,
+                color: colorScheme.onSurfaceVariant,
+                size: 26,
+              ),
       ),
     );
   }

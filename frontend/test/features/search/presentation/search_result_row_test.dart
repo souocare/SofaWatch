@@ -272,6 +272,39 @@ void main() {
     expect(actionButton.onPressed, isNull);
     expect(actionCount, 0);
   });
+
+  testWidgets('shows the placeholder when the poster is missing', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(tester, result: _csiResult);
+
+    expect(
+      find.byKey(
+        const ValueKey<String>('search-result-poster-placeholder-show-1431'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('renders an Image when a poster url exists', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(tester, result: _posterResult);
+
+    expect(find.byType(Image), findsOneWidget);
+  });
+
+  testWidgets('keeps a 2:3 poster aspect ratio', (WidgetTester tester) async {
+    await _pumpResultRow(tester, result: _csiResult);
+
+    expect(find.byType(AspectRatio), findsOneWidget);
+
+    final AspectRatio ratio = tester.widget<AspectRatio>(
+      find.byType(AspectRatio),
+    );
+
+    expect(ratio.aspectRatio, equals(2 / 3));
+  });
 }
 
 Future<void> _pumpResultRow(
@@ -338,4 +371,17 @@ const SearchResult _resultWithoutReleaseDate = SearchResult(
   popularity: 0,
   voteAverage: 0,
   voteCount: 0,
+);
+
+SearchResult _posterResult = SearchResult(
+  mediaType: SearchMediaType.movie,
+  tmdbId: 999,
+  title: 'Poster Test',
+  originalTitle: 'Poster Test',
+  originalLanguage: 'en',
+  genreIds: <int>[],
+  popularity: 1,
+  voteAverage: 1,
+  voteCount: 1,
+  posterUrl: Uri.parse('https://example.com/poster.jpg'),
 );
