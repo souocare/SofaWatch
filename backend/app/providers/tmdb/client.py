@@ -18,6 +18,7 @@ from app.providers.tmdb.schemas import (
     TMDBSeasonDetails,
     TMDBTVDetails,
     TMDBTVSearchResponse,
+    TMDBMovieDetails,
 )
 
 logger = logging.getLogger(__name__)
@@ -148,6 +149,29 @@ class TMDBClient:
                 "page": page,
                 "language": request_language,
                 "include_adult": False,
+            },
+        )
+
+    def get_movie_details(
+        self,
+        *,
+        tmdb_id: int,
+        language: str | None = None,
+    ) -> TMDBMovieDetails:
+        """Get detailed information about a movie from TMDB."""
+
+        if tmdb_id < 1:
+            raise ValueError(
+                "The TMDB ID must be greater than or equal to 1."
+            )
+
+        request_language = language or self._settings.default_language
+
+        return self.get(
+            f"/movie/{tmdb_id}",
+            response_model=TMDBMovieDetails,
+            params={
+                "language": request_language,
             },
         )
 

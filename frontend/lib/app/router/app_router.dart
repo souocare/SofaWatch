@@ -13,6 +13,9 @@ import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
 import 'package:sofawatch/features/explore/presentation/pages/explore_page.dart';
 import 'package:sofawatch/features/home/presentation/pages/home_page.dart';
+import 'package:sofawatch/features/movie_details/application/cubit/movie_details_cubit.dart';
+import 'package:sofawatch/features/movie_details/data/repositories/api_movie_details_repository.dart';
+import 'package:sofawatch/features/movie_details/presentation/pages/movie_details_page.dart';
 import 'package:sofawatch/features/movies/presentation/pages/movies_page.dart';
 import 'package:sofawatch/features/profile/presentation/pages/profile_page.dart';
 import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
@@ -21,11 +24,10 @@ import 'package:sofawatch/features/search/presentation/pages/search_page.dart';
 import 'package:sofawatch/features/server_setup/application/cubit/server_setup_cubit.dart';
 import 'package:sofawatch/features/server_setup/domain/services/server_connection_tester.dart';
 import 'package:sofawatch/features/server_setup/presentation/pages/server_setup_page.dart';
-import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
-import 'package:sofawatch/app/router/details_placeholder_page.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_cubit.dart';
 import 'package:sofawatch/features/show_details/data/repositories/api_show_details_repository.dart';
 import 'package:sofawatch/features/show_details/presentation/pages/show_details_page.dart';
+import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
 
 GoRouter createAppRouter({required ApiClient apiClient}) {
   final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -266,13 +268,26 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
         name: AppRoute.movieDetails.name,
         path: RoutePaths.movieDetails,
         pageBuilder: (BuildContext context, GoRouterState state) {
-          final String movieId = state.pathParameters['movieId']!;
+          final String rawTmdbId = state.pathParameters['movieId']!;
+          final int? tmdbId = int.tryParse(rawTmdbId);
+
+          if (tmdbId == null || tmdbId <= 0) {
+            return buildDetailsModalPage(
+              state: state,
+              child: NotFoundPage(location: state.uri.toString()),
+            );
+          }
 
           return buildDetailsModalPage(
             state: state,
-            child: DetailsPlaceholderPage(
-              title: 'Movie Details',
-              resourceId: movieId,
+            child: BlocProvider<MovieDetailsCubit>(
+              create: (BuildContext context) {
+                return MovieDetailsCubit(
+                  repository: ApiMovieDetailsRepository(apiClient),
+                  tmdbId: tmdbId,
+                )..load();
+              },
+              child: const MovieDetailsPage(),
             ),
           );
         },

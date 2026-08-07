@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+from pydantic import ValidationError
 from app.providers.tmdb.schemas import (
     TMDBMovieSearchResponse,
     TMDBMultiMovieSearchResult,
@@ -7,6 +9,7 @@ from app.providers.tmdb.schemas import (
     TMDBMultiSearchResponse,
     TMDBMultiSearchResult,
     TMDBMultiTVSearchResult,
+    TMDBMovieDetails
 )
 
 
@@ -148,3 +151,83 @@ def test_multi_search_result_type_alias_accepts_supported_results() -> None:
     results: list[TMDBMultiSearchResult] = []
 
     assert results == []
+
+
+
+def _movie_payload() -> dict[str, object]:
+    return {
+        "id": 438631,
+        "title": "Dune",
+        "original_title": "Dune",
+        "overview": "Paul Atreides travels to Arrakis.",
+        "tagline": "Beyond fear, destiny awaits.",
+        "release_date": "2021-09-15",
+        "poster_path": "/poster.jpg",
+        "backdrop_path": "/backdrop.jpg",
+        "original_language": "en",
+        "runtime": 155,
+        "status": "Released",
+        "genres": [
+            {
+                "id": 878,
+                "name": "Science Fiction",
+            },
+            {
+                "id": 12,
+                "name": "Adventure",
+            },
+        ],
+        "popularity": 123.45,
+        "vote_average": 7.8,
+        "vote_count": 13000,
+        "adult": False,
+        "video": False,
+    }
+
+
+def test_movie_details_parses_valid_payload() -> None:
+    movie = TMDBMovieDetails.model_validate(_movie_payload())
+
+    assert movie.id == 438631
+    assert movie.title == "Dune"
+    assert movie.release_date == date(2021, 9, 15)
+    assert movie.runtime == 155
+    assert len(movie.genres) == 2
+    assert movie.genres[0].name == "Science Fiction"
+
+
+def test_movie_details_normalizes_empty_release_date() -> None:
+    payload = _movie_payload()
+    payload["release_date"] = ""
+
+    movie = TMDBMovieDetails.model_validate(payload)
+
+    assert movie.release_date is None
+
+
+def test_movie_details_accepts_null_release_date() -> None:
+    payload = _movie_payload()
+    payload["release_date"] = None
+
+    movie = TMDBMovieDetails.model_validate(payload)
+
+    assert movie.release_date is None
+
+
+def test_movie_details_ignores_unmapped_tmdb_fields() -> None:
+    payload = _movie_payload()
+    payload["budget"] = 165_000_000
+    payload["revenue"] = 407_000_000
+    payload["production_companies"] = []
+
+    movie = TMDBMovieDetails.model_validate(payload)
+
+    assert movie.id == 438631
+
+
+def test_movie_details_rejects_invalid_release_date() -> None:
+    payload = _movie_payload()
+    payload["release_date"] = "not-a-date"
+
+    with pytest.raises(ValidationError):
+        TMDBMovieDetails.model_validate(payload)

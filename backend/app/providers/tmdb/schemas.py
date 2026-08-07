@@ -324,3 +324,45 @@ class TMDBMultiSearchResponse(BaseModel):
     total_results: int
 
     model_config = ConfigDict(extra="ignore")
+
+class TMDBMovieDetails(BaseModel):
+    """Detailed movie information returned by TMDB."""
+
+    id: int
+
+    title: str
+    original_title: str
+
+    overview: str
+    tagline: str
+
+    release_date: date | None = None
+
+    poster_path: str | None = None
+    backdrop_path: str | None = None
+
+    original_language: str
+
+    runtime: int | None = None
+    status: str
+
+    genres: list[TMDBGenre] = Field(default_factory=list)
+
+    popularity: float
+    vote_average: float
+    vote_count: int
+
+    adult: bool = False
+    video: bool = False
+
+    model_config = ConfigDict(extra="ignore")
+
+    @field_validator("release_date", mode="before")
+    @classmethod
+    def normalize_empty_release_date(
+        cls,
+        value: Any,
+    ) -> Any:
+        """Convert TMDB empty release dates into null values."""
+
+        return None if value == "" else value

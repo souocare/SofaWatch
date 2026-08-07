@@ -32,6 +32,7 @@ from app.services.show_import import ShowImportService
 from app.services.tmdb_season_details import TMDBSeasonDetailsService
 from app.services.tmdb_show_details import TMDBShowDetailsService
 from app.services.tmdb_show_search import ShowSearchService
+from app.services.tmdb_movie_details import TMDBMovieDetailsService
 from app.services.media_search import MediaSearchService
 from app.core.storage import ImageStorage
 from app.services.image import ImageService
@@ -131,6 +132,8 @@ TMDBShowDetailsServiceDependency = Annotated[
     TMDBShowDetailsService,
     Depends(get_show_details_service),
 ]
+
+
 
 
 def get_tmdb_season_details_service(
@@ -233,6 +236,26 @@ def get_episode_service(
 EpisodeServiceDependency = Annotated[
     EpisodeService,
     Depends(get_episode_service),
+]
+
+def get_movie_details_service(
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
+    tmdb_client: Annotated[
+        TMDBClient,
+        Depends(get_tmdb_client),
+    ],
+) -> TMDBMovieDetailsService:
+    """Provide the movie details service."""
+    return TMDBMovieDetailsService(
+        settings=settings,
+        tmdb_client=tmdb_client,
+    )
+TMDBMovieDetailsServiceDependency = Annotated[
+    TMDBMovieDetailsService,
+    Depends(get_movie_details_service),
 ]
 
 
