@@ -11,6 +11,8 @@ import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
 import 'package:sofawatch/features/search/application/bloc/search_state.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_minimum_characters_hint.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_text_field.dart';
+import 'package:sofawatch/features/search/domain/entities/search_result.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_results_section.dart';
 
 class SearchDesktopView extends StatelessWidget {
   const SearchDesktopView({super.key});
@@ -32,77 +34,6 @@ class SearchDesktopView extends StatelessWidget {
 
     router.go(RoutePaths.home);
   }
-
-  // @override
-  // Widget build(BuildContext context) {
-  //   return CallbackShortcuts(
-  //     bindings: <ShortcutActivator, VoidCallback>{
-  //       const SingleActivator(LogicalKeyboardKey.escape): () {
-  //         _closeSearch(context);
-  //       },
-  //     },
-  //     child: ClipRect(
-  //       child: BackdropFilter(
-  //         filter: ui.ImageFilter.blur(
-  //           sigmaX: _backdropBlurSigma,
-  //           sigmaY: _backdropBlurSigma,
-  //         ),
-  //         child: SafeArea(
-  //           child: LayoutBuilder(
-  //             builder: (BuildContext context, BoxConstraints constraints) {
-  //               final bool hasLimitedHeight = constraints.maxHeight < 560;
-
-  //               final double viewportMargin = hasLimitedHeight
-  //                   ? AppSpacing.sm
-  //                   : _minimumViewportMargin;
-
-  //               final double availableWidth = math.max(
-  //                 0,
-  //                 constraints.maxWidth - (viewportMargin * 2),
-  //               );
-
-  //               final double availableHeight = math.max(
-  //                 0,
-  //                 constraints.maxHeight - (viewportMargin * 2),
-  //               );
-
-  //               final double modalWidth = math.min(
-  //                 _maximumModalWidth,
-  //                 availableWidth,
-  //               );
-
-  //               final double modalMaximumHeight = math.min(
-  //                 _maximumModalHeight,
-  //                 availableHeight,
-  //               );
-
-  //               final double modalMinimumHeight = math.min(
-  //                 _minimumModalHeight,
-  //                 modalMaximumHeight,
-  //               );
-
-  //               return Center(
-  //                 child: ConstrainedBox(
-  //                   constraints: BoxConstraints(
-  //                     minWidth: modalWidth,
-  //                     maxWidth: modalWidth,
-  //                     minHeight: modalMinimumHeight,
-  //                     maxHeight: modalMaximumHeight,
-  //                   ),
-  //                   child: _SearchDesktopModal(
-  //                     onClose: () {
-  //                       _closeSearch(context);
-  //                     },
-  //                   ),
-  //                 ),
-  //               );
-  //             },
-  //           ),
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -287,6 +218,14 @@ class _SearchDesktopModal extends StatelessWidget {
 class _SearchDesktopScrollableContent extends StatelessWidget {
   const _SearchDesktopScrollableContent();
 
+  void _openResult(SearchResult result) {
+    // A apresentação do preview será implementada no ponto 13.12.
+  }
+
+  void _handleResultAction(SearchResult result) {
+    // A ação de Watchlist/Biblioteca será implementada no ponto 13.14.
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -303,6 +242,15 @@ class _SearchDesktopScrollableContent extends StatelessWidget {
             if (state.needsMoreCharacters) {
               return SearchMinimumCharactersHint(
                 remainingCharacters: state.remainingCharacters,
+              );
+            }
+
+            if (state.hasResults) {
+              return SearchResultsSection(
+                results: state.results.data!.results,
+                scrollable: false,
+                onResultPressed: _openResult,
+                onResultActionPressed: _handleResultAction,
               );
             }
 

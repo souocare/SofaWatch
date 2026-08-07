@@ -54,12 +54,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+cors_kwargs: dict[str, object] = {
+    "allow_credentials": True,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"],
+}
+if settings.is_development:
+    cors_kwargs["allow_origin_regex"] = (
+        r"^http://(localhost|127\.0\.0\.1):\d+$"
+    )
+else:
+    cors_kwargs["allow_origins"] = settings.cors_origin_list
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    **cors_kwargs,
 )
 
 app.add_exception_handler(

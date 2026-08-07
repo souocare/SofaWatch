@@ -33,9 +33,16 @@ Future<void> bootstrap(
   final ServerConfiguration? initialServerConfiguration =
       await serverConfigurationRepository.load();
 
-  final ApiClient apiClient = ApiClient(
-    baseUrl: initialServerConfiguration?.serverUrl,
-  );
+  const String webServerUrl = String.fromEnvironment('SOFAWATCH_SERVER_URL');
+
+  final Uri? configuredServerUrl = initialServerConfiguration?.serverUrl;
+
+  final Uri? bootstrapServerUrl =
+      configuredServerUrl ??
+      (webServerUrl.isNotEmpty ? Uri.tryParse(webServerUrl) : null);
+
+  final ApiClient apiClient = ApiClient(baseUrl: bootstrapServerUrl);
+
   final ServerConnectionTester serverConnectionTester =
       ApiServerConnectionTester();
 

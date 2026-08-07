@@ -3,7 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
 import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
 import 'package:sofawatch/features/search/application/bloc/search_state.dart';
+import 'package:sofawatch/features/search/domain/entities/search_result.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_minimum_characters_hint.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_results_section.dart';
 
 class SearchMobileView extends StatelessWidget {
   const SearchMobileView({super.key});
@@ -44,6 +46,14 @@ class SearchMobileView extends StatelessWidget {
 class _SearchMobileContent extends StatelessWidget {
   const _SearchMobileContent();
 
+  void _openResult(SearchResult result) {
+    // A navegação para preview será implementada no ponto 13.12.
+  }
+
+  void _handleResultAction(SearchResult result) {
+    // A ação de Watchlist/Biblioteca será implementada no ponto 13.14.
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<SearchBloc, SearchState>(
@@ -55,6 +65,16 @@ class _SearchMobileContent extends StatelessWidget {
         if (state.needsMoreCharacters) {
           return SearchMinimumCharactersHint(
             remainingCharacters: state.remainingCharacters,
+          );
+        }
+
+        if (state.hasResults) {
+          return SearchResultsSection(
+            results: state.results.data!.results,
+            scrollable: true,
+            compact: true,
+            onResultPressed: _openResult,
+            onResultActionPressed: _handleResultAction,
           );
         }
 

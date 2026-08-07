@@ -1,5 +1,6 @@
 import 'package:bloc/bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
+import 'package:flutter/foundation.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/core/state/remote_state.dart';
 import 'package:sofawatch/features/search/application/bloc/search_event.dart';
@@ -167,8 +168,15 @@ final class SearchBloc extends Bloc<SearchEvent, SearchState> {
     );
 
     try {
+      debugPrint(
+        'Search request: query="$normalizedQuery", mediaType=${mediaType.name}',
+      );
       final SearchResultPage resultPage = await _searchRepository.search(
         SearchQuery(term: normalizedQuery, mediaType: mediaType),
+      );
+      debugPrint(
+        'Search response: ${resultPage.results.length} results, '
+        'page ${resultPage.page}/${resultPage.totalPages}',
       );
 
       if (emit.isDone || generation != _searchGeneration) {
@@ -183,6 +191,8 @@ final class SearchBloc extends Bloc<SearchEvent, SearchState> {
         ),
       );
     } on AppException catch (exception) {
+      debugPrint('Search AppException: $exception');
+
       if (emit.isDone || generation != _searchGeneration) {
         return;
       }
@@ -195,6 +205,7 @@ final class SearchBloc extends Bloc<SearchEvent, SearchState> {
         ),
       );
     } on Object catch (error) {
+      debugPrint('Search unexpected error: $error');
       if (emit.isDone || generation != _searchGeneration) {
         return;
       }
