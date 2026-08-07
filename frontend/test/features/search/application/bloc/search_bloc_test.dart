@@ -21,6 +21,7 @@ final class _FakeSearchRepository implements SearchRepository {
     : _handler = handler ?? _defaultHandler;
 
   _SearchHandler _handler;
+  Duration delay = Duration.zero;
 
   final List<SearchQuery> receivedQueries = <SearchQuery>[];
 
@@ -33,8 +34,12 @@ final class _FakeSearchRepository implements SearchRepository {
   }
 
   @override
-  Future<SearchResultPage> search(SearchQuery query) {
+  Future<SearchResultPage> search(SearchQuery query) async {
     receivedQueries.add(query);
+
+    if (delay != Duration.zero) {
+      await Future<void>.delayed(delay);
+    }
 
     return _handler(query);
   }
@@ -588,6 +593,76 @@ void main() {
       await _flushEventQueue();
 
       expect(bloc.state, const SearchState());
+    });
+
+    test('does not search immediately after typing', () async {
+      final bloc = SearchBloc(repository);
+
+      addTearDown(bloc.close);
+
+      bloc.add(const SearchQueryChanged('Du'));
+
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(repository.searchCallCount, 0);
+    });
+
+    test('searches automatically after the debounce', () async {
+      final bloc = SearchBloc(repository);
+
+      addTearDown(bloc.close);
+
+      bloc.add(const SearchQueryChanged('Du'));
+
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+
+      expect(repository.searchCallCount, 1);
+    });
+
+    test('restarts the debounce when typing continues', () async {
+      final bloc = SearchBloc(repository);
+
+      addTearDown(bloc.close);
+
+      bloc.add(const SearchQueryChanged('Du'));
+
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      bloc.add(const SearchQueryChanged('Dune'));
+
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(repository.searchCallCount, 0);
+
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(repository.searchCallCount, 1);
+
+      expect(repository.receivedQueries.single.term, 'Dune');
+    });
+
+    test('does not search before the minimum length', () async {
+      final bloc = SearchBloc(repository);
+
+      addTearDown(bloc.close);
+
+      bloc.add(const SearchQueryChanged('D'));
+
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+
+      expect(repository.searchCallCount, 0);
+    });
+
+    test('searches when the minimum length is reached', () async {
+      final bloc = SearchBloc(repository);
+
+      addTearDown(bloc.close);
+
+      bloc.add(const SearchQueryChanged('Du'));
+
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+
+      expect(repository.searchCallCount, 1);
     });
   });
 }

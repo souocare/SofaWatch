@@ -3,9 +3,13 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/route_paths.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
+import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
+import 'package:sofawatch/features/search/application/bloc/search_state.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_minimum_characters_hint.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_text_field.dart';
 
 class SearchDesktopView extends StatelessWidget {
@@ -285,23 +289,46 @@ class _SearchDesktopScrollableContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-
     return SingleChildScrollView(
       key: const ValueKey<String>('search-desktop-scrollable-content'),
       padding: const EdgeInsets.all(AppSpacing.xl),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 220),
-        child: Center(
-          child: Text(
-            'Search for movies and TV shows.',
-            key: const ValueKey<String>('search-desktop-placeholder'),
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
+        child: BlocBuilder<SearchBloc, SearchState>(
+          buildWhen: (SearchState previous, SearchState current) {
+            return previous.query != current.query ||
+                previous.results != current.results;
+          },
+          builder: (BuildContext context, SearchState state) {
+            if (state.needsMoreCharacters) {
+              return SearchMinimumCharactersHint(
+                remainingCharacters: state.remainingCharacters,
+              );
+            }
+
+            return const _SearchDesktopPlaceholder();
+          },
         ),
+      ),
+    );
+  }
+}
+
+class _SearchDesktopPlaceholder extends StatelessWidget {
+  const _SearchDesktopPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
+    return Center(
+      child: Text(
+        'Search for movies and TV shows.',
+        key: const ValueKey<String>('search-desktop-placeholder'),
+        textAlign: TextAlign.center,
+        style: Theme.of(
+          context,
+        ).textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant),
       ),
     );
   }

@@ -13,20 +13,40 @@ class SearchState extends Equatable {
     this.paginationError,
   });
 
+  static const int minimumQueryLength = 2;
+
   final String query;
   final SearchMediaTypeFilter mediaType;
-
   final RemoteState<SearchResultPage> results;
-
   final bool isLoadingMore;
   final AppException? paginationError;
 
+  static String normalizeQuery(String value) {
+    return value.trim().replaceAll(RegExp(r'\s+'), ' ');
+  }
+
   String get normalizedQuery {
-    return query.trim();
+    return normalizeQuery(query);
   }
 
   bool get hasQuery {
     return normalizedQuery.isNotEmpty;
+  }
+
+  bool get hasSearchableQuery {
+    return normalizedQuery.length >= minimumQueryLength;
+  }
+
+  bool get needsMoreCharacters {
+    return hasQuery && !hasSearchableQuery;
+  }
+
+  int get remainingCharacters {
+    if (!needsMoreCharacters) {
+      return 0;
+    }
+
+    return minimumQueryLength - normalizedQuery.length;
   }
 
   bool get hasResults {
@@ -38,7 +58,9 @@ class SearchState extends Equatable {
   }
 
   bool get canLoadMore {
-    return !isLoadingMore && results.data?.hasNextPage == true;
+    return hasSearchableQuery &&
+        !isLoadingMore &&
+        results.data?.hasNextPage == true;
   }
 
   bool get hasPaginationError {

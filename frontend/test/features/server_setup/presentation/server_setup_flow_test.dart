@@ -1,3 +1,6 @@
+@TestOn('vm')
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/api/api_client.dart';
