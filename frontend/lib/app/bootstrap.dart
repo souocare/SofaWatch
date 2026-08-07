@@ -12,7 +12,10 @@ import 'package:sofawatch/core/server/repositories/server_configuration_reposito
 import 'package:sofawatch/core/server/repositories/shared_preferences_server_configuration_repository.dart';
 import 'package:sofawatch/core/storage/key_value_store.dart';
 import 'package:sofawatch/core/storage/shared_preferences_key_value_store.dart';
+import 'package:sofawatch/features/search/data/cache/in_memory_search_cache.dart';
 import 'package:sofawatch/features/search/data/repositories/api_search_repository.dart';
+import 'package:sofawatch/features/search/data/repositories/cached_search_repository.dart';
+import 'package:sofawatch/features/search/domain/repositories/search_repository.dart';
 import 'package:sofawatch/features/server_setup/data/services/api_server_connection_tester.dart';
 import 'package:sofawatch/features/server_setup/domain/services/server_connection_tester.dart';
 
@@ -20,7 +23,9 @@ Future<void> bootstrap(
   FutureOr<Widget> Function(AppBootstrapData data) builder,
 ) async {
   WidgetsFlutterBinding.ensureInitialized();
+
   GoogleFonts.config.allowRuntimeFetching = false;
+
   usePathUrlStrategy();
 
   Bloc.observer = const AppBlocObserver();
@@ -46,12 +51,17 @@ Future<void> bootstrap(
   final ServerConnectionTester serverConnectionTester =
       ApiServerConnectionTester();
 
+  final SearchRepository searchRepository = CachedSearchRepository(
+    repository: ApiSearchRepository(apiClient),
+    cache: InMemorySearchCache(),
+  );
+
   final AppBootstrapData data = AppBootstrapData(
     serverConfigurationRepository: serverConfigurationRepository,
     apiClient: apiClient,
     serverConnectionTester: serverConnectionTester,
     initialServerConfiguration: initialServerConfiguration,
-    searchRepository: ApiSearchRepository(apiClient),
+    searchRepository: searchRepository,
   );
 
   final Widget app = await builder(data);
