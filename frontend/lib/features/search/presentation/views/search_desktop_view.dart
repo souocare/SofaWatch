@@ -12,6 +12,7 @@ import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
 import 'package:sofawatch/features/search/application/bloc/search_event.dart';
 import 'package:sofawatch/features/search/application/bloc/search_state.dart';
 import 'package:sofawatch/features/search/domain/entities/search_result.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_empty_state.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_failure_state.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_loading_state.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_media_type_filter_bar.dart';

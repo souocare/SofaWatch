@@ -51,6 +51,34 @@ void main() {
   // const ValueKey<String> homePageTitleKey = ValueKey<String>('home-page-title');
 
   group('Desktop Search modal', () {
+    testWidgets('shows the initial guidance before a search', (
+      WidgetTester tester,
+    ) async {
+      await pumpDesktopApp(tester);
+      await openSearch(tester);
+
+      expect(
+        find.byKey(const ValueKey<String>('search-desktop-placeholder')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Search for movies and TV shows.'), findsOneWidget);
+
+      expect(
+        find.byKey(const ValueKey<String>('search-loading-state')),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('search-empty-state')),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('search-failure-state')),
+        findsNothing,
+      );
+    });
     testWidgets('autofocuses the Search field', (WidgetTester tester) async {
       await pumpDesktopApp(tester);
       await openSearch(tester);
@@ -202,5 +230,39 @@ void main() {
     );
 
     expect(find.byType(SearchMobileView), findsOneWidget);
+  });
+  testWidgets('shows the initial guidance on mobile before a search', (
+    WidgetTester tester,
+  ) async {
+    await pumpDesktopApp(
+      tester,
+      size: const Size(AppBreakpoints.tablet - 1, 800),
+    );
+
+    await openSearch(tester);
+
+    expect(find.byType(SearchMobileView), findsOneWidget);
+
+    expect(
+      find.byKey(const ValueKey<String>('search-mobile-placeholder')),
+      findsOneWidget,
+    );
+
+    expect(find.text('Search for a movie or TV show.'), findsOneWidget);
+
+    expect(
+      find.byKey(const ValueKey<String>('search-loading-state')),
+      findsNothing,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('search-empty-state')),
+      findsNothing,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('search-failure-state')),
+      findsNothing,
+    );
   });
 }
