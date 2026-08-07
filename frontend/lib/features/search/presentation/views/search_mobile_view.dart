@@ -10,6 +10,9 @@ import 'package:sofawatch/features/search/domain/entities/search_result.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_media_type_filter_bar.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_minimum_characters_hint.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_results_section.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_empty_state.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_failure_state.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_loading_state.dart';
 
 class SearchMobileView extends StatelessWidget {
   const SearchMobileView({super.key});
@@ -104,6 +107,23 @@ class _SearchMobileContent extends StatelessWidget {
       return SearchMinimumCharactersHint(
         remainingCharacters: state.remainingCharacters,
       );
+    }
+
+    if (state.results.isLoading) {
+      return const SearchLoadingState(compact: true);
+    }
+
+    if (state.results.isFailure) {
+      return SearchFailureState(
+        error: state.results.error!,
+        onRetry: () {
+          context.read<SearchBloc>().add(const SearchRetryRequested());
+        },
+      );
+    }
+
+    if (state.hasNoResults) {
+      return SearchEmptyState(query: state.normalizedQuery);
     }
 
     if (state.hasResults) {
