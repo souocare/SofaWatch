@@ -1,10 +1,9 @@
 @TestOn('browser')
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
-import 'package:sofawatch/app/router/app_shell.dart';
-import 'package:sofawatch/app/router/route_paths.dart';
 import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/features/search/presentation/views/search_mobile_view.dart';
 
@@ -39,17 +38,17 @@ Future<void> openSearch(WidgetTester tester) async {
 }
 
 void main() {
-  const ValueKey<String> webSearchActionKey = ValueKey<String>(
-    'web-search-action',
-  );
+  // const ValueKey<String> webSearchActionKey = ValueKey<String>(
+  //   'web-search-action',
+  // );
 
   const ValueKey<String> modalKey = ValueKey<String>('search-desktop-modal');
 
-  const ValueKey<String> closeButtonKey = ValueKey<String>(
-    'search-desktop-close-button',
-  );
+  // const ValueKey<String> closeButtonKey = ValueKey<String>(
+  //   'search-desktop-close-button',
+  // );
 
-  const ValueKey<String> homePageTitleKey = ValueKey<String>('home-page-title');
+  // const ValueKey<String> homePageTitleKey = ValueKey<String>('home-page-title');
 
   group('Desktop Search modal', () {
     testWidgets('autofocuses the Search field', (WidgetTester tester) async {

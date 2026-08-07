@@ -8,7 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
-import 'package:sofawatch/app/router/route_paths.dart';
 import 'package:sofawatch/app/theme/tokens/app_colors.dart';
 import 'package:sofawatch/app/theme/tokens/app_durations.dart';
 import 'package:sofawatch/app/theme/tokens/app_radius.dart';
@@ -1092,10 +1091,6 @@ class _MobileNavigationPillItem extends StatelessWidget {
   static const double _iconLabelSpacing = 1;
   bool get _isOpening {
     return visualState == _DualPillVisualState.openingSearch;
-  }
-
-  bool get _isClosing {
-    return visualState == _DualPillVisualState.closingSearch;
   }
 
   bool get _hideUnselectedIcons {

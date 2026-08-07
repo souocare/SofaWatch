@@ -664,6 +664,38 @@ void main() {
 
       expect(repository.searchCallCount, 1);
     });
+
+    test('starts a new search after a previous failure', () async {
+      repository.setHandler((query) async {
+        if (query.term == 'Dune') {
+          throw const AppException.connection();
+        }
+
+        return _severancePage;
+      });
+
+      final bloc = SearchBloc(repository);
+
+      addTearDown(bloc.close);
+
+      bloc.add(const SearchQueryChanged('Dune'));
+
+      await Future.delayed(
+        SearchBloc.queryDebounceDuration + const Duration(milliseconds: 50),
+      );
+
+      expect(bloc.state.results.isFailure, isTrue);
+
+      bloc.add(const SearchQueryChanged('Severance'));
+
+      await Future.delayed(
+        SearchBloc.queryDebounceDuration + const Duration(milliseconds: 50),
+      );
+
+      expect(bloc.state.results.isSuccess, isTrue);
+
+      expect(bloc.state.results.data!.results.single.title, 'Severance');
+    });
   });
 }
 
