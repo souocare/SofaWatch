@@ -14,6 +14,8 @@ import 'package:sofawatch/features/search/domain/entities/search_result.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_minimum_characters_hint.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_results_section.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_text_field.dart';
+import 'package:sofawatch/features/search/application/bloc/search_event.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_media_type_filter_bar.dart';
 
 class SearchDesktopView extends StatelessWidget {
   const SearchDesktopView({super.key});
@@ -207,7 +209,26 @@ class _SearchDesktopModal extends StatelessWidget {
             ),
             child: SearchTextField(autofocus: true),
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.md),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: BlocBuilder<SearchBloc, SearchState>(
+              buildWhen: (SearchState previous, SearchState current) {
+                return previous.mediaType != current.mediaType;
+              },
+              builder: (BuildContext context, SearchState state) {
+                return SearchMediaTypeFilterBar(
+                  selectedFilter: state.mediaType,
+                  onFilterChanged: (filter) {
+                    context.read<SearchBloc>().add(
+                      SearchMediaTypeChanged(filter),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
           Divider(height: 1, color: colorScheme.outlineVariant),
           const Expanded(child: _SearchDesktopScrollableContent()),
         ],
@@ -249,6 +270,7 @@ class _SearchDesktopScrollableContent extends StatelessWidget {
         child: BlocBuilder<SearchBloc, SearchState>(
           buildWhen: (SearchState previous, SearchState current) {
             return previous.query != current.query ||
+                previous.mediaType != current.mediaType ||
                 previous.results != current.results;
           },
           builder: (BuildContext context, SearchState state) {

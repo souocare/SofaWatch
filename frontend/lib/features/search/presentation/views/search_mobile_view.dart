@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
 import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
+import 'package:sofawatch/features/search/application/bloc/search_event.dart';
 import 'package:sofawatch/features/search/application/bloc/search_state.dart';
 import 'package:sofawatch/features/search/domain/entities/search_result.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_media_type_filter_bar.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_minimum_characters_hint.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_results_section.dart';
 
@@ -65,7 +67,7 @@ class _SearchMobileContent extends StatelessWidget {
   }
 
   void _handleResultAction(SearchResult result) {
-    // A ação de Watchlist/Biblioteca será implementada no ponto 13.14.
+    // Ligação real à Watchlist/Biblioteca entra no ponto 13.14.
   }
 
   @override
@@ -73,30 +75,48 @@ class _SearchMobileContent extends StatelessWidget {
     return BlocBuilder<SearchBloc, SearchState>(
       buildWhen: (SearchState previous, SearchState current) {
         return previous.query != current.query ||
+            previous.mediaType != current.mediaType ||
             previous.results != current.results;
       },
       builder: (BuildContext context, SearchState state) {
-        if (state.needsMoreCharacters) {
-          return SearchMinimumCharactersHint(
-            remainingCharacters: state.remainingCharacters,
-          );
-        }
-
-        if (state.hasResults) {
-          return SearchResultsSection(
-            results: state.results.data!.results,
-            scrollable: true,
-            compact: true,
-            onResultPressed: (SearchResult result) {
-              _openResult(context, result);
-            },
-            onResultActionPressed: _handleResultAction,
-          );
-        }
-
-        return const _SearchMobilePlaceholder();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            SearchMediaTypeFilterBar(
+              selectedFilter: state.mediaType,
+              compact: true,
+              onFilterChanged: (filter) {
+                context.read<SearchBloc>().add(SearchMediaTypeChanged(filter));
+              },
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Expanded(child: _buildContent(context, state)),
+          ],
+        );
       },
     );
+  }
+
+  Widget _buildContent(BuildContext context, SearchState state) {
+    if (state.needsMoreCharacters) {
+      return SearchMinimumCharactersHint(
+        remainingCharacters: state.remainingCharacters,
+      );
+    }
+
+    if (state.hasResults) {
+      return SearchResultsSection(
+        results: state.results.data!.results,
+        scrollable: true,
+        compact: true,
+        onResultPressed: (SearchResult result) {
+          _openResult(context, result);
+        },
+        onResultActionPressed: _handleResultAction,
+      );
+    }
+
+    return const _SearchMobilePlaceholder();
   }
 }
 
