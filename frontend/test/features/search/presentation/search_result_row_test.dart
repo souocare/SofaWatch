@@ -249,6 +249,29 @@ void main() {
 
     expect(actionCount, 0);
   });
+
+  testWidgets('does not invoke the action when already added', (
+    WidgetTester tester,
+  ) async {
+    int actionCount = 0;
+
+    await _pumpResultRow(
+      tester,
+      result: _csiResult,
+      compact: true,
+      actionAdded: true,
+      onActionPressed: () {
+        actionCount++;
+      },
+    );
+
+    final IconButton actionButton = tester.widget<IconButton>(
+      find.byKey(const ValueKey<String>('search-result-action-show-1431')),
+    );
+
+    expect(actionButton.onPressed, isNull);
+    expect(actionCount, 0);
+  });
 }
 
 Future<void> _pumpResultRow(

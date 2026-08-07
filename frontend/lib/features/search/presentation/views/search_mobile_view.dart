@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
 import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
 import 'package:sofawatch/features/search/application/bloc/search_state.dart';
@@ -46,8 +48,20 @@ class SearchMobileView extends StatelessWidget {
 class _SearchMobileContent extends StatelessWidget {
   const _SearchMobileContent();
 
-  void _openResult(SearchResult result) {
-    // A navegação para preview será implementada no ponto 13.12.
+  void _openResult(BuildContext context, SearchResult result) {
+    if (result.isShow) {
+      context.pushNamed(
+        AppRoute.showDetails.name,
+        pathParameters: <String, String>{'showId': result.tmdbId.toString()},
+      );
+
+      return;
+    }
+
+    context.pushNamed(
+      AppRoute.movieDetails.name,
+      pathParameters: <String, String>{'movieId': result.tmdbId.toString()},
+    );
   }
 
   void _handleResultAction(SearchResult result) {
@@ -73,7 +87,9 @@ class _SearchMobileContent extends StatelessWidget {
             results: state.results.data!.results,
             scrollable: true,
             compact: true,
-            onResultPressed: _openResult,
+            onResultPressed: (SearchResult result) {
+              _openResult(context, result);
+            },
             onResultActionPressed: _handleResultAction,
           );
         }

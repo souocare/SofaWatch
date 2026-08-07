@@ -206,7 +206,9 @@ class _SearchResultAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
 
-    final VoidCallback? effectiveOnPressed = isLoading ? null : onPressed;
+    final VoidCallback? effectiveOnPressed = isLoading || isAdded
+        ? null
+        : onPressed;
 
     final Key key = ValueKey<String>(
       'search-result-action-${result.mediaType.name}-${result.tmdbId}',

@@ -5,14 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/router/route_paths.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
 import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
 import 'package:sofawatch/features/search/application/bloc/search_state.dart';
-import 'package:sofawatch/features/search/presentation/widgets/search_minimum_characters_hint.dart';
-import 'package:sofawatch/features/search/presentation/widgets/search_text_field.dart';
 import 'package:sofawatch/features/search/domain/entities/search_result.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_minimum_characters_hint.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_results_section.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_text_field.dart';
 
 class SearchDesktopView extends StatelessWidget {
   const SearchDesktopView({super.key});
@@ -218,8 +219,20 @@ class _SearchDesktopModal extends StatelessWidget {
 class _SearchDesktopScrollableContent extends StatelessWidget {
   const _SearchDesktopScrollableContent();
 
-  void _openResult(SearchResult result) {
-    // A apresentação do preview será implementada no ponto 13.12.
+  void _openResult(BuildContext context, SearchResult result) {
+    if (result.isShow) {
+      context.pushNamed(
+        AppRoute.showDetails.name,
+        pathParameters: <String, String>{'showId': result.tmdbId.toString()},
+      );
+
+      return;
+    }
+
+    context.pushNamed(
+      AppRoute.movieDetails.name,
+      pathParameters: <String, String>{'movieId': result.tmdbId.toString()},
+    );
   }
 
   void _handleResultAction(SearchResult result) {
@@ -249,7 +262,9 @@ class _SearchDesktopScrollableContent extends StatelessWidget {
               return SearchResultsSection(
                 results: state.results.data!.results,
                 scrollable: false,
-                onResultPressed: _openResult,
+                onResultPressed: (SearchResult result) {
+                  _openResult(context, result);
+                },
                 onResultActionPressed: _handleResultAction,
               );
             }
