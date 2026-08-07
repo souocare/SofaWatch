@@ -48,6 +48,7 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: RoutePaths.root,
+    overridePlatformDefaultLocation: true,
     redirect: (BuildContext context, GoRouterState state) {
       if (kIsWeb) {
         return null;
@@ -125,12 +126,7 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
             barrierLabel: 'Dismiss search',
             transitionDuration: const Duration(milliseconds: 220),
             reverseTransitionDuration: const Duration(milliseconds: 180),
-            child: BlocProvider<SearchBloc>(
-              create: (BuildContext context) {
-                return SearchBloc(context.read<SearchRepository>());
-              },
-              child: const SearchPage(),
-            ),
+            child: searchPage,
             transitionsBuilder:
                 (
                   BuildContext context,

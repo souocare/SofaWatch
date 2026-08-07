@@ -10,9 +10,10 @@ class SearchPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool desktop = constraints.maxWidth >= AppBreakpoints.tablet;
+        final bool useDesktopLayout =
+            constraints.maxWidth >= AppBreakpoints.tablet;
 
-        if (desktop) {
+        if (useDesktopLayout) {
           return const SearchDesktopView();
         }
 

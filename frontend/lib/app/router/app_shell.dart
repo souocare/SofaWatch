@@ -157,90 +157,25 @@ class _WebNavigationTab extends StatelessWidget {
   }
 }
 
-class _WebNavigationActions extends StatefulWidget {
+class _WebNavigationActions extends StatelessWidget {
   const _WebNavigationActions();
 
-  @override
-  State<_WebNavigationActions> createState() {
-    return _WebNavigationActionsState();
-  }
-}
-
-class _WebNavigationActionsState extends State<_WebNavigationActions> {
-  GoRouter? _router;
-
-  bool get _isSearchActive {
-    return _router?.routerDelegate.currentConfiguration.uri.path ==
-        RoutePaths.search;
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    final GoRouter router = GoRouter.of(context);
-
-    if (identical(_router, router)) {
-      return;
-    }
-
-    _router?.routerDelegate.removeListener(_handleRouterChanged);
-
-    _router = router;
-    _router!.routerDelegate.addListener(_handleRouterChanged);
-  }
-
-  void _handleRouterChanged() {
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {});
-  }
-
-  void _openSearch() {
-    if (_isSearchActive) {
-      return;
-    }
-
+  void _openSearch(BuildContext context) {
     context.pushNamed(AppRoute.search.name);
   }
 
   @override
-  void dispose() {
-    _router?.routerDelegate.removeListener(_handleRouterChanged);
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Tooltip(
-          message: _isSearchActive ? 'Search open' : 'Search',
-          child: Semantics(
-            button: true,
-            selected: _isSearchActive,
-            label: _isSearchActive ? 'Search open' : 'Open search',
-            child: IconButton(
-              key: const ValueKey<String>('web-search-action'),
-              onPressed: _isSearchActive ? null : _openSearch,
-              style: IconButton.styleFrom(
-                foregroundColor: _isSearchActive
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
-                backgroundColor: _isSearchActive
-                    ? colorScheme.primaryContainer
-                    : Colors.transparent,
-              ),
-              icon: Icon(
-                _isSearchActive ? Icons.search_rounded : Icons.search_outlined,
-              ),
-            ),
-          ),
+        IconButton(
+          key: const ValueKey<String>('web-search-action'),
+          tooltip: 'Search',
+          onPressed: () {
+            _openSearch(context);
+          },
+          icon: const Icon(Icons.search_rounded),
         ),
         const SizedBox(width: AppSpacing.sm),
         IconButton(
@@ -313,13 +248,19 @@ class _WebAppShell extends StatelessWidget {
               ),
               child: Row(
                 children: <Widget>[
-                  _WebBrand(
-                    onPressed: () {
-                      onDestinationSelected(0);
-                    },
+                  Flexible(
+                    flex: 0,
+                    child: _WebBrand(
+                      onPressed: () {
+                        onDestinationSelected(0);
+                      },
+                    ),
                   ),
+                  const SizedBox(width: AppSpacing.lg),
                   Expanded(
-                    child: Center(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const ClampingScrollPhysics(),
                       child: _WebNavigationTabs(
                         currentIndex: navigationShell.currentIndex,
                         navigationItems: navigationItems,
@@ -327,7 +268,8 @@ class _WebAppShell extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const _WebNavigationActions(),
+                  const SizedBox(width: AppSpacing.lg),
+                  const Flexible(flex: 0, child: _WebNavigationActions()),
                 ],
               ),
             ),

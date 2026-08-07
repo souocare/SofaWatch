@@ -29,66 +29,178 @@ class SearchDesktopView extends StatelessWidget {
     router.go(RoutePaths.home);
   }
 
+  // @override
+  // Widget build(BuildContext context) {
+  //   return CallbackShortcuts(
+  //     bindings: <ShortcutActivator, VoidCallback>{
+  //       const SingleActivator(LogicalKeyboardKey.escape): () {
+  //         _closeSearch(context);
+  //       },
+  //     },
+  //     child: ClipRect(
+  //       child: BackdropFilter(
+  //         filter: ui.ImageFilter.blur(
+  //           sigmaX: _backdropBlurSigma,
+  //           sigmaY: _backdropBlurSigma,
+  //         ),
+  //         child: SafeArea(
+  //           child: LayoutBuilder(
+  //             builder: (BuildContext context, BoxConstraints constraints) {
+  //               final bool hasLimitedHeight = constraints.maxHeight < 560;
+
+  //               final double viewportMargin = hasLimitedHeight
+  //                   ? AppSpacing.sm
+  //                   : _minimumViewportMargin;
+
+  //               final double availableWidth = math.max(
+  //                 0,
+  //                 constraints.maxWidth - (viewportMargin * 2),
+  //               );
+
+  //               final double availableHeight = math.max(
+  //                 0,
+  //                 constraints.maxHeight - (viewportMargin * 2),
+  //               );
+
+  //               final double modalWidth = math.min(
+  //                 _maximumModalWidth,
+  //                 availableWidth,
+  //               );
+
+  //               final double modalMaximumHeight = math.min(
+  //                 _maximumModalHeight,
+  //                 availableHeight,
+  //               );
+
+  //               final double modalMinimumHeight = math.min(
+  //                 _minimumModalHeight,
+  //                 modalMaximumHeight,
+  //               );
+
+  //               return Center(
+  //                 child: ConstrainedBox(
+  //                   constraints: BoxConstraints(
+  //                     minWidth: modalWidth,
+  //                     maxWidth: modalWidth,
+  //                     minHeight: modalMinimumHeight,
+  //                     maxHeight: modalMaximumHeight,
+  //                   ),
+  //                   child: _SearchDesktopModal(
+  //                     onClose: () {
+  //                       _closeSearch(context);
+  //                     },
+  //                   ),
+  //                 ),
+  //               );
+  //             },
+  //           ),
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
+
   @override
   Widget build(BuildContext context) {
+    final EdgeInsets viewInsets = MediaQuery.viewInsetsOf(context);
+
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
         const SingleActivator(LogicalKeyboardKey.escape): () {
           _closeSearch(context);
         },
       },
-      child: ClipRect(
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(
-            sigmaX: _backdropBlurSigma,
-            sigmaY: _backdropBlurSigma,
-          ),
-          child: SafeArea(
-            child: LayoutBuilder(
-              builder: (BuildContext context, BoxConstraints constraints) {
-                final double availableWidth = math.max(
-                  0,
-                  constraints.maxWidth - (_minimumViewportMargin * 2),
-                );
-
-                final double availableHeight = math.max(
-                  0,
-                  constraints.maxHeight - (_minimumViewportMargin * 2),
-                );
-
-                final double modalWidth = math.min(
-                  _maximumModalWidth,
-                  availableWidth,
-                );
-
-                final double modalMaximumHeight = math.min(
-                  _maximumModalHeight,
-                  availableHeight,
-                );
-
-                final double modalMinimumHeight = math.min(
-                  _minimumModalHeight,
-                  modalMaximumHeight,
-                );
-
-                return Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minWidth: modalWidth,
-                      maxWidth: modalWidth,
-                      minHeight: modalMinimumHeight,
-                      maxHeight: modalMaximumHeight,
-                    ),
-                    child: _SearchDesktopModal(
-                      onClose: () {
-                        _closeSearch(context);
-                      },
-                    ),
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.only(bottom: viewInsets.bottom),
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            // Camada visual: aplica blur, mas não recebe eventos.
+            IgnorePointer(
+              child: ClipRect(
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(
+                    sigmaX: _backdropBlurSigma,
+                    sigmaY: _backdropBlurSigma,
                   ),
-                );
-              },
+                  child: const SizedBox.expand(),
+                ),
+              ),
             ),
-          ),
+
+            // Área exterior clicável.
+            GestureDetector(
+              key: const ValueKey<String>('search-desktop-backdrop'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                _closeSearch(context);
+              },
+              child: const SizedBox.expand(),
+            ),
+
+            // Modal colocado por cima do backdrop.
+            SafeArea(
+              child: LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  final bool hasLimitedHeight = constraints.maxHeight < 560;
+
+                  final double viewportMargin = hasLimitedHeight
+                      ? AppSpacing.sm
+                      : _minimumViewportMargin;
+
+                  final double availableWidth = math.max(
+                    0,
+                    constraints.maxWidth - (viewportMargin * 2),
+                  );
+
+                  final double availableHeight = math.max(
+                    0,
+                    constraints.maxHeight - (viewportMargin * 2),
+                  );
+
+                  final double modalWidth = math.min(
+                    _maximumModalWidth,
+                    availableWidth,
+                  );
+
+                  final double modalMaximumHeight = math.min(
+                    _maximumModalHeight,
+                    availableHeight,
+                  );
+
+                  final double modalMinimumHeight = math.min(
+                    _minimumModalHeight,
+                    modalMaximumHeight,
+                  );
+
+                  return Center(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+
+                      // Impede o clique dentro do modal de chegar ao backdrop.
+                      onTap: () {},
+
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minWidth: modalWidth,
+                          maxWidth: modalWidth,
+                          minHeight: modalMinimumHeight,
+                          maxHeight: modalMaximumHeight,
+                        ),
+                        child: _SearchDesktopModal(
+                          onClose: () {
+                            _closeSearch(context);
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
