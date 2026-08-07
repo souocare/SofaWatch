@@ -108,12 +108,25 @@ void main() {
     ) async {
       await _pumpResultRow(tester, result: _csiResult);
 
-      final IconButton actionButton = tester.widget<IconButton>(
+      final TextButton actionButton = tester.widget<TextButton>(
         find.byKey(const ValueKey<String>('search-result-action-show-1431')),
       );
 
       expect(actionButton.onPressed, isNull);
     });
+
+    testWidgets(
+      'disables the compact secondary action when no callback is provided',
+      (WidgetTester tester) async {
+        await _pumpResultRow(tester, result: _csiResult, compact: true);
+
+        final IconButton actionButton = tester.widget<IconButton>(
+          find.byKey(const ValueKey<String>('search-result-action-show-1431')),
+        );
+
+        expect(actionButton.onPressed, isNull);
+      },
+    );
 
     testWidgets('uses compact title layout when compact is enabled', (
       WidgetTester tester,
@@ -141,6 +154,101 @@ void main() {
       expect(title.overflow, TextOverflow.ellipsis);
     });
   });
+
+  testWidgets('shows an add icon in compact mode when not added', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(tester, result: _csiResult, compact: true);
+
+    expect(find.byIcon(Icons.add_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.check_rounded), findsNothing);
+  });
+
+  testWidgets('shows a check icon in compact mode when already added', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(
+      tester,
+      result: _csiResult,
+      compact: true,
+      actionAdded: true,
+    );
+
+    expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.add_rounded), findsNothing);
+  });
+
+  testWidgets('shows an action label in the regular desktop layout', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(tester, result: _duneResult);
+
+    expect(find.text('Add to Watchlist'), findsOneWidget);
+    expect(find.byIcon(Icons.add_rounded), findsOneWidget);
+  });
+
+  testWidgets('shows Added in the regular layout when already added', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(tester, result: _duneResult, actionAdded: true);
+
+    expect(find.text('Added'), findsOneWidget);
+    expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+    expect(find.text('Add to Watchlist'), findsNothing);
+  });
+
+  testWidgets('shows a loading indicator in compact mode', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(
+      tester,
+      result: _csiResult,
+      compact: true,
+      actionLoading: true,
+    );
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byIcon(Icons.add_rounded), findsNothing);
+    expect(find.byIcon(Icons.check_rounded), findsNothing);
+  });
+
+  testWidgets('shows a loading indicator in the regular layout', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(tester, result: _duneResult, actionLoading: true);
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    final TextButton button = tester.widget<TextButton>(
+      find.byKey(const ValueKey<String>('search-result-action-movie-438631')),
+    );
+
+    expect(button.onPressed, isNull);
+  });
+
+  testWidgets('does not invoke the action while loading', (
+    WidgetTester tester,
+  ) async {
+    int actionCount = 0;
+
+    await _pumpResultRow(
+      tester,
+      result: _csiResult,
+      compact: true,
+      actionLoading: true,
+      onActionPressed: () {
+        actionCount++;
+      },
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('search-result-action-show-1431')),
+    );
+
+    await tester.pump();
+
+    expect(actionCount, 0);
+  });
 }
 
 Future<void> _pumpResultRow(
@@ -149,6 +257,8 @@ Future<void> _pumpResultRow(
   VoidCallback? onPressed,
   VoidCallback? onActionPressed,
   bool compact = false,
+  bool actionLoading = false,
+  bool actionAdded = false,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -158,6 +268,8 @@ Future<void> _pumpResultRow(
           child: SearchResultRow(
             result: result,
             compact: compact,
+            actionLoading: actionLoading,
+            actionAdded: actionAdded,
             onPressed: onPressed ?? () {},
             onActionPressed: onActionPressed,
           ),

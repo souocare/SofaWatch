@@ -9,6 +9,8 @@ class SearchResultRow extends StatelessWidget {
     required this.onPressed,
     this.onActionPressed,
     this.compact = false,
+    this.actionLoading = false,
+    this.actionAdded = false,
     super.key,
   });
 
@@ -18,13 +20,18 @@ class SearchResultRow extends StatelessWidget {
   /// A operação real de Watchlist/Biblioteca será implementada no ponto 13.14.
   final VoidCallback? onActionPressed;
 
+  /// Mobile usa uma apresentação mais compacta.
   final bool compact;
+
+  final bool actionAdded;
+
+  /// Permite mostrar feedback visual enquanto a ação lateral está em curso.
+  ///
+  /// A lógica real que controla este estado será ligada no ponto 13.14.
+  final bool actionLoading;
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final ColorScheme colorScheme = theme.colorScheme;
-
     final double thumbnailWidth = compact ? 52 : 60;
     final double thumbnailHeight = compact ? 76 : 88;
 
@@ -64,6 +71,8 @@ class SearchResultRow extends StatelessWidget {
                   result: result,
                   onPressed: onActionPressed,
                   compact: compact,
+                  isLoading: actionLoading,
+                  isAdded: actionAdded,
                 ),
               ],
             ),
@@ -179,26 +188,64 @@ class _SearchResultAction extends StatelessWidget {
     required this.result,
     required this.onPressed,
     required this.compact,
+    required this.isLoading,
+    required this.isAdded,
   });
 
   final SearchResult result;
   final VoidCallback? onPressed;
   final bool compact;
+  final bool isLoading;
+  final bool isAdded;
+
+  String get _label {
+    return result.isShow ? 'Add to Library' : 'Add to Watchlist';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final String tooltip = result.isShow
-        ? 'Add show to library'
-        : 'Add movie to Watchlist';
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
 
-    return IconButton(
-      key: ValueKey<String>(
-        'search-result-action-${result.mediaType.name}-${result.tmdbId}',
+    final VoidCallback? effectiveOnPressed = isLoading ? null : onPressed;
+
+    final Key key = ValueKey<String>(
+      'search-result-action-${result.mediaType.name}-${result.tmdbId}',
+    );
+
+    if (compact) {
+      return IconButton(
+        key: key,
+        tooltip: isAdded ? 'Added' : _label,
+        onPressed: effectiveOnPressed,
+        visualDensity: VisualDensity.compact,
+        icon: isLoading
+            ? const SizedBox.square(
+                dimension: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(
+                isAdded ? Icons.check_rounded : Icons.add_rounded,
+                color: isAdded ? Colors.green : colorScheme.onSurface,
+              ),
+      );
+    }
+
+    return TextButton.icon(
+      key: key,
+      onPressed: effectiveOnPressed,
+      icon: isLoading
+          ? const SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(
+              isAdded ? Icons.check_rounded : Icons.add_rounded,
+              color: isAdded ? Colors.green : null,
+            ),
+      label: Text(
+        isAdded ? 'Added' : _label,
+        style: isAdded ? const TextStyle(color: Colors.green) : null,
       ),
-      tooltip: tooltip,
-      onPressed: onPressed,
-      visualDensity: compact ? VisualDensity.compact : VisualDensity.standard,
-      icon: const Icon(Icons.add_rounded),
     );
   }
 }
