@@ -17,6 +17,7 @@ from app.repositories import (
     SeasonRepository,
     ShowRepository,
     UserRepository,
+    MovieRepository,
 )
 from app.repositories.background_job import BackgroundJobRepository
 from app.repositories.network import NetworkRepository
@@ -134,8 +135,6 @@ TMDBShowDetailsServiceDependency = Annotated[
 ]
 
 
-
-
 def get_tmdb_season_details_service(
     tmdb_client: Annotated[
         TMDBClient,
@@ -238,6 +237,7 @@ EpisodeServiceDependency = Annotated[
     Depends(get_episode_service),
 ]
 
+
 def get_movie_details_service(
     settings: Annotated[
         Settings,
@@ -253,6 +253,8 @@ def get_movie_details_service(
         settings=settings,
         tmdb_client=tmdb_client,
     )
+
+
 TMDBMovieDetailsServiceDependency = Annotated[
     TMDBMovieDetailsService,
     Depends(get_movie_details_service),
@@ -311,6 +313,7 @@ def get_library_service(
         session=session,
         library_repository=LibraryRepository(session),
         show_repository=ShowRepository(session),
+        movie_repository=MovieRepository(session),
     )
 
 

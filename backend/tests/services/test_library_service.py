@@ -11,6 +11,7 @@ from app.repositories.library import LibraryRepository
 from app.repositories.show import ShowRepository
 from app.services.exceptions import LibraryEntryAlreadyExistsError
 from app.services.library import LibraryService
+from app.repositories.movie import MovieRepository
 
 from app.models.show import Show
 from app.models.user import User
@@ -35,6 +36,7 @@ def library_service(
     db_session: Session,
     library_repository: Mock,
     show_repository: Mock,
+    movie_repository: Mock,
 ) -> LibraryService:
     """Provide a library service using mocked repositories."""
 
@@ -42,8 +44,16 @@ def library_service(
         session=db_session,
         library_repository=library_repository,
         show_repository=show_repository,
+        movie_repository=movie_repository,
     )
 
+@pytest.fixture
+def movie_repository() -> Mock:
+    """Provide a mocked Movie repository."""
+
+    return Mock(
+        spec=MovieRepository,
+    )
 
 def make_show(
     *,
@@ -106,6 +116,16 @@ def make_entry(
         user_id=user_id,
         show_id=show_id,
         status=status,
+    )
+
+def make_movie(
+    *,
+    movie_id: UUID,
+) -> SimpleNamespace:
+    """Create a lightweight Movie object for service tests."""
+
+    return SimpleNamespace(
+        id=movie_id,
     )
 
 
@@ -453,3 +473,97 @@ def test_update_status_updates_existing_entry(
 
     assert result is entry
     assert result.status == LibraryStatus.WATCHING
+
+def test_get_movie_entry_returns_library_entry(
+    library_service: LibraryService,
+    library_repository: Mock,
+) -> None:
+    """Return a user's library entry for a movie."""
+
+    user_id = uuid4()
+    movie_id = uuid4()
+
+    entry = LibraryEntry(
+        user_id=user_id,
+        movie_id=movie_id,
+        status=LibraryStatus.PLANNING,
+    )
+
+    library_repository.get_by_user_and_movie.return_value = (
+        entry
+    )
+
+    result = library_service.get_movie_entry(
+        user_id=user_id,
+        movie_id=movie_id,
+    )
+
+    assert result is entry
+
+    library_repository.get_by_user_and_movie.assert_called_once_with(
+        user_id=user_id,
+        movie_id=movie_id,
+    )
+
+
+def test_add_movie_returns_none_when_movie_does_not_exist(
+    library_service: LibraryService,
+    library_repository: Mock,
+    movie_repository: Mock,
+) -> None:
+    """Do not add a movie that does not exist locally."""
+
+    user_id = uuid4()
+    movie_id = uuid4()
+
+    movie_repository.get_by_id.return_value = None
+
+    result = library_service.add_movie(
+        user_id=user_id,
+        movie_id=movie_id,
+    )
+
+    assert result is None
+
+    movie_repository.get_by_id.assert_called_once_with(
+        movie_id,
+    )
+
+    library_repository.get_by_user_and_movie.assert_not_called()
+    library_repository.add.assert_not_called()
+
+
+def test_add_movie_raises_when_entry_already_exists(
+    library_service: LibraryService,
+    library_repository: Mock,
+    movie_repository: Mock,
+) -> None:
+    """Reject a duplicate movie library entry."""
+
+    user_id = uuid4()
+    movie_id = uuid4()
+
+    movie_repository.get_by_id.return_value = make_movie(
+        movie_id=movie_id,
+    )
+
+    existing_entry = LibraryEntry(
+        user_id=user_id,
+        movie_id=movie_id,
+        status=LibraryStatus.PLANNING,
+    )
+
+    library_repository.get_by_user_and_movie.return_value = (
+        existing_entry
+    )
+
+    with pytest.raises(
+        LibraryEntryAlreadyExistsError,
+        match="already exists",
+    ):
+        library_service.add_movie(
+            user_id=user_id,
+            movie_id=movie_id,
+        )
+
+    library_repository.add.assert_not_called()

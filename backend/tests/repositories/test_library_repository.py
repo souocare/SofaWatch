@@ -4,7 +4,10 @@ from app.models.enums import LibraryStatus
 from app.models.library import LibraryEntry
 from app.models.show import Show
 from app.models.user import User
+from app.models.movie import Movie
 from app.repositories.library import LibraryRepository
+import pytest
+from sqlalchemy.exc import IntegrityError
 
 
 def create_user(
@@ -48,6 +51,34 @@ def create_show(
 
     return show
 
+def create_movie(
+    db_session: Session,
+    *,
+    tmdb_id: int,
+    title: str,
+) -> Movie:
+    """Create a locally stored movie."""
+
+    movie = Movie(
+        tmdb_id=tmdb_id,
+        title=title,
+        original_title=title,
+        original_language="en",
+        runtime=120,
+        status="Released",
+        adult=False,
+        video=False,
+        popularity=10.0,
+        vote_average=8.0,
+        vote_count=100,
+        metadata_language="en-US",
+    )
+
+    db_session.add(movie)
+    db_session.commit()
+    db_session.refresh(movie)
+
+    return movie
 
 def test_add_and_get_library_entry(
     db_session: Session,
@@ -277,3 +308,170 @@ def test_delete_library_entry(
     )
 
     assert result is None
+
+
+def test_add_and_get_movie_library_entry(
+    db_session: Session,
+) -> None:
+    """Add and retrieve a movie library entry."""
+
+    user = create_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    repository = LibraryRepository(
+        db_session,
+    )
+
+    entry = LibraryEntry(
+        user_id=user.id,
+        movie_id=movie.id,
+        status=LibraryStatus.PLANNING,
+    )
+
+    repository.add(entry)
+    db_session.commit()
+
+    result = repository.get_by_user_and_movie(
+        user_id=user.id,
+        movie_id=movie.id,
+    )
+
+    assert result is not None
+
+    assert result.id == entry.id
+    assert result.user_id == user.id
+
+    assert result.show_id is None
+    assert result.movie_id == movie.id
+
+    assert result.status == LibraryStatus.PLANNING
+
+def test_get_missing_movie_library_entry_returns_none(
+    db_session: Session,
+) -> None:
+    """Return None when a movie is not in the user's library."""
+
+    user = create_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    repository = LibraryRepository(
+        db_session,
+    )
+
+    result = repository.get_by_user_and_movie(
+        user_id=user.id,
+        movie_id=movie.id,
+    )
+
+    assert result is None
+
+
+
+def test_library_entry_requires_media_target(
+    db_session: Session,
+) -> None:
+    """Reject an entry without a Show or Movie."""
+
+    user = create_user(
+        db_session,
+    )
+
+    entry = LibraryEntry(
+        user_id=user.id,
+        status=LibraryStatus.PLANNING,
+    )
+
+    db_session.add(entry)
+
+    with pytest.raises(IntegrityError):
+        db_session.commit()
+
+    db_session.rollback()
+
+
+def test_library_entry_rejects_multiple_media_targets(
+    db_session: Session,
+) -> None:
+    """Reject an entry referencing both a Show and Movie."""
+
+    user = create_user(
+        db_session,
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    entry = LibraryEntry(
+        user_id=user.id,
+        show_id=show.id,
+        movie_id=movie.id,
+        status=LibraryStatus.PLANNING,
+    )
+
+    db_session.add(entry)
+
+    with pytest.raises(IntegrityError):
+        db_session.commit()
+
+    db_session.rollback()
+
+
+
+def test_user_cannot_have_duplicate_movie_library_entry(
+    db_session: Session,
+) -> None:
+    """Reject duplicate Movie entries for the same user."""
+
+    user = create_user(
+        db_session,
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    db_session.add(
+        LibraryEntry(
+            user_id=user.id,
+            movie_id=movie.id,
+            status=LibraryStatus.PLANNING,
+        )
+    )
+
+    db_session.commit()
+
+    db_session.add(
+        LibraryEntry(
+            user_id=user.id,
+            movie_id=movie.id,
+            status=LibraryStatus.PLANNING,
+        )
+    )
+
+    with pytest.raises(IntegrityError):
+        db_session.commit()
+
+    db_session.rollback()
+
+

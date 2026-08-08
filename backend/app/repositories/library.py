@@ -42,6 +42,21 @@ class LibraryRepository:
             )
         )
 
+    def get_by_user_and_movie(
+        self,
+        *,
+        user_id: UUID,
+        movie_id: UUID,
+    ) -> LibraryEntry | None:
+        """Return a user's library entry for a movie."""
+
+        return self._session.scalar(
+            select(LibraryEntry).where(
+                LibraryEntry.user_id == user_id,
+                LibraryEntry.movie_id == movie_id,
+            )
+        )
+
     def list_by_user(
         self,
         user_id: UUID,
@@ -64,7 +79,9 @@ class LibraryRepository:
             LibraryEntry.created_at.desc(),
         )
 
-        return list(self._session.scalars(statement).all())
+        return list(
+            self._session.scalars(statement).all()
+        )
 
     def add(
         self,

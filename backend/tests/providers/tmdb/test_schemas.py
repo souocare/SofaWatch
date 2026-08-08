@@ -9,7 +9,7 @@ from app.providers.tmdb.schemas import (
     TMDBMultiSearchResponse,
     TMDBMultiSearchResult,
     TMDBMultiTVSearchResult,
-    TMDBMovieDetails
+    TMDBMovieDetails,
 )
 
 
@@ -151,7 +151,6 @@ def test_multi_search_result_type_alias_accepts_supported_results() -> None:
     results: list[TMDBMultiSearchResult] = []
 
     assert results == []
-
 
 
 def _movie_payload() -> dict[str, object]:

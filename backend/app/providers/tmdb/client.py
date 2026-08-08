@@ -161,9 +161,7 @@ class TMDBClient:
         """Get detailed information about a movie from TMDB."""
 
         if tmdb_id < 1:
-            raise ValueError(
-                "The TMDB ID must be greater than or equal to 1."
-            )
+            raise ValueError("The TMDB ID must be greater than or equal to 1.")
 
         request_language = language or self._settings.default_language
 

@@ -7,6 +7,7 @@ from app.repositories.network import NetworkRepository
 from app.repositories.season import SeasonRepository
 from app.repositories.show import ShowRepository
 from app.repositories.user import UserRepository
+from app.repositories.movie import MovieRepository
 
 __all__ = [
     "GenreRepository",
@@ -18,4 +19,5 @@ __all__ = [
     "EpisodeProgressRepository",
     "NetworkRepository",
     "BackgroundJobRepository",
+    "MovieRepository",
 ]

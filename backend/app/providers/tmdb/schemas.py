@@ -325,6 +325,7 @@ class TMDBMultiSearchResponse(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
+
 class TMDBMovieDetails(BaseModel):
     """Detailed movie information returned by TMDB."""
 

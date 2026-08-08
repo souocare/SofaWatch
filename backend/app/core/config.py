@@ -60,10 +60,11 @@ class Settings(BaseSettings):
         return [
             language.strip() for language in self.supported_languages.split(",") if language.strip()
         ]
+
     @property
     def is_development(self) -> bool:
         return self.environment.lower() == "development"
-    
+
     @property
     def cors_origin_list(self) -> list[str]:
         """Return configured CORS origins."""

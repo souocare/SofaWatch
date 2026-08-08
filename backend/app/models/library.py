@@ -18,12 +18,13 @@ from app.db.mixins import TimestampMixin
 from app.models.enums import LibraryStatus
 
 if TYPE_CHECKING:
+    from app.models.movie import Movie
     from app.models.show import Show
     from app.models.user import User
 
 
 class LibraryEntry(TimestampMixin, Base):
-    """TV series stored in a user's personal library."""
+    """Media item stored in a user's personal library."""
 
     __tablename__ = "library_entries"
 
@@ -32,6 +33,25 @@ class LibraryEntry(TimestampMixin, Base):
             "user_id",
             "show_id",
             name="uq_library_entries_user_id_show_id",
+        ),
+        UniqueConstraint(
+            "user_id",
+            "movie_id",
+            name="uq_library_entries_user_id_movie_id",
+        ),
+        CheckConstraint(
+            """
+            (
+                show_id IS NOT NULL
+                AND movie_id IS NULL
+            )
+            OR
+            (
+                show_id IS NULL
+                AND movie_id IS NOT NULL
+            )
+            """,
+            name="ck_library_entries_single_media_target",
         ),
         CheckConstraint(
             "rating IS NULL OR (rating >= 0 AND rating <= 10)",
@@ -55,13 +75,23 @@ class LibraryEntry(TimestampMixin, Base):
         index=True,
     )
 
-    show_id: Mapped[UUID] = mapped_column(
+    show_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey(
             "shows.id",
             ondelete="CASCADE",
         ),
-        nullable=False,
+        nullable=True,
+        index=True,
+    )
+
+    movie_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey(
+            "movies.id",
+            ondelete="CASCADE",
+        ),
+        nullable=True,
         index=True,
     )
 
@@ -70,7 +100,10 @@ class LibraryEntry(TimestampMixin, Base):
             LibraryStatus,
             name="library_status",
             native_enum=False,
-            values_callable=lambda enum: [member.value for member in enum],
+            values_callable=lambda enum: [
+                member.value
+                for member in enum
+            ],
         ),
         nullable=False,
         default=LibraryStatus.PLANNING,
@@ -96,7 +129,11 @@ class LibraryEntry(TimestampMixin, Base):
         back_populates="library_entries",
     )
 
-    show: Mapped["Show"] = relationship(
+    show: Mapped["Show | None"] = relationship(
+        back_populates="library_entries",
+    )
+
+    movie: Mapped["Movie | None"] = relationship(
         back_populates="library_entries",
     )
 
@@ -106,6 +143,7 @@ class LibraryEntry(TimestampMixin, Base):
             f"id={self.id!r}, "
             f"user_id={self.user_id!r}, "
             f"show_id={self.show_id!r}, "
+            f"movie_id={self.movie_id!r}, "
             f"status={self.status!r}"
             ")"
         )

@@ -60,9 +60,7 @@ cors_kwargs: dict[str, object] = {
     "allow_headers": ["*"],
 }
 if settings.is_development:
-    cors_kwargs["allow_origin_regex"] = (
-        r"^http://(localhost|127\.0\.0\.1):\d+$"
-    )
+    cors_kwargs["allow_origin_regex"] = r"^http://(localhost|127\.0\.0\.1):\d+$"
 else:
     cors_kwargs["allow_origins"] = settings.cors_origin_list
 app.add_middleware(

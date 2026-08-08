@@ -3,11 +3,12 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.associations import show_genres
+from app.db.associations import movie_genres, show_genres
 from app.db.base import Base
 from app.db.mixins import TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.movie import Movie
     from app.models.show import Show
 
 
@@ -45,5 +46,15 @@ class Genre(TimestampMixin, Base):
         back_populates="genres",
     )
 
+    movies: Mapped[list["Movie"]] = relationship(
+        secondary=movie_genres,
+        back_populates="genres",
+    )
+
     def __repr__(self) -> str:
-        return f"Genre(id={self.id!r}, tmdb_id={self.tmdb_id!r}, name={self.name!r}, slug={self.slug!r})"
+        return (
+            f"Genre(id={self.id!r}, "
+            f"tmdb_id={self.tmdb_id!r}, "
+            f"name={self.name!r}, "
+            f"slug={self.slug!r})"
+        )

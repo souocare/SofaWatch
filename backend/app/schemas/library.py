@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.models.enums import LibraryStatus
 
@@ -12,13 +12,33 @@ class LibraryEntryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    show_id: UUID
+
+    show_id: UUID | None
+    movie_id: UUID | None
+
     status: LibraryStatus
+
     rating: float | None
+
     started_at: datetime | None
     completed_at: datetime | None
+
     created_at: datetime
     updated_at: datetime
+
+    @model_validator(mode="after")
+    def validate_media_target(self) -> "LibraryEntryResponse":
+        """Ensure the entry references exactly one media item."""
+
+        has_show = self.show_id is not None
+        has_movie = self.movie_id is not None
+
+        if has_show == has_movie:
+            raise ValueError(
+                "A library entry must reference exactly one media item."
+            )
+
+        return self
 
 
 class LibraryStatusUpdate(BaseModel):
