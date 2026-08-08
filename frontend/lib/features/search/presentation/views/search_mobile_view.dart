@@ -9,7 +9,7 @@ import 'package:sofawatch/features/search/application/bloc/search_state.dart';
 import 'package:sofawatch/features/search/domain/entities/search_result.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_media_type_filter_bar.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_minimum_characters_hint.dart';
-import 'package:sofawatch/features/search/presentation/widgets/search_results_section.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_library_results_section.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_empty_state.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_failure_state.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_loading_state.dart';
@@ -69,10 +69,6 @@ class _SearchMobileContent extends StatelessWidget {
     );
   }
 
-  void _handleResultAction(SearchResult result) {
-    // Ligação real à Watchlist/Biblioteca entra no ponto 13.14.
-  }
-
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<SearchBloc, SearchState>(
@@ -127,7 +123,7 @@ class _SearchMobileContent extends StatelessWidget {
     }
 
     if (state.hasResults) {
-      return SearchResultsSection(
+      return SearchLibraryResultsSection(
         results: state.results.data!.results,
         scrollable: true,
         compact: true,
@@ -142,7 +138,6 @@ class _SearchMobileContent extends StatelessWidget {
         onResultPressed: (SearchResult result) {
           _openResult(context, result);
         },
-        onResultActionPressed: _handleResultAction,
       );
     }
 

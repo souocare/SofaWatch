@@ -17,7 +17,7 @@ import 'package:sofawatch/features/search/presentation/widgets/search_failure_st
 import 'package:sofawatch/features/search/presentation/widgets/search_loading_state.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_media_type_filter_bar.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_minimum_characters_hint.dart';
-import 'package:sofawatch/features/search/presentation/widgets/search_results_section.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_library_results_section.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_text_field.dart';
 
 class SearchDesktopView extends StatelessWidget {
@@ -301,10 +301,6 @@ class _SearchDesktopScrollableContentState
     );
   }
 
-  void _handleResultAction(SearchResult result) {
-    // A ação de Watchlist/Biblioteca será implementada no ponto 13.14.
-  }
-
   @override
   void dispose() {
     _scrollController.removeListener(_handleScroll);
@@ -354,7 +350,7 @@ class _SearchDesktopScrollableContentState
             }
 
             if (state.hasResults) {
-              return SearchResultsSection(
+              return SearchLibraryResultsSection(
                 results: state.results.data!.results,
                 scrollable: false,
                 isLoadingMore: state.isLoadingMore,
@@ -365,7 +361,6 @@ class _SearchDesktopScrollableContentState
                 onResultPressed: (SearchResult result) {
                   _openResult(context, result);
                 },
-                onResultActionPressed: _handleResultAction,
               );
             }
 

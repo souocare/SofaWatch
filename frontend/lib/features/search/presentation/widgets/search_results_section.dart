@@ -15,6 +15,9 @@ class SearchResultsSection extends StatefulWidget {
     this.isLoadingMore = false,
     this.paginationError,
     this.onPaginationRetry,
+    this.isActionAvailable,
+    this.isActionLoading,
+    this.isActionAdded,
     super.key,
   });
 
@@ -46,6 +49,9 @@ class SearchResultsSection extends StatefulWidget {
 
   /// Repete apenas a tentativa de carregar a próxima página.
   final VoidCallback? onPaginationRetry;
+  final bool Function(SearchResult)? isActionAvailable;
+  final bool Function(SearchResult)? isActionLoading;
+  final bool Function(SearchResult)? isActionAdded;
 
   @override
   State<SearchResultsSection> createState() {
@@ -166,13 +172,21 @@ class _SearchResultsSectionState extends State<SearchResultsSection> {
   }
 
   Widget _buildResultRow(SearchResult result) {
+    final bool actionAvailable = widget.isActionAvailable?.call(result) ?? true;
+
+    final bool actionLoading = widget.isActionLoading?.call(result) ?? false;
+
+    final bool actionAdded = widget.isActionAdded?.call(result) ?? false;
+
     return SearchResultRow(
       result: result,
       compact: widget.compact,
+      actionLoading: actionLoading,
+      actionAdded: actionAdded,
       onPressed: () {
         widget.onResultPressed(result);
       },
-      onActionPressed: widget.onResultActionPressed == null
+      onActionPressed: widget.onResultActionPressed == null || !actionAvailable
           ? null
           : () {
               widget.onResultActionPressed!(result);
