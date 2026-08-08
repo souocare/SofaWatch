@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query, status
 from app.api.dependencies import (
     get_media_search_service,
     get_show_search_service,
+    CurrentUserDependency,
 )
 from app.core.exceptions import APIError
 from app.providers.tmdb.exceptions import (
@@ -36,6 +37,7 @@ router = APIRouter(
     ),
 )
 def search_media(
+    current_user: CurrentUserDependency,
     service: Annotated[
         MediaSearchService,
         Depends(get_media_search_service),
@@ -76,6 +78,7 @@ def search_media(
 
     try:
         return service.search(
+            user_id=current_user.id,
             query=query,
             page=page,
             language=language,

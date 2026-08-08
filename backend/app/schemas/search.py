@@ -34,6 +34,7 @@ class SearchResult(BaseModel):
 
     poster_url: str | None = None
     backdrop_url: str | None = None
+    in_library: bool = False
 
     original_language: str
     genre_ids: list[int] = Field(default_factory=list)

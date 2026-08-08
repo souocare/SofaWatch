@@ -13,6 +13,8 @@ from app.schemas.search import (
     SearchResponse,
     SearchResult,
 )
+from uuid import UUID
+from app.repositories.library import LibraryRepository
 
 
 class MediaSearchService:
@@ -22,38 +24,45 @@ class MediaSearchService:
         self,
         settings: Settings,
         tmdb_client: TMDBClient,
+        library_repository: LibraryRepository,
     ) -> None:
         self._settings = settings
         self._tmdb_client = tmdb_client
+        self._library_repository = library_repository
 
     def search(
         self,
         *,
+        user_id: UUID,
         query: str,
         page: int = 1,
         language: str | None = None,
         media_type: SearchMediaTypeFilter = SearchMediaTypeFilter.ALL,
     ) -> SearchResponse:
-        """Search movies, TV series, or both."""
+        """Search movies and TV series and resolve library membership."""
 
         if media_type is SearchMediaTypeFilter.SHOW:
-            return self._search_shows(
+            response = self._search_shows(
+                query=query,
+                page=page,
+                language=language,
+            )
+        elif media_type is SearchMediaTypeFilter.MOVIE:
+            response = self._search_movies(
+                query=query,
+                page=page,
+                language=language,
+            )
+        else:
+            response = self._search_all(
                 query=query,
                 page=page,
                 language=language,
             )
 
-        if media_type is SearchMediaTypeFilter.MOVIE:
-            return self._search_movies(
-                query=query,
-                page=page,
-                language=language,
-            )
-
-        return self._search_all(
-            query=query,
-            page=page,
-            language=language,
+        return self._enrich_library_state(
+            response=response,
+            user_id=user_id,
         )
 
     def _search_all(
@@ -210,3 +219,60 @@ class MediaSearchService:
         base_url = self._settings.tmdb_image_base_url.rstrip("/")
 
         return f"{base_url}/{size}{image_path}"
+
+
+    def _enrich_library_state(
+        self,
+        *,
+        response: SearchResponse,
+        user_id: UUID,
+    ) -> SearchResponse:
+        """Resolve library membership for a complete Search page."""
+
+        show_tmdb_ids = {
+            result.tmdb_id
+            for result in response.results
+            if result.media_type is SearchMediaType.SHOW
+        }
+
+        movie_tmdb_ids = {
+            result.tmdb_id
+            for result in response.results
+            if result.media_type is SearchMediaType.MOVIE
+        }
+
+        library_show_tmdb_ids = (
+            self._library_repository.get_show_tmdb_ids_in_library(
+                user_id=user_id,
+                tmdb_ids=show_tmdb_ids,
+            )
+        )
+
+        library_movie_tmdb_ids = (
+            self._library_repository.get_movie_tmdb_ids_in_library(
+                user_id=user_id,
+                tmdb_ids=movie_tmdb_ids,
+            )
+        )
+
+        enriched_results = [
+            result.model_copy(
+                update={
+                    "in_library": (
+                        result.tmdb_id
+                        in (
+                            library_show_tmdb_ids
+                            if result.media_type is SearchMediaType.SHOW
+                            else library_movie_tmdb_ids
+                        )
+                    )
+                }
+            )
+            for result in response.results
+        ]
+
+        return response.model_copy(
+            update={
+                "results": enriched_results,
+            }
+        )

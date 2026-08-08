@@ -1,13 +1,16 @@
 from datetime import date
 from unittest.mock import Mock
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import (
+    get_current_user,
     get_media_search_service,
     get_show_search_service,
 )
+from app.models.user import User
 from app.main import app
 from app.providers.tmdb.exceptions import (
     TMDBConfigurationError,
@@ -51,6 +54,17 @@ def client_with_show_search_service(
     app.dependency_overrides[get_show_search_service] = override_get_show_search_service
 
     return client
+
+
+@pytest.fixture
+def current_user() -> User:
+    """Provide the current SofaWatch user for Search route tests."""
+
+    return User(
+        id=uuid4(),
+        display_name="Local User",
+        is_local=True,
+    )
 
 
 def test_search_shows_returns_results(
@@ -328,13 +342,19 @@ def media_search_service() -> Mock:
 def client_with_media_search_service(
     client: TestClient,
     media_search_service: Mock,
+    current_user: User,
 ) -> TestClient:
     """Provide a test client using the mocked media search service."""
 
     def override_get_media_search_service() -> Mock:
         return media_search_service
 
+    def override_get_current_user() -> User:
+        return current_user
+
     app.dependency_overrides[get_media_search_service] = override_get_media_search_service
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
 
     return client
 
@@ -342,6 +362,7 @@ def client_with_media_search_service(
 def test_search_media_returns_mixed_results(
     client_with_media_search_service: TestClient,
     media_search_service: Mock,
+    current_user: User,
 ) -> None:
     media_search_service.search.return_value = SearchResponse(
         page=1,
@@ -360,6 +381,7 @@ def test_search_media_returns_mixed_results(
                 popularity=120.5,
                 vote_average=8.4,
                 vote_count=2100,
+                in_library=False,
             ),
             SearchResult(
                 media_type=SearchMediaType.MOVIE,
@@ -375,6 +397,7 @@ def test_search_media_returns_mixed_results(
                 popularity=95.4,
                 vote_average=7.8,
                 vote_count=13000,
+                in_library=False,
             ),
         ],
         total_pages=2,
@@ -396,6 +419,8 @@ def test_search_media_returns_mixed_results(
     assert body["total_pages"] == 2
     assert body["total_results"] == 25
     assert len(body["results"]) == 2
+    assert body["results"][0]["in_library"] is False
+    assert body["results"][1]["in_library"] is False
 
     assert body["results"][0]["media_type"] == "show"
     assert body["results"][0]["poster_url"] == ("https://image.tmdb.org/t/p/w500/severance.jpg")
@@ -404,6 +429,7 @@ def test_search_media_returns_mixed_results(
     assert body["results"][1]["poster_url"] == ("https://image.tmdb.org/t/p/w500/dune.jpg")
 
     media_search_service.search.assert_called_once_with(
+        user_id=current_user.id,
         query="Dune",
         page=1,
         language=None,
@@ -414,6 +440,7 @@ def test_search_media_returns_mixed_results(
 def test_search_media_forwards_optional_parameters(
     client_with_media_search_service: TestClient,
     media_search_service: Mock,
+    current_user: User,
 ) -> None:
     media_search_service.search.return_value = SearchResponse(
         page=3,
@@ -435,6 +462,7 @@ def test_search_media_forwards_optional_parameters(
     assert response.status_code == 200
 
     media_search_service.search.assert_called_once_with(
+        user_id=current_user.id,
         query="The Office",
         page=3,
         language="pt-PT",

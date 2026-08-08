@@ -5,6 +5,10 @@ from sqlalchemy.orm import Session
 
 from app.models.enums import LibraryStatus
 from app.models.library import LibraryEntry
+from collections.abc import Collection
+
+from app.models.movie import Movie
+from app.models.show import Show
 
 
 class LibraryRepository:
@@ -100,3 +104,57 @@ class LibraryRepository:
         """Delete a library entry from the current unit of work."""
 
         self._session.delete(entry)
+
+    def get_show_tmdb_ids_in_library(
+        self,
+        *,
+        user_id: UUID,
+        tmdb_ids: Collection[int],
+    ) -> set[int]:
+        """Return the requested Show TMDB IDs present in a user's library."""
+
+        if not tmdb_ids:
+            return set()
+
+        statement = (
+            select(Show.tmdb_id)
+            .join(
+                LibraryEntry,
+                LibraryEntry.show_id == Show.id,
+            )
+            .where(
+                LibraryEntry.user_id == user_id,
+                Show.tmdb_id.in_(tmdb_ids),
+            )
+        )
+
+        return set(
+            self._session.scalars(statement).all()
+        )
+
+    def get_movie_tmdb_ids_in_library(
+        self,
+        *,
+        user_id: UUID,
+        tmdb_ids: Collection[int],
+    ) -> set[int]:
+        """Return the requested Movie TMDB IDs present in a user's library."""
+
+        if not tmdb_ids:
+            return set()
+
+        statement = (
+            select(Movie.tmdb_id)
+            .join(
+                LibraryEntry,
+                LibraryEntry.movie_id == Movie.id,
+            )
+            .where(
+                LibraryEntry.user_id == user_id,
+                Movie.tmdb_id.in_(tmdb_ids),
+            )
+        )
+
+        return set(
+            self._session.scalars(statement).all()
+        )

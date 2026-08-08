@@ -1,5 +1,7 @@
 from datetime import date
 from unittest.mock import Mock
+from uuid import uuid4
+
 
 import pytest
 
@@ -20,6 +22,9 @@ from app.schemas.search import (
     SearchMediaTypeFilter,
 )
 from app.services.media_search import MediaSearchService
+from app.repositories.library import LibraryRepository
+
+USER_ID = uuid4()
 
 
 @pytest.fixture
@@ -36,13 +41,28 @@ def tmdb_client() -> Mock:
 
 
 @pytest.fixture
+def library_repository() -> Mock:
+    repository = Mock(spec=LibraryRepository)
+
+    repository.get_show_tmdb_ids_in_library.return_value = set()
+    repository.get_movie_tmdb_ids_in_library.return_value = set()
+
+    return repository
+
+
+@pytest.fixture
 def service(
     settings: Settings,
     tmdb_client: Mock,
+    library_repository: Mock,
 ) -> MediaSearchService:
+    library_repository.get_show_tmdb_ids_in_library.return_value = set()
+    library_repository.get_movie_tmdb_ids_in_library.return_value = set()
+
     return MediaSearchService(
         settings=settings,
         tmdb_client=tmdb_client,
+        library_repository=library_repository,
     )
 
 
@@ -98,6 +118,7 @@ def test_search_all_maps_movies_and_shows_and_filters_people(
     )
 
     response = service.search(
+        user_id=USER_ID,
         query="Dune",
         page=1,
         language="pt-PT",
@@ -163,6 +184,7 @@ def test_search_shows_uses_the_tv_search_endpoint(
     )
 
     response = service.search(
+        user_id=USER_ID,
         query="Severance",
         page=2,
         language=None,
@@ -210,6 +232,7 @@ def test_search_movies_uses_the_movie_search_endpoint(
     )
 
     response = service.search(
+        user_id=USER_ID,
         query="Dune",
         media_type=SearchMediaTypeFilter.MOVIE,
     )
@@ -254,6 +277,7 @@ def test_search_preserves_missing_images(
     )
 
     response = service.search(
+        user_id=USER_ID,
         query="Dune",
         media_type=SearchMediaTypeFilter.MOVIE,
     )
@@ -268,15 +292,20 @@ def test_search_preserves_missing_images(
 
 def test_search_image_urls_support_a_trailing_base_slash(
     tmdb_client: Mock,
+    library_repository: Mock,
 ) -> None:
     settings = Settings(
         secret_key="a" * 32,
         tmdb_image_base_url="https://image.tmdb.org/t/p/",
     )
 
+    library_repository.get_show_tmdb_ids_in_library.return_value = set()
+    library_repository.get_movie_tmdb_ids_in_library.return_value = set()
+
     service = MediaSearchService(
         settings=settings,
         tmdb_client=tmdb_client,
+        library_repository=library_repository,
     )
 
     tmdb_client.search_movies.return_value = TMDBMovieSearchResponse(
@@ -301,8 +330,278 @@ def test_search_image_urls_support_a_trailing_base_slash(
     )
 
     response = service.search(
+        user_id=USER_ID,
         query="Dune",
         media_type=SearchMediaTypeFilter.MOVIE,
     )
 
-    assert response.results[0].poster_url == ("https://image.tmdb.org/t/p/w500/poster.jpg")
+    assert response.results[0].poster_url == (
+        "https://image.tmdb.org/t/p/w500/poster.jpg"
+    )
+
+    assert response.results[0].backdrop_url == (
+        "https://image.tmdb.org/t/p/original/backdrop.jpg"
+    )
+
+
+def test_search_marks_result_as_not_in_library(
+    service: MediaSearchService,
+    tmdb_client: Mock,
+    library_repository: Mock,
+) -> None:
+    tmdb_client.search_tv_shows.return_value = TMDBTVSearchResponse(
+        page=1,
+        results=[
+            TMDBTVSearchResult(
+                id=95396,
+                name="Severance",
+                original_name="Severance",
+                overview="",
+                first_air_date=None,
+                poster_path=None,
+                backdrop_path=None,
+                original_language="en",
+                genre_ids=[],
+                popularity=0,
+                vote_average=0,
+                vote_count=0,
+            )
+        ],
+        total_pages=1,
+        total_results=1,
+    )
+
+    library_repository.get_show_tmdb_ids_in_library.return_value = set()
+
+    response = service.search(
+        user_id=USER_ID,
+        query="Severance",
+        media_type=SearchMediaTypeFilter.SHOW,
+    )
+
+    assert response.results[0].in_library is False
+
+
+def test_search_marks_show_as_in_library(
+    service: MediaSearchService,
+    tmdb_client: Mock,
+    library_repository: Mock,
+) -> None:
+    tmdb_client.search_tv_shows.return_value = TMDBTVSearchResponse(
+        page=1,
+        results=[
+            TMDBTVSearchResult(
+                id=95396,
+                name="Severance",
+                original_name="Severance",
+                overview="",
+                first_air_date=None,
+                poster_path=None,
+                backdrop_path=None,
+                original_language="en",
+                genre_ids=[],
+                popularity=0,
+                vote_average=0,
+                vote_count=0,
+            )
+        ],
+        total_pages=1,
+        total_results=1,
+    )
+
+    library_repository.get_show_tmdb_ids_in_library.return_value = {
+        95396,
+    }
+
+    response = service.search(
+        user_id=USER_ID,
+        query="Severance",
+        media_type=SearchMediaTypeFilter.SHOW,
+    )
+
+    assert response.results[0].in_library is True
+
+    library_repository.get_show_tmdb_ids_in_library.assert_called_once_with(
+        user_id=USER_ID,
+        tmdb_ids={
+            95396,
+        },
+    )
+
+
+def test_search_marks_movie_as_in_library(
+    service: MediaSearchService,
+    tmdb_client: Mock,
+    library_repository: Mock,
+) -> None:
+    tmdb_client.search_movies.return_value = TMDBMovieSearchResponse(
+        page=1,
+        results=[
+            TMDBMovieSearchResult(
+                id=438631,
+                title="Dune",
+                original_title="Dune",
+                overview="",
+                release_date=None,
+                poster_path=None,
+                backdrop_path=None,
+                original_language="en",
+                genre_ids=[],
+                popularity=0,
+                vote_average=0,
+                vote_count=0,
+            )
+        ],
+        total_pages=1,
+        total_results=1,
+    )
+
+    library_repository.get_movie_tmdb_ids_in_library.return_value = {
+        438631,
+    }
+
+    response = service.search(
+        user_id=USER_ID,
+        query="Dune",
+        media_type=SearchMediaTypeFilter.MOVIE,
+    )
+
+    assert response.results[0].in_library is True
+
+    library_repository.get_movie_tmdb_ids_in_library.assert_called_once_with(
+        user_id=USER_ID,
+        tmdb_ids={
+            438631,
+        },
+    )
+
+
+def test_search_resolves_library_state_for_mixed_results(
+    service: MediaSearchService,
+    tmdb_client: Mock,
+    library_repository: Mock,
+) -> None:
+    tmdb_client.search_multi.return_value = TMDBMultiSearchResponse(
+        page=1,
+        results=[
+            TMDBMultiTVSearchResult(
+                media_type="tv",
+                id=95396,
+                name="Severance",
+                original_name="Severance",
+                overview="",
+                first_air_date=None,
+                poster_path=None,
+                backdrop_path=None,
+                original_language="en",
+                genre_ids=[],
+                popularity=0,
+                vote_average=0,
+                vote_count=0,
+            ),
+            TMDBMultiTVSearchResult(
+                media_type="tv",
+                id=1396,
+                name="Breaking Bad",
+                original_name="Breaking Bad",
+                overview="",
+                first_air_date=None,
+                poster_path=None,
+                backdrop_path=None,
+                original_language="en",
+                genre_ids=[],
+                popularity=0,
+                vote_average=0,
+                vote_count=0,
+            ),
+            TMDBMultiMovieSearchResult(
+                media_type="movie",
+                id=438631,
+                title="Dune",
+                original_title="Dune",
+                overview="",
+                release_date=None,
+                poster_path=None,
+                backdrop_path=None,
+                original_language="en",
+                genre_ids=[],
+                popularity=0,
+                vote_average=0,
+                vote_count=0,
+            ),
+            TMDBMultiMovieSearchResult(
+                media_type="movie",
+                id=603,
+                title="The Matrix",
+                original_title="The Matrix",
+                overview="",
+                release_date=None,
+                poster_path=None,
+                backdrop_path=None,
+                original_language="en",
+                genre_ids=[],
+                popularity=0,
+                vote_average=0,
+                vote_count=0,
+            ),
+        ],
+        total_pages=1,
+        total_results=4,
+    )
+
+    library_repository.get_show_tmdb_ids_in_library.return_value = {
+        95396,
+    }
+
+    library_repository.get_movie_tmdb_ids_in_library.return_value = {
+        603,
+    }
+
+    response = service.search(
+        user_id=USER_ID,
+        query="test",
+        media_type=SearchMediaTypeFilter.ALL,
+    )
+
+    states = {
+        (
+            result.media_type,
+            result.tmdb_id,
+        ): result.in_library
+        for result in response.results
+    }
+
+    assert states == {
+        (
+            SearchMediaType.SHOW,
+            95396,
+        ): True,
+        (
+            SearchMediaType.SHOW,
+            1396,
+        ): False,
+        (
+            SearchMediaType.MOVIE,
+            438631,
+        ): False,
+        (
+            SearchMediaType.MOVIE,
+            603,
+        ): True,
+    }
+
+    library_repository.get_show_tmdb_ids_in_library.assert_called_once_with(
+        user_id=USER_ID,
+        tmdb_ids={
+            95396,
+            1396,
+        },
+    )
+
+    library_repository.get_movie_tmdb_ids_in_library.assert_called_once_with(
+        user_id=USER_ID,
+        tmdb_ids={
+            438631,
+            603,
+        },
+    )

@@ -81,6 +81,7 @@ TMDBClientDependency = Annotated[
 
 
 def get_media_search_service(
+    session: DatabaseSession,
     settings: Annotated[
         Settings,
         Depends(get_settings),
@@ -95,6 +96,9 @@ def get_media_search_service(
     return MediaSearchService(
         settings=settings,
         tmdb_client=tmdb_client,
+        library_repository=LibraryRepository(
+            session,
+        ),
     )
 
 

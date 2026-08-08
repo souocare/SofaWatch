@@ -475,3 +475,114 @@ def test_user_cannot_have_duplicate_movie_library_entry(
     db_session.rollback()
 
 
+def test_get_show_tmdb_ids_in_library(
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    severance = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    breaking_bad = create_show(
+        db_session,
+        tmdb_id=1396,
+        title="Breaking Bad",
+    )
+
+    db_session.add(
+        LibraryEntry(
+            user_id=user.id,
+            show_id=severance.id,
+            status=LibraryStatus.PLANNING,
+        )
+    )
+
+    db_session.commit()
+
+    repository = LibraryRepository(
+        db_session,
+    )
+
+    result = repository.get_show_tmdb_ids_in_library(
+        user_id=user.id,
+        tmdb_ids={
+            95396,
+            1396,
+            999999,
+        },
+    )
+
+    assert result == {
+        95396,
+    }
+
+    assert breaking_bad.tmdb_id not in result
+
+def test_get_movie_tmdb_ids_in_library(
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    dune = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    matrix = create_movie(
+        db_session,
+        tmdb_id=603,
+        title="The Matrix",
+    )
+
+    db_session.add(
+        LibraryEntry(
+            user_id=user.id,
+            movie_id=dune.id,
+            status=LibraryStatus.PLANNING,
+        )
+    )
+
+    db_session.commit()
+
+    repository = LibraryRepository(
+        db_session,
+    )
+
+    result = repository.get_movie_tmdb_ids_in_library(
+        user_id=user.id,
+        tmdb_ids={
+            438631,
+            603,
+            999999,
+        },
+    )
+
+    assert result == {
+        438631,
+    }
+
+    assert matrix.tmdb_id not in result
+
+
+def test_get_library_tmdb_ids_returns_empty_sets_for_empty_input(
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    repository = LibraryRepository(
+        db_session,
+    )
+
+    assert repository.get_show_tmdb_ids_in_library(
+        user_id=user.id,
+        tmdb_ids=set(),
+    ) == set()
+
+    assert repository.get_movie_tmdb_ids_in_library(
+        user_id=user.id,
+        tmdb_ids=set(),
+    ) == set()
