@@ -16,6 +16,7 @@ class SearchResult extends Equatable {
     this.releaseDate,
     this.posterUrl,
     this.backdropUrl,
+    this.inLibrary = false,
   });
 
   final SearchMediaType mediaType;
@@ -37,6 +38,7 @@ class SearchResult extends Equatable {
   final double popularity;
   final double voteAverage;
   final int voteCount;
+  final bool inLibrary;
 
   bool get isShow {
     return mediaType == SearchMediaType.show;
@@ -77,5 +79,6 @@ class SearchResult extends Equatable {
     popularity,
     voteAverage,
     voteCount,
+    inLibrary,
   ];
 }

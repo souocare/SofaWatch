@@ -125,5 +125,6 @@ Map<String, dynamic> _resultJson({
     'popularity': 0,
     'vote_average': 0,
     'vote_count': 0,
+    'in_library': false,
   };
 }

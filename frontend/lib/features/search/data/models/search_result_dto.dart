@@ -16,6 +16,7 @@ class SearchResultDto {
     this.releaseDate,
     this.posterUrl,
     this.backdropUrl,
+    required this.inLibrary,
   });
 
   factory SearchResultDto.fromJson(Map<String, dynamic> json) {
@@ -33,6 +34,7 @@ class SearchResultDto {
       popularity: _readDouble(json, 'popularity'),
       voteAverage: _readDouble(json, 'vote_average'),
       voteCount: _readNonNegativeInt(json, 'vote_count'),
+      inLibrary: _readBool(json, 'in_library'),
     );
   }
 
@@ -54,6 +56,7 @@ class SearchResultDto {
   final double popularity;
   final double voteAverage;
   final int voteCount;
+  final bool inLibrary;
 
   SearchResult toDomain() {
     return SearchResult(
@@ -70,6 +73,7 @@ class SearchResultDto {
       popularity: popularity,
       voteAverage: voteAverage,
       voteCount: voteCount,
+      inLibrary: inLibrary,
     );
   }
 
@@ -119,6 +123,16 @@ class SearchResultDto {
     }
 
     throw FormatException('Invalid string for "$key".');
+  }
+
+  static bool _readBool(Map<String, dynamic> json, String key) {
+    final Object? value = json[key];
+
+    if (value is bool) {
+      return value;
+    }
+
+    throw FormatException('Invalid boolean for "$key".');
   }
 
   static String? _readNullableString(Map<String, dynamic> json, String key) {

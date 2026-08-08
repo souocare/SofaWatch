@@ -1,0 +1,1 @@
+enum LibraryMediaType { show, movie }

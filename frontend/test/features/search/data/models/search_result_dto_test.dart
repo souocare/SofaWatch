@@ -20,6 +20,7 @@ void main() {
         'popularity': 120.5,
         'vote_average': 8.4,
         'vote_count': 2100,
+        'in_library': false,
       });
 
       final SearchResult result = dto.toDomain();
@@ -51,6 +52,7 @@ void main() {
         'popularity': 95,
         'vote_average': 7.8,
         'vote_count': 13000,
+        'in_library': false,
       }).toDomain();
 
       expect(result.mediaType, SearchMediaType.movie);
@@ -74,6 +76,7 @@ void main() {
         'popularity': 0,
         'vote_average': 0,
         'vote_count': 0,
+        'in_library': false,
       }).toDomain();
 
       expect(result.overview, isNull);
@@ -97,6 +100,7 @@ void main() {
         'popularity': 0,
         'vote_average': 0,
         'vote_count': 0,
+        'in_library': false,
       }).toDomain();
 
       expect(() => result.genreIds.add(18), throwsUnsupportedError);
@@ -146,6 +150,23 @@ void main() {
       expect(() => SearchResultDto.fromJson(json), throwsFormatException);
     });
   });
+  test('maps the library state', () {
+    final Map<String, dynamic> json = _validJson();
+
+    json['in_library'] = true;
+
+    final SearchResult result = SearchResultDto.fromJson(json).toDomain();
+
+    expect(result.inLibrary, isTrue);
+  });
+
+  test('rejects an invalid library state', () {
+    final Map<String, dynamic> json = _validJson();
+
+    json['in_library'] = 'yes';
+
+    expect(() => SearchResultDto.fromJson(json), throwsFormatException);
+  });
 }
 
 Map<String, dynamic> _validJson({
@@ -168,5 +189,6 @@ Map<String, dynamic> _validJson({
     'popularity': 95.4,
     'vote_average': 7.8,
     'vote_count': 13000,
+    'in_library': false,
   };
 }

@@ -373,5 +373,6 @@ Map<String, dynamic> _searchResultJson({
     'popularity': 95.4,
     'vote_average': 7.8,
     'vote_count': 13000,
+    'in_library': false,
   };
 }
