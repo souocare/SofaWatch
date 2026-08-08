@@ -48,6 +48,8 @@ class TMDBMovieDetailsService:
             release_date=tmdb_movie.release_date,
             poster_path=tmdb_movie.poster_path,
             backdrop_path=tmdb_movie.backdrop_path,
+            adult=tmdb_movie.adult,
+            video=tmdb_movie.video,
             poster_url=self._build_image_url(
                 tmdb_movie.poster_path,
                 size="w500",

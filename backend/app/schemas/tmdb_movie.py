@@ -28,6 +28,8 @@ class MovieDetailsResponse(BaseModel):
 
     poster_path: str | None = None
     backdrop_path: str | None = None
+    adult: bool = False
+    video: bool = False
 
     genres: list[MovieGenre] = Field(default_factory=list)
 

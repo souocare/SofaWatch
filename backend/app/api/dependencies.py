@@ -38,6 +38,11 @@ from app.services.media_search import MediaSearchService
 from app.core.storage import ImageStorage
 from app.services.image import ImageService
 from app.services.image_cache import ImageCacheService
+from app.repositories.movie import MovieRepository
+from app.services.movie_import import MovieImportService
+from app.services.tmdb_movie_details import (
+    TMDBMovieDetailsService,
+)
 
 
 def get_genre_service(
@@ -259,6 +264,39 @@ TMDBMovieDetailsServiceDependency = Annotated[
     TMDBMovieDetailsService,
     Depends(get_movie_details_service),
 ]
+
+
+def get_movie_import_service(
+    session: DatabaseSession,
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
+    movie_details_service: Annotated[
+        TMDBMovieDetailsService,
+        Depends(get_movie_details_service),
+    ],
+) -> MovieImportService:
+    """Provide the movie import service."""
+
+    return MovieImportService(
+        session=session,
+        settings=settings,
+        movie_repository=MovieRepository(
+            session,
+        ),
+        genre_repository=GenreRepository(
+            session,
+        ),
+        tmdb_movie_details_service=movie_details_service,
+    )
+
+
+MovieImportServiceDependency = Annotated[
+    MovieImportService,
+    Depends(get_movie_import_service),
+]
+
 
 
 def get_user_service(
