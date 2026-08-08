@@ -1975,3 +1975,37 @@ def test_failed_refresh_does_not_persist_new_metadata_timestamp(
         )
 
     assert stored_timestamp == original_timestamp
+
+def test_import_show_returns_existing_recent_show_without_creating_duplicate(
+    db_session: Session,
+    show_import_service: ShowImportService,
+    tmdb_show_details_service: Mock,
+) -> None:
+    """Reuse a recently imported Show instead of importing it again."""
+
+    existing_show = Show(
+        tmdb_id=95396,
+        title="Severance",
+        original_title="Severance",
+        original_language="en",
+        metadata_language="en-US",
+        metadata_updated_at=datetime.now(UTC),
+    )
+
+    db_session.add(existing_show)
+    db_session.commit()
+    db_session.refresh(existing_show)
+
+    result = show_import_service.import_show(
+        tmdb_id=95396,
+    )
+
+    assert result.id == existing_show.id
+
+    show_count = db_session.scalar(
+        select(func.count()).select_from(Show)
+    )
+
+    assert show_count == 1
+
+    tmdb_show_details_service.get_details.assert_not_called()

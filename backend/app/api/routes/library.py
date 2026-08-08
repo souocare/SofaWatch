@@ -18,7 +18,6 @@ from app.schemas.library import (
     LibraryEntryResponse,
     LibraryStatusUpdate,
 )
-from app.services.exceptions import LibraryEntryAlreadyExistsError
 
 router = APIRouter(
     prefix="/library",

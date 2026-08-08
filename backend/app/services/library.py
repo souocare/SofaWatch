@@ -7,7 +7,6 @@ from app.models.library import LibraryEntry
 from app.repositories.library import LibraryRepository
 from app.repositories.movie import MovieRepository
 from app.repositories.show import ShowRepository
-from app.services.exceptions import LibraryEntryAlreadyExistsError
 
 
 class LibraryService:
@@ -124,9 +123,7 @@ class LibraryService:
         )
 
         if existing_entry is not None:
-            raise LibraryEntryAlreadyExistsError(
-                "Movie already exists in the user's library."
-            )
+            return existing_entry
 
         entry = LibraryEntry(
             user_id=user_id,
