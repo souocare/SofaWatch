@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,11 +16,36 @@ import '../../fakes/fake_server_connection_tester.dart';
 
 void main() {
   late GoRouter router;
+  late ApiClient apiClient;
 
   setUp(() {
-    router = createAppRouter(
-      apiClient: ApiClient(baseUrl: Uri.parse('https://server.example.com')),
+    final Dio dio = Dio();
+
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 500,
+              data: <String, dynamic>{
+                'error': <String, dynamic>{
+                  'code': 'test_error',
+                  'message': 'Test failure.',
+                },
+              },
+            ),
+          );
+        },
+      ),
     );
+
+    apiClient = ApiClient(
+      baseUrl: Uri.parse('https://server.example.com'),
+      dio: dio,
+    );
+
+    router = createAppRouter(apiClient: apiClient);
   });
 
   tearDown(() {
@@ -29,7 +55,7 @@ void main() {
   Widget buildTestApp() {
     return AppDependencies(
       serverConfigurationRepository: FakeServerConfigurationRepository(),
-      apiClient: ApiClient(baseUrl: Uri.parse('https://server.example.com')),
+      apiClient: apiClient,
       searchRepository: FakeSearchRepository(),
       serverConnectionTester: FakeServerConnectionTester(),
       child: MaterialApp.router(
@@ -57,15 +83,16 @@ void main() {
   testWidgets('opens show details from a deep-link location', (
     WidgetTester tester,
   ) async {
-    router.go('/shows/show-123');
+    router.go('/shows/95396');
 
     await tester.pumpWidget(buildTestApp());
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Show Details'), findsWidgets);
-
-    expect(find.text('show-123'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('show-details-failure')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('opens movie details from a deep-link location', (
@@ -73,16 +100,17 @@ void main() {
   ) async {
     router.goNamed(
       AppRoute.movieDetails.name,
-      pathParameters: <String, String>{'movieId': 'movie-456'},
+      pathParameters: <String, String>{'movieId': '438631'},
     );
 
     await tester.pumpWidget(buildTestApp());
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Movie Details'), findsWidgets);
-
-    expect(find.text('movie-456'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('movie-details-failure')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('opens episode details from a deep-link location', (
@@ -136,6 +164,7 @@ void main() {
       findsOneWidget,
     );
   });
+
   testWidgets('opens the global Search route on mobile', (
     WidgetTester tester,
   ) async {
@@ -276,52 +305,4 @@ void main() {
       findsOneWidget,
     );
   });
-  // testWidgets('opens the global Search route', (WidgetTester tester) async {
-  //   router.goNamed(AppRoute.search.name);
-
-  //   await tester.pumpWidget(buildTestApp());
-
-  //   await tester.pumpAndSettle();
-
-  //   expect(find.byKey(const ValueKey<String>('search-page')), findsOneWidget);
-
-  //   expect(
-  //     find.byKey(const ValueKey<String>('search-page-title')),
-  //     findsOneWidget,
-  //   );
-
-  //   expect(find.text('Search movies and TV shows.'), findsOneWidget);
-  // });
-
-  // testWidgets('closes Search and returns to the previous route', (
-  //   WidgetTester tester,
-  // ) async {
-  //   router.go('/home');
-
-  //   await tester.pumpWidget(buildTestApp());
-
-  //   await tester.pumpAndSettle();
-
-  //   expect(
-  //     find.byKey(const ValueKey<String>('home-page-title')),
-  //     findsOneWidget,
-  //   );
-
-  //   router.pushNamed(AppRoute.search.name);
-
-  //   await tester.pumpAndSettle();
-
-  //   expect(find.byKey(const ValueKey<String>('search-page')), findsOneWidget);
-
-  //   await tester.tap(find.byKey(const ValueKey<String>('search-close-button')));
-
-  //   await tester.pumpAndSettle();
-
-  //   expect(find.byKey(const ValueKey<String>('search-page')), findsNothing);
-
-  //   expect(
-  //     find.byKey(const ValueKey<String>('home-page-title')),
-  //     findsOneWidget,
-  //   );
-  // });
 }

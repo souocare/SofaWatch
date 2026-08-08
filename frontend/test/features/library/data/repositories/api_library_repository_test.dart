@@ -113,4 +113,52 @@ void main() {
     expect(entry.mediaId, 'movie-uuid');
     expect(entry.mediaType, LibraryMediaType.movie);
   });
+
+  test('removes a Show from the Library', () async {
+    final Dio dio = Dio();
+
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          expect(options.method, 'DELETE');
+
+          expect(options.path, '/library/shows/show-uuid');
+
+          handler.resolve(
+            Response<void>(requestOptions: options, statusCode: 204),
+          );
+        },
+      ),
+    );
+
+    final ApiLibraryRepository repository = ApiLibraryRepository(
+      ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+    );
+
+    await repository.removeShow('show-uuid');
+  });
+
+  test('removes a Movie from the Library', () async {
+    final Dio dio = Dio();
+
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          expect(options.method, 'DELETE');
+
+          expect(options.path, '/library/movies/movie-uuid');
+
+          handler.resolve(
+            Response<void>(requestOptions: options, statusCode: 204),
+          );
+        },
+      ),
+    );
+
+    final ApiLibraryRepository repository = ApiLibraryRepository(
+      ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+    );
+
+    await repository.removeMovie('movie-uuid');
+  });
 }

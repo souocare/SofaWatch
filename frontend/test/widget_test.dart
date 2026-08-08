@@ -5,7 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
+import 'package:dio/dio.dart';
+import 'package:sofawatch/core/api/api_client.dart';
 
+import 'helpers/test_bootstrap_data.dart';
 import 'helpers/test_app.dart';
 
 void main() {
@@ -122,7 +125,35 @@ void main() {
   });
 
   testWidgets('opens and closes show details', (WidgetTester tester) async {
-    await tester.pumpSofaWatchApp();
+    final Dio dio = Dio();
+
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 500,
+              data: <String, dynamic>{
+                'error': <String, dynamic>{
+                  'code': 'test_error',
+                  'message': 'Test failure.',
+                },
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final ApiClient apiClient = ApiClient(
+      baseUrl: Uri.parse('https://server.example.com'),
+      dio: dio,
+    );
+
+    await tester.pumpSofaWatchApp(
+      bootstrapData: createTestBootstrapData(apiClient: apiClient),
+    );
 
     final BuildContext context = tester.element(
       find.byKey(const ValueKey<String>('home-page-title')),
@@ -130,20 +161,32 @@ void main() {
 
     context.pushNamed(
       AppRoute.showDetails.name,
-      pathParameters: <String, String>{'showId': 'show-123'},
+      pathParameters: <String, String>{'showId': '95396'},
     );
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Show Details'), findsWidgets);
+    final Finder details = find.byKey(
+      const ValueKey<String>('show-details-failure'),
+    );
 
-    expect(find.text('show-123'), findsOneWidget);
+    expect(details, findsOneWidget);
 
-    await tester.tap(find.byTooltip('Close'));
+    final BuildContext detailsContext = tester.element(details);
+
+    GoRouter.of(detailsContext).pop();
 
     await tester.pumpAndSettle();
 
-    expect(find.text('show-123'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('show-details-failure')),
+      findsNothing,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('home-page-title')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('opens episode details', (WidgetTester tester) async {

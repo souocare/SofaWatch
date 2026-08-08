@@ -188,6 +188,13 @@ final class _FakeLibraryRepository implements LibraryRepository {
 
   final List<String> addedShowIds = <String>[];
   final List<String> addedMovieIds = <String>[];
+
+  final List<String> removedShowIds = <String>[];
+  final List<String> removedMovieIds = <String>[];
+
+  final List<({String showId, LibraryStatus status})> updatedShowStatuses =
+      <({String showId, LibraryStatus status})>[];
+
   Completer<ImportedLibraryMedia>? pendingShowImport;
 
   @override
@@ -195,6 +202,12 @@ final class _FakeLibraryRepository implements LibraryRepository {
     importedShowTmdbIds.add(tmdbId);
 
     _throwIfNeeded();
+
+    final Completer<ImportedLibraryMedia>? pendingImport = pendingShowImport;
+
+    if (pendingImport != null) {
+      return pendingImport.future;
+    }
 
     return ImportedLibraryMedia(
       id: 'show-uuid',
@@ -234,6 +247,36 @@ final class _FakeLibraryRepository implements LibraryRepository {
     return _entry(mediaId: movieId, mediaType: LibraryMediaType.movie);
   }
 
+  @override
+  Future<void> removeShow(String showId) async {
+    removedShowIds.add(showId);
+
+    _throwIfNeeded();
+  }
+
+  @override
+  Future<void> removeMovie(String movieId) async {
+    removedMovieIds.add(movieId);
+
+    _throwIfNeeded();
+  }
+
+  @override
+  Future<LibraryEntry> updateShowStatus(
+    String showId,
+    LibraryStatus status,
+  ) async {
+    updatedShowStatuses.add((showId: showId, status: status));
+
+    _throwIfNeeded();
+
+    return _entry(
+      mediaId: showId,
+      mediaType: LibraryMediaType.show,
+      status: status,
+    );
+  }
+
   void _throwIfNeeded() {
     final AppException? currentError = error;
 
@@ -245,6 +288,7 @@ final class _FakeLibraryRepository implements LibraryRepository {
   LibraryEntry _entry({
     required String mediaId,
     required LibraryMediaType mediaType,
+    LibraryStatus status = LibraryStatus.planning,
   }) {
     final DateTime now = DateTime.utc(2026, 8, 8);
 
@@ -252,7 +296,7 @@ final class _FakeLibraryRepository implements LibraryRepository {
       id: 'entry-uuid',
       mediaId: mediaId,
       mediaType: mediaType,
-      status: LibraryStatus.planning,
+      status: status,
       createdAt: now,
       updatedAt: now,
     );

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
 import 'package:sofawatch/features/library/domain/models/imported_library_media.dart';
 import 'package:sofawatch/features/library/domain/models/library_entry.dart';
@@ -391,15 +392,29 @@ const SearchResult _movieResult = SearchResult(
 final class _FakeLibraryRepository implements LibraryRepository {
   Completer<ImportedLibraryMedia>? pendingShowImport;
 
+  int showImportFailuresRemaining = 0;
+
   final List<int> importedShowTmdbIds = <int>[];
   final List<int> importedMovieTmdbIds = <int>[];
 
   final List<String> addedShowIds = <String>[];
   final List<String> addedMovieIds = <String>[];
 
+  final List<String> removedShowIds = <String>[];
+  final List<String> removedMovieIds = <String>[];
+
+  final List<({String showId, LibraryStatus status})> updatedShowStatuses =
+      <({String showId, LibraryStatus status})>[];
+
   @override
   Future<ImportedLibraryMedia> importShowByTmdbId(int tmdbId) async {
     importedShowTmdbIds.add(tmdbId);
+
+    if (showImportFailuresRemaining > 0) {
+      showImportFailuresRemaining--;
+
+      throw const AppException.connection();
+    }
 
     final Completer<ImportedLibraryMedia>? pendingImport = pendingShowImport;
 
@@ -439,9 +454,34 @@ final class _FakeLibraryRepository implements LibraryRepository {
     return _entry(mediaId: movieId, mediaType: LibraryMediaType.movie);
   }
 
+  @override
+  Future<void> removeShow(String showId) async {
+    removedShowIds.add(showId);
+  }
+
+  @override
+  Future<void> removeMovie(String movieId) async {
+    removedMovieIds.add(movieId);
+  }
+
+  @override
+  Future<LibraryEntry> updateShowStatus(
+    String showId,
+    LibraryStatus status,
+  ) async {
+    updatedShowStatuses.add((showId: showId, status: status));
+
+    return _entry(
+      mediaId: showId,
+      mediaType: LibraryMediaType.show,
+      status: status,
+    );
+  }
+
   LibraryEntry _entry({
     required String mediaId,
     required LibraryMediaType mediaType,
+    LibraryStatus status = LibraryStatus.planning,
   }) {
     final DateTime now = DateTime.utc(2026, 8, 8);
 
@@ -449,7 +489,7 @@ final class _FakeLibraryRepository implements LibraryRepository {
       id: 'entry-uuid',
       mediaId: mediaId,
       mediaType: mediaType,
-      status: LibraryStatus.planning,
+      status: status,
       createdAt: now,
       updatedAt: now,
     );
