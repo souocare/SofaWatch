@@ -72,7 +72,7 @@ class LibraryService:
         show_id: UUID,
         status: LibraryStatus = LibraryStatus.PLANNING,
     ) -> LibraryEntry | None:
-        """Add a locally stored TV series to a user's library."""
+        """Ensure a locally stored TV series exists in a user's library."""
 
         show = self._show_repository.get_by_id(
             show_id,
@@ -87,9 +87,7 @@ class LibraryService:
         )
 
         if existing_entry is not None:
-            raise LibraryEntryAlreadyExistsError(
-                "TV series already exists in the user's library."
-            )
+            return existing_entry
 
         entry = LibraryEntry(
             user_id=user_id,
@@ -263,3 +261,40 @@ class LibraryService:
             show_id=show_id,
             status=status,
         )
+
+    def add_movie(
+        self,
+        *,
+        user_id: UUID,
+        movie_id: UUID,
+        status: LibraryStatus = LibraryStatus.PLANNING,
+    ) -> LibraryEntry | None:
+        """Ensure a locally stored Movie exists in a user's library."""
+
+        movie = self._movie_repository.get_by_id(
+            movie_id,
+        )
+
+        if movie is None:
+            return None
+
+        existing_entry = self._library_repository.get_by_user_and_movie(
+            user_id=user_id,
+            movie_id=movie_id,
+        )
+
+        if existing_entry is not None:
+            return existing_entry
+
+        entry = LibraryEntry(
+            user_id=user_id,
+            movie_id=movie_id,
+            status=status,
+        )
+
+        self._library_repository.add(entry)
+
+        self._session.commit()
+        self._session.refresh(entry)
+
+        return entry

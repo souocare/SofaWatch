@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.enums import LibraryStatus
 from app.models.library import LibraryEntry
+from app.models.movie import Movie
 from app.models.show import Show
 from app.models.user import User
 
@@ -90,6 +91,55 @@ def create_library_entry(
 
     return entry
 
+def create_movie(
+    db_session: Session,
+    *,
+    tmdb_id: int,
+    title: str,
+) -> Movie:
+    """Create and persist a locally stored Movie."""
+
+    movie = Movie(
+        tmdb_id=tmdb_id,
+        title=title,
+        original_title=title,
+        original_language="en",
+        runtime=120,
+        status="Released",
+        adult=False,
+        video=False,
+        popularity=10.0,
+        vote_average=8.0,
+        vote_count=100,
+        metadata_language="en-US",
+    )
+
+    db_session.add(movie)
+    db_session.commit()
+    db_session.refresh(movie)
+
+    return movie
+
+def create_movie_library_entry(
+    db_session: Session,
+    *,
+    user: User,
+    movie: Movie,
+    status: LibraryStatus = LibraryStatus.PLANNING,
+) -> LibraryEntry:
+    """Create and persist a Movie library entry."""
+
+    entry = LibraryEntry(
+        user_id=user.id,
+        movie_id=movie.id,
+        status=status,
+    )
+
+    db_session.add(entry)
+    db_session.commit()
+    db_session.refresh(entry)
+
+    return entry
 
 def test_add_show_to_library(
     client: TestClient,
@@ -109,7 +159,7 @@ def test_add_show_to_library(
         f"/api/v1/library/shows/{show.id}",
     )
 
-    assert response.status_code == 201
+    assert response.status_code == 200
 
     body = response.json()
 
@@ -153,11 +203,11 @@ def test_add_show_to_library_returns_404_when_show_does_not_exist(
     }
 
 
-def test_add_show_to_library_returns_409_when_already_present(
+def test_add_show_to_library_is_idempotent_when_already_present(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    """Return HTTP 409 when the TV series already exists in the library."""
+    """Return the existing entry when the TV series is already in the library."""
 
     local_user = create_local_user(db_session)
 
@@ -167,7 +217,7 @@ def test_add_show_to_library_returns_409_when_already_present(
         title="Severance",
     )
 
-    create_library_entry(
+    existing_entry = create_library_entry(
         db_session,
         user=local_user,
         show=show,
@@ -177,14 +227,25 @@ def test_add_show_to_library_returns_409_when_already_present(
         f"/api/v1/library/shows/{show.id}",
     )
 
-    assert response.status_code == 409
+    assert response.status_code == 200
 
-    assert response.json() == {
-        "error": {
-            "code": "library_entry_already_exists",
-            "message": "TV series is already in the library.",
-        }
-    }
+    body = response.json()
+
+    assert body["id"] == str(existing_entry.id)
+    assert body["show_id"] == str(show.id)
+    assert body["movie_id"] is None
+    assert body["status"] == "planning"
+
+    entries = (
+        db_session.query(LibraryEntry)
+        .filter(
+            LibraryEntry.user_id == local_user.id,
+            LibraryEntry.show_id == show.id,
+        )
+        .all()
+    )
+
+    assert len(entries) == 1
 
 
 def test_add_show_to_library_rejects_invalid_show_id(
@@ -533,3 +594,194 @@ def test_library_isolated_between_users(
 
     assert len(body) == 1
     assert body[0]["show_id"] == str(local_show.id)
+
+def test_add_movie_to_library(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Add a locally stored Movie to the current user's library."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    response = client.post(
+        f"/api/v1/library/movies/{movie.id}",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["show_id"] is None
+    assert body["movie_id"] == str(movie.id)
+    assert body["status"] == "planning"
+    assert body["rating"] is None
+    assert body["started_at"] is None
+    assert body["completed_at"] is None
+
+    entry = (
+        db_session.query(LibraryEntry)
+        .filter(
+            LibraryEntry.user_id == local_user.id,
+            LibraryEntry.movie_id == movie.id,
+        )
+        .one_or_none()
+    )
+
+    assert entry is not None
+    assert entry.show_id is None
+    assert entry.movie_id == movie.id
+    assert entry.status == LibraryStatus.PLANNING
+
+def test_add_movie_to_library_returns_404_when_movie_does_not_exist(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return HTTP 404 when the Movie does not exist locally."""
+
+    create_local_user(db_session)
+
+    response = client.post(
+        f"/api/v1/library/movies/{uuid4()}",
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "error": {
+            "code": "movie_not_found",
+            "message": "The requested movie was not found.",
+        }
+    }
+
+
+def test_add_movie_to_library_is_idempotent_when_already_present(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return the existing entry when the Movie is already in the library."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    existing_entry = create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+    )
+
+    response = client.post(
+        f"/api/v1/library/movies/{movie.id}",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["id"] == str(existing_entry.id)
+    assert body["show_id"] is None
+    assert body["movie_id"] == str(movie.id)
+    assert body["status"] == "planning"
+
+    entries = (
+        db_session.query(LibraryEntry)
+        .filter(
+            LibraryEntry.user_id == local_user.id,
+            LibraryEntry.movie_id == movie.id,
+        )
+        .all()
+    )
+
+    assert len(entries) == 1
+
+
+def test_add_movie_to_library_rejects_invalid_movie_id(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Reject an invalid Movie identifier."""
+
+    create_local_user(db_session)
+
+    response = client.post(
+        "/api/v1/library/movies/not-a-valid-uuid",
+    )
+
+    assert response.status_code == 422
+
+
+def test_remove_movie_from_library(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Remove a Movie from the current user's library."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+    )
+
+    response = client.delete(
+        f"/api/v1/library/movies/{movie.id}",
+    )
+
+    assert response.status_code == 204
+    assert response.content == b""
+
+    entry = (
+        db_session.query(LibraryEntry)
+        .filter(
+            LibraryEntry.user_id == local_user.id,
+            LibraryEntry.movie_id == movie.id,
+        )
+        .one_or_none()
+    )
+
+    assert entry is None
+
+def test_remove_movie_from_library_returns_404_when_missing(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return HTTP 404 when the Movie is not in the library."""
+
+    create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    response = client.delete(
+        f"/api/v1/library/movies/{movie.id}",
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "error": {
+            "code": "library_entry_not_found",
+            "message": "The movie is not in the user's library.",
+        }
+    }
+

@@ -9,12 +9,12 @@ from app.models.enums import LibraryStatus
 from app.models.library import LibraryEntry
 from app.repositories.library import LibraryRepository
 from app.repositories.show import ShowRepository
-from app.services.exceptions import LibraryEntryAlreadyExistsError
 from app.services.library import LibraryService
 from app.repositories.movie import MovieRepository
 
 from app.models.show import Show
 from app.models.user import User
+from app.models.movie import Movie
 
 
 @pytest.fixture
@@ -261,35 +261,36 @@ def test_add_show_returns_none_when_show_does_not_exist(
     library_repository.add.assert_not_called()
 
 
-def test_add_show_raises_when_entry_already_exists(
+def test_add_show_returns_existing_entry_when_already_in_library(
     library_service: LibraryService,
     library_repository: Mock,
     show_repository: Mock,
 ) -> None:
-    """Reject a duplicate library entry."""
+    """Return the existing Show library entry instead of duplicating it."""
 
     user_id = uuid4()
     show_id = uuid4()
 
-    show_repository.get_by_id.return_value = make_show(
-        show_id=show_id,
+    show_repository.get_by_id.return_value = SimpleNamespace(
+        id=show_id,
     )
 
-    existing_entry = make_entry(
+    existing_entry = LibraryEntry(
+        user_id=user_id,
+        show_id=show_id,
+        status=LibraryStatus.PLANNING,
+    )
+
+    library_repository.get_by_user_and_show.return_value = (
+        existing_entry
+    )
+
+    result = library_service.add_show(
         user_id=user_id,
         show_id=show_id,
     )
 
-    library_repository.get_by_user_and_show.return_value = existing_entry
-
-    with pytest.raises(
-        LibraryEntryAlreadyExistsError,
-        match="already exists",
-    ):
-        library_service.add_show(
-            user_id=user_id,
-            show_id=show_id,
-        )
+    assert result is existing_entry
 
     library_repository.add.assert_not_called()
 
@@ -533,18 +534,19 @@ def test_add_movie_returns_none_when_movie_does_not_exist(
     library_repository.add.assert_not_called()
 
 
-def test_add_movie_raises_when_entry_already_exists(
+
+def test_add_movie_returns_existing_entry_when_already_in_library(
     library_service: LibraryService,
     library_repository: Mock,
     movie_repository: Mock,
 ) -> None:
-    """Reject a duplicate movie library entry."""
+    """Return the existing Movie library entry instead of duplicating it."""
 
     user_id = uuid4()
     movie_id = uuid4()
 
-    movie_repository.get_by_id.return_value = make_movie(
-        movie_id=movie_id,
+    movie_repository.get_by_id.return_value = SimpleNamespace(
+        id=movie_id,
     )
 
     existing_entry = LibraryEntry(
@@ -557,13 +559,111 @@ def test_add_movie_raises_when_entry_already_exists(
         existing_entry
     )
 
-    with pytest.raises(
-        LibraryEntryAlreadyExistsError,
-        match="already exists",
-    ):
-        library_service.add_movie(
-            user_id=user_id,
-            movie_id=movie_id,
-        )
+    result = library_service.add_movie(
+        user_id=user_id,
+        movie_id=movie_id,
+    )
+
+    assert result is existing_entry
 
     library_repository.add.assert_not_called()
+
+def test_add_movie_creates_library_entry(
+    db_session: Session,
+    library_repository: Mock,
+    show_repository: Mock,
+    movie_repository: Mock,
+) -> None:
+    """Create a new library entry for a locally stored Movie."""
+
+    user = User(
+        display_name="Local User",
+        is_local=True,
+    )
+
+    movie = Movie(
+        tmdb_id=438631,
+        title="Dune",
+        original_title="Dune",
+        original_language="en",
+        runtime=155,
+        status="Released",
+        adult=False,
+        video=False,
+        popularity=10.0,
+        vote_average=8.0,
+        vote_count=100,
+        metadata_language="en-US",
+    )
+
+    db_session.add_all(
+        [
+            user,
+            movie,
+        ]
+    )
+    db_session.commit()
+
+    db_session.refresh(user)
+    db_session.refresh(movie)
+
+    movie_repository.get_by_id.return_value = movie
+    library_repository.get_by_user_and_movie.return_value = None
+    library_repository.add.side_effect = db_session.add
+
+    service = LibraryService(
+        session=db_session,
+        library_repository=library_repository,
+        show_repository=show_repository,
+        movie_repository=movie_repository,
+    )
+
+    result = service.add_movie(
+        user_id=user.id,
+        movie_id=movie.id,
+    )
+
+    assert result is not None
+    assert result.user_id == user.id
+    assert result.show_id is None
+    assert result.movie_id == movie.id
+    assert result.status == LibraryStatus.PLANNING
+
+    library_repository.add.assert_called_once_with(result)
+
+def test_remove_movie_deletes_existing_entry(
+    db_session: Session,
+    library_repository: Mock,
+    show_repository: Mock,
+    movie_repository: Mock,
+) -> None:
+    """Remove a Movie library entry."""
+
+    user_id = uuid4()
+    movie_id = uuid4()
+
+    entry = LibraryEntry(
+        user_id=user_id,
+        movie_id=movie_id,
+        status=LibraryStatus.PLANNING,
+    )
+
+    library_repository.get_by_user_and_movie.return_value = entry
+
+    service = LibraryService(
+        session=db_session,
+        library_repository=library_repository,
+        show_repository=show_repository,
+        movie_repository=movie_repository,
+    )
+
+    removed = service.remove_movie(
+        user_id=user_id,
+        movie_id=movie_id,
+    )
+
+    assert removed is True
+
+    library_repository.delete.assert_called_once_with(
+        entry
+    )

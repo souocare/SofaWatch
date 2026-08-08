@@ -29,7 +29,7 @@ router = APIRouter(
 @router.post(
     "/shows/{show_id}",
     response_model=LibraryEntryResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
     summary="Add TV series to library",
     description="Add a locally stored TV series to the current user's library.",
 )
@@ -45,18 +45,10 @@ def add_show_to_library(
 ) -> LibraryEntryResponse:
     """Add a TV series to the current user's personal library."""
 
-    try:
-        entry = service.add_show(
-            user_id=current_user.id,
-            show_id=show_id,
-            status=LibraryStatus.PLANNING,
-        )
-    except LibraryEntryAlreadyExistsError as error:
-        raise APIError(
-            status_code=status.HTTP_409_CONFLICT,
-            code="library_entry_already_exists",
-            message="TV series is already in the library.",
-        ) from error
+    entry = service.add_show(
+        user_id=current_user.id,
+        show_id=show_id,
+    )
 
     if entry is None:
         raise APIError(
@@ -66,6 +58,8 @@ def add_show_to_library(
         )
 
     return entry
+
+
 
 
 @router.delete(
@@ -159,3 +153,56 @@ def list_library(
         current_user.id,
         status=library_status,
     )
+
+
+@router.post(
+    "/movies/{movie_id}",
+    response_model=LibraryEntryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Add movie to library",
+)
+def add_movie_to_library(
+    movie_id: UUID,
+    current_user: CurrentUserDependency,
+    service: LibraryServiceDependency,
+) -> LibraryEntryResponse:
+    """Ensure a locally stored Movie belongs to the user's library."""
+
+    entry = service.add_movie(
+        user_id=current_user.id,
+        movie_id=movie_id,
+        status=LibraryStatus.PLANNING,
+    )
+
+    if entry is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="movie_not_found",
+            message="The requested movie was not found.",
+        )
+
+    return entry
+
+@router.delete(
+    "/movies/{movie_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove movie from library",
+)
+def remove_movie_from_library(
+    movie_id: UUID,
+    current_user: CurrentUserDependency,
+    service: LibraryServiceDependency,
+) -> None:
+    """Remove a Movie from the user's library."""
+
+    removed = service.remove_movie(
+        user_id=current_user.id,
+        movie_id=movie_id,
+    )
+
+    if not removed:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="library_entry_not_found",
+            message="The movie is not in the user's library.",
+        )
