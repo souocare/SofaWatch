@@ -81,7 +81,7 @@ void main() {
       },
     );
 
-    testWidgets('does not enable the Movie Library action yet', (
+    testWidgets('adds a Movie to the Watchlist and keeps the result visible', (
       WidgetTester tester,
     ) async {
       final _FakeLibraryRepository repository = _FakeLibraryRepository();
@@ -92,6 +92,49 @@ void main() {
         results: const <SearchResult>[_movieResult],
       );
 
+      final Finder row = find.byKey(
+        const ValueKey<String>('search-result-movie-438631'),
+      );
+
+      final Finder action = find.byKey(
+        const ValueKey<String>('search-result-action-movie-438631'),
+      );
+
+      expect(row, findsOneWidget);
+      expect(action, findsOneWidget);
+
+      await tester.tap(action);
+
+      await tester.pump();
+
+      expect(repository.importedMovieTmdbIds, <int>[438631]);
+
+      await tester.pumpAndSettle();
+
+      expect(repository.addedMovieIds, <String>['movie-uuid']);
+
+      expect(
+        row,
+        findsOneWidget,
+        reason: 'Adding a Movie must not remove the Search result.',
+      );
+
+      expect(find.text('Added'), findsOneWidget);
+    });
+  });
+  testWidgets(
+    'shows an existing Watchlist Movie as Added without making a request',
+    (WidgetTester tester) async {
+      final _FakeLibraryRepository repository = _FakeLibraryRepository();
+
+      await _pumpWidget(
+        tester,
+        repository: repository,
+        results: const <SearchResult>[_addedMovieResult],
+      );
+
+      expect(find.text('Added'), findsOneWidget);
+
       final Finder action = find.byKey(
         const ValueKey<String>('search-result-action-movie-438631'),
       );
@@ -101,8 +144,10 @@ void main() {
       expect(button.onPressed, isNull);
 
       expect(repository.importedMovieTmdbIds, isEmpty);
-    });
-  });
+
+      expect(repository.addedMovieIds, isEmpty);
+    },
+  );
 }
 
 Future<void> _pumpWidget(
@@ -149,6 +194,19 @@ const SearchResult _addedShowResult = SearchResult(
   genreIds: <int>[18],
   popularity: 100,
   voteAverage: 8.4,
+  voteCount: 100,
+  inLibrary: true,
+);
+
+const SearchResult _addedMovieResult = SearchResult(
+  mediaType: SearchMediaType.movie,
+  tmdbId: 438631,
+  title: 'Dune',
+  originalTitle: 'Dune',
+  originalLanguage: 'en',
+  genreIds: <int>[878],
+  popularity: 100,
+  voteAverage: 7.8,
   voteCount: 100,
   inLibrary: true,
 );

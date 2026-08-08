@@ -51,20 +51,12 @@ class SearchLibraryResultsSection extends StatelessWidget {
             context.read<LibraryCubit>().addToLibrary(_keyFor(result));
           },
           isActionAvailable: (SearchResult result) {
-            return result.isShow;
+            return result.isShow || result.isMovie;
           },
           isActionLoading: (SearchResult result) {
-            if (!result.isShow) {
-              return false;
-            }
-
             return _operationFor(libraryState, result).isAdding;
           },
           isActionAdded: (SearchResult result) {
-            if (!result.isShow) {
-              return false;
-            }
-
             if (result.inLibrary) {
               return true;
             }

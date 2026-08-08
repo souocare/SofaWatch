@@ -55,7 +55,13 @@ void main() {
 
       await cubit.addToLibrary(key);
 
-      expect(cubit.state.operationFor(key).isAdded, isTrue);
+      final operation = cubit.state.operationFor(key);
+
+      expect(operation.isAdded, isTrue);
+
+      expect(operation.entry, isNotNull);
+
+      expect(operation.entry!.status, LibraryStatus.planning);
 
       expect(repository.importedMovieTmdbIds, <int>[438631]);
 
