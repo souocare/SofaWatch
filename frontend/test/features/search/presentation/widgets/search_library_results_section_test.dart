@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -148,6 +150,169 @@ void main() {
       expect(repository.addedMovieIds, isEmpty);
     },
   );
+
+  testWidgets('disables the action and shows a spinner while adding', (
+    WidgetTester tester,
+  ) async {
+    final Completer<ImportedLibraryMedia> completer =
+        Completer<ImportedLibraryMedia>();
+
+    final _FakeLibraryRepository repository = _FakeLibraryRepository()
+      ..pendingShowImport = completer;
+
+    await _pumpWidget(
+      tester,
+      repository: repository,
+      results: const <SearchResult>[_showResult],
+    );
+
+    final Finder action = find.byKey(
+      const ValueKey<String>('search-result-action-show-95396'),
+    );
+
+    await tester.tap(action);
+    await tester.pump();
+
+    expect(
+      find.byKey(
+        const ValueKey<String>('search-result-action-loading-show-95396'),
+      ),
+      findsOneWidget,
+    );
+
+    final TextButton button = tester.widget<TextButton>(action);
+
+    expect(button.onPressed, isNull);
+
+    completer.complete(
+      const ImportedLibraryMedia(
+        id: 'show-uuid',
+        tmdbId: 95396,
+        mediaType: LibraryMediaType.show,
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Added'), findsOneWidget);
+  });
+
+  testWidgets(
+    'keeps other result actions interactive while one item is adding',
+    (WidgetTester tester) async {
+      final Completer<ImportedLibraryMedia> completer =
+          Completer<ImportedLibraryMedia>();
+
+      final _FakeLibraryRepository repository = _FakeLibraryRepository()
+        ..pendingShowImport = completer;
+
+      await _pumpWidget(
+        tester,
+        repository: repository,
+        results: const <SearchResult>[_showResult, _movieResult],
+      );
+
+      final Finder showAction = find.byKey(
+        const ValueKey<String>('search-result-action-show-95396'),
+      );
+
+      final Finder movieAction = find.byKey(
+        const ValueKey<String>('search-result-action-movie-438631'),
+      );
+
+      await tester.tap(showAction);
+      await tester.pump();
+
+      final TextButton showButton = tester.widget<TextButton>(showAction);
+
+      final TextButton movieButton = tester.widget<TextButton>(movieAction);
+
+      expect(showButton.onPressed, isNull);
+
+      expect(movieButton.onPressed, isNotNull);
+
+      await tester.tap(movieAction);
+
+      await tester.pump();
+      await tester.pump();
+
+      expect(repository.importedMovieTmdbIds, <int>[438631]);
+
+      expect(repository.addedMovieIds, <String>['movie-uuid']);
+
+      completer.complete(
+        const ImportedLibraryMedia(
+          id: 'show-uuid',
+          tmdbId: 95396,
+          mediaType: LibraryMediaType.show,
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Added'), findsNWidgets(2));
+    },
+  );
+
+  testWidgets('exposes the correct Added tooltip and semantics for a Show', (
+    WidgetTester tester,
+  ) async {
+    final SemanticsHandle semanticsHandle = tester.ensureSemantics();
+
+    final _FakeLibraryRepository repository = _FakeLibraryRepository();
+
+    await _pumpWidget(
+      tester,
+      repository: repository,
+      results: const <SearchResult>[_addedShowResult],
+    );
+
+    expect(find.bySemanticsLabel('Severance is in Library'), findsOneWidget);
+
+    expect(find.byTooltip('Added to Library'), findsOneWidget);
+
+    expect(
+      find.byKey(
+        const ValueKey<String>('search-result-action-added-show-95396'),
+      ),
+      findsOneWidget,
+    );
+
+    final TextButton button = tester.widget<TextButton>(
+      find.byKey(const ValueKey<String>('search-result-action-show-95396')),
+    );
+
+    expect(button.onPressed, isNull);
+
+    semanticsHandle.dispose();
+  });
+
+  testWidgets('exposes the correct Added tooltip and semantics for a Movie', (
+    WidgetTester tester,
+  ) async {
+    final SemanticsHandle semanticsHandle = tester.ensureSemantics();
+
+    final _FakeLibraryRepository repository = _FakeLibraryRepository();
+
+    await _pumpWidget(
+      tester,
+      repository: repository,
+      results: const <SearchResult>[_addedMovieResult],
+    );
+
+    expect(find.bySemanticsLabel('Dune is in Watchlist'), findsOneWidget);
+
+    expect(find.byTooltip('Added to Watchlist'), findsOneWidget);
+
+    expect(
+      find.byKey(
+        const ValueKey<String>('search-result-action-added-movie-438631'),
+      ),
+      findsOneWidget,
+    );
+
+    semanticsHandle.dispose();
+  });
 }
 
 Future<void> _pumpWidget(
@@ -224,6 +389,8 @@ const SearchResult _movieResult = SearchResult(
 );
 
 final class _FakeLibraryRepository implements LibraryRepository {
+  Completer<ImportedLibraryMedia>? pendingShowImport;
+
   final List<int> importedShowTmdbIds = <int>[];
   final List<int> importedMovieTmdbIds = <int>[];
 
@@ -233,6 +400,12 @@ final class _FakeLibraryRepository implements LibraryRepository {
   @override
   Future<ImportedLibraryMedia> importShowByTmdbId(int tmdbId) async {
     importedShowTmdbIds.add(tmdbId);
+
+    final Completer<ImportedLibraryMedia>? pendingImport = pendingShowImport;
+
+    if (pendingImport != null) {
+      return pendingImport.future;
+    }
 
     return ImportedLibraryMedia(
       id: 'show-uuid',

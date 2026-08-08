@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sofawatch/app/theme/tokens/app_radius.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
 import 'package:sofawatch/features/search/domain/entities/search_result.dart';
+import 'package:sofawatch/app/theme/tokens/app_colors.dart';
 
 class SearchResultRow extends StatelessWidget {
   const SearchResultRow({
@@ -17,7 +18,6 @@ class SearchResultRow extends StatelessWidget {
   final SearchResult result;
   final VoidCallback onPressed;
 
-  /// A operação real de Watchlist/Biblioteca será implementada no ponto 13.14.
   final VoidCallback? onActionPressed;
 
   /// Mobile usa uma apresentação mais compacta.
@@ -26,8 +26,6 @@ class SearchResultRow extends StatelessWidget {
   final bool actionAdded;
 
   /// Permite mostrar feedback visual enquanto a ação lateral está em curso.
-  ///
-  /// A lógica real que controla este estado será ligada no ponto 13.14.
   final bool actionLoading;
 
   @override
@@ -266,8 +264,38 @@ class _SearchResultAction extends StatelessWidget {
   final bool isLoading;
   final bool isAdded;
 
-  String get _label {
+  String get _addLabel {
     return result.isShow ? 'Add to Library' : 'Add to Watchlist';
+  }
+
+  String get _tooltip {
+    if (isLoading) {
+      return result.isShow ? 'Adding to Library' : 'Adding to Watchlist';
+    }
+
+    if (isAdded) {
+      return result.isShow ? 'Added to Library' : 'Added to Watchlist';
+    }
+
+    return _addLabel;
+  }
+
+  String get _semanticsLabel {
+    if (isLoading) {
+      return result.isShow
+          ? 'Adding ${result.title} to Library'
+          : 'Adding ${result.title} to Watchlist';
+    }
+
+    if (isAdded) {
+      return result.isShow
+          ? '${result.title} is in Library'
+          : '${result.title} is in Watchlist';
+    }
+
+    return result.isShow
+        ? 'Add ${result.title} to Library'
+        : 'Add ${result.title} to Watchlist';
   }
 
   @override
@@ -279,43 +307,81 @@ class _SearchResultAction extends StatelessWidget {
         : onPressed;
 
     final Key key = ValueKey<String>(
-      'search-result-action-${result.mediaType.name}-${result.tmdbId}',
+      'search-result-action-'
+      '${result.mediaType.name}-${result.tmdbId}',
     );
 
-    if (compact) {
-      return IconButton(
-        key: key,
-        tooltip: isAdded ? 'Added' : _label,
-        onPressed: effectiveOnPressed,
-        visualDensity: VisualDensity.compact,
-        icon: isLoading
-            ? const SizedBox.square(
-                dimension: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Icon(
-                isAdded ? Icons.check_rounded : Icons.add_rounded,
-                color: isAdded ? Colors.green : colorScheme.onSurface,
-              ),
+    return Semantics(
+      container: true,
+      explicitChildNodes: false,
+      label: _semanticsLabel,
+      button: true,
+      enabled: effectiveOnPressed != null,
+      child: ExcludeSemantics(
+        child: Tooltip(
+          message: _tooltip,
+          child: compact
+              ? _buildCompactAction(
+                  key: key,
+                  colorScheme: colorScheme,
+                  onPressed: effectiveOnPressed,
+                )
+              : _buildDesktopAction(key: key, onPressed: effectiveOnPressed),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactAction({
+    required Key key,
+    required ColorScheme colorScheme,
+    required VoidCallback? onPressed,
+  }) {
+    return IconButton(
+      key: key,
+      onPressed: onPressed,
+      visualDensity: VisualDensity.compact,
+      icon: _buildIcon(size: 20, defaultColor: colorScheme.onSurface),
+    );
+  }
+
+  Widget _buildDesktopAction({
+    required Key key,
+    required VoidCallback? onPressed,
+  }) {
+    return TextButton.icon(
+      key: key,
+      onPressed: onPressed,
+      icon: _buildIcon(size: 18),
+      label: Text(
+        isAdded ? 'Added' : _addLabel,
+        style: isAdded ? const TextStyle(color: AppColors.success) : null,
+      ),
+    );
+  }
+
+  Widget _buildIcon({required double size, Color? defaultColor}) {
+    if (isLoading) {
+      return SizedBox.square(
+        key: ValueKey<String>(
+          'search-result-action-loading-'
+          '${result.mediaType.name}-${result.tmdbId}',
+        ),
+        dimension: size,
+        child: const CircularProgressIndicator(strokeWidth: 2),
       );
     }
 
-    return TextButton.icon(
-      key: key,
-      onPressed: effectiveOnPressed,
-      icon: isLoading
-          ? const SizedBox.square(
-              dimension: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : Icon(
-              isAdded ? Icons.check_rounded : Icons.add_rounded,
-              color: isAdded ? Colors.green : null,
-            ),
-      label: Text(
-        isAdded ? 'Added' : _label,
-        style: isAdded ? const TextStyle(color: Colors.green) : null,
+    return Icon(
+      isAdded ? Icons.check_rounded : Icons.add_rounded,
+      key: ValueKey<String>(
+        isAdded
+            ? 'search-result-action-added-'
+                  '${result.mediaType.name}-${result.tmdbId}'
+            : 'search-result-action-add-'
+                  '${result.mediaType.name}-${result.tmdbId}',
       ),
+      color: isAdded ? AppColors.success : defaultColor,
     );
   }
 }

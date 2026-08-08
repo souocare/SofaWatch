@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
@@ -136,6 +138,44 @@ void main() {
       await cubit.close();
     });
   });
+
+  test(
+    'does not start a duplicate operation while the item is adding',
+    () async {
+      final Completer<ImportedLibraryMedia> completer =
+          Completer<ImportedLibraryMedia>();
+
+      final _FakeLibraryRepository repository = _FakeLibraryRepository()
+        ..pendingShowImport = completer;
+
+      final LibraryCubit cubit = LibraryCubit(repository);
+
+      const LibraryMediaKey key = LibraryMediaKey(
+        mediaType: LibraryMediaType.show,
+        tmdbId: 95396,
+      );
+
+      final Future<void> firstRequest = cubit.addToLibrary(key);
+
+      await Future<void>.delayed(Duration.zero);
+
+      await cubit.addToLibrary(key);
+
+      expect(repository.importedShowTmdbIds, <int>[95396]);
+
+      completer.complete(
+        const ImportedLibraryMedia(
+          id: 'show-uuid',
+          tmdbId: 95396,
+          mediaType: LibraryMediaType.show,
+        ),
+      );
+
+      await firstRequest;
+
+      await cubit.close();
+    },
+  );
 }
 
 final class _FakeLibraryRepository implements LibraryRepository {
@@ -148,6 +188,7 @@ final class _FakeLibraryRepository implements LibraryRepository {
 
   final List<String> addedShowIds = <String>[];
   final List<String> addedMovieIds = <String>[];
+  Completer<ImportedLibraryMedia>? pendingShowImport;
 
   @override
   Future<ImportedLibraryMedia> importShowByTmdbId(int tmdbId) async {
