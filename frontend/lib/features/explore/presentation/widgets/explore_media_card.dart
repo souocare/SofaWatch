@@ -9,12 +9,14 @@ class ExploreMediaCard extends StatelessWidget {
     required this.item,
     required this.operation,
     this.onAdd,
+    required this.onPressed,
     super.key,
   });
 
   final ExploreMediaItem item;
   final LibraryItemOperation operation;
   final VoidCallback? onAdd;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -22,26 +24,49 @@ class ExploreMediaCard extends StatelessWidget {
 
     final bool isAdding = operation.isAdding;
 
-    return SizedBox(
-      key: ValueKey<String>(
-        'explore-media-'
-        '${item.mediaType.name}-${item.tmdbId}',
-      ),
-      width: 132,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          _Poster(
-            item: item,
-            isAdded: isAdded,
-            isAdding: isAdding,
-            onAdd: onAdd,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _Title(item: item),
-          const SizedBox(height: AppSpacing.xs),
-          _Metadata(item: item),
-        ],
+    return Semantics(
+      button: true,
+      label: 'Open ${item.title}',
+      child: SizedBox(
+        key: ValueKey<String>(
+          'explore-media-'
+          '${item.mediaType.name}-${item.tmdbId}',
+        ),
+        width: 132,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                key: ValueKey<String>(
+                  'explore-media-open-'
+                  '${item.mediaType.name}-${item.tmdbId}',
+                ),
+                onTap: onPressed,
+                borderRadius: AppRadius.borderLarge,
+                child: _Poster(
+                  item: item,
+                  isAdded: isAdded,
+                  isAdding: isAdding,
+                  onAdd: onAdd,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onPressed,
+              child: _Title(item: item),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onPressed,
+              child: _Metadata(item: item),
+            ),
+          ],
+        ),
       ),
     );
   }

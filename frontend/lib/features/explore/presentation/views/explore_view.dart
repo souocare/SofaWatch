@@ -13,6 +13,25 @@ import 'package:sofawatch/features/explore/presentation/widgets/explore_horizont
 import 'package:sofawatch/features/explore/presentation/widgets/explore_popular_section_loading.dart';
 import 'package:sofawatch/features/explore/presentation/widgets/explore_trending_loading.dart';
 import 'package:sofawatch/features/explore/presentation/widgets/explore_week_filter_bar.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sofawatch/app/router/app_routes.dart';
+import 'package:sofawatch/features/explore/domain/entities/explore_media_item.dart';
+
+void _openExploreMedia(BuildContext context, ExploreMediaItem item) {
+  if (item.isShow) {
+    context.pushNamed(
+      AppRoute.showDetails.name,
+      pathParameters: <String, String>{'showId': item.tmdbId.toString()},
+    );
+
+    return;
+  }
+
+  context.pushNamed(
+    AppRoute.movieDetails.name,
+    pathParameters: <String, String>{'movieId': item.tmdbId.toString()},
+  );
+}
 
 class ExploreView extends StatelessWidget {
   const ExploreView({super.key});
@@ -140,7 +159,11 @@ class _ExploreContent extends StatelessWidget {
             if (!todayIsEmpty)
               ExploreHorizontalSection(
                 title: 'Trending Today',
+                storageKey: 'explore-trending-today',
                 items: today.items,
+                onItemPressed: (ExploreMediaItem item) {
+                  _openExploreMedia(context, item);
+                },
               ),
 
             if (!todayIsEmpty) const SizedBox(height: AppSpacing.xxxl),
@@ -156,7 +179,13 @@ class _ExploreContent extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               const ExploreWeekFilterBar(),
               const SizedBox(height: AppSpacing.lg),
-              ExploreHorizontalSection(items: state.filteredWeekItems),
+              ExploreHorizontalSection(
+                storageKey: 'explore-trending-week',
+                items: state.filteredWeekItems,
+                onItemPressed: (ExploreMediaItem item) {
+                  _openExploreMedia(context, item);
+                },
+              ),
               const SizedBox(height: AppSpacing.xxxl),
             ],
 
@@ -243,7 +272,13 @@ class _PopularShowsContent extends StatelessWidget {
       );
     }
 
-    return ExploreHorizontalSection(items: collection.items);
+    return ExploreHorizontalSection(
+      storageKey: 'explore-popular-movies',
+      items: collection.items,
+      onItemPressed: (ExploreMediaItem item) {
+        _openExploreMedia(context, item);
+      },
+    );
   }
 }
 
@@ -318,7 +353,13 @@ class _PopularMoviesContent extends StatelessWidget {
       );
     }
 
-    return ExploreHorizontalSection(items: collection.items);
+    return ExploreHorizontalSection(
+      storageKey: 'explore-popular-shows',
+      items: collection.items,
+      onItemPressed: (ExploreMediaItem item) {
+        _openExploreMedia(context, item);
+      },
+    );
   }
 }
 

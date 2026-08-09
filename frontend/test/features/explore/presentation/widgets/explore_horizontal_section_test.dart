@@ -236,17 +236,50 @@ void main() {
 
     await cubit.close();
   });
+  testWidgets('forwards the tapped media item', (WidgetTester tester) async {
+    final _FakeLibraryRepository repository = _FakeLibraryRepository();
+
+    final LibraryCubit cubit = LibraryCubit(repository);
+
+    ExploreMediaItem? selectedItem;
+
+    await tester.pumpWidget(
+      _buildTestApp(
+        cubit: cubit,
+        items: <ExploreMediaItem>[_movie, _show],
+        onItemPressed: (ExploreMediaItem item) {
+          selectedItem = item;
+        },
+      ),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('explore-media-open-movie-438631')),
+    );
+
+    await tester.pump();
+
+    expect(selectedItem, _movie);
+
+    await cubit.close();
+  });
 }
 
 Widget _buildTestApp({
   required LibraryCubit cubit,
   required List<ExploreMediaItem> items,
+  ValueChanged<ExploreMediaItem>? onItemPressed,
 }) {
   return MaterialApp(
     home: Scaffold(
       body: BlocProvider<LibraryCubit>.value(
         value: cubit,
-        child: ExploreHorizontalSection(title: 'Test', items: items),
+        child: ExploreHorizontalSection(
+          title: 'Test',
+          storageKey: 'test-section',
+          items: items,
+          onItemPressed: onItemPressed ?? (_) {},
+        ),
       ),
     ),
   );

@@ -15,6 +15,7 @@ void main() {
             item: _movie,
             operation: const LibraryItemOperation.idle(),
             onAdd: () {},
+            onPressed: () {},
           ),
         ),
       );
@@ -55,6 +56,7 @@ void main() {
             item: _show,
             operation: const LibraryItemOperation.idle(),
             onAdd: () {},
+            onPressed: () {},
           ),
         ),
       );
@@ -79,6 +81,7 @@ void main() {
             item: _movie,
             operation: const LibraryItemOperation.idle(),
             onAdd: () {},
+            onPressed: () {},
           ),
         ),
       );
@@ -109,6 +112,7 @@ void main() {
             item: _show,
             operation: const LibraryItemOperation.idle(),
             onAdd: () {},
+            onPressed: () {},
           ),
         ),
       );
@@ -150,6 +154,7 @@ void main() {
             onAdd: () {
               calls++;
             },
+            onPressed: () {},
           ),
         ),
       );
@@ -189,6 +194,7 @@ void main() {
           ExploreMediaCard(
             item: _movie,
             operation: LibraryItemOperation.added(),
+            onPressed: () {},
           ),
         ),
       );
@@ -216,6 +222,7 @@ void main() {
             onAdd: () {
               calls++;
             },
+            onPressed: () {},
           ),
         ),
       );
@@ -255,6 +262,7 @@ void main() {
             onAdd: () {
               calls++;
             },
+            onPressed: () {},
           ),
         ),
       );
@@ -280,6 +288,7 @@ void main() {
           ExploreMediaCard(
             item: _movie,
             operation: const LibraryItemOperation.added(),
+            onPressed: () {},
           ),
         ),
       );
@@ -299,6 +308,7 @@ void main() {
           ExploreMediaCard(
             item: _show,
             operation: const LibraryItemOperation.added(),
+            onPressed: () {},
           ),
         ),
       );
@@ -327,9 +337,10 @@ void main() {
 
       await tester.pumpWidget(
         _buildTestApp(
-          const ExploreMediaCard(
+          ExploreMediaCard(
             item: longTitleMovie,
             operation: LibraryItemOperation.idle(),
+            onPressed: () {},
           ),
         ),
       );
@@ -351,6 +362,7 @@ void main() {
           ExploreMediaCard(
             item: _movie,
             operation: LibraryItemOperation.idle(),
+            onPressed: () {},
           ),
         ),
       );
@@ -362,6 +374,63 @@ void main() {
         findsOneWidget,
       );
     });
+  });
+  testWidgets('opens Movie when card is tapped', (WidgetTester tester) async {
+    int calls = 0;
+
+    await tester.pumpWidget(
+      _buildTestApp(
+        ExploreMediaCard(
+          item: _movie,
+          operation: const LibraryItemOperation.idle(),
+          onPressed: () {
+            calls++;
+          },
+          onAdd: () {},
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('explore-media-open-movie-438631')),
+    );
+
+    await tester.pump();
+
+    expect(calls, 1);
+  });
+
+  testWidgets('Library action does not open the preview', (
+    WidgetTester tester,
+  ) async {
+    int openCalls = 0;
+    int addCalls = 0;
+
+    await tester.pumpWidget(
+      _buildTestApp(
+        ExploreMediaCard(
+          item: _movie,
+          operation: const LibraryItemOperation.idle(),
+          onPressed: () {
+            openCalls++;
+          },
+          onAdd: () {
+            addCalls++;
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>('explore-media-library-action-movie-438631'),
+      ),
+    );
+
+    await tester.pump();
+
+    expect(addCalls, 1);
+    expect(openCalls, 0);
   });
 }
 

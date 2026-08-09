@@ -10,10 +10,18 @@ import 'package:sofawatch/features/library/domain/models/library_media_key.dart'
 import 'package:sofawatch/features/library/domain/models/library_media_type.dart';
 
 class ExploreHorizontalSection extends StatelessWidget {
-  const ExploreHorizontalSection({required this.items, this.title, super.key});
+  const ExploreHorizontalSection({
+    required this.items,
+    required this.onItemPressed,
+    this.title,
+    this.storageKey,
+    super.key,
+  });
 
   final String? title;
   final List<ExploreMediaItem> items;
+  final ValueChanged<ExploreMediaItem> onItemPressed;
+  final String? storageKey;
 
   @override
   Widget build(BuildContext context) {
@@ -38,9 +46,9 @@ class ExploreHorizontalSection extends StatelessWidget {
         SizedBox(
           height: 270,
           child: ListView.separated(
-            key: ValueKey<String>(
-              'explore-horizontal-section-'
-              '${sectionTitle ?? 'untitled'}',
+            key: PageStorageKey<String>(
+              storageKey ??
+                  'explore-horizontal-section-${sectionTitle ?? 'untitled'}',
             ),
             scrollDirection: Axis.horizontal,
             itemCount: items.length,
@@ -48,7 +56,12 @@ class ExploreHorizontalSection extends StatelessWidget {
               return const SizedBox(width: AppSpacing.lg);
             },
             itemBuilder: (BuildContext context, int index) {
-              return _LibraryAwareExploreMediaCard(item: items[index]);
+              return _LibraryAwareExploreMediaCard(
+                item: items[index],
+                onPressed: () {
+                  onItemPressed(items[index]);
+                },
+              );
             },
           ),
         ),
@@ -58,9 +71,13 @@ class ExploreHorizontalSection extends StatelessWidget {
 }
 
 class _LibraryAwareExploreMediaCard extends StatelessWidget {
-  const _LibraryAwareExploreMediaCard({required this.item});
+  const _LibraryAwareExploreMediaCard({
+    required this.item,
+    required this.onPressed,
+  });
 
   final ExploreMediaItem item;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +94,7 @@ class _LibraryAwareExploreMediaCard extends StatelessWidget {
         return ExploreMediaCard(
           item: item,
           operation: operation,
+          onPressed: onPressed,
           onAdd: item.inLibrary || operation.isAdding || operation.isAdded
               ? null
               : () {
