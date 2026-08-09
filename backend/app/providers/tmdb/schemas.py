@@ -367,3 +367,11 @@ class TMDBMovieDetails(BaseModel):
         """Convert TMDB empty release dates into null values."""
 
         return None if value == "" else value
+
+class TMDBGenre(BaseModel):
+    id: int
+    name: str
+
+
+class TMDBGenreListResponse(BaseModel):
+    genres: list[TMDBGenre]

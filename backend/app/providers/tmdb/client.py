@@ -19,6 +19,7 @@ from app.providers.tmdb.schemas import (
     TMDBTVDetails,
     TMDBTVSearchResponse,
     TMDBMovieDetails,
+    TMDBGenreListResponse
 )
 
 logger = logging.getLogger(__name__)
@@ -319,6 +320,43 @@ class TMDBClient:
             "/movie/popular",
             params=params,
             response_model=TMDBMovieSearchResponse,
+        )
+
+    def get_tv_genres(
+        self,
+        *,
+        language: str | None = None,
+    ) -> TMDBGenreListResponse:
+        request_language = (
+            language
+            or self._settings.default_language
+        )
+
+        return self.get(
+            "/genre/tv/list",
+            response_model=TMDBGenreListResponse,
+            params={
+                "language": request_language,
+            },
+        )
+
+
+    def get_movie_genres(
+        self,
+        *,
+        language: str | None = None,
+    ) -> TMDBGenreListResponse:
+        request_language = (
+            language
+            or self._settings.default_language
+        )
+
+        return self.get(
+            "/genre/movie/list",
+            response_model=TMDBGenreListResponse,
+            params={
+                "language": request_language,
+            },
         )
 
     def close(self) -> None:

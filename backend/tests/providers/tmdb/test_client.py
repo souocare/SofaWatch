@@ -1677,3 +1677,193 @@ def test_get_popular_movies_forwards_language(
         )
     finally:
         http_client.close()
+
+def test_get_tv_genres_returns_validated_response(
+    settings: Settings,
+) -> None:
+    """Return TV genre options from TMDB."""
+
+    def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        assert request.method == "GET"
+
+        assert request.url.path.endswith(
+            "/genre/tv/list"
+        )
+
+        assert (
+            request.url.params["language"]
+            == "en-US"
+        )
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "genres": [
+                    {
+                        "id": 18,
+                        "name": "Drama",
+                    },
+                    {
+                        "id": 35,
+                        "name": "Comedy",
+                    },
+                ],
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        handler,
+    )
+
+    try:
+        response = tmdb_client.get_tv_genres()
+
+        assert len(response.genres) == 2
+
+        assert response.genres[0].id == 18
+        assert response.genres[0].name == "Drama"
+
+        assert response.genres[1].id == 35
+        assert response.genres[1].name == "Comedy"
+
+    finally:
+        tmdb_client.close()
+        http_client.close()
+
+
+def test_get_tv_genres_forwards_language(
+    settings: Settings,
+) -> None:
+    """Forward the requested language for TV genres."""
+
+    def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        assert (
+            request.url.params["language"]
+            == "pt-PT"
+        )
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "genres": [],
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        handler,
+    )
+
+    try:
+        tmdb_client.get_tv_genres(
+            language="pt-PT",
+        )
+
+    finally:
+        tmdb_client.close()
+        http_client.close()
+
+
+def test_get_movie_genres_returns_validated_response(
+    settings: Settings,
+) -> None:
+    """Return Movie genre options from TMDB."""
+
+    def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        assert request.method == "GET"
+
+        assert request.url.path.endswith(
+            "/genre/movie/list"
+        )
+
+        assert (
+            request.url.params["language"]
+            == "en-US"
+        )
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "genres": [
+                    {
+                        "id": 28,
+                        "name": "Action",
+                    },
+                    {
+                        "id": 878,
+                        "name": "Science Fiction",
+                    },
+                ],
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        handler,
+    )
+
+    try:
+        response = (
+            tmdb_client.get_movie_genres()
+        )
+
+        assert len(response.genres) == 2
+
+        assert response.genres[0].id == 28
+        assert response.genres[0].name == "Action"
+
+        assert response.genres[1].id == 878
+        assert (
+            response.genres[1].name
+            == "Science Fiction"
+        )
+
+    finally:
+        tmdb_client.close()
+        http_client.close()
+
+
+def test_get_movie_genres_forwards_language(
+    settings: Settings,
+) -> None:
+    """Forward the requested language for Movie genres."""
+
+    def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        assert (
+            request.url.params["language"]
+            == "pt-PT"
+        )
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "genres": [],
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        handler,
+    )
+
+    try:
+        tmdb_client.get_movie_genres(
+            language="pt-PT",
+        )
+
+    finally:
+        tmdb_client.close()
+        http_client.close()

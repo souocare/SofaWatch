@@ -22,6 +22,10 @@ from app.services.tmdb_season_details import TMDBSeasonDetailsService
 from app.services.tmdb_show_details import TMDBShowDetailsService
 from dataclasses import dataclass
 from enum import StrEnum
+from app.repositories.genre_provider_mapping import (
+    GenreProviderMappingRepository,
+)
+from app.services.genre_mapping import GenreMappingService
 
 
 class ShowSyncOutcome(StrEnum):
@@ -49,21 +53,34 @@ class ShowImportService:
         settings: Settings,
         show_repository: ShowRepository,
         genre_repository: GenreRepository,
+        network_repository: NetworkRepository,
         season_repository: SeasonRepository,
         episode_repository: EpisodeRepository,
         tmdb_show_details_service: TMDBShowDetailsService,
         tmdb_season_details_service: TMDBSeasonDetailsService,
-        network_repository: NetworkRepository,
     ) -> None:
         self._session = session
         self._settings = settings
+
         self._show_repository = show_repository
         self._genre_repository = genre_repository
+        self._network_repository = network_repository
         self._season_repository = season_repository
         self._episode_repository = episode_repository
-        self._tmdb_show_details_service = tmdb_show_details_service
-        self._tmdb_season_details_service = tmdb_season_details_service
-        self._network_repository = network_repository
+
+        self._tmdb_show_details_service = (
+            tmdb_show_details_service
+        )
+        self._tmdb_season_details_service = (
+            tmdb_season_details_service
+        )
+
+        self._genre_mapping_service = GenreMappingService(
+            genre_repository=genre_repository,
+            mapping_repository=GenreProviderMappingRepository(
+                session,
+            ),
+        )
 
     def import_show(
         self,
@@ -198,8 +215,10 @@ class ShowImportService:
         """Resolve TMDB genres into local Genre entities."""
 
         return [
-            self._genre_repository.get_or_create(
-                tmdb_id=genre.tmdb_id,
+            self._genre_mapping_service.resolve(
+                provider="tmdb",
+                media_type="show",
+                provider_genre_id=genre.tmdb_id,
                 name=genre.name,
             )
             for genre in details.genres

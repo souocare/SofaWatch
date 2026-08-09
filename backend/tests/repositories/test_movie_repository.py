@@ -153,7 +153,6 @@ def test_get_by_id_loads_movie_genres(
     repository = MovieRepository(db_session)
 
     genre = Genre(
-        tmdb_id=878,
         name="Science Fiction",
         slug="science-fiction",
     )

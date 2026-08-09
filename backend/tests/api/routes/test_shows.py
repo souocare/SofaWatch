@@ -219,14 +219,12 @@ def create_local_show(
 def create_genre(
     db_session: Session,
     *,
-    tmdb_id: int,
     name: str,
     slug: str,
 ) -> Genre:
-    """Create and persist a TV series genre for route tests."""
+    """Create and persist a local genre for route tests."""
 
     genre = Genre(
-        tmdb_id=tmdb_id,
         name=name,
         slug=slug,
     )
@@ -709,13 +707,11 @@ def test_list_shows_filters_by_genre_slug(
 
     drama = create_genre(
         db_session,
-        tmdb_id=18,
         name="Drama",
         slug="drama",
     )
     comedy = create_genre(
         db_session,
-        tmdb_id=35,
         name="Comedy",
         slug="comedy",
     )
@@ -793,13 +789,11 @@ def test_list_shows_combines_query_genre_and_status_filters(
 
     drama = create_genre(
         db_session,
-        tmdb_id=18,
         name="Drama",
         slug="drama",
     )
     comedy = create_genre(
         db_session,
-        tmdb_id=35,
         name="Comedy",
         slug="comedy",
     )
@@ -852,7 +846,6 @@ def test_get_local_show_returns_detailed_response(
 
     drama = create_genre(
         db_session,
-        tmdb_id=18,
         name="Drama",
         slug="drama",
     )

@@ -2,8 +2,7 @@ from fastapi import APIRouter, status
 from app.core.exceptions import APIError
 
 from app.api.dependencies import GenreServiceDependency
-from app.schemas import GenreCreate, GenreResponse
-from app.services.genre import GenreAlreadyExistsError
+from app.schemas import GenreResponse
 
 
 router = APIRouter(
@@ -25,25 +24,3 @@ def list_genres(
 
     return [GenreResponse.model_validate(genre) for genre in genres]
 
-
-@router.post(
-    "/",
-    response_model=GenreResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_genre(
-    genre_data: GenreCreate,
-    service: GenreServiceDependency,
-) -> GenreResponse:
-    """Create a genre."""
-
-    try:
-        genre = service.create_genre(genre_data)
-    except GenreAlreadyExistsError as error:
-        raise APIError(
-            status_code=status.HTTP_409_CONFLICT,
-            code="genre_already_exists",
-            message="A genre with this name or slug already exists.",
-        ) from error
-
-    return GenreResponse.model_validate(genre)

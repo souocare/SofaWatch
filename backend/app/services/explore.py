@@ -8,6 +8,8 @@ from app.providers.tmdb.schemas import (
     TMDBTVSearchResult,
 )
 from app.schemas.explore import (
+    ExploreGenre,
+    ExploreGenreOptions,
     ExploreMediaCollection,
     ExploreMediaItem,
     ExploreMediaType,
@@ -240,6 +242,40 @@ class ExploreService:
                 items=items,
                 user_id=user_id,
             ),
+        )
+
+    def get_genres(
+        self,
+        *,
+        language: str | None = None,
+    ) -> ExploreGenreOptions:
+        tv_response = (
+            self._tmdb_client.get_tv_genres(
+                language=language,
+            )
+        )
+
+        movie_response = (
+            self._tmdb_client.get_movie_genres(
+                language=language,
+            )
+        )
+
+        return ExploreGenreOptions(
+            shows=[
+                ExploreGenre(
+                    id=item.id,
+                    name=item.name,
+                )
+                for item in tv_response.genres
+            ],
+            movies=[
+                ExploreGenre(
+                    id=item.id,
+                    name=item.name,
+                )
+                for item in movie_response.genres
+            ],
         )
 
     

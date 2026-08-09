@@ -8,7 +8,6 @@ from app.services.tmdb_show_search import ShowSearchService
 from app.services.user import UserService
 
 __all__ = [
-    "GenreAlreadyExistsError",
     "GenreService",
     "ShowSearchService",
     "ShowNotFoundError",

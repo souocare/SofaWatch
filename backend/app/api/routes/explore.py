@@ -13,6 +13,7 @@ from app.providers.tmdb.exceptions import (
     TMDBResponseError,
 )
 from app.schemas.explore import (
+    ExploreGenreOptions,
     ExploreMediaCollection,
     ExploreTrendingResponse,
     ExploreTrendingWindow,
@@ -162,3 +163,27 @@ def get_popular_movies(
             code="tmdb_invalid_response",
             message="TMDB returned an invalid response.",
         ) from error
+
+
+@router.get(
+    "/genres",
+    response_model=ExploreGenreOptions,
+    summary="Get Explore genre options",
+)
+def get_genres(
+    service: ExploreServiceDependency,
+    language: Annotated[
+        str | None,
+        Query(
+            min_length=2,
+            max_length=10,
+        ),
+    ] = None,
+) -> ExploreGenreOptions:
+    try:
+        return service.get_genres(
+            language=language,
+        )
+
+    except TMDBConfigurationError as error:
+        ...

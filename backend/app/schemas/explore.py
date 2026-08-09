@@ -64,3 +64,17 @@ class ExploreMediaCollection(BaseModel):
     items: list[ExploreMediaItem] = Field(
         default_factory=list,
     )
+
+class ExploreGenre(BaseModel):
+    id: int
+    name: str
+
+
+class ExploreGenreOptions(BaseModel):
+    shows: list[ExploreGenre] = Field(
+        default_factory=list,
+    )
+
+    movies: list[ExploreGenre] = Field(
+        default_factory=list,
+    )

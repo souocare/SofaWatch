@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.models.genre import Genre
+from app.models.genre_provider_mapping import GenreProviderMapping
 from app.models.movie import Movie
 from app.repositories.genre import GenreRepository
 from app.repositories.movie import MovieRepository
@@ -187,28 +188,84 @@ def test_import_movie_creates_and_associates_genres(
 
     assert genre_count == 2
 
-    genres_by_tmdb_id = {
-        genre.tmdb_id: genre
+    genres_by_name = {
+        genre.name: genre
         for genre in movie.genres
     }
 
-    assert set(genres_by_tmdb_id) == {
-        878,
-        12,
+    assert set(genres_by_name) == {
+        "Science Fiction",
+        "Adventure",
     }
 
     assert (
-        genres_by_tmdb_id[878].name
-        == "Science Fiction"
-    )
-
-    assert (
-        genres_by_tmdb_id[878].slug
+        genres_by_name[
+            "Science Fiction"
+        ].slug
         == "science-fiction"
     )
 
     assert (
-        genres_by_tmdb_id[12].name
+        genres_by_name[
+            "Adventure"
+        ].slug
+        == "adventure"
+    )
+
+    mappings = list(
+        db_session.scalars(
+            select(
+                GenreProviderMapping,
+            ).where(
+                GenreProviderMapping.provider
+                == "tmdb",
+                GenreProviderMapping.media_type
+                == "movie",
+            )
+        ).all()
+    )
+
+    mappings_by_provider_id = {
+        mapping.provider_genre_id: mapping
+        for mapping in mappings
+    }
+
+    assert set(
+        mappings_by_provider_id
+    ) == {
+        878,
+        12,
+    }
+
+    science_fiction_mapping = (
+        mappings_by_provider_id[878]
+    )
+
+    adventure_mapping = (
+        mappings_by_provider_id[12]
+    )
+
+    assert (
+        science_fiction_mapping.genre_id
+        == genres_by_name[
+            "Science Fiction"
+        ].id
+    )
+
+    assert (
+        adventure_mapping.genre_id
+        == genres_by_name[
+            "Adventure"
+        ].id
+    )
+
+    assert (
+        science_fiction_mapping.genre.name
+        == "Science Fiction"
+    )
+
+    assert (
+        adventure_mapping.genre.name
         == "Adventure"
     )
 

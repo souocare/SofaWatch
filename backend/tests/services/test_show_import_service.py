@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.models.episode import Episode
 from app.models.genre import Genre
+from app.models.genre_provider_mapping import GenreProviderMapping
 from app.models.network import Network
 from app.models.season import Season
 from app.models.show import Show
@@ -238,22 +239,83 @@ def test_import_show_creates_and_associates_genres(
         tmdb_id=TMDB_ID,
     )
 
-    genre_count = db_session.scalar(select(func.count()).select_from(Genre))
+    genre_count = db_session.scalar(
+        select(func.count()).select_from(
+            Genre,
+        )
+    )
 
     assert genre_count == 2
 
-    genres_by_tmdb_id = {genre.tmdb_id: genre for genre in show.genres}
+    genres_by_name = {
+        genre.name: genre
+        for genre in show.genres
+    }
 
-    assert set(genres_by_tmdb_id) == {
+    assert set(genres_by_name) == {
+        "Drama",
+        "Mystery",
+    }
+
+    assert (
+        genres_by_name["Drama"].slug
+        == "drama"
+    )
+
+    assert (
+        genres_by_name["Mystery"].slug
+        == "mystery"
+    )
+
+    mappings = list(
+        db_session.scalars(
+            select(
+                GenreProviderMapping,
+            ).where(
+                GenreProviderMapping.provider
+                == "tmdb",
+                GenreProviderMapping.media_type
+                == "show",
+            )
+        ).all()
+    )
+
+    mappings_by_provider_id = {
+        mapping.provider_genre_id: mapping
+        for mapping in mappings
+    }
+
+    assert set(
+        mappings_by_provider_id
+    ) == {
         18,
         9648,
     }
 
-    assert genres_by_tmdb_id[18].name == "Drama"
-    assert genres_by_tmdb_id[18].slug == "drama"
+    drama_mapping = (
+        mappings_by_provider_id[18]
+    )
 
-    assert genres_by_tmdb_id[9648].name == "Mystery"
-    assert genres_by_tmdb_id[9648].slug == "mystery"
+    mystery_mapping = (
+        mappings_by_provider_id[9648]
+    )
+
+    assert (
+        drama_mapping.genre_id
+        == genres_by_name["Drama"].id
+    )
+
+    assert (
+        mystery_mapping.genre_id
+        == genres_by_name["Mystery"].id
+    )
+
+    assert drama_mapping.genre.name == "Drama"
+
+    assert (
+        mystery_mapping.genre.name
+        == "Mystery"
+    )
 
 
 def test_import_show_does_not_create_duplicate(

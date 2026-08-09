@@ -234,7 +234,6 @@ def test_get_by_id_loads_show_genres(
     repository = ShowRepository(db_session)
 
     genre = Genre(
-        tmdb_id=18,
         name="Drama",
         slug="drama",
     )

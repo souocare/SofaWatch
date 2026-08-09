@@ -17,7 +17,15 @@ from app.providers.tmdb.schemas import (
 )
 from app.schemas.explore import ExploreMediaType, ExploreTrendingWindow
 from app.services.explore import ExploreService
+from app.providers.tmdb.schemas import (
+    TMDBGenre,
+    TMDBGenreListResponse,
+)
+from uuid import uuid4
 
+from app.repositories.library import LibraryRepository
+
+USER_ID = uuid4()
 
 @pytest.fixture
 def settings() -> Settings:
@@ -33,13 +41,25 @@ def tmdb_client() -> Mock:
 
 
 @pytest.fixture
+def library_repository() -> Mock:
+    repository = Mock(spec=LibraryRepository)
+
+    repository.get_show_tmdb_ids_in_library.return_value = set()
+    repository.get_movie_tmdb_ids_in_library.return_value = set()
+
+    return repository
+
+
+@pytest.fixture
 def service(
     settings: Settings,
     tmdb_client: Mock,
+    library_repository: Mock,
 ) -> ExploreService:
     return ExploreService(
         settings=settings,
         tmdb_client=tmdb_client,
+        library_repository=library_repository,
     )
 
 
@@ -96,6 +116,7 @@ def test_get_trending_preserves_mixed_media_order_and_filters_people(
     )
 
     result = service.get_trending(
+        user_id=USER_ID,
         window=ExploreTrendingWindow.DAY,
     )
 
@@ -151,6 +172,7 @@ def test_get_trending_preserves_missing_images(
     )
 
     result = service.get_trending(
+        user_id=USER_ID,
         window=ExploreTrendingWindow.WEEK,
     )
 
@@ -169,9 +191,8 @@ def test_get_trending_preserves_missing_images(
 
 def test_get_trending_supports_trailing_image_base_slash(
     tmdb_client: Mock,
+    library_repository: Mock,
 ) -> None:
-    """Normalize the configured TMDB image base URL."""
-
     settings = Settings(
         secret_key="a" * 32,
         tmdb_image_base_url="https://image.tmdb.org/t/p/",
@@ -180,7 +201,9 @@ def test_get_trending_supports_trailing_image_base_slash(
     service = ExploreService(
         settings=settings,
         tmdb_client=tmdb_client,
+        library_repository=library_repository,
     )
+
 
     tmdb_client.get_trending_all.return_value = (
         TMDBMultiSearchResponse(
@@ -208,6 +231,7 @@ def test_get_trending_supports_trailing_image_base_slash(
     )
 
     result = service.get_trending(
+        user_id=USER_ID,
         window=ExploreTrendingWindow.WEEK,
     )
 
@@ -257,7 +281,7 @@ def test_get_popular_shows_maps_tmdb_results(
         )
     )
 
-    result = service.get_popular_shows()
+    result = service.get_popular_shows(user_id=USER_ID,)
 
     assert len(result.items) == 1
 
@@ -317,7 +341,7 @@ def test_get_popular_movies_maps_tmdb_movies(
         )
     )
 
-    result = service.get_popular_movies()
+    result = service.get_popular_movies(user_id=USER_ID,)
 
     assert len(result.items) == 1
 
@@ -329,4 +353,101 @@ def test_get_popular_movies_maps_tmdb_movies(
 
     tmdb_client.get_popular_movies.assert_called_once_with(
         language=None,
+    )
+
+def test_get_genres_returns_independent_show_and_movie_genres(
+    service: ExploreService,
+    tmdb_client: Mock,
+) -> None:
+    tmdb_client.get_tv_genres.return_value = (
+        TMDBGenreListResponse(
+            genres=[
+                TMDBGenre(
+                    id=18,
+                    name="Drama",
+                ),
+                TMDBGenre(
+                    id=35,
+                    name="Comedy",
+                ),
+            ],
+        )
+    )
+
+    tmdb_client.get_movie_genres.return_value = (
+        TMDBGenreListResponse(
+            genres=[
+                TMDBGenre(
+                    id=28,
+                    name="Action",
+                ),
+                TMDBGenre(
+                    id=878,
+                    name="Science Fiction",
+                ),
+            ],
+        )
+    )
+
+    result = service.get_genres()
+
+    assert [
+        genre.id
+        for genre in result.shows
+    ] == [
+        18,
+        35,
+    ]
+
+    assert [
+        genre.name
+        for genre in result.shows
+    ] == [
+        "Drama",
+        "Comedy",
+    ]
+
+    assert [
+        genre.id
+        for genre in result.movies
+    ] == [
+        28,
+        878,
+    ]
+
+    assert [
+        genre.name
+        for genre in result.movies
+    ] == [
+        "Action",
+        "Science Fiction",
+    ]
+
+
+def test_get_genres_forwards_language(
+    service: ExploreService,
+    tmdb_client: Mock,
+) -> None:
+    tmdb_client.get_tv_genres.return_value = (
+        TMDBGenreListResponse(
+            genres=[],
+        )
+    )
+
+    tmdb_client.get_movie_genres.return_value = (
+        TMDBGenreListResponse(
+            genres=[],
+        )
+    )
+
+    service.get_genres(
+        language="pt-PT",
+    )
+
+    tmdb_client.get_tv_genres.assert_called_once_with(
+        language="pt-PT",
+    )
+
+    tmdb_client.get_movie_genres.assert_called_once_with(
+        language="pt-PT",
     )

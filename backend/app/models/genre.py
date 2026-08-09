@@ -10,6 +10,9 @@ from app.db.mixins import TimestampMixin
 if TYPE_CHECKING:
     from app.models.movie import Movie
     from app.models.show import Show
+    from app.models.genre_provider_mapping import (
+        GenreProviderMapping,
+    )
 
 
 class Genre(TimestampMixin, Base):
@@ -18,13 +21,6 @@ class Genre(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(
         primary_key=True,
         autoincrement=True,
-    )
-
-    tmdb_id: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        unique=True,
-        index=True,
     )
 
     name: Mapped[str] = mapped_column(
@@ -51,10 +47,9 @@ class Genre(TimestampMixin, Base):
         back_populates="genres",
     )
 
-    def __repr__(self) -> str:
-        return (
-            f"Genre(id={self.id!r}, "
-            f"tmdb_id={self.tmdb_id!r}, "
-            f"name={self.name!r}, "
-            f"slug={self.slug!r})"
-        )
+    provider_mappings: Mapped[
+        list["GenreProviderMapping"]
+    ] = relationship(
+        back_populates="genre",
+        cascade="all, delete-orphan",
+    )

@@ -18,8 +18,18 @@ from app.schemas.explore import (
     ExploreMediaType,
     ExploreTrendingResponse,
     ExploreTrendingWindow,
+    ExploreGenre,
+    ExploreGenreOptions,
+)
+from types import SimpleNamespace
+from uuid import uuid4
+
+from app.api.dependencies import (
+    get_current_user,
+    get_explore_service,
 )
 
+TEST_USER_ID = uuid4()
 
 EXPLORE_TRENDING_URL = "/api/v1/explore/trending"
 
@@ -37,11 +47,30 @@ def client_with_explore_service(
     def override_get_explore_service() -> Mock:
         return explore_service
 
+    def override_get_current_user() -> SimpleNamespace:
+        return SimpleNamespace(
+            id=TEST_USER_ID,
+        )
+
     app.dependency_overrides[
         get_explore_service
     ] = override_get_explore_service
 
-    return client
+    app.dependency_overrides[
+        get_current_user
+    ] = override_get_current_user
+
+    yield client
+
+    app.dependency_overrides.pop(
+        get_explore_service,
+        None,
+    )
+
+    app.dependency_overrides.pop(
+        get_current_user,
+        None,
+    )
 
 
 def test_get_trending_returns_ordered_mixed_media(
@@ -108,6 +137,7 @@ def test_get_trending_returns_ordered_mixed_media(
     assert body["items"][1]["title"] == "Dune"
 
     explore_service.get_trending.assert_called_once_with(
+        user_id=TEST_USER_ID,
         window=ExploreTrendingWindow.WEEK,
         language=None,
     )
@@ -131,6 +161,7 @@ def test_get_trending_forwards_language(
     assert response.status_code == 200
 
     explore_service.get_trending.assert_called_once_with(
+        user_id=TEST_USER_ID,
         window=ExploreTrendingWindow.WEEK,
         language="pt-PT",
     )
@@ -221,6 +252,7 @@ def test_get_trending_supports_day_window(
     assert response.status_code == 200
 
     explore_service.get_trending.assert_called_once_with(
+        user_id=TEST_USER_ID,
         window=ExploreTrendingWindow.DAY,
         language=None,
     )
@@ -240,6 +272,7 @@ def test_get_trending_defaults_to_week(
     assert response.status_code == 200
 
     explore_service.get_trending.assert_called_once_with(
+        user_id=TEST_USER_ID,
         window=ExploreTrendingWindow.WEEK,
         language=None,
     )
@@ -287,6 +320,7 @@ def test_get_popular_shows_returns_items(
     assert body["items"][0]["tmdb_id"] == 95396
 
     explore_service.get_popular_shows.assert_called_once_with(
+        user_id=TEST_USER_ID,
         language=None,
     )
 
@@ -308,6 +342,7 @@ def test_get_popular_shows_forwards_language(
     assert response.status_code == 200
 
     explore_service.get_popular_shows.assert_called_once_with(
+        user_id=TEST_USER_ID,
         language="pt-PT",
     )
 
@@ -360,6 +395,7 @@ def test_get_popular_movies_returns_items(
     assert body["items"][0]["title"] == "Dune"
 
     explore_service.get_popular_movies.assert_called_once_with(
+        user_id=TEST_USER_ID,
         language=None,
     )
 
@@ -385,5 +421,92 @@ def test_get_popular_movies_forwards_language(
     assert response.status_code == 200
 
     explore_service.get_popular_movies.assert_called_once_with(
+        user_id=TEST_USER_ID,
+        language="pt-PT",
+    )
+
+def test_get_explore_genres_returns_show_and_movie_options(
+    client_with_explore_service: TestClient,
+    explore_service: Mock,
+) -> None:
+    explore_service.get_genres.return_value = (
+        ExploreGenreOptions(
+            shows=[
+                ExploreGenre(
+                    id=18,
+                    name="Drama",
+                ),
+                ExploreGenre(
+                    id=35,
+                    name="Comedy",
+                ),
+            ],
+            movies=[
+                ExploreGenre(
+                    id=28,
+                    name="Action",
+                ),
+                ExploreGenre(
+                    id=878,
+                    name="Science Fiction",
+                ),
+            ],
+        )
+    )
+
+    response = (
+        client_with_explore_service.get(
+            "/api/v1/explore/genres",
+        )
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body == {
+        "shows": [
+            {
+                "id": 18,
+                "name": "Drama",
+            },
+            {
+                "id": 35,
+                "name": "Comedy",
+            },
+        ],
+        "movies": [
+            {
+                "id": 28,
+                "name": "Action",
+            },
+            {
+                "id": 878,
+                "name": "Science Fiction",
+            },
+        ],
+    }
+
+
+def test_get_explore_genres_forwards_language(
+    client_with_explore_service: TestClient,
+    explore_service: Mock,
+) -> None:
+    explore_service.get_genres.return_value = (
+        ExploreGenreOptions()
+    )
+
+    response = (
+        client_with_explore_service.get(
+            "/api/v1/explore/genres",
+            params={
+                "language": "pt-PT",
+            },
+        )
+    )
+
+    assert response.status_code == 200
+
+    explore_service.get_genres.assert_called_once_with(
         language="pt-PT",
     )

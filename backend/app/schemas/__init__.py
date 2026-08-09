@@ -1,8 +1,4 @@
-from app.schemas.genre import (
-    GenreCreate,
-    GenreResponse,
-    GenreUpdate,
-)
+from app.schemas.genre import GenreResponse
 from app.schemas.show import ShowResponse, ShowSummaryResponse
 from app.schemas.tmdb_show import (
     ShowCountry,
@@ -22,7 +18,6 @@ from app.schemas.search import (
 )
 
 __all__ = [
-    "GenreCreate",
     "ShowCountry",
     "ShowDetailsResponse",
     "ShowGenre",
@@ -37,4 +32,5 @@ __all__ = [
     "SearchMediaTypeFilter",
     "SearchResponse",
     "SearchResult",
+    "GenreResponse",
 ]

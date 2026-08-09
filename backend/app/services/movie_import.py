@@ -9,6 +9,10 @@ from app.repositories.genre import GenreRepository
 from app.repositories.movie import MovieRepository
 from app.schemas.tmdb_movie import MovieDetailsResponse
 from app.services.tmdb_movie_details import TMDBMovieDetailsService
+from app.repositories.genre_provider_mapping import (
+    GenreProviderMappingRepository,
+)
+from app.services.genre_mapping import GenreMappingService
 
 
 class MovieImportService:
@@ -25,9 +29,20 @@ class MovieImportService:
     ) -> None:
         self._session = session
         self._settings = settings
+
         self._movie_repository = movie_repository
         self._genre_repository = genre_repository
-        self._tmdb_movie_details_service = tmdb_movie_details_service
+
+        self._tmdb_movie_details_service = (
+            tmdb_movie_details_service
+        )
+
+        self._genre_mapping_service = GenreMappingService(
+            genre_repository=genre_repository,
+            mapping_repository=GenreProviderMappingRepository(
+                session,
+            ),
+        )
 
     def import_movie(
         self,
@@ -142,11 +157,11 @@ class MovieImportService:
         self,
         details: MovieDetailsResponse,
     ) -> list[Genre]:
-        """Resolve TMDB genres into local Genre entities."""
-
         return [
-            self._genre_repository.get_or_create(
-                tmdb_id=genre.tmdb_id,
+            self._genre_mapping_service.resolve(
+                provider="tmdb",
+                media_type="movie",
+                provider_genre_id=genre.tmdb_id,
                 name=genre.name,
             )
             for genre in details.genres

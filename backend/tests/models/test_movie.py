@@ -32,13 +32,11 @@ def test_movie_can_be_created() -> None:
 
 def test_movie_can_have_genres() -> None:
     science_fiction = Genre(
-        tmdb_id=878,
         name="Science Fiction",
         slug="science-fiction",
     )
 
     adventure = Genre(
-        tmdb_id=12,
         name="Adventure",
         slug="adventure",
     )
