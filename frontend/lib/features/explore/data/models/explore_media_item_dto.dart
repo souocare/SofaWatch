@@ -11,6 +11,7 @@ class ExploreMediaItemDto {
     required this.popularity,
     required this.voteAverage,
     required this.voteCount,
+    required this.inLibrary,
     this.overview,
     this.releaseDate,
     this.posterUrl,
@@ -32,6 +33,7 @@ class ExploreMediaItemDto {
       popularity: _readDouble(json, 'popularity'),
       voteAverage: _readDouble(json, 'vote_average'),
       voteCount: _readNonNegativeInt(json, 'vote_count'),
+      inLibrary: _readBool(json, 'in_library'),
     );
   }
 
@@ -56,6 +58,8 @@ class ExploreMediaItemDto {
   final double voteAverage;
   final int voteCount;
 
+  final bool inLibrary;
+
   ExploreMediaItem toDomain() {
     return ExploreMediaItem(
       mediaType: mediaType,
@@ -71,6 +75,7 @@ class ExploreMediaItemDto {
       popularity: popularity,
       voteAverage: voteAverage,
       voteCount: voteCount,
+      inLibrary: inLibrary,
     );
   }
 
@@ -110,6 +115,16 @@ class ExploreMediaItemDto {
     }
 
     throw FormatException('Invalid number for "$key".');
+  }
+
+  static bool _readBool(Map<String, dynamic> json, String key) {
+    final Object? value = json[key];
+
+    if (value is bool) {
+      return value;
+    }
+
+    throw FormatException('Invalid boolean for "$key".');
   }
 
   static String _readString(Map<String, dynamic> json, String key) {

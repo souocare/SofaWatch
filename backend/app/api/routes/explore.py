@@ -2,7 +2,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
-from app.api.dependencies import ExploreServiceDependency
+from app.api.dependencies import (
+    CurrentUserDependency,
+    ExploreServiceDependency,
+)
 from app.core.exceptions import APIError
 from app.providers.tmdb.exceptions import (
     TMDBConfigurationError,
@@ -28,6 +31,7 @@ router = APIRouter(
 )
 def get_trending(
     service: ExploreServiceDependency,
+    current_user: CurrentUserDependency,
     window: ExploreTrendingWindow = ExploreTrendingWindow.WEEK,
     language: Annotated[
         str | None,
@@ -41,6 +45,7 @@ def get_trending(
 
     try:
         return service.get_trending(
+            user_id=current_user.id,
             window=window,
             language=language,
         )
@@ -74,6 +79,7 @@ def get_trending(
 )
 def get_popular_shows(
     service: ExploreServiceDependency,
+    current_user: CurrentUserDependency,
     language: Annotated[
         str | None,
         Query(
@@ -86,6 +92,7 @@ def get_popular_shows(
 
     try:
         return service.get_popular_shows(
+            user_id=current_user.id,
             language=language,
         )
 
@@ -118,6 +125,7 @@ def get_popular_shows(
 )
 def get_popular_movies(
     service: ExploreServiceDependency,
+    current_user: CurrentUserDependency,
     language: Annotated[
         str | None,
         Query(
@@ -130,6 +138,7 @@ def get_popular_movies(
 
     try:
         return service.get_popular_movies(
+            user_id=current_user.id,
             language=language,
         )
 
@@ -153,4 +162,3 @@ def get_popular_movies(
             code="tmdb_invalid_response",
             message="TMDB returned an invalid response.",
         ) from error
-

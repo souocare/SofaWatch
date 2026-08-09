@@ -14,6 +14,9 @@ from app.schemas.explore import (
     ExploreTrendingResponse,
     ExploreTrendingWindow,
 )
+from uuid import UUID
+
+from app.repositories.library import LibraryRepository
 
 
 
@@ -25,13 +28,16 @@ class ExploreService:
         *,
         settings: Settings,
         tmdb_client: TMDBClient,
+        library_repository: LibraryRepository,
     ) -> None:
         self._settings = settings
         self._tmdb_client = tmdb_client
+        self._library_repository = library_repository
 
     def get_trending(
         self,
         *,
+        user_id: UUID,
         window: ExploreTrendingWindow,
         language: str | None = None,
     ) -> ExploreTrendingResponse:
@@ -63,7 +69,10 @@ class ExploreService:
                 )
 
         return ExploreTrendingResponse(
-            items=items,
+            items=self._enrich_library_state(
+                items=items,
+                user_id=user_id,
+            ),
         )
     def _map_show(
         self,
@@ -132,9 +141,63 @@ class ExploreService:
 
         return f"{base_url}/{size}{path}"
 
+    def _enrich_library_state(
+        self,
+        *,
+        items: list[ExploreMediaItem],
+        user_id: UUID,
+    ) -> list[ExploreMediaItem]:
+        """Resolve Library membership for a collection of Explore items."""
+
+        if not items:
+            return items
+
+        show_tmdb_ids = {
+            item.tmdb_id
+            for item in items
+            if item.media_type is ExploreMediaType.SHOW
+        }
+
+        movie_tmdb_ids = {
+            item.tmdb_id
+            for item in items
+            if item.media_type is ExploreMediaType.MOVIE
+        }
+
+        library_show_tmdb_ids = (
+            self._library_repository.get_show_tmdb_ids_in_library(
+                user_id=user_id,
+                tmdb_ids=show_tmdb_ids,
+            )
+        )
+
+        library_movie_tmdb_ids = (
+            self._library_repository.get_movie_tmdb_ids_in_library(
+                user_id=user_id,
+                tmdb_ids=movie_tmdb_ids,
+            )
+        )
+
+        return [
+            item.model_copy(
+                update={
+                    "in_library": (
+                        item.tmdb_id
+                        in (
+                            library_show_tmdb_ids
+                            if item.media_type is ExploreMediaType.SHOW
+                            else library_movie_tmdb_ids
+                        )
+                    )
+                },
+            )
+            for item in items
+        ]
+
     def get_popular_shows(
         self,
         *,
+        user_id: UUID,
         language: str | None = None,
     ) -> ExploreMediaCollection:
         """Return popular TV series for Explore."""
@@ -149,12 +212,16 @@ class ExploreService:
         ]
 
         return ExploreMediaCollection(
-            items=items,
+            items=self._enrich_library_state(
+                items=items,
+                user_id=user_id,
+            ),
         )
 
     def get_popular_movies(
         self,
         *,
+        user_id: UUID,
         language: str | None = None,
     ) -> ExploreMediaCollection:
         """Return popular Movies for Explore."""
@@ -169,7 +236,10 @@ class ExploreService:
         ]
 
         return ExploreMediaCollection(
-            items=items,
+            items=self._enrich_library_state(
+                items=items,
+                user_id=user_id,
+            ),
         )
 
     

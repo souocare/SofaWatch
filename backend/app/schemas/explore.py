@@ -25,6 +25,7 @@ class ExploreMediaItem(BaseModel):
 
     poster_url: str | None = None
     backdrop_url: str | None = None
+    in_library: bool = False
 
     original_language: str
 

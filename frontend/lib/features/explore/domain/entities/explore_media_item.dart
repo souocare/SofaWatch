@@ -17,6 +17,7 @@ class ExploreMediaItem extends Equatable {
     this.releaseDate,
     this.posterUrl,
     this.backdropUrl,
+    this.inLibrary = false,
   });
 
   final ExploreMediaType mediaType;
@@ -39,6 +40,7 @@ class ExploreMediaItem extends Equatable {
   final double popularity;
   final double voteAverage;
   final int voteCount;
+  final bool inLibrary;
 
   int? get releaseYear => releaseDate?.year;
 

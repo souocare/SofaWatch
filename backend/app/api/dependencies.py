@@ -457,6 +457,7 @@ ImageServiceDependency = Annotated[
 
 
 def get_explore_service(
+    session: DatabaseSession,
     settings: Annotated[
         Settings,
         Depends(get_settings),
@@ -471,6 +472,9 @@ def get_explore_service(
     return ExploreService(
         settings=settings,
         tmdb_client=tmdb_client,
+        library_repository=LibraryRepository(
+            session,
+        ),
     )
 
 
