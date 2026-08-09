@@ -266,9 +266,11 @@ class _PopularShowsContent extends StatelessWidget {
     final ExploreMediaCollection? collection = state.popularShows.data;
 
     if (collection == null || collection.isEmpty) {
-      return const _PopularSectionEmpty(
+      return _PopularSectionEmpty(
         sectionKey: 'explore-popular-shows',
-        message: 'No TV shows found for this genre.',
+        message: state.selectedShowGenreId == null
+            ? 'No popular TV shows available.'
+            : 'No TV shows found for this genre.',
       );
     }
 
@@ -347,9 +349,11 @@ class _PopularMoviesContent extends StatelessWidget {
     final ExploreMediaCollection? collection = state.popularMovies.data;
 
     if (collection == null || collection.isEmpty) {
-      return const _PopularSectionEmpty(
+      return _PopularSectionEmpty(
         sectionKey: 'explore-popular-movies',
-        message: 'No Movies found for this genre.',
+        message: state.selectedMovieGenreId == null
+            ? 'No popular Movies available.'
+            : 'No Movies found for this genre.',
       );
     }
 

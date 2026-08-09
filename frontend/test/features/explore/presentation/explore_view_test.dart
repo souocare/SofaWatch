@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/explore/application/cubit/explore_cubit.dart';
 import 'package:sofawatch/features/explore/application/cubit/explore_state.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_genre.dart';
@@ -553,6 +554,174 @@ void main() {
 
     await cubit.close();
   });
+
+  testWidgets('shows global error and Retry when initial Explore load fails', (
+    WidgetTester tester,
+  ) async {
+    final _RecoverableExploreRepository repository =
+        _RecoverableExploreRepository(failInitialLoad: true);
+
+    final ExploreCubit cubit = ExploreCubit(repository);
+
+    await cubit.load();
+
+    await tester.pumpWidget(_buildTestApp(cubit));
+
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey<String>('explore-trending-failure')),
+      findsOneWidget,
+    );
+
+    expect(find.text('Could not load Explore.'), findsOneWidget);
+
+    expect(find.byKey(const ValueKey<String>('explore-retry')), findsOneWidget);
+
+    repository.failInitialLoad = false;
+
+    await tester.tap(find.byKey(const ValueKey<String>('explore-retry')));
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('explore-trending-failure')),
+      findsNothing,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('explore-trending-content')),
+      findsOneWidget,
+    );
+
+    expect(repository.trendingCalls, greaterThanOrEqualTo(3));
+
+    await cubit.close();
+  });
+
+  testWidgets('shows and retries error only in Popular TV Shows', (
+    WidgetTester tester,
+  ) async {
+    final _RecoverableExploreRepository repository =
+        _RecoverableExploreRepository(failShowGenre: true);
+
+    final ExploreCubit cubit = ExploreCubit(repository);
+
+    await cubit.load();
+
+    await tester.pumpWidget(_buildTestApp(cubit));
+
+    await tester.pump();
+
+    final Finder showGenreChip = find.byKey(
+      const ValueKey<String>('explore-popular-shows-genre-18'),
+    );
+
+    await tester.ensureVisible(showGenreChip);
+    await tester.pumpAndSettle();
+
+    await tester.tap(showGenreChip);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('explore-popular-shows-failure')),
+      findsOneWidget,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('explore-popular-movies-failure')),
+      findsNothing,
+    );
+
+    expect(find.text('Popular Movies'), findsOneWidget);
+
+    expect(find.text('Interstellar'), findsOneWidget);
+
+    repository.failShowGenre = false;
+
+    final Finder showRetry = find.byKey(
+      const ValueKey<String>('explore-popular-shows-retry'),
+    );
+
+    await tester.ensureVisible(showRetry);
+    await tester.pumpAndSettle();
+
+    await tester.tap(showRetry);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('explore-popular-shows-failure')),
+      findsNothing,
+    );
+
+    expect(find.text('The Last of Us'), findsOneWidget);
+
+    expect(cubit.state.selectedShowGenreId, 18);
+
+    await cubit.close();
+  });
+
+  testWidgets('shows and retries error only in Popular Movies', (
+    WidgetTester tester,
+  ) async {
+    final _RecoverableExploreRepository repository =
+        _RecoverableExploreRepository(failMovieGenre: true);
+
+    final ExploreCubit cubit = ExploreCubit(repository);
+
+    await cubit.load();
+
+    await tester.pumpWidget(_buildTestApp(cubit));
+
+    await tester.pump();
+
+    final Finder movieGenreChip = find.byKey(
+      const ValueKey<String>('explore-popular-movies-genre-878'),
+    );
+
+    await tester.ensureVisible(movieGenreChip);
+    await tester.pumpAndSettle();
+
+    await tester.tap(movieGenreChip);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('explore-popular-movies-failure')),
+      findsOneWidget,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('explore-popular-shows-failure')),
+      findsNothing,
+    );
+
+    expect(find.text('Popular TV Shows'), findsOneWidget);
+
+    expect(find.text('Breaking Bad'), findsOneWidget);
+
+    repository.failMovieGenre = false;
+
+    final Finder movieRetry = find.byKey(
+      const ValueKey<String>('explore-popular-movies-retry'),
+    );
+
+    await tester.ensureVisible(movieRetry);
+    await tester.pumpAndSettle();
+
+    await tester.tap(movieRetry);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('explore-popular-movies-failure')),
+      findsNothing,
+    );
+
+    expect(find.text('Blade Runner 2049'), findsOneWidget);
+
+    expect(cubit.state.selectedMovieGenreId, 878);
+
+    await cubit.close();
+  });
 }
 
 Widget _buildTestApp(ExploreCubit cubit) {
@@ -877,5 +1046,94 @@ final class _FakeLibraryRepository implements LibraryRepository {
   @override
   dynamic noSuchMethod(Invocation invocation) {
     return super.noSuchMethod(invocation);
+  }
+}
+
+final class _RecoverableExploreRepository implements ExploreRepository {
+  _RecoverableExploreRepository({
+    this.failInitialLoad = false,
+    this.failShowGenre = false,
+    this.failMovieGenre = false,
+  });
+
+  bool failInitialLoad;
+  bool failShowGenre;
+  bool failMovieGenre;
+
+  int trendingCalls = 0;
+  int genresCalls = 0;
+  int popularShowsCalls = 0;
+  int popularMoviesCalls = 0;
+
+  @override
+  Future<ExploreTrending> getTrending({
+    required ExploreTrendingWindow window,
+    String? language,
+  }) async {
+    trendingCalls++;
+
+    if (failInitialLoad) {
+      throw const AppException.connection();
+    }
+
+    return switch (window) {
+      ExploreTrendingWindow.day => ExploreTrending(
+        items: const <ExploreMediaItem>[_movie],
+      ),
+      ExploreTrendingWindow.week => ExploreTrending(
+        items: const <ExploreMediaItem>[_show],
+      ),
+    };
+  }
+
+  @override
+  Future<ExploreGenreOptions> getGenres({String? language}) async {
+    genresCalls++;
+
+    return _genreOptions;
+  }
+
+  @override
+  Future<ExploreMediaCollection> getPopularShows({
+    int? genreId,
+    String? language,
+  }) async {
+    popularShowsCalls++;
+
+    if (genreId == 18) {
+      if (failShowGenre) {
+        throw const AppException.connection();
+      }
+
+      return const ExploreMediaCollection(
+        items: <ExploreMediaItem>[_dramaShow],
+      );
+    }
+
+    return const ExploreMediaCollection(
+      items: <ExploreMediaItem>[_popularShow],
+    );
+  }
+
+  @override
+  Future<ExploreMediaCollection> getPopularMovies({
+    int? genreId,
+    String? language,
+  }) async {
+    popularMoviesCalls++;
+
+    if (genreId == 878) {
+      if (failMovieGenre) {
+        throw const AppException.connection();
+      }
+
+      return const ExploreMediaCollection(
+        items: <ExploreMediaItem>[_scienceFictionMovie],
+      );
+    }
+
+    return const ExploreMediaCollection(
+      items: <ExploreMediaItem>[_popularMovie],
+    );
   }
 }
