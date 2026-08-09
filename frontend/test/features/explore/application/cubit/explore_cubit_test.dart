@@ -9,7 +9,7 @@ import 'package:sofawatch/features/explore/domain/entities/explore_trending_wind
 import 'package:sofawatch/features/explore/domain/repositories/explore_repository.dart';
 
 void main() {
-  test('loads trending and popular Shows successfully', () async {
+  test('loads all Explore discovery sources successfully', () async {
     final _FakeExploreRepository repository = _FakeExploreRepository(
       results: <ExploreTrendingWindow, ExploreTrending>{
         ExploreTrendingWindow.day: ExploreTrending(
@@ -20,7 +20,10 @@ void main() {
         ),
       },
       popularShows: const ExploreMediaCollection(
-        items: <ExploreMediaItem>[_show],
+        items: <ExploreMediaItem>[_popularShow],
+      ),
+      popularMovies: const ExploreMediaCollection(
+        items: <ExploreMediaItem>[_popularMovie],
       ),
     );
 
@@ -31,12 +34,14 @@ void main() {
     expect(cubit.state.today.isLoading, isTrue);
     expect(cubit.state.week.isLoading, isTrue);
     expect(cubit.state.popularShows.isLoading, isTrue);
+    expect(cubit.state.popularMovies.isLoading, isTrue);
 
     await loadFuture;
 
     expect(cubit.state.today.isSuccess, isTrue);
     expect(cubit.state.week.isSuccess, isTrue);
     expect(cubit.state.popularShows.isSuccess, isTrue);
+    expect(cubit.state.popularMovies.isSuccess, isTrue);
 
     expect(cubit.state.today.data?.items, hasLength(2));
 
@@ -44,7 +49,11 @@ void main() {
 
     expect(cubit.state.popularShows.data?.items, hasLength(1));
 
-    expect(cubit.state.popularShows.data?.items.single.title, 'Severance');
+    expect(cubit.state.popularShows.data?.items.single.title, 'Breaking Bad');
+
+    expect(cubit.state.popularMovies.data?.items, hasLength(1));
+
+    expect(cubit.state.popularMovies.data?.items.single.title, 'Interstellar');
 
     expect(repository.requestedWindows, <ExploreTrendingWindow>[
       ExploreTrendingWindow.day,
@@ -52,6 +61,7 @@ void main() {
     ]);
 
     expect(repository.popularShowsCalls, 1);
+    expect(repository.popularMoviesCalls, 1);
 
     await cubit.close();
   });
@@ -68,12 +78,15 @@ void main() {
     expect(cubit.state.today.isFailure, isTrue);
     expect(cubit.state.week.isFailure, isTrue);
     expect(cubit.state.popularShows.isFailure, isTrue);
+    expect(cubit.state.popularMovies.isFailure, isTrue);
 
     expect(cubit.state.today.error?.type, AppExceptionType.connection);
 
     expect(cubit.state.week.error?.type, AppExceptionType.connection);
 
     expect(cubit.state.popularShows.error?.type, AppExceptionType.connection);
+
+    expect(cubit.state.popularMovies.error?.type, AppExceptionType.connection);
 
     await cubit.close();
   });
@@ -89,7 +102,10 @@ void main() {
         ),
       },
       popularShows: const ExploreMediaCollection(
-        items: <ExploreMediaItem>[_show],
+        items: <ExploreMediaItem>[_popularShow],
+      ),
+      popularMovies: const ExploreMediaCollection(
+        items: <ExploreMediaItem>[_popularMovie],
       ),
     );
 
@@ -100,6 +116,7 @@ void main() {
 
     expect(repository.trendingCalls, 4);
     expect(repository.popularShowsCalls, 2);
+    expect(repository.popularMoviesCalls, 2);
 
     expect(repository.requestedWindows, <ExploreTrendingWindow>[
       ExploreTrendingWindow.day,
@@ -172,6 +189,7 @@ void main() {
 
     expect(repository.trendingCalls, 2);
     expect(repository.popularShowsCalls, 1);
+    expect(repository.popularMoviesCalls, 1);
 
     cubit.changeWeekFilter(ExploreWeekFilter.shows);
 
@@ -181,6 +199,7 @@ void main() {
 
     expect(repository.trendingCalls, 2);
     expect(repository.popularShowsCalls, 1);
+    expect(repository.popularMoviesCalls, 1);
 
     expect(repository.requestedWindows, <ExploreTrendingWindow>[
       ExploreTrendingWindow.day,
@@ -242,10 +261,37 @@ const ExploreMediaItem _movie = ExploreMediaItem(
   voteCount: 13000,
 );
 
+const ExploreMediaItem _popularShow = ExploreMediaItem(
+  mediaType: ExploreMediaType.show,
+  tmdbId: 1396,
+  title: 'Breaking Bad',
+  originalTitle: 'Breaking Bad',
+  originalLanguage: 'en',
+  genreIds: <int>[18],
+  popularity: 100,
+  voteAverage: 9.5,
+  voteCount: 16000,
+);
+
+const ExploreMediaItem _popularMovie = ExploreMediaItem(
+  mediaType: ExploreMediaType.movie,
+  tmdbId: 157336,
+  title: 'Interstellar',
+  originalTitle: 'Interstellar',
+  originalLanguage: 'en',
+  genreIds: <int>[12, 18, 878],
+  popularity: 110,
+  voteAverage: 8.5,
+  voteCount: 36000,
+);
+
 final class _FakeExploreRepository implements ExploreRepository {
   _FakeExploreRepository({
     this.results = const <ExploreTrendingWindow, ExploreTrending>{},
     this.popularShows = const ExploreMediaCollection(
+      items: <ExploreMediaItem>[],
+    ),
+    this.popularMovies = const ExploreMediaCollection(
       items: <ExploreMediaItem>[],
     ),
     this.error,
@@ -254,6 +300,7 @@ final class _FakeExploreRepository implements ExploreRepository {
   final Map<ExploreTrendingWindow, ExploreTrending> results;
 
   final ExploreMediaCollection popularShows;
+  final ExploreMediaCollection popularMovies;
 
   final AppException? error;
 
@@ -262,6 +309,7 @@ final class _FakeExploreRepository implements ExploreRepository {
 
   int trendingCalls = 0;
   int popularShowsCalls = 0;
+  int popularMoviesCalls = 0;
 
   @override
   Future<ExploreTrending> getTrending({
@@ -284,6 +332,15 @@ final class _FakeExploreRepository implements ExploreRepository {
     _throwIfNeeded();
 
     return popularShows;
+  }
+
+  @override
+  Future<ExploreMediaCollection> getPopularMovies({String? language}) async {
+    popularMoviesCalls++;
+
+    _throwIfNeeded();
+
+    return popularMovies;
   }
 
   void _throwIfNeeded() {

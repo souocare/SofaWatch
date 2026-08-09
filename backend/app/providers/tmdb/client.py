@@ -297,6 +297,30 @@ class TMDBClient:
             },
         )
 
+    def get_popular_movies(
+        self,
+        *,
+        language: str | None = None,
+        page: int = 1,
+    ) -> TMDBMovieSearchResponse:
+        """Return popular Movies from TMDB."""
+
+        if page < 1:
+            raise ValueError("page must be greater than zero")
+
+        params: dict[str, str | int] = {
+            "page": page,
+        }
+
+        if language is not None:
+            params["language"] = language
+
+        return self.get(
+            "/movie/popular",
+            params=params,
+            response_model=TMDBMovieSearchResponse,
+        )
+
     def close(self) -> None:
         """Close the internally managed HTTP client."""
 

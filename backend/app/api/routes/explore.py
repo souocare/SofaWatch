@@ -109,3 +109,48 @@ def get_popular_shows(
             code="tmdb_invalid_response",
             message="TMDB returned an invalid response.",
         ) from error
+
+
+@router.get(
+    "/popular/movies",
+    response_model=ExploreMediaCollection,
+    summary="Get popular Movies",
+)
+def get_popular_movies(
+    service: ExploreServiceDependency,
+    language: Annotated[
+        str | None,
+        Query(
+            min_length=2,
+            max_length=10,
+        ),
+    ] = None,
+) -> ExploreMediaCollection:
+    """Return popular Movies for Explore."""
+
+    try:
+        return service.get_popular_movies(
+            language=language,
+        )
+
+    except TMDBConfigurationError as error:
+        raise APIError(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            code="tmdb_not_configured",
+            message="The TMDB provider is not configured.",
+        ) from error
+
+    except TMDBRequestError as error:
+        raise APIError(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            code="tmdb_unavailable",
+            message="The TMDB service is currently unavailable.",
+        ) from error
+
+    except TMDBResponseError as error:
+        raise APIError(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            code="tmdb_invalid_response",
+            message="TMDB returned an invalid response.",
+        ) from error
+

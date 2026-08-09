@@ -13,7 +13,7 @@ import 'package:sofawatch/features/explore/domain/repositories/explore_repositor
 import 'package:sofawatch/features/explore/presentation/views/explore_view.dart';
 
 void main() {
-  testWidgets('shows Trending Today, Trending This Week and Popular TV Shows', (
+  testWidgets('shows Trending and Popular discovery sections', (
     WidgetTester tester,
   ) async {
     final ExploreCubit cubit = ExploreCubit(
@@ -28,6 +28,9 @@ void main() {
         },
         popularShows: const ExploreMediaCollection(
           items: <ExploreMediaItem>[_popularShow],
+        ),
+        popularMovies: const ExploreMediaCollection(
+          items: <ExploreMediaItem>[_popularMovie],
         ),
       ),
     );
@@ -44,11 +47,15 @@ void main() {
 
     expect(find.text('Popular TV Shows'), findsOneWidget);
 
+    expect(find.text('Popular Movies'), findsOneWidget);
+
     expect(find.text('Dune'), findsOneWidget);
 
     expect(find.text('Severance'), findsOneWidget);
 
     expect(find.text('Breaking Bad'), findsOneWidget);
+
+    expect(find.text('Interstellar'), findsOneWidget);
 
     await cubit.close();
   });
@@ -106,6 +113,9 @@ void main() {
         popularShows: const ExploreMediaCollection(
           items: <ExploreMediaItem>[_popularShow],
         ),
+        popularMovies: const ExploreMediaCollection(
+          items: <ExploreMediaItem>[_popularMovie],
+        ),
       );
 
       final ExploreCubit cubit = ExploreCubit(repository);
@@ -119,6 +129,8 @@ void main() {
       expect(repository.trendingCalls, 2);
 
       expect(repository.popularShowsCalls, 1);
+
+      expect(repository.popularMoviesCalls, 1);
 
       await tester.tap(
         find.byKey(const ValueKey<String>('explore-week-filter-shows')),
@@ -139,9 +151,13 @@ void main() {
 
       expect(find.text('Popular TV Shows'), findsOneWidget);
 
+      expect(find.text('Popular Movies'), findsOneWidget);
+
       expect(repository.trendingCalls, 2);
 
       expect(repository.popularShowsCalls, 1);
+
+      expect(repository.popularMoviesCalls, 1);
 
       await cubit.close();
     },
@@ -176,6 +192,10 @@ void main() {
     );
 
     repository.completePopularShows(
+      const ExploreMediaCollection(items: <ExploreMediaItem>[]),
+    );
+
+    repository.completePopularMovies(
       const ExploreMediaCollection(items: <ExploreMediaItem>[]),
     );
 
@@ -263,10 +283,25 @@ const ExploreMediaItem _popularShow = ExploreMediaItem(
   voteCount: 16000,
 );
 
+const ExploreMediaItem _popularMovie = ExploreMediaItem(
+  mediaType: ExploreMediaType.movie,
+  tmdbId: 157336,
+  title: 'Interstellar',
+  originalTitle: 'Interstellar',
+  originalLanguage: 'en',
+  genreIds: <int>[12, 18, 878],
+  popularity: 110,
+  voteAverage: 8.5,
+  voteCount: 36000,
+);
+
 final class _FakeExploreRepository implements ExploreRepository {
   _FakeExploreRepository({
     required this.results,
     this.popularShows = const ExploreMediaCollection(
+      items: <ExploreMediaItem>[],
+    ),
+    this.popularMovies = const ExploreMediaCollection(
       items: <ExploreMediaItem>[],
     ),
   });
@@ -275,8 +310,11 @@ final class _FakeExploreRepository implements ExploreRepository {
 
   final ExploreMediaCollection popularShows;
 
+  final ExploreMediaCollection popularMovies;
+
   int trendingCalls = 0;
   int popularShowsCalls = 0;
+  int popularMoviesCalls = 0;
 
   @override
   Future<ExploreTrending> getTrending({
@@ -295,6 +333,13 @@ final class _FakeExploreRepository implements ExploreRepository {
 
     return popularShows;
   }
+
+  @override
+  Future<ExploreMediaCollection> getPopularMovies({String? language}) async {
+    popularMoviesCalls++;
+
+    return popularMovies;
+  }
 }
 
 final class _PendingExploreRepository implements ExploreRepository {
@@ -305,6 +350,9 @@ final class _PendingExploreRepository implements ExploreRepository {
   };
 
   final Completer<ExploreMediaCollection> _popularShowsCompleter =
+      Completer<ExploreMediaCollection>();
+
+  final Completer<ExploreMediaCollection> _popularMoviesCompleter =
       Completer<ExploreMediaCollection>();
 
   @override
@@ -320,11 +368,20 @@ final class _PendingExploreRepository implements ExploreRepository {
     return _popularShowsCompleter.future;
   }
 
+  @override
+  Future<ExploreMediaCollection> getPopularMovies({String? language}) {
+    return _popularMoviesCompleter.future;
+  }
+
   void completeTrending(ExploreTrendingWindow window, ExploreTrending value) {
     _trendingCompleters[window]!.complete(value);
   }
 
   void completePopularShows(ExploreMediaCollection value) {
     _popularShowsCompleter.complete(value);
+  }
+
+  void completePopularMovies(ExploreMediaCollection value) {
+    _popularMoviesCompleter.complete(value);
   }
 }

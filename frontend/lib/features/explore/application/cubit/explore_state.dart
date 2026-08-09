@@ -12,6 +12,7 @@ class ExploreState extends Equatable {
     this.week = const RemoteState<ExploreTrending>.initial(),
     this.weekFilter = ExploreWeekFilter.all,
     this.popularShows = const RemoteState.initial(),
+    this.popularMovies = const RemoteState<ExploreMediaCollection>.initial(),
   });
 
   final RemoteState<ExploreTrending> today;
@@ -19,6 +20,7 @@ class ExploreState extends Equatable {
 
   final ExploreWeekFilter weekFilter;
   final RemoteState<ExploreMediaCollection> popularShows;
+  final RemoteState<ExploreMediaCollection> popularMovies;
 
   List<ExploreMediaItem> get filteredWeekItems {
     final ExploreTrending? trending = week.data;
@@ -41,12 +43,14 @@ class ExploreState extends Equatable {
     RemoteState<ExploreTrending>? week,
     ExploreWeekFilter? weekFilter,
     RemoteState<ExploreMediaCollection>? popularShows,
+    RemoteState<ExploreMediaCollection>? popularMovies,
   }) {
     return ExploreState(
       today: today ?? this.today,
       week: week ?? this.week,
       weekFilter: weekFilter ?? this.weekFilter,
       popularShows: popularShows ?? this.popularShows,
+      popularMovies: popularMovies ?? this.popularMovies,
     );
   }
 

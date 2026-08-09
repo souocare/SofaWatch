@@ -68,7 +68,7 @@ void main() {
       await cubit.close();
     });
 
-    testWidgets('shows Today, Week and Popular TV discovery sections', (
+    testWidgets('shows all current Explore discovery sections', (
       WidgetTester tester,
     ) async {
       final ExploreCubit cubit = await _createLoadedCubit();
@@ -82,6 +82,28 @@ void main() {
       expect(find.text('Trending This Week'), findsOneWidget);
 
       expect(find.text('Popular TV Shows'), findsOneWidget);
+
+      expect(find.text('Popular Movies'), findsOneWidget);
+
+      await cubit.close();
+    });
+
+    testWidgets('shows discovery media from each section', (
+      WidgetTester tester,
+    ) async {
+      final ExploreCubit cubit = await _createLoadedCubit();
+
+      await tester.pumpWidget(_buildTestApp(cubit));
+
+      await tester.pump();
+
+      expect(find.text('Dune'), findsOneWidget);
+
+      expect(find.text('Severance'), findsOneWidget);
+
+      expect(find.text('Breaking Bad'), findsOneWidget);
+
+      expect(find.text('Interstellar'), findsOneWidget);
 
       await cubit.close();
     });
@@ -162,6 +184,25 @@ final class _FakeExploreRepository implements ExploreRepository {
           popularity: 100,
           voteAverage: 9.5,
           voteCount: 16000,
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<ExploreMediaCollection> getPopularMovies({String? language}) async {
+    return const ExploreMediaCollection(
+      items: <ExploreMediaItem>[
+        ExploreMediaItem(
+          mediaType: ExploreMediaType.movie,
+          tmdbId: 157336,
+          title: 'Interstellar',
+          originalTitle: 'Interstellar',
+          originalLanguage: 'en',
+          genreIds: <int>[12, 18, 878],
+          popularity: 110,
+          voteAverage: 8.5,
+          voteCount: 36000,
         ),
       ],
     );

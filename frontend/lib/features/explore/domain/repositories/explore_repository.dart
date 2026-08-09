@@ -9,4 +9,6 @@ abstract interface class ExploreRepository {
   });
 
   Future<ExploreMediaCollection> getPopularShows({String? language});
+
+  Future<ExploreMediaCollection> getPopularMovies({String? language});
 }

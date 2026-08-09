@@ -11,13 +11,14 @@ from app.providers.tmdb.exceptions import (
     TMDBRequestError,
     TMDBResponseError,
 )
+from app.services.explore import ExploreService
 from app.schemas.explore import (
+    ExploreMediaCollection,
     ExploreMediaItem,
     ExploreMediaType,
     ExploreTrendingResponse,
     ExploreTrendingWindow,
 )
-from app.services.explore import ExploreService
 
 
 EXPLORE_TRENDING_URL = "/api/v1/explore/trending"
@@ -307,5 +308,82 @@ def test_get_popular_shows_forwards_language(
     assert response.status_code == 200
 
     explore_service.get_popular_shows.assert_called_once_with(
+        language="pt-PT",
+    )
+
+def test_get_popular_movies_returns_items(
+    client_with_explore_service: TestClient,
+    explore_service: Mock,
+) -> None:
+    """Return popular Movies."""
+
+    explore_service.get_popular_movies.return_value = (
+        ExploreMediaCollection(
+            items=[
+                ExploreMediaItem(
+                    media_type=ExploreMediaType.MOVIE,
+                    tmdb_id=438631,
+                    title="Dune",
+                    original_title="Dune",
+                    overview=(
+                        "Paul Atreides travels "
+                        "to Arrakis."
+                    ),
+                    release_date=date(
+                        2021,
+                        9,
+                        15,
+                    ),
+                    poster_url=None,
+                    backdrop_url=None,
+                    original_language="en",
+                    genre_ids=[878],
+                    popularity=95.4,
+                    vote_average=7.8,
+                    vote_count=13000,
+                ),
+            ],
+        )
+    )
+
+    response = client_with_explore_service.get(
+        "/api/v1/explore/popular/movies",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body["items"]) == 1
+    assert body["items"][0]["media_type"] == "movie"
+    assert body["items"][0]["tmdb_id"] == 438631
+    assert body["items"][0]["title"] == "Dune"
+
+    explore_service.get_popular_movies.assert_called_once_with(
+        language=None,
+    )
+
+def test_get_popular_movies_forwards_language(
+    client_with_explore_service: TestClient,
+    explore_service: Mock,
+) -> None:
+    """Forward language to the Explore service."""
+
+    explore_service.get_popular_movies.return_value = (
+        ExploreMediaCollection(
+            items=[],
+        )
+    )
+
+    response = client_with_explore_service.get(
+        "/api/v1/explore/popular/movies",
+        params={
+            "language": "pt-PT",
+        },
+    )
+
+    assert response.status_code == 200
+
+    explore_service.get_popular_movies.assert_called_once_with(
         language="pt-PT",
     )

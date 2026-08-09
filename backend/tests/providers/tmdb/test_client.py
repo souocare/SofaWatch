@@ -1574,3 +1574,106 @@ def test_get_popular_tv_shows_rejects_invalid_page(
             )
     finally:
         http_client.close()
+
+
+def test_get_popular_movies_returns_validated_response(
+    settings: Settings,
+) -> None:
+    """Return popular Movies from TMDB."""
+
+    def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        assert request.method == "GET"
+
+        assert request.url.path.endswith(
+            "/movie/popular"
+        )
+
+        assert request.url.params["page"] == "1"
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "page": 1,
+                "results": [
+                    {
+                        "id": 438631,
+                        "title": "Dune",
+                        "original_title": "Dune",
+                        "overview": (
+                            "Paul Atreides travels "
+                            "to Arrakis."
+                        ),
+                        "release_date": "2021-09-15",
+                        "poster_path": "/dune.jpg",
+                        "backdrop_path": (
+                            "/dune-backdrop.jpg"
+                        ),
+                        "original_language": "en",
+                        "genre_ids": [878, 12],
+                        "popularity": 95.4,
+                        "vote_average": 7.8,
+                        "vote_count": 13000,
+                        "adult": False,
+                        "video": False,
+                    }
+                ],
+                "total_pages": 10,
+                "total_results": 200,
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        handler,
+    )
+
+    try:
+        response = tmdb_client.get_popular_movies()
+
+        assert response.page == 1
+        assert len(response.results) == 1
+
+        movie = response.results[0]
+
+        assert movie.id == 438631
+        assert movie.title == "Dune"
+
+    finally:
+        http_client.close()
+
+
+def test_get_popular_movies_forwards_language(
+    settings: Settings,
+) -> None:
+    """Forward metadata language to TMDB."""
+
+    def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        assert request.url.params["language"] == "pt-PT"
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "page": 1,
+                "results": [],
+                "total_pages": 0,
+                "total_results": 0,
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        handler,
+    )
+
+    try:
+        tmdb_client.get_popular_movies(
+            language="pt-PT",
+        )
+    finally:
+        http_client.close()

@@ -275,3 +275,58 @@ def test_get_popular_shows_maps_tmdb_results(
     tmdb_client.get_popular_tv_shows.assert_called_once_with(
         language=None,
     )
+
+def test_get_popular_movies_maps_tmdb_movies(
+    service: ExploreService,
+    tmdb_client: Mock,
+) -> None:
+    """Map popular TMDB Movies into Explore items."""
+
+    tmdb_client.get_popular_movies.return_value = (
+        TMDBMovieSearchResponse(
+            page=1,
+            results=[
+                TMDBMovieSearchResult(
+                    id=438631,
+                    title="Dune",
+                    original_title="Dune",
+                    overview=(
+                        "Paul Atreides travels "
+                        "to Arrakis."
+                    ),
+                    release_date=date(
+                        2021,
+                        9,
+                        15,
+                    ),
+                    poster_path="/dune.jpg",
+                    backdrop_path=(
+                        "/dune-backdrop.jpg"
+                    ),
+                    original_language="en",
+                    genre_ids=[878, 12],
+                    popularity=95.4,
+                    vote_average=7.8,
+                    vote_count=13000,
+                    adult=False,
+                    video=False,
+                ),
+            ],
+            total_pages=1,
+            total_results=1,
+        )
+    )
+
+    result = service.get_popular_movies()
+
+    assert len(result.items) == 1
+
+    movie = result.items[0]
+
+    assert movie.media_type is ExploreMediaType.MOVIE
+    assert movie.tmdb_id == 438631
+    assert movie.title == "Dune"
+
+    tmdb_client.get_popular_movies.assert_called_once_with(
+        language=None,
+    )

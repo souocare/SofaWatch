@@ -63,12 +63,14 @@ class _ExploreContent extends StatelessWidget {
         final bool isInitial =
             state.today.isInitial &&
             state.week.isInitial &&
-            state.popularShows.isInitial;
+            state.popularShows.isInitial &&
+            state.popularMovies.isInitial;
 
         final bool isLoading =
             state.today.isLoading ||
             state.week.isLoading ||
-            state.popularShows.isLoading;
+            state.popularShows.isLoading ||
+            state.popularMovies.isLoading;
 
         if (isInitial || isLoading) {
           return const ExploreTrendingLoading();
@@ -77,7 +79,8 @@ class _ExploreContent extends StatelessWidget {
         final bool hasFailure =
             state.today.isFailure ||
             state.week.isFailure ||
-            state.popularShows.isFailure;
+            state.popularShows.isFailure ||
+            state.popularMovies.isFailure;
 
         if (hasFailure) {
           return const SizedBox(
@@ -91,6 +94,8 @@ class _ExploreContent extends StatelessWidget {
 
         final ExploreMediaCollection? popularShows = state.popularShows.data;
 
+        final ExploreMediaCollection? popularMovies = state.popularMovies.data;
+
         final bool todayIsEmpty = today == null || today.isEmpty;
 
         final bool weekIsEmpty = week == null || week.isEmpty;
@@ -98,7 +103,13 @@ class _ExploreContent extends StatelessWidget {
         final bool popularShowsIsEmpty =
             popularShows == null || popularShows.isEmpty;
 
-        if (todayIsEmpty && weekIsEmpty && popularShowsIsEmpty) {
+        final bool popularMoviesIsEmpty =
+            popularMovies == null || popularMovies.isEmpty;
+
+        if (todayIsEmpty &&
+            weekIsEmpty &&
+            popularShowsIsEmpty &&
+            popularMoviesIsEmpty) {
           return const SizedBox(
             key: ValueKey<String>('explore-trending-empty'),
           );
@@ -114,7 +125,8 @@ class _ExploreContent extends StatelessWidget {
                 items: today.items,
               ),
 
-            if (!todayIsEmpty && (!weekIsEmpty || !popularShowsIsEmpty))
+            if (!todayIsEmpty &&
+                (!weekIsEmpty || !popularShowsIsEmpty || !popularMoviesIsEmpty))
               const SizedBox(height: AppSpacing.xxxl),
 
             if (!weekIsEmpty) ...<Widget>[
@@ -131,13 +143,22 @@ class _ExploreContent extends StatelessWidget {
               ExploreHorizontalSection(items: state.filteredWeekItems),
             ],
 
-            if (!weekIsEmpty && !popularShowsIsEmpty)
+            if (!weekIsEmpty && (!popularShowsIsEmpty || !popularMoviesIsEmpty))
               const SizedBox(height: AppSpacing.xxxl),
 
             if (!popularShowsIsEmpty)
               ExploreHorizontalSection(
                 title: 'Popular TV Shows',
                 items: popularShows.items,
+              ),
+
+            if (!popularShowsIsEmpty && !popularMoviesIsEmpty)
+              const SizedBox(height: AppSpacing.xxxl),
+
+            if (!popularMoviesIsEmpty)
+              ExploreHorizontalSection(
+                title: 'Popular Movies',
+                items: popularMovies.items,
               ),
           ],
         );

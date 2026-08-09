@@ -15,7 +15,8 @@ class ExploreCubit extends Cubit<ExploreState> {
   Future<void> load() async {
     if (state.today.isLoading ||
         state.week.isLoading ||
-        state.popularShows.isLoading) {
+        state.popularShows.isLoading ||
+        state.popularMovies.isLoading) {
       return;
     }
 
@@ -24,6 +25,7 @@ class ExploreCubit extends Cubit<ExploreState> {
         today: const RemoteState<ExploreTrending>.loading(),
         week: const RemoteState<ExploreTrending>.loading(),
         popularShows: const RemoteState<ExploreMediaCollection>.loading(),
+        popularMovies: const RemoteState<ExploreMediaCollection>.loading(),
       ),
     );
 
@@ -39,6 +41,9 @@ class ExploreCubit extends Cubit<ExploreState> {
       final ExploreMediaCollection popularShows = await _repository
           .getPopularShows();
 
+      final ExploreMediaCollection popularMovies = await _repository
+          .getPopularMovies();
+
       if (isClosed) {
         return;
       }
@@ -49,6 +54,9 @@ class ExploreCubit extends Cubit<ExploreState> {
           week: RemoteState<ExploreTrending>.success(week),
           popularShows: RemoteState<ExploreMediaCollection>.success(
             popularShows,
+          ),
+          popularMovies: RemoteState<ExploreMediaCollection>.success(
+            popularMovies,
           ),
         ),
       );
@@ -62,6 +70,7 @@ class ExploreCubit extends Cubit<ExploreState> {
           today: RemoteState<ExploreTrending>.failure(error),
           week: RemoteState<ExploreTrending>.failure(error),
           popularShows: RemoteState<ExploreMediaCollection>.failure(error),
+          popularMovies: RemoteState<ExploreMediaCollection>.failure(error),
         ),
       );
     } catch (error) {
@@ -76,6 +85,7 @@ class ExploreCubit extends Cubit<ExploreState> {
           today: RemoteState<ExploreTrending>.failure(exception),
           week: RemoteState<ExploreTrending>.failure(exception),
           popularShows: RemoteState<ExploreMediaCollection>.failure(exception),
+          popularMovies: RemoteState<ExploreMediaCollection>.failure(exception),
         ),
       );
     }

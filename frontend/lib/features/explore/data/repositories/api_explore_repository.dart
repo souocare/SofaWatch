@@ -49,28 +49,52 @@ final class ApiExploreRepository implements ExploreRepository {
   @override
   Future<ExploreMediaCollection> getPopularShows({String? language}) async {
     try {
-      final Map<String, dynamic> queryParameters = <String, dynamic>{};
-
-      if (language != null) {
-        queryParameters['language'] = language;
-      }
-
-      final dynamic response = await _apiClient.get(
+      final Response<dynamic> response = await _apiClient.get(
         '/explore/popular/shows',
-        queryParameters: queryParameters,
+        queryParameters: <String, dynamic>{
+          if (language != null) 'language': language,
+        },
       );
 
-      if (response is! Map<String, dynamic>) {
-        throw const FormatException('Invalid Explore popular Shows response.');
+      final dynamic data = response.data;
+
+      if (data is! Map<String, dynamic>) {
+        throw const FormatException('Invalid popular Shows response.');
       }
 
-      return ExploreMediaCollectionDto.fromJson(response).toDomain();
+      return ExploreMediaCollectionDto.fromJson(data).toDomain();
     } on AppException {
       rethrow;
-    } on FormatException {
-      throw const AppException.invalidData();
-    } catch (_) {
-      throw const AppException.unknown();
+    } on FormatException catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } catch (error) {
+      throw AppException.unknown(originalError: error);
+    }
+  }
+
+  @override
+  Future<ExploreMediaCollection> getPopularMovies({String? language}) async {
+    try {
+      final Response<dynamic> response = await _apiClient.get(
+        '/explore/popular/movies',
+        queryParameters: <String, dynamic>{
+          if (language != null) 'language': language,
+        },
+      );
+
+      final dynamic data = response.data;
+
+      if (data is! Map<String, dynamic>) {
+        throw const FormatException('Invalid popular Movies response.');
+      }
+
+      return ExploreMediaCollectionDto.fromJson(data).toDomain();
+    } on AppException {
+      rethrow;
+    } on FormatException catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } catch (error) {
+      throw AppException.unknown(originalError: error);
     }
   }
 }

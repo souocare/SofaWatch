@@ -1,9 +1,11 @@
 from app.core.config import Settings
 from app.providers.tmdb.client import TMDBClient
 from app.providers.tmdb.schemas import (
+    TMDBMovieSearchResult,
     TMDBMultiMovieSearchResult,
     TMDBMultiPersonSearchResult,
     TMDBMultiTVSearchResult,
+    TMDBTVSearchResult,
 )
 from app.schemas.explore import (
     ExploreMediaCollection,
@@ -12,6 +14,7 @@ from app.schemas.explore import (
     ExploreTrendingResponse,
     ExploreTrendingWindow,
 )
+
 
 
 class ExploreService:
@@ -141,30 +144,32 @@ class ExploreService:
         )
 
         items = [
-            ExploreMediaItem(
-                media_type=ExploreMediaType.SHOW,
-                tmdb_id=item.id,
-                title=item.name,
-                original_title=item.original_name,
-                overview=item.overview,
-                release_date=item.first_air_date,
-                poster_url=self._build_image_url(
-                    item.poster_path,
-                    size="w500",
-                ),
-                backdrop_url=self._build_image_url(
-                    item.backdrop_path,
-                    size="original",
-                ),
-                original_language=item.original_language,
-                genre_ids=item.genre_ids,
-                popularity=item.popularity,
-                vote_average=item.vote_average,
-                vote_count=item.vote_count,
-            )
+            self._map_show(item)
             for item in response.results
         ]
 
         return ExploreMediaCollection(
             items=items,
         )
+
+    def get_popular_movies(
+        self,
+        *,
+        language: str | None = None,
+    ) -> ExploreMediaCollection:
+        """Return popular Movies for Explore."""
+
+        response = self._tmdb_client.get_popular_movies(
+            language=language,
+        )
+
+        items = [
+            self._map_movie(item)
+            for item in response.results
+        ]
+
+        return ExploreMediaCollection(
+            items=items,
+        )
+
+    
