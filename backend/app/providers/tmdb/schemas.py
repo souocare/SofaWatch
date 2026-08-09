@@ -374,4 +374,12 @@ class TMDBGenre(BaseModel):
 
 
 class TMDBGenreListResponse(BaseModel):
-    genres: list[TMDBGenre]
+    """Genre list returned by TMDB."""
+
+    genres: list[TMDBGenre] = Field(
+        default_factory=list,
+    )
+
+    model_config = ConfigDict(
+        extra="ignore",
+    )

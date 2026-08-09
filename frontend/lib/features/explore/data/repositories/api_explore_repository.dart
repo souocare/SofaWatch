@@ -1,8 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/features/explore/data/models/explore_genre_options_dto.dart';
 import 'package:sofawatch/features/explore/data/models/explore_media_collection_dto.dart';
 import 'package:sofawatch/features/explore/data/models/explore_trending_dto.dart';
+import 'package:sofawatch/features/explore/domain/entities/explore_genre_options.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_media_collection.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending_window.dart';
@@ -47,11 +49,46 @@ final class ApiExploreRepository implements ExploreRepository {
   }
 
   @override
-  Future<ExploreMediaCollection> getPopularShows({String? language}) async {
+  Future<ExploreGenreOptions> getGenres({String? language}) async {
+    try {
+      final Response<Map<String, dynamic>> response = await _apiClient
+          .get<Map<String, dynamic>>(
+            '/explore/genres',
+            queryParameters: <String, dynamic>{
+              if (language != null) 'language': language,
+            },
+          );
+
+      final Map<String, dynamic>? data = response.data;
+
+      if (data == null) {
+        throw const FormatException(
+          'The Explore genres response body is missing.',
+        );
+      }
+
+      return ExploreGenreOptionsDto.fromJson(data).toDomain();
+    } on AppException {
+      rethrow;
+    } on FormatException catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } on TypeError catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } catch (error) {
+      throw AppException.unknown(originalError: error);
+    }
+  }
+
+  @override
+  Future<ExploreMediaCollection> getPopularShows({
+    int? genreId,
+    String? language,
+  }) async {
     try {
       final Response<dynamic> response = await _apiClient.get(
         '/explore/popular/shows',
         queryParameters: <String, dynamic>{
+          if (genreId != null) 'genre_id': genreId,
           if (language != null) 'language': language,
         },
       );
@@ -73,11 +110,15 @@ final class ApiExploreRepository implements ExploreRepository {
   }
 
   @override
-  Future<ExploreMediaCollection> getPopularMovies({String? language}) async {
+  Future<ExploreMediaCollection> getPopularMovies({
+    int? genreId,
+    String? language,
+  }) async {
     try {
       final Response<dynamic> response = await _apiClient.get(
         '/explore/popular/movies',
         queryParameters: <String, dynamic>{
+          if (genreId != null) 'genre_id': genreId,
           if (language != null) 'language': language,
         },
       );

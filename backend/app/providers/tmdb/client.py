@@ -21,6 +21,15 @@ from app.providers.tmdb.schemas import (
     TMDBMovieDetails,
     TMDBGenreListResponse
 )
+from app.providers.tmdb.schemas import (
+    TMDBGenreListResponse,
+    TMDBMovieSearchResponse,
+    TMDBMultiSearchResponse,
+    TMDBSeasonDetails,
+    TMDBTVDetails,
+    TMDBTVSearchResponse,
+    TMDBMovieDetails,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -356,6 +365,117 @@ class TMDBClient:
             response_model=TMDBGenreListResponse,
             params={
                 "language": request_language,
+            },
+        )
+
+    def get_tv_genres(
+        self,
+        *,
+        language: str | None = None,
+    ) -> TMDBGenreListResponse:
+        """Return the official TMDB genres supported by TV series."""
+
+        request_language = (
+            language or self._settings.default_language
+        )
+
+        return self.get(
+            "/genre/tv/list",
+            response_model=TMDBGenreListResponse,
+            params={
+                "language": request_language,
+            },
+        )
+
+
+    def get_movie_genres(
+        self,
+        *,
+        language: str | None = None,
+    ) -> TMDBGenreListResponse:
+        """Return the official TMDB genres supported by Movies."""
+
+        request_language = (
+            language or self._settings.default_language
+        )
+
+        return self.get(
+            "/genre/movie/list",
+            response_model=TMDBGenreListResponse,
+            params={
+                "language": request_language,
+            },
+        )
+
+    def discover_tv_shows(
+        self,
+        *,
+        genre_id: int,
+        page: int = 1,
+        language: str | None = None,
+    ) -> TMDBTVSearchResponse:
+        """Discover popular TV series filtered by genre."""
+
+        if genre_id < 1:
+            raise ValueError(
+                "The genre ID must be greater than zero."
+            )
+
+        if page < 1:
+            raise ValueError(
+                "The page must be greater than or equal to 1."
+            )
+
+        request_language = (
+            language or self._settings.default_language
+        )
+
+        return self.get(
+            "/discover/tv",
+            response_model=TMDBTVSearchResponse,
+            params={
+                "page": page,
+                "language": request_language,
+                "with_genres": genre_id,
+                "sort_by": "popularity.desc",
+                "include_adult": False,
+            },
+        )
+
+
+    def discover_movies(
+        self,
+        *,
+        genre_id: int,
+        page: int = 1,
+        language: str | None = None,
+    ) -> TMDBMovieSearchResponse:
+        """Discover popular Movies filtered by genre."""
+
+        if genre_id < 1:
+            raise ValueError(
+                "The genre ID must be greater than zero."
+            )
+
+        if page < 1:
+            raise ValueError(
+                "The page must be greater than or equal to 1."
+            )
+
+        request_language = (
+            language or self._settings.default_language
+        )
+
+        return self.get(
+            "/discover/movie",
+            response_model=TMDBMovieSearchResponse,
+            params={
+                "page": page,
+                "language": request_language,
+                "with_genres": genre_id,
+                "sort_by": "popularity.desc",
+                "include_adult": False,
+                "include_video": False,
             },
         )
 

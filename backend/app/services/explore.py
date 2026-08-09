@@ -16,6 +16,15 @@ from app.schemas.explore import (
     ExploreTrendingResponse,
     ExploreTrendingWindow,
 )
+from app.schemas.explore import (
+    ExploreGenre,
+    ExploreGenresResponse,
+    ExploreMediaCollection,
+    ExploreMediaItem,
+    ExploreMediaType,
+    ExploreTrendingResponse,
+    ExploreTrendingWindow,
+)
 from uuid import UUID
 
 from app.repositories.library import LibraryRepository
@@ -200,13 +209,20 @@ class ExploreService:
         self,
         *,
         user_id: UUID,
+        genre_id: int | None = None,
         language: str | None = None,
     ) -> ExploreMediaCollection:
         """Return popular TV series for Explore."""
 
-        response = self._tmdb_client.get_popular_tv_shows(
-            language=language,
-        )
+        if genre_id is None:
+            response = self._tmdb_client.get_popular_tv_shows(
+                language=language,
+            )
+        else:
+            response = self._tmdb_client.discover_tv_shows(
+                genre_id=genre_id,
+                language=language,
+            )
 
         items = [
             self._map_show(item)
@@ -224,13 +240,20 @@ class ExploreService:
         self,
         *,
         user_id: UUID,
+        genre_id: int | None = None,
         language: str | None = None,
     ) -> ExploreMediaCollection:
         """Return popular Movies for Explore."""
 
-        response = self._tmdb_client.get_popular_movies(
-            language=language,
-        )
+        if genre_id is None:
+            response = self._tmdb_client.get_popular_movies(
+                language=language,
+            )
+        else:
+            response = self._tmdb_client.discover_movies(
+                genre_id=genre_id,
+                language=language,
+            )
 
         items = [
             self._map_movie(item)

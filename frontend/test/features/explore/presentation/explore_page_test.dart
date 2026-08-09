@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/features/explore/application/cubit/explore_cubit.dart';
+import 'package:sofawatch/features/explore/domain/entities/explore_genre.dart';
+import 'package:sofawatch/features/explore/domain/entities/explore_genre_options.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_media_collection.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_media_item.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending.dart';
@@ -17,7 +19,6 @@ void main() {
       final ExploreCubit cubit = await _createLoadedCubit();
 
       await tester.pumpWidget(_buildTestApp(cubit));
-
       await tester.pump();
 
       expect(
@@ -26,7 +27,6 @@ void main() {
       );
 
       expect(find.text('Explore'), findsOneWidget);
-
       expect(find.text('Discover something worth watching.'), findsOneWidget);
 
       await cubit.close();
@@ -38,7 +38,6 @@ void main() {
       final ExploreCubit cubit = await _createLoadedCubit();
 
       await tester.pumpWidget(_buildTestApp(cubit));
-
       await tester.pump();
 
       expect(
@@ -60,7 +59,6 @@ void main() {
       final ExploreCubit cubit = await _createLoadedCubit();
 
       await tester.pumpWidget(_buildTestApp(cubit));
-
       await tester.pump();
 
       expect(find.byType(TextField), findsNothing);
@@ -74,15 +72,11 @@ void main() {
       final ExploreCubit cubit = await _createLoadedCubit();
 
       await tester.pumpWidget(_buildTestApp(cubit));
-
       await tester.pump();
 
       expect(find.text('Trending Today'), findsOneWidget);
-
       expect(find.text('Trending This Week'), findsOneWidget);
-
       expect(find.text('Popular TV Shows'), findsOneWidget);
-
       expect(find.text('Popular Movies'), findsOneWidget);
 
       await cubit.close();
@@ -94,16 +88,43 @@ void main() {
       final ExploreCubit cubit = await _createLoadedCubit();
 
       await tester.pumpWidget(_buildTestApp(cubit));
-
       await tester.pump();
 
       expect(find.text('Dune'), findsOneWidget);
-
       expect(find.text('Severance'), findsOneWidget);
-
       expect(find.text('Breaking Bad'), findsOneWidget);
-
       expect(find.text('Interstellar'), findsOneWidget);
+
+      await cubit.close();
+    });
+
+    testWidgets('shows genre filters for Popular sections', (
+      WidgetTester tester,
+    ) async {
+      final ExploreCubit cubit = await _createLoadedCubit();
+
+      await tester.pumpWidget(_buildTestApp(cubit));
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey<String>('explore-popular-shows-genre-all')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('explore-popular-shows-genre-18')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('explore-popular-movies-genre-all')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('explore-popular-movies-genre-878')),
+        findsOneWidget,
+      );
 
       await cubit.close();
     });
@@ -151,7 +172,6 @@ final class _FakeExploreRepository implements ExploreRepository {
           ),
         ],
       ),
-
       ExploreTrendingWindow.week => ExploreTrending(
         items: const <ExploreMediaItem>[
           ExploreMediaItem(
@@ -171,7 +191,24 @@ final class _FakeExploreRepository implements ExploreRepository {
   }
 
   @override
-  Future<ExploreMediaCollection> getPopularShows({String? language}) async {
+  Future<ExploreGenreOptions> getGenres({String? language}) async {
+    return const ExploreGenreOptions(
+      shows: <ExploreGenre>[
+        ExploreGenre(id: 18, name: 'Drama'),
+        ExploreGenre(id: 35, name: 'Comedy'),
+      ],
+      movies: <ExploreGenre>[
+        ExploreGenre(id: 878, name: 'Science Fiction'),
+        ExploreGenre(id: 12, name: 'Adventure'),
+      ],
+    );
+  }
+
+  @override
+  Future<ExploreMediaCollection> getPopularShows({
+    int? genreId,
+    String? language,
+  }) async {
     return const ExploreMediaCollection(
       items: <ExploreMediaItem>[
         ExploreMediaItem(
@@ -190,7 +227,10 @@ final class _FakeExploreRepository implements ExploreRepository {
   }
 
   @override
-  Future<ExploreMediaCollection> getPopularMovies({String? language}) async {
+  Future<ExploreMediaCollection> getPopularMovies({
+    int? genreId,
+    String? language,
+  }) async {
     return const ExploreMediaCollection(
       items: <ExploreMediaItem>[
         ExploreMediaItem(

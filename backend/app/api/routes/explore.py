@@ -18,6 +18,12 @@ from app.schemas.explore import (
     ExploreTrendingResponse,
     ExploreTrendingWindow,
 )
+from app.schemas.explore import (
+    ExploreGenresResponse,
+    ExploreMediaCollection,
+    ExploreTrendingResponse,
+    ExploreTrendingWindow,
+)
 
 router = APIRouter(
     prefix="/explore",
@@ -81,6 +87,12 @@ def get_trending(
 def get_popular_shows(
     service: ExploreServiceDependency,
     current_user: CurrentUserDependency,
+    genre_id: Annotated[
+        int | None,
+        Query(
+            ge=1,
+        ),
+    ] = None,
     language: Annotated[
         str | None,
         Query(
@@ -94,6 +106,7 @@ def get_popular_shows(
     try:
         return service.get_popular_shows(
             user_id=current_user.id,
+            genre_id=genre_id,
             language=language,
         )
 
@@ -127,6 +140,12 @@ def get_popular_shows(
 def get_popular_movies(
     service: ExploreServiceDependency,
     current_user: CurrentUserDependency,
+    genre_id: Annotated[
+        int | None,
+        Query(
+            ge=1,
+        ),
+    ] = None,
     language: Annotated[
         str | None,
         Query(
@@ -140,6 +159,7 @@ def get_popular_movies(
     try:
         return service.get_popular_movies(
             user_id=current_user.id,
+            genre_id=genre_id,
             language=language,
         )
 
@@ -165,10 +185,11 @@ def get_popular_movies(
         ) from error
 
 
+
 @router.get(
     "/genres",
-    response_model=ExploreGenreOptions,
-    summary="Get Explore genre options",
+    response_model=ExploreGenresResponse,
+    summary="Get Explore genres",
 )
 def get_genres(
     service: ExploreServiceDependency,
@@ -179,11 +200,31 @@ def get_genres(
             max_length=10,
         ),
     ] = None,
-) -> ExploreGenreOptions:
+) -> ExploreGenresResponse:
+    """Return genres supported by Explore."""
+
     try:
         return service.get_genres(
             language=language,
         )
 
     except TMDBConfigurationError as error:
-        ...
+        raise APIError(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            code="tmdb_not_configured",
+            message="The TMDB provider is not configured.",
+        ) from error
+
+    except TMDBRequestError as error:
+        raise APIError(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            code="tmdb_unavailable",
+            message="The TMDB service is currently unavailable.",
+        ) from error
+
+    except TMDBResponseError as error:
+        raise APIError(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            code="tmdb_invalid_response",
+            message="TMDB returned an invalid response.",
+        ) from error

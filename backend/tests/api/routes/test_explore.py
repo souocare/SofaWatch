@@ -321,6 +321,7 @@ def test_get_popular_shows_returns_items(
 
     explore_service.get_popular_shows.assert_called_once_with(
         user_id=TEST_USER_ID,
+        genre_id=None,
         language=None,
     )
 
@@ -343,6 +344,7 @@ def test_get_popular_shows_forwards_language(
 
     explore_service.get_popular_shows.assert_called_once_with(
         user_id=TEST_USER_ID,
+        genre_id=None,
         language="pt-PT",
     )
 
@@ -396,6 +398,7 @@ def test_get_popular_movies_returns_items(
 
     explore_service.get_popular_movies.assert_called_once_with(
         user_id=TEST_USER_ID,
+        genre_id=None,
         language=None,
     )
 
@@ -422,6 +425,7 @@ def test_get_popular_movies_forwards_language(
 
     explore_service.get_popular_movies.assert_called_once_with(
         user_id=TEST_USER_ID,
+        genre_id=None,
         language="pt-PT",
     )
 
@@ -509,4 +513,47 @@ def test_get_explore_genres_forwards_language(
 
     explore_service.get_genres.assert_called_once_with(
         language="pt-PT",
+    )
+
+def test_get_popular_shows_forwards_genre_id(
+    client_with_explore_service: TestClient,
+    explore_service: Mock,
+) -> None:
+    explore_service.get_popular_shows.return_value = ExploreMediaCollection()
+
+    response = client_with_explore_service.get(
+        "/api/v1/explore/popular/shows",
+        params={
+            "genre_id": 18,
+        },
+    )
+
+    assert response.status_code == 200
+
+    explore_service.get_popular_shows.assert_called_once_with(
+        user_id=TEST_USER_ID,
+        genre_id=18,
+        language=None,
+    )
+
+
+def test_get_popular_movies_forwards_genre_id(
+    client_with_explore_service: TestClient,
+    explore_service: Mock,
+) -> None:
+    explore_service.get_popular_movies.return_value = ExploreMediaCollection()
+
+    response = client_with_explore_service.get(
+        "/api/v1/explore/popular/movies",
+        params={
+            "genre_id": 878,
+        },
+    )
+
+    assert response.status_code == 200
+
+    explore_service.get_popular_movies.assert_called_once_with(
+        user_id=TEST_USER_ID,
+        genre_id=878,
+        language=None,
     )

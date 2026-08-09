@@ -66,9 +66,22 @@ class ExploreMediaCollection(BaseModel):
     )
 
 class ExploreGenre(BaseModel):
+    """Genre available as an Explore filter."""
+
     id: int
     name: str
 
+
+class ExploreGenresResponse(BaseModel):
+    """Genres supported by each Explore media section."""
+
+    shows: list[ExploreGenre] = Field(
+        default_factory=list,
+    )
+
+    movies: list[ExploreGenre] = Field(
+        default_factory=list,
+    )
 
 class ExploreGenreOptions(BaseModel):
     shows: list[ExploreGenre] = Field(
