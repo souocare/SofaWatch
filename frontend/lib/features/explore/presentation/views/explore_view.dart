@@ -82,9 +82,45 @@ class _ExploreContent extends StatelessWidget {
             state.popularShows.isFailure ||
             state.popularMovies.isFailure;
 
+        // if (hasFailure) {
+        //   return const SizedBox(
+        //     key: ValueKey<String>('explore-trending-failure'),
+        //   );
+        // }
         if (hasFailure) {
-          return const SizedBox(
-            key: ValueKey<String>('explore-trending-failure'),
+          final error =
+              state.today.error ??
+              state.week.error ??
+              state.popularShows.error ??
+              state.popularMovies.error;
+
+          return Column(
+            key: const ValueKey<String>('explore-trending-failure'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                'Could not load Explore.',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                error?.message ??
+                    'Something went wrong while loading discovery content.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              FilledButton.tonal(
+                key: const ValueKey<String>('explore-retry'),
+                onPressed: () {
+                  context.read<ExploreCubit>().retry();
+                },
+                child: const Text('Retry'),
+              ),
+            ],
           );
         }
 

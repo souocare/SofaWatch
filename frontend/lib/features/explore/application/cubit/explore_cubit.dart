@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/core/state/remote_state.dart';
@@ -73,7 +74,10 @@ class ExploreCubit extends Cubit<ExploreState> {
           popularMovies: RemoteState<ExploreMediaCollection>.failure(error),
         ),
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      debugPrint('Explore unexpected error: $error');
+      debugPrintStack(label: 'Explore stack trace', stackTrace: stackTrace);
+
       if (isClosed) {
         return;
       }

@@ -251,11 +251,14 @@ class _Title extends StatelessWidget {
         'explore-media-title-'
         '${item.mediaType.name}-${item.tmdbId}',
       ),
-      maxLines: 2,
+      maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: Theme.of(
-        context,
-      ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+      softWrap: false,
+      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+        fontSize: 12.5,
+        fontWeight: FontWeight.w600,
+        height: 1.15,
+      ),
     );
   }
 }

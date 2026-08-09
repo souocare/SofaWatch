@@ -308,7 +308,7 @@ void main() {
       semantics.dispose();
     });
 
-    testWidgets('limits a long title to two lines with ellipsis', (
+    testWidgets('limits a long title to one lines with ellipsis', (
       WidgetTester tester,
     ) async {
       const ExploreMediaItem longTitleMovie = ExploreMediaItem(
@@ -338,7 +338,8 @@ void main() {
         find.byKey(const ValueKey<String>('explore-media-title-movie-1')),
       );
 
-      expect(title.maxLines, 2);
+      expect(title.maxLines, 1);
+      expect(title.softWrap, isFalse);
       expect(title.overflow, TextOverflow.ellipsis);
     });
 
