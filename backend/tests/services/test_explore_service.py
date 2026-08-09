@@ -224,3 +224,54 @@ def test_get_trending_supports_trailing_image_base_slash(
         item.backdrop_url
         == "https://image.tmdb.org/t/p/original/backdrop.jpg"
     )
+
+def test_get_popular_shows_maps_tmdb_results(
+    service: ExploreService,
+    tmdb_client: Mock,
+) -> None:
+    tmdb_client.get_popular_tv_shows.return_value = (
+        TMDBTVSearchResponse(
+            page=1,
+            results=[
+                TMDBTVSearchResult(
+                    id=95396,
+                    name="Severance",
+                    original_name="Severance",
+                    overview="",
+                    first_air_date=date(
+                        2022,
+                        2,
+                        17,
+                    ),
+                    poster_path="/poster.jpg",
+                    backdrop_path="/backdrop.jpg",
+                    original_language="en",
+                    genre_ids=[18],
+                    popularity=120,
+                    vote_average=8.4,
+                    vote_count=2100,
+                ),
+            ],
+            total_pages=1,
+            total_results=1,
+        )
+    )
+
+    result = service.get_popular_shows()
+
+    assert len(result.items) == 1
+
+    item = result.items[0]
+
+    assert item.media_type is ExploreMediaType.SHOW
+    assert item.tmdb_id == 95396
+    assert item.title == "Severance"
+    assert item.release_date == date(
+        2022,
+        2,
+        17,
+    )
+
+    tmdb_client.get_popular_tv_shows.assert_called_once_with(
+        language=None,
+    )

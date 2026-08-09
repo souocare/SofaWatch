@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/features/explore/application/cubit/explore_cubit.dart';
+import 'package:sofawatch/features/explore/domain/entities/explore_media_collection.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_media_item.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending_window.dart';
@@ -67,7 +68,7 @@ void main() {
       await cubit.close();
     });
 
-    testWidgets('shows Today and Week discovery sections', (
+    testWidgets('shows Today, Week and Popular TV discovery sections', (
       WidgetTester tester,
     ) async {
       final ExploreCubit cubit = await _createLoadedCubit();
@@ -79,6 +80,8 @@ void main() {
       expect(find.text('Trending Today'), findsOneWidget);
 
       expect(find.text('Trending This Week'), findsOneWidget);
+
+      expect(find.text('Popular TV Shows'), findsOneWidget);
 
       await cubit.close();
     });
@@ -126,6 +129,7 @@ final class _FakeExploreRepository implements ExploreRepository {
           ),
         ],
       ),
+
       ExploreTrendingWindow.week => ExploreTrending(
         items: const <ExploreMediaItem>[
           ExploreMediaItem(
@@ -142,5 +146,24 @@ final class _FakeExploreRepository implements ExploreRepository {
         ],
       ),
     };
+  }
+
+  @override
+  Future<ExploreMediaCollection> getPopularShows({String? language}) async {
+    return const ExploreMediaCollection(
+      items: <ExploreMediaItem>[
+        ExploreMediaItem(
+          mediaType: ExploreMediaType.show,
+          tmdbId: 1396,
+          title: 'Breaking Bad',
+          originalTitle: 'Breaking Bad',
+          originalLanguage: 'en',
+          genreIds: <int>[18],
+          popularity: 100,
+          voteAverage: 9.5,
+          voteCount: 16000,
+        ),
+      ],
+    );
   }
 }

@@ -9,8 +9,8 @@ from app.providers.tmdb.exceptions import (
     TMDBRequestError,
     TMDBResponseError,
 )
-from app.schemas.explore import ExploreTrendingResponse
 from app.schemas.explore import (
+    ExploreMediaCollection,
     ExploreTrendingResponse,
     ExploreTrendingWindow,
 )
@@ -42,6 +42,50 @@ def get_trending(
     try:
         return service.get_trending(
             window=window,
+            language=language,
+        )
+
+    except TMDBConfigurationError as error:
+        raise APIError(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            code="tmdb_not_configured",
+            message="The TMDB provider is not configured.",
+        ) from error
+
+    except TMDBRequestError as error:
+        raise APIError(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            code="tmdb_unavailable",
+            message="The TMDB service is currently unavailable.",
+        ) from error
+
+    except TMDBResponseError as error:
+        raise APIError(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            code="tmdb_invalid_response",
+            message="TMDB returned an invalid response.",
+        ) from error
+
+
+@router.get(
+    "/popular/shows",
+    response_model=ExploreMediaCollection,
+    summary="Get popular TV series",
+)
+def get_popular_shows(
+    service: ExploreServiceDependency,
+    language: Annotated[
+        str | None,
+        Query(
+            min_length=2,
+            max_length=10,
+        ),
+    ] = None,
+) -> ExploreMediaCollection:
+    """Return popular TV series for Explore."""
+
+    try:
+        return service.get_popular_shows(
             language=language,
         )
 

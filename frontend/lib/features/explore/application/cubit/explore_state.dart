@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:sofawatch/core/state/remote_state.dart';
+import 'package:sofawatch/features/explore/domain/entities/explore_media_collection.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_media_item.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending.dart';
 
@@ -10,12 +11,14 @@ class ExploreState extends Equatable {
     this.today = const RemoteState<ExploreTrending>.initial(),
     this.week = const RemoteState<ExploreTrending>.initial(),
     this.weekFilter = ExploreWeekFilter.all,
+    this.popularShows = const RemoteState.initial(),
   });
 
   final RemoteState<ExploreTrending> today;
   final RemoteState<ExploreTrending> week;
 
   final ExploreWeekFilter weekFilter;
+  final RemoteState<ExploreMediaCollection> popularShows;
 
   List<ExploreMediaItem> get filteredWeekItems {
     final ExploreTrending? trending = week.data;
@@ -37,11 +40,13 @@ class ExploreState extends Equatable {
     RemoteState<ExploreTrending>? today,
     RemoteState<ExploreTrending>? week,
     ExploreWeekFilter? weekFilter,
+    RemoteState<ExploreMediaCollection>? popularShows,
   }) {
     return ExploreState(
       today: today ?? this.today,
       week: week ?? this.week,
       weekFilter: weekFilter ?? this.weekFilter,
+      popularShows: popularShows ?? this.popularShows,
     );
   }
 

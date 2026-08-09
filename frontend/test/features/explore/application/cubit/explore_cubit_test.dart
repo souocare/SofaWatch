@@ -2,13 +2,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/explore/application/cubit/explore_cubit.dart';
 import 'package:sofawatch/features/explore/application/cubit/explore_state.dart';
+import 'package:sofawatch/features/explore/domain/entities/explore_media_collection.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_media_item.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending_window.dart';
 import 'package:sofawatch/features/explore/domain/repositories/explore_repository.dart';
 
 void main() {
-  test('loads daily and weekly trending content successfully', () async {
+  test('loads trending and popular Shows successfully', () async {
     final _FakeExploreRepository repository = _FakeExploreRepository(
       results: <ExploreTrendingWindow, ExploreTrending>{
         ExploreTrendingWindow.day: ExploreTrending(
@@ -18,6 +19,9 @@ void main() {
           items: const <ExploreMediaItem>[_show, _movie],
         ),
       },
+      popularShows: const ExploreMediaCollection(
+        items: <ExploreMediaItem>[_show],
+      ),
     );
 
     final ExploreCubit cubit = ExploreCubit(repository);
@@ -26,20 +30,28 @@ void main() {
 
     expect(cubit.state.today.isLoading, isTrue);
     expect(cubit.state.week.isLoading, isTrue);
+    expect(cubit.state.popularShows.isLoading, isTrue);
 
     await loadFuture;
 
     expect(cubit.state.today.isSuccess, isTrue);
     expect(cubit.state.week.isSuccess, isTrue);
+    expect(cubit.state.popularShows.isSuccess, isTrue);
 
     expect(cubit.state.today.data?.items, hasLength(2));
 
     expect(cubit.state.week.data?.items, hasLength(2));
 
+    expect(cubit.state.popularShows.data?.items, hasLength(1));
+
+    expect(cubit.state.popularShows.data?.items.single.title, 'Severance');
+
     expect(repository.requestedWindows, <ExploreTrendingWindow>[
       ExploreTrendingWindow.day,
       ExploreTrendingWindow.week,
     ]);
+
+    expect(repository.popularShowsCalls, 1);
 
     await cubit.close();
   });
@@ -55,15 +67,18 @@ void main() {
 
     expect(cubit.state.today.isFailure, isTrue);
     expect(cubit.state.week.isFailure, isTrue);
+    expect(cubit.state.popularShows.isFailure, isTrue);
 
     expect(cubit.state.today.error?.type, AppExceptionType.connection);
 
     expect(cubit.state.week.error?.type, AppExceptionType.connection);
 
+    expect(cubit.state.popularShows.error?.type, AppExceptionType.connection);
+
     await cubit.close();
   });
 
-  test('retry loads Today and Week again', () async {
+  test('retry loads all Explore sources again', () async {
     final _FakeExploreRepository repository = _FakeExploreRepository(
       results: <ExploreTrendingWindow, ExploreTrending>{
         ExploreTrendingWindow.day: ExploreTrending(
@@ -73,6 +88,9 @@ void main() {
           items: const <ExploreMediaItem>[_show],
         ),
       },
+      popularShows: const ExploreMediaCollection(
+        items: <ExploreMediaItem>[_show],
+      ),
     );
 
     final ExploreCubit cubit = ExploreCubit(repository);
@@ -80,7 +98,8 @@ void main() {
     await cubit.load();
     await cubit.retry();
 
-    expect(repository.calls, 4);
+    expect(repository.trendingCalls, 4);
+    expect(repository.popularShowsCalls, 2);
 
     expect(repository.requestedWindows, <ExploreTrendingWindow>[
       ExploreTrendingWindow.day,
@@ -151,7 +170,8 @@ void main() {
 
     await cubit.load();
 
-    expect(repository.calls, 2);
+    expect(repository.trendingCalls, 2);
+    expect(repository.popularShowsCalls, 1);
 
     cubit.changeWeekFilter(ExploreWeekFilter.shows);
 
@@ -159,7 +179,8 @@ void main() {
 
     cubit.changeWeekFilter(ExploreWeekFilter.all);
 
-    expect(repository.calls, 2);
+    expect(repository.trendingCalls, 2);
+    expect(repository.popularShowsCalls, 1);
 
     expect(repository.requestedWindows, <ExploreTrendingWindow>[
       ExploreTrendingWindow.day,
@@ -224,32 +245,52 @@ const ExploreMediaItem _movie = ExploreMediaItem(
 final class _FakeExploreRepository implements ExploreRepository {
   _FakeExploreRepository({
     this.results = const <ExploreTrendingWindow, ExploreTrending>{},
+    this.popularShows = const ExploreMediaCollection(
+      items: <ExploreMediaItem>[],
+    ),
     this.error,
   });
 
   final Map<ExploreTrendingWindow, ExploreTrending> results;
+
+  final ExploreMediaCollection popularShows;
+
   final AppException? error;
 
   final List<ExploreTrendingWindow> requestedWindows =
       <ExploreTrendingWindow>[];
 
-  int calls = 0;
+  int trendingCalls = 0;
+  int popularShowsCalls = 0;
 
   @override
   Future<ExploreTrending> getTrending({
     required ExploreTrendingWindow window,
     String? language,
   }) async {
-    calls++;
+    trendingCalls++;
     requestedWindows.add(window);
 
+    _throwIfNeeded();
+
+    return results[window] ??
+        ExploreTrending(items: const <ExploreMediaItem>[]);
+  }
+
+  @override
+  Future<ExploreMediaCollection> getPopularShows({String? language}) async {
+    popularShowsCalls++;
+
+    _throwIfNeeded();
+
+    return popularShows;
+  }
+
+  void _throwIfNeeded() {
     final AppException? currentError = error;
 
     if (currentError != null) {
       throw currentError;
     }
-
-    return results[window] ??
-        ExploreTrending(items: const <ExploreMediaItem>[]);
   }
 }

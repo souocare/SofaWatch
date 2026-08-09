@@ -271,6 +271,32 @@ class TMDBClient:
             },
         )
 
+    def get_popular_tv_shows(
+        self,
+        *,
+        page: int = 1,
+        language: str | None = None,
+    ) -> TMDBTVSearchResponse:
+        """Get popular TV series from TMDB."""
+
+        if page < 1:
+            raise ValueError(
+                "The page must be greater than or equal to 1."
+            )
+
+        request_language = (
+            language or self._settings.default_language
+        )
+
+        return self.get(
+            "/tv/popular",
+            response_model=TMDBTVSearchResponse,
+            params={
+                "page": page,
+                "language": request_language,
+            },
+        )
+
     def close(self) -> None:
         """Close the internally managed HTTP client."""
 

@@ -1474,3 +1474,103 @@ def test_get_trending_all_rejects_invalid_window(
             )
     finally:
         client.close()
+
+
+def test_get_popular_tv_shows_returns_validated_response(
+    settings: Settings,
+) -> None:
+    """Return popular TV series from TMDB."""
+
+    def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path.endswith(
+            "/tv/popular"
+        )
+        assert request.url.params["page"] == "1"
+        assert (
+            request.url.params["language"]
+            == "en-US"
+        )
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "page": 1,
+                "results": [
+                    {
+                        "id": 95396,
+                        "name": "Severance",
+                        "original_name": "Severance",
+                        "overview": (
+                            "Employees undergo a "
+                            "severance procedure."
+                        ),
+                        "first_air_date": "2022-02-17",
+                        "poster_path": "/severance.jpg",
+                        "backdrop_path": (
+                            "/severance-backdrop.jpg"
+                        ),
+                        "original_language": "en",
+                        "genre_ids": [18, 9648],
+                        "popularity": 120.5,
+                        "vote_average": 8.4,
+                        "vote_count": 2100,
+                    },
+                ],
+                "total_pages": 10,
+                "total_results": 200,
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        handler,
+    )
+
+    try:
+        response = (
+            tmdb_client.get_popular_tv_shows()
+        )
+
+        assert response.page == 1
+        assert len(response.results) == 1
+
+        show = response.results[0]
+
+        assert show.id == 95396
+        assert show.name == "Severance"
+    finally:
+        http_client.close()
+
+@pytest.mark.parametrize(
+    "page",
+    [
+        0,
+        -1,
+    ],
+)
+def test_get_popular_tv_shows_rejects_invalid_page(
+    settings: Settings,
+    page: int,
+) -> None:
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        lambda request: httpx.Response(
+            status_code=200,
+            request=request,
+        ),
+    )
+
+    try:
+        with pytest.raises(
+            ValueError,
+            match="page",
+        ):
+            tmdb_client.get_popular_tv_shows(
+                page=page,
+            )
+    finally:
+        http_client.close()

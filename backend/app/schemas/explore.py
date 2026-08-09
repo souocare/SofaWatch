@@ -56,3 +56,10 @@ class ExploreTrendingResponse(BaseModel):
     items: list[ExploreMediaItem] = Field(
         default_factory=list,
     )
+
+class ExploreMediaCollection(BaseModel):
+    """A collection of media items exposed by Explore."""
+
+    items: list[ExploreMediaItem] = Field(
+        default_factory=list,
+    )

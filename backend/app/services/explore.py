@@ -6,6 +6,7 @@ from app.providers.tmdb.schemas import (
     TMDBMultiTVSearchResult,
 )
 from app.schemas.explore import (
+    ExploreMediaCollection,
     ExploreMediaItem,
     ExploreMediaType,
     ExploreTrendingResponse,
@@ -127,3 +128,43 @@ class ExploreService:
         )
 
         return f"{base_url}/{size}{path}"
+
+    def get_popular_shows(
+        self,
+        *,
+        language: str | None = None,
+    ) -> ExploreMediaCollection:
+        """Return popular TV series for Explore."""
+
+        response = self._tmdb_client.get_popular_tv_shows(
+            language=language,
+        )
+
+        items = [
+            ExploreMediaItem(
+                media_type=ExploreMediaType.SHOW,
+                tmdb_id=item.id,
+                title=item.name,
+                original_title=item.original_name,
+                overview=item.overview,
+                release_date=item.first_air_date,
+                poster_url=self._build_image_url(
+                    item.poster_path,
+                    size="w500",
+                ),
+                backdrop_url=self._build_image_url(
+                    item.backdrop_path,
+                    size="original",
+                ),
+                original_language=item.original_language,
+                genre_ids=item.genre_ids,
+                popularity=item.popularity,
+                vote_average=item.vote_average,
+                vote_count=item.vote_count,
+            )
+            for item in response.results
+        ]
+
+        return ExploreMediaCollection(
+            items=items,
+        )

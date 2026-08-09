@@ -242,3 +242,70 @@ def test_get_trending_defaults_to_week(
         window=ExploreTrendingWindow.WEEK,
         language=None,
     )
+
+def test_get_popular_shows_returns_items(
+    client_with_explore_service: TestClient,
+    explore_service: Mock,
+) -> None:
+    explore_service.get_popular_shows.return_value = (
+        ExploreMediaCollection(
+            items=[
+                ExploreMediaItem(
+                    media_type=ExploreMediaType.SHOW,
+                    tmdb_id=95396,
+                    title="Severance",
+                    original_title="Severance",
+                    overview="",
+                    release_date=date(
+                        2022,
+                        2,
+                        17,
+                    ),
+                    poster_url=None,
+                    backdrop_url=None,
+                    original_language="en",
+                    genre_ids=[18],
+                    popularity=120,
+                    vote_average=8.4,
+                    vote_count=2100,
+                ),
+            ],
+        )
+    )
+
+    response = client_with_explore_service.get(
+        "/api/v1/explore/popular/shows",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body["items"]) == 1
+    assert body["items"][0]["media_type"] == "show"
+    assert body["items"][0]["tmdb_id"] == 95396
+
+    explore_service.get_popular_shows.assert_called_once_with(
+        language=None,
+    )
+
+def test_get_popular_shows_forwards_language(
+    client_with_explore_service: TestClient,
+    explore_service: Mock,
+) -> None:
+    explore_service.get_popular_shows.return_value = (
+        ExploreMediaCollection()
+    )
+
+    response = client_with_explore_service.get(
+        "/api/v1/explore/popular/shows",
+        params={
+            "language": "pt-PT",
+        },
+    )
+
+    assert response.status_code == 200
+
+    explore_service.get_popular_shows.assert_called_once_with(
+        language="pt-PT",
+    )

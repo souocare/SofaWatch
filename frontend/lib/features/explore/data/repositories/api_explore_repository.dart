@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/features/explore/data/models/explore_media_collection_dto.dart';
 import 'package:sofawatch/features/explore/data/models/explore_trending_dto.dart';
+import 'package:sofawatch/features/explore/domain/entities/explore_media_collection.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending_window.dart';
 import 'package:sofawatch/features/explore/domain/repositories/explore_repository.dart';
@@ -41,6 +43,34 @@ final class ApiExploreRepository implements ExploreRepository {
       throw AppException.invalidData(originalError: error);
     } on TypeError catch (error) {
       throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  @override
+  Future<ExploreMediaCollection> getPopularShows({String? language}) async {
+    try {
+      final Map<String, dynamic> queryParameters = <String, dynamic>{};
+
+      if (language != null) {
+        queryParameters['language'] = language;
+      }
+
+      final dynamic response = await _apiClient.get(
+        '/explore/popular/shows',
+        queryParameters: queryParameters,
+      );
+
+      if (response is! Map<String, dynamic>) {
+        throw const FormatException('Invalid Explore popular Shows response.');
+      }
+
+      return ExploreMediaCollectionDto.fromJson(response).toDomain();
+    } on AppException {
+      rethrow;
+    } on FormatException {
+      throw const AppException.invalidData();
+    } catch (_) {
+      throw const AppException.unknown();
     }
   }
 }

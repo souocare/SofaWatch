@@ -4,6 +4,7 @@ import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
 import 'package:sofawatch/features/explore/application/cubit/explore_cubit.dart';
 import 'package:sofawatch/features/explore/application/cubit/explore_state.dart';
+import 'package:sofawatch/features/explore/domain/entities/explore_media_collection.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending.dart';
 import 'package:sofawatch/features/explore/presentation/widgets/explore_header.dart';
 import 'package:sofawatch/features/explore/presentation/widgets/explore_horizontal_section.dart';
@@ -59,15 +60,24 @@ class _ExploreContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ExploreCubit, ExploreState>(
       builder: (BuildContext context, ExploreState state) {
-        final bool isInitial = state.today.isInitial && state.week.isInitial;
+        final bool isInitial =
+            state.today.isInitial &&
+            state.week.isInitial &&
+            state.popularShows.isInitial;
 
-        final bool isLoading = state.today.isLoading || state.week.isLoading;
+        final bool isLoading =
+            state.today.isLoading ||
+            state.week.isLoading ||
+            state.popularShows.isLoading;
 
         if (isInitial || isLoading) {
           return const ExploreTrendingLoading();
         }
 
-        final bool hasFailure = state.today.isFailure || state.week.isFailure;
+        final bool hasFailure =
+            state.today.isFailure ||
+            state.week.isFailure ||
+            state.popularShows.isFailure;
 
         if (hasFailure) {
           return const SizedBox(
@@ -76,13 +86,19 @@ class _ExploreContent extends StatelessWidget {
         }
 
         final ExploreTrending? today = state.today.data;
+
         final ExploreTrending? week = state.week.data;
+
+        final ExploreMediaCollection? popularShows = state.popularShows.data;
 
         final bool todayIsEmpty = today == null || today.isEmpty;
 
         final bool weekIsEmpty = week == null || week.isEmpty;
 
-        if (todayIsEmpty && weekIsEmpty) {
+        final bool popularShowsIsEmpty =
+            popularShows == null || popularShows.isEmpty;
+
+        if (todayIsEmpty && weekIsEmpty && popularShowsIsEmpty) {
           return const SizedBox(
             key: ValueKey<String>('explore-trending-empty'),
           );
@@ -92,14 +108,15 @@ class _ExploreContent extends StatelessWidget {
           key: const ValueKey<String>('explore-trending-content'),
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            if (!todayIsEmpty) ...<Widget>[
+            if (!todayIsEmpty)
               ExploreHorizontalSection(
                 title: 'Trending Today',
                 items: today.items,
               ),
-            ],
-            if (!todayIsEmpty && !weekIsEmpty)
+
+            if (!todayIsEmpty && (!weekIsEmpty || !popularShowsIsEmpty))
               const SizedBox(height: AppSpacing.xxxl),
+
             if (!weekIsEmpty) ...<Widget>[
               Text(
                 'Trending This Week',
@@ -113,6 +130,15 @@ class _ExploreContent extends StatelessWidget {
               const SizedBox(height: AppSpacing.lg),
               ExploreHorizontalSection(items: state.filteredWeekItems),
             ],
+
+            if (!weekIsEmpty && !popularShowsIsEmpty)
+              const SizedBox(height: AppSpacing.xxxl),
+
+            if (!popularShowsIsEmpty)
+              ExploreHorizontalSection(
+                title: 'Popular TV Shows',
+                items: popularShows.items,
+              ),
           ],
         );
       },

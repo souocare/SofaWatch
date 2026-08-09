@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/features/explore/application/cubit/explore_cubit.dart';
 import 'package:sofawatch/features/explore/application/cubit/explore_state.dart';
+import 'package:sofawatch/features/explore/domain/entities/explore_media_collection.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_media_item.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending_window.dart';
@@ -12,7 +13,7 @@ import 'package:sofawatch/features/explore/domain/repositories/explore_repositor
 import 'package:sofawatch/features/explore/presentation/views/explore_view.dart';
 
 void main() {
-  testWidgets('shows Trending Today and Trending This Week', (
+  testWidgets('shows Trending Today, Trending This Week and Popular TV Shows', (
     WidgetTester tester,
   ) async {
     final ExploreCubit cubit = ExploreCubit(
@@ -25,6 +26,9 @@ void main() {
             items: const <ExploreMediaItem>[_show],
           ),
         },
+        popularShows: const ExploreMediaCollection(
+          items: <ExploreMediaItem>[_popularShow],
+        ),
       ),
     );
 
@@ -38,9 +42,13 @@ void main() {
 
     expect(find.text('Trending This Week'), findsOneWidget);
 
+    expect(find.text('Popular TV Shows'), findsOneWidget);
+
     expect(find.text('Dune'), findsOneWidget);
 
     expect(find.text('Severance'), findsOneWidget);
+
+    expect(find.text('Breaking Bad'), findsOneWidget);
 
     await cubit.close();
   });
@@ -84,7 +92,7 @@ void main() {
   });
 
   testWidgets(
-    'filters Trending This Week locally without hiding Trending Today',
+    'filters Trending This Week locally without hiding other sections',
     (WidgetTester tester) async {
       final _FakeExploreRepository repository = _FakeExploreRepository(
         results: <ExploreTrendingWindow, ExploreTrending>{
@@ -95,6 +103,9 @@ void main() {
             items: const <ExploreMediaItem>[_show, _movie],
           ),
         },
+        popularShows: const ExploreMediaCollection(
+          items: <ExploreMediaItem>[_popularShow],
+        ),
       );
 
       final ExploreCubit cubit = ExploreCubit(repository);
@@ -105,7 +116,9 @@ void main() {
 
       await tester.pump();
 
-      expect(repository.calls, 2);
+      expect(repository.trendingCalls, 2);
+
+      expect(repository.popularShowsCalls, 1);
 
       await tester.tap(
         find.byKey(const ValueKey<String>('explore-week-filter-shows')),
@@ -124,13 +137,17 @@ void main() {
 
       expect(find.text('Trending Today'), findsOneWidget);
 
-      expect(repository.calls, 2);
+      expect(find.text('Popular TV Shows'), findsOneWidget);
+
+      expect(repository.trendingCalls, 2);
+
+      expect(repository.popularShowsCalls, 1);
 
       await cubit.close();
     },
   );
 
-  testWidgets('shows skeleton while trending is loading', (
+  testWidgets('shows skeleton while Explore is loading', (
     WidgetTester tester,
   ) async {
     final _PendingExploreRepository repository = _PendingExploreRepository();
@@ -148,14 +165,18 @@ void main() {
       findsOneWidget,
     );
 
-    repository.complete(
+    repository.completeTrending(
       ExploreTrendingWindow.day,
       ExploreTrending(items: const <ExploreMediaItem>[]),
     );
 
-    repository.complete(
+    repository.completeTrending(
       ExploreTrendingWindow.week,
       ExploreTrending(items: const <ExploreMediaItem>[]),
+    );
+
+    repository.completePopularShows(
+      const ExploreMediaCollection(items: <ExploreMediaItem>[]),
     );
 
     await loadFuture;
@@ -164,7 +185,7 @@ void main() {
     await cubit.close();
   });
 
-  testWidgets('shows empty state when both trending sections are empty', (
+  testWidgets('shows empty state when all Explore sections are empty', (
     WidgetTester tester,
   ) async {
     final ExploreCubit cubit = ExploreCubit(
@@ -230,41 +251,80 @@ const ExploreMediaItem _movie = ExploreMediaItem(
   voteCount: 13000,
 );
 
+const ExploreMediaItem _popularShow = ExploreMediaItem(
+  mediaType: ExploreMediaType.show,
+  tmdbId: 1396,
+  title: 'Breaking Bad',
+  originalTitle: 'Breaking Bad',
+  originalLanguage: 'en',
+  genreIds: <int>[18],
+  popularity: 100,
+  voteAverage: 9.5,
+  voteCount: 16000,
+);
+
 final class _FakeExploreRepository implements ExploreRepository {
-  _FakeExploreRepository({required this.results});
+  _FakeExploreRepository({
+    required this.results,
+    this.popularShows = const ExploreMediaCollection(
+      items: <ExploreMediaItem>[],
+    ),
+  });
 
   final Map<ExploreTrendingWindow, ExploreTrending> results;
 
-  int calls = 0;
+  final ExploreMediaCollection popularShows;
+
+  int trendingCalls = 0;
+  int popularShowsCalls = 0;
 
   @override
   Future<ExploreTrending> getTrending({
     required ExploreTrendingWindow window,
     String? language,
   }) async {
-    calls++;
+    trendingCalls++;
 
     return results[window] ??
         ExploreTrending(items: const <ExploreMediaItem>[]);
   }
+
+  @override
+  Future<ExploreMediaCollection> getPopularShows({String? language}) async {
+    popularShowsCalls++;
+
+    return popularShows;
+  }
 }
 
 final class _PendingExploreRepository implements ExploreRepository {
-  final Map<ExploreTrendingWindow, Completer<ExploreTrending>> _completers =
-      <ExploreTrendingWindow, Completer<ExploreTrending>>{
-        ExploreTrendingWindow.day: Completer<ExploreTrending>(),
-        ExploreTrendingWindow.week: Completer<ExploreTrending>(),
-      };
+  final Map<ExploreTrendingWindow, Completer<ExploreTrending>>
+  _trendingCompleters = <ExploreTrendingWindow, Completer<ExploreTrending>>{
+    ExploreTrendingWindow.day: Completer<ExploreTrending>(),
+    ExploreTrendingWindow.week: Completer<ExploreTrending>(),
+  };
+
+  final Completer<ExploreMediaCollection> _popularShowsCompleter =
+      Completer<ExploreMediaCollection>();
 
   @override
   Future<ExploreTrending> getTrending({
     required ExploreTrendingWindow window,
     String? language,
   }) {
-    return _completers[window]!.future;
+    return _trendingCompleters[window]!.future;
   }
 
-  void complete(ExploreTrendingWindow window, ExploreTrending value) {
-    _completers[window]!.complete(value);
+  @override
+  Future<ExploreMediaCollection> getPopularShows({String? language}) {
+    return _popularShowsCompleter.future;
+  }
+
+  void completeTrending(ExploreTrendingWindow window, ExploreTrending value) {
+    _trendingCompleters[window]!.complete(value);
+  }
+
+  void completePopularShows(ExploreMediaCollection value) {
+    _popularShowsCompleter.complete(value);
   }
 }
