@@ -43,6 +43,7 @@ from app.services.movie_import import MovieImportService
 from app.services.tmdb_movie_details import (
     TMDBMovieDetailsService,
 )
+from app.services.explore import ExploreService
 
 
 def get_genre_service(
@@ -452,4 +453,28 @@ def get_image_service(
 ImageServiceDependency = Annotated[
     ImageService,
     Depends(get_image_service),
+]
+
+
+def get_explore_service(
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
+    tmdb_client: Annotated[
+        TMDBClient,
+        Depends(get_tmdb_client),
+    ],
+) -> ExploreService:
+    """Provide the Explore discovery service."""
+
+    return ExploreService(
+        settings=settings,
+        tmdb_client=tmdb_client,
+    )
+
+
+ExploreServiceDependency = Annotated[
+    ExploreService,
+    Depends(get_explore_service),
 ]

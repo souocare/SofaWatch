@@ -1336,3 +1336,120 @@ def test_get_tv_season_details_rejects_invalid_schema(
             )
     finally:
         http_client.close()
+
+def test_get_trending_shows_returns_validated_response(
+    settings: Settings,
+) -> None:
+    """Return weekly trending TV series from TMDB."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path.endswith("/trending/tv/week")
+        assert request.url.params["language"] == "en-US"
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "page": 1,
+                "results": [
+                    {
+                        "id": 95396,
+                        "name": "Severance",
+                        "original_name": "Severance",
+                        "overview": "Employees undergo a severance procedure.",
+                        "first_air_date": "2022-02-17",
+                        "poster_path": "/severance.jpg",
+                        "backdrop_path": "/severance-backdrop.jpg",
+                        "original_language": "en",
+                        "genre_ids": [18, 9648],
+                        "popularity": 120.5,
+                        "vote_average": 8.4,
+                        "vote_count": 2100,
+                    }
+                ],
+                "total_pages": 1,
+                "total_results": 1,
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        handler,
+    )
+
+    try:
+        response = tmdb_client.get_trending_shows()
+    finally:
+        http_client.close()
+
+    assert response.page == 1
+    assert response.total_results == 1
+    assert len(response.results) == 1
+
+    show = response.results[0]
+
+    assert show.id == 95396
+    assert show.name == "Severance"
+    assert show.first_air_date is not None
+    assert show.first_air_date.isoformat() == "2022-02-17"
+
+
+def test_get_trending_movies_returns_validated_response(
+    settings: Settings,
+) -> None:
+    """Return weekly trending Movies from TMDB."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path.endswith("/trending/movie/week")
+        assert request.url.params["language"] == "en-US"
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "page": 1,
+                "results": [
+                    {
+                        "id": 438631,
+                        "title": "Dune",
+                        "original_title": "Dune",
+                        "overview": "Paul Atreides travels to Arrakis.",
+                        "release_date": "2021-09-15",
+                        "poster_path": "/dune.jpg",
+                        "backdrop_path": "/dune-backdrop.jpg",
+                        "original_language": "en",
+                        "genre_ids": [878, 12],
+                        "popularity": 95.4,
+                        "vote_average": 7.8,
+                        "vote_count": 13000,
+                        "adult": False,
+                        "video": False,
+                    }
+                ],
+                "total_pages": 1,
+                "total_results": 1,
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        handler,
+    )
+
+    try:
+        response = tmdb_client.get_trending_movies()
+    finally:
+        http_client.close()
+
+    assert response.page == 1
+    assert response.total_results == 1
+    assert len(response.results) == 1
+
+    movie = response.results[0]
+
+    assert movie.id == 438631
+    assert movie.title == "Dune"
+    assert movie.release_date is not None
+    assert movie.release_date.isoformat() == "2021-09-15"

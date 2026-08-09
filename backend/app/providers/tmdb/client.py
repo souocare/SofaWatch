@@ -249,6 +249,45 @@ class TMDBClient:
             },
         )
 
+    def get_trending_shows(
+        self,
+        *,
+        language: str | None = None,
+    ) -> TMDBTVSearchResponse:
+        """Get weekly trending TV series from TMDB."""
+
+        request_language = (
+            language or self._settings.default_language
+        )
+
+        return self.get(
+            "/trending/tv/week",
+            response_model=TMDBTVSearchResponse,
+            params={
+                "language": request_language,
+            },
+        )
+
+
+    def get_trending_movies(
+        self,
+        *,
+        language: str | None = None,
+    ) -> TMDBMovieSearchResponse:
+        """Get weekly trending Movies from TMDB."""
+
+        request_language = (
+            language or self._settings.default_language
+        )
+
+        return self.get(
+            "/trending/movie/week",
+            response_model=TMDBMovieSearchResponse,
+            params={
+                "language": request_language,
+            },
+        )
+
     def close(self) -> None:
         """Close the internally managed HTTP client."""
 
