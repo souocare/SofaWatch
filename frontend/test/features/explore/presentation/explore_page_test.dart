@@ -10,6 +10,8 @@ import 'package:sofawatch/features/explore/domain/entities/explore_trending.dart
 import 'package:sofawatch/features/explore/domain/entities/explore_trending_window.dart';
 import 'package:sofawatch/features/explore/domain/repositories/explore_repository.dart';
 import 'package:sofawatch/features/explore/presentation/views/explore_view.dart';
+import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
+import 'package:sofawatch/features/library/domain/repositories/library_repository.dart';
 
 void main() {
   group('ExploreView', () {
@@ -27,6 +29,7 @@ void main() {
       );
 
       expect(find.text('Explore'), findsOneWidget);
+
       expect(find.text('Discover something worth watching.'), findsOneWidget);
 
       await cubit.close();
@@ -75,8 +78,11 @@ void main() {
       await tester.pump();
 
       expect(find.text('Trending Today'), findsOneWidget);
+
       expect(find.text('Trending This Week'), findsOneWidget);
+
       expect(find.text('Popular TV Shows'), findsOneWidget);
+
       expect(find.text('Popular Movies'), findsOneWidget);
 
       await cubit.close();
@@ -134,8 +140,13 @@ void main() {
 Widget _buildTestApp(ExploreCubit cubit) {
   return MaterialApp(
     home: Scaffold(
-      body: BlocProvider<ExploreCubit>.value(
-        value: cubit,
+      body: MultiBlocProvider(
+        providers: <BlocProvider<dynamic>>[
+          BlocProvider<ExploreCubit>.value(value: cubit),
+          BlocProvider<LibraryCubit>(
+            create: (_) => LibraryCubit(_FakeLibraryRepository()),
+          ),
+        ],
         child: const ExploreView(),
       ),
     ),
@@ -246,5 +257,12 @@ final class _FakeExploreRepository implements ExploreRepository {
         ),
       ],
     );
+  }
+}
+
+final class _FakeLibraryRepository implements LibraryRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    return super.noSuchMethod(invocation);
   }
 }

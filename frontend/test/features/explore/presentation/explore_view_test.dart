@@ -13,6 +13,8 @@ import 'package:sofawatch/features/explore/domain/entities/explore_trending.dart
 import 'package:sofawatch/features/explore/domain/entities/explore_trending_window.dart';
 import 'package:sofawatch/features/explore/domain/repositories/explore_repository.dart';
 import 'package:sofawatch/features/explore/presentation/views/explore_view.dart';
+import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
+import 'package:sofawatch/features/library/domain/repositories/library_repository.dart';
 
 void main() {
   testWidgets('shows Trending and Popular discovery sections', (
@@ -122,8 +124,8 @@ void main() {
     expect(cubit.state.selectedShowGenreId, isNull);
     expect(cubit.state.selectedMovieGenreId, isNull);
 
-    final ChoiceChip showAll = tester.widget<ChoiceChip>(
-      find.ancestor(
+    final ChoiceChip showAllChip = tester.widget<ChoiceChip>(
+      find.descendant(
         of: find.byKey(
           const ValueKey<String>('explore-popular-shows-genre-all'),
         ),
@@ -131,8 +133,8 @@ void main() {
       ),
     );
 
-    final ChoiceChip movieAll = tester.widget<ChoiceChip>(
-      find.ancestor(
+    final ChoiceChip movieAllChip = tester.widget<ChoiceChip>(
+      find.descendant(
         of: find.byKey(
           const ValueKey<String>('explore-popular-movies-genre-all'),
         ),
@@ -140,8 +142,8 @@ void main() {
       ),
     );
 
-    expect(showAll.selected, isTrue);
-    expect(movieAll.selected, isTrue);
+    expect(showAllChip.selected, isTrue);
+    expect(movieAllChip.selected, isTrue);
 
     await cubit.close();
   });
@@ -249,9 +251,27 @@ void main() {
     await tester.pumpWidget(_buildTestApp(cubit));
     await tester.pump();
 
-    final Future<void> changeFuture = cubit.changeShowGenre(18);
+    expect(cubit.state.popularShows.isSuccess, isTrue);
+    expect(cubit.state.popularMovies.isSuccess, isTrue);
 
+    final Finder dramaFilter = find.byKey(
+      const ValueKey<String>('explore-popular-shows-genre-18'),
+    );
+
+    expect(dramaFilter, findsOneWidget);
+
+    await tester.ensureVisible(dramaFilter);
+    await tester.tap(dramaFilter);
+
+    // Processa o emit/loading provocado pelo tap.
     await tester.pump();
+    await tester.pump();
+
+    expect(cubit.state.selectedShowGenreId, 18);
+    expect(cubit.state.selectedMovieGenreId, isNull);
+
+    expect(cubit.state.popularShows.isLoading, isTrue);
+    expect(cubit.state.popularMovies.isSuccess, isTrue);
 
     expect(
       find.byKey(const ValueKey<String>('explore-popular-shows-loading')),
@@ -271,8 +291,15 @@ void main() {
       const ExploreMediaCollection(items: <ExploreMediaItem>[_dramaShow]),
     );
 
-    await changeFuture;
     await tester.pump();
+    await tester.pump();
+
+    expect(cubit.state.popularShows.isSuccess, isTrue);
+
+    expect(
+      find.byKey(const ValueKey<String>('explore-popular-shows-loading')),
+      findsNothing,
+    );
 
     expect(find.text('The Last of Us'), findsOneWidget);
 
@@ -292,9 +319,27 @@ void main() {
     await tester.pumpWidget(_buildTestApp(cubit));
     await tester.pump();
 
-    final Future<void> changeFuture = cubit.changeMovieGenre(878);
+    expect(cubit.state.popularShows.isSuccess, isTrue);
+    expect(cubit.state.popularMovies.isSuccess, isTrue);
 
+    final Finder scienceFictionFilter = find.byKey(
+      const ValueKey<String>('explore-popular-movies-genre-878'),
+    );
+
+    expect(scienceFictionFilter, findsOneWidget);
+
+    await tester.ensureVisible(scienceFictionFilter);
+    await tester.tap(scienceFictionFilter);
+
+    // Processa o emit/loading provocado pelo tap.
     await tester.pump();
+    await tester.pump();
+
+    expect(cubit.state.selectedMovieGenreId, 878);
+    expect(cubit.state.selectedShowGenreId, isNull);
+
+    expect(cubit.state.popularMovies.isLoading, isTrue);
+    expect(cubit.state.popularShows.isSuccess, isTrue);
 
     expect(
       find.byKey(const ValueKey<String>('explore-popular-movies-loading')),
@@ -316,8 +361,15 @@ void main() {
       ),
     );
 
-    await changeFuture;
     await tester.pump();
+    await tester.pump();
+
+    expect(cubit.state.popularMovies.isSuccess, isTrue);
+
+    expect(
+      find.byKey(const ValueKey<String>('explore-popular-movies-loading')),
+      findsNothing,
+    );
 
     expect(find.text('Blade Runner 2049'), findsOneWidget);
 
@@ -506,8 +558,13 @@ void main() {
 Widget _buildTestApp(ExploreCubit cubit) {
   return MaterialApp(
     home: Scaffold(
-      body: BlocProvider<ExploreCubit>.value(
-        value: cubit,
+      body: MultiBlocProvider(
+        providers: <BlocProvider<dynamic>>[
+          BlocProvider<ExploreCubit>.value(value: cubit),
+          BlocProvider<LibraryCubit>(
+            create: (_) => LibraryCubit(_FakeLibraryRepository()),
+          ),
+        ],
         child: const ExploreView(),
       ),
     ),
@@ -638,14 +695,12 @@ final class _FakeExploreRepository implements ExploreRepository {
   });
 
   final Map<ExploreTrendingWindow, ExploreTrending> results;
-
   final ExploreGenreOptions genres;
 
   final ExploreMediaCollection popularShows;
   final ExploreMediaCollection popularMovies;
 
   final Map<int?, ExploreMediaCollection> popularShowsByGenre;
-
   final Map<int?, ExploreMediaCollection> popularMoviesByGenre;
 
   int trendingCalls = 0;
@@ -667,7 +722,6 @@ final class _FakeExploreRepository implements ExploreRepository {
   @override
   Future<ExploreGenreOptions> getGenres({String? language}) async {
     genresCalls++;
-
     return genres;
   }
 
@@ -816,5 +870,12 @@ final class _ControlledExploreRepository implements ExploreRepository {
 
   void completeMovieGenre(ExploreMediaCollection value) {
     _movieGenreCompleter!.complete(value);
+  }
+}
+
+final class _FakeLibraryRepository implements LibraryRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    return super.noSuchMethod(invocation);
   }
 }
