@@ -1,0 +1,1 @@
+enum ExploreTrendingWindow { day, week }

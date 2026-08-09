@@ -3,6 +3,7 @@ import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/explore/data/models/explore_trending_dto.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending.dart';
+import 'package:sofawatch/features/explore/domain/entities/explore_trending_window.dart';
 import 'package:sofawatch/features/explore/domain/repositories/explore_repository.dart';
 
 final class ApiExploreRepository implements ExploreRepository {
@@ -11,14 +12,18 @@ final class ApiExploreRepository implements ExploreRepository {
   final ApiClient _apiClient;
 
   @override
-  Future<ExploreTrending> getTrending({String? language}) async {
+  Future<ExploreTrending> getTrending({
+    required ExploreTrendingWindow window,
+    String? language,
+  }) async {
     try {
       final Response<Map<String, dynamic>> response = await _apiClient
           .get<Map<String, dynamic>>(
             '/explore/trending',
-            queryParameters: language == null
-                ? null
-                : <String, dynamic>{'language': language},
+            queryParameters: <String, dynamic>{
+              'window': window.name,
+              if (language != null) 'language': language,
+            },
           );
 
       final Map<String, dynamic>? data = response.data;

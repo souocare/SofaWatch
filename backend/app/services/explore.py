@@ -1,9 +1,15 @@
 from app.core.config import Settings
 from app.providers.tmdb.client import TMDBClient
+from app.providers.tmdb.schemas import (
+    TMDBMultiMovieSearchResult,
+    TMDBMultiPersonSearchResult,
+    TMDBMultiTVSearchResult,
+)
 from app.schemas.explore import (
     ExploreMediaItem,
     ExploreMediaType,
     ExploreTrendingResponse,
+    ExploreTrendingWindow,
 )
 
 
@@ -22,30 +28,42 @@ class ExploreService:
     def get_trending(
         self,
         *,
+        window: ExploreTrendingWindow,
         language: str | None = None,
     ) -> ExploreTrendingResponse:
-        shows = self._tmdb_client.get_trending_shows(
+        """Return ordered trending Movies and TV series."""
+
+        response = self._tmdb_client.get_trending_all(
+            time_window=window.value,
             language=language,
         )
 
-        movies = self._tmdb_client.get_trending_movies(
-            language=language,
-        )
+        items: list[ExploreMediaItem] = []
+
+        for result in response.results:
+            if isinstance(
+                result,
+                TMDBMultiTVSearchResult,
+            ):
+                items.append(
+                    self._map_show(result),
+                )
+                continue
+
+            if isinstance(
+                result,
+                TMDBMultiMovieSearchResult,
+            ):
+                items.append(
+                    self._map_movie(result),
+                )
 
         return ExploreTrendingResponse(
-            shows=[
-                self._map_show(item)
-                for item in shows.results
-            ],
-            movies=[
-                self._map_movie(item)
-                for item in movies.results
-            ],
+            items=items,
         )
-
     def _map_show(
         self,
-        item,
+        item: TMDBMultiTVSearchResult,
     ) -> ExploreMediaItem:
         return ExploreMediaItem(
             media_type=ExploreMediaType.SHOW,
@@ -71,7 +89,7 @@ class ExploreService:
 
     def _map_movie(
         self,
-        item,
+        item: TMDBMultiMovieSearchResult,
     ) -> ExploreMediaItem:
         return ExploreMediaItem(
             media_type=ExploreMediaType.MOVIE,

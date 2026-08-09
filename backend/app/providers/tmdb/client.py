@@ -249,40 +249,23 @@ class TMDBClient:
             },
         )
 
-    def get_trending_shows(
+    def get_trending_all(
         self,
         *,
+        time_window: str,
         language: str | None = None,
-    ) -> TMDBTVSearchResponse:
-        """Get weekly trending TV series from TMDB."""
-
+    ) -> TMDBMultiSearchResponse:
+        """Get trending movies, TV series and people from TMDB."""
+        if time_window not in {"day", "week"}:
+            raise ValueError(
+                "The trending time window must be 'day' or 'week'."
+            )
         request_language = (
             language or self._settings.default_language
         )
-
         return self.get(
-            "/trending/tv/week",
-            response_model=TMDBTVSearchResponse,
-            params={
-                "language": request_language,
-            },
-        )
-
-
-    def get_trending_movies(
-        self,
-        *,
-        language: str | None = None,
-    ) -> TMDBMovieSearchResponse:
-        """Get weekly trending Movies from TMDB."""
-
-        request_language = (
-            language or self._settings.default_language
-        )
-
-        return self.get(
-            "/trending/movie/week",
-            response_model=TMDBMovieSearchResponse,
+            f"/trending/all/{time_window}",
+            response_model=TMDBMultiSearchResponse,
             params={
                 "language": request_language,
             },

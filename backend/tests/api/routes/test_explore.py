@@ -15,6 +15,7 @@ from app.schemas.explore import (
     ExploreMediaItem,
     ExploreMediaType,
     ExploreTrendingResponse,
+    ExploreTrendingWindow,
 )
 from app.services.explore import ExploreService
 
@@ -42,13 +43,13 @@ def client_with_explore_service(
     return client
 
 
-def test_get_trending_returns_shows_and_movies(
+def test_get_trending_returns_ordered_mixed_media(
     client_with_explore_service: TestClient,
     explore_service: Mock,
 ) -> None:
     explore_service.get_trending.return_value = (
         ExploreTrendingResponse(
-            shows=[
+            items=[
                 ExploreMediaItem(
                     media_type=ExploreMediaType.SHOW,
                     tmdb_id=95396,
@@ -66,8 +67,6 @@ def test_get_trending_returns_shows_and_movies(
                     vote_average=8.4,
                     vote_count=2100,
                 ),
-            ],
-            movies=[
                 ExploreMediaItem(
                     media_type=ExploreMediaType.MOVIE,
                     tmdb_id=438631,
@@ -97,16 +96,18 @@ def test_get_trending_returns_shows_and_movies(
 
     body = response.json()
 
-    assert len(body["shows"]) == 1
-    assert len(body["movies"]) == 1
+    assert len(body["items"]) == 2
 
-    assert body["shows"][0]["media_type"] == "show"
-    assert body["shows"][0]["tmdb_id"] == 95396
+    assert body["items"][0]["media_type"] == "show"
+    assert body["items"][0]["tmdb_id"] == 95396
+    assert body["items"][0]["title"] == "Severance"
 
-    assert body["movies"][0]["media_type"] == "movie"
-    assert body["movies"][0]["tmdb_id"] == 438631
+    assert body["items"][1]["media_type"] == "movie"
+    assert body["items"][1]["tmdb_id"] == 438631
+    assert body["items"][1]["title"] == "Dune"
 
     explore_service.get_trending.assert_called_once_with(
+        window=ExploreTrendingWindow.WEEK,
         language=None,
     )
 
@@ -129,6 +130,7 @@ def test_get_trending_forwards_language(
     assert response.status_code == 200
 
     explore_service.get_trending.assert_called_once_with(
+        window=ExploreTrendingWindow.WEEK,
         language="pt-PT",
     )
 
@@ -198,3 +200,45 @@ def test_get_trending_rejects_invalid_language(
     assert response.status_code == 422
 
     explore_service.get_trending.assert_not_called()
+
+
+def test_get_trending_supports_day_window(
+    client_with_explore_service: TestClient,
+    explore_service: Mock,
+) -> None:
+    explore_service.get_trending.return_value = (
+        ExploreTrendingResponse()
+    )
+
+    response = client_with_explore_service.get(
+        "/api/v1/explore/trending",
+        params={
+            "window": "day",
+        },
+    )
+
+    assert response.status_code == 200
+
+    explore_service.get_trending.assert_called_once_with(
+        window=ExploreTrendingWindow.DAY,
+        language=None,
+    )
+
+def test_get_trending_defaults_to_week(
+    client_with_explore_service: TestClient,
+    explore_service: Mock,
+) -> None:
+    explore_service.get_trending.return_value = (
+        ExploreTrendingResponse()
+    )
+
+    response = client_with_explore_service.get(
+        "/api/v1/explore/trending",
+    )
+
+    assert response.status_code == 200
+
+    explore_service.get_trending.assert_called_once_with(
+        window=ExploreTrendingWindow.WEEK,
+        language=None,
+    )

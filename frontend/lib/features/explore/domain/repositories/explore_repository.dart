@@ -1,5 +1,9 @@
 import 'package:sofawatch/features/explore/domain/entities/explore_trending.dart';
+import 'package:sofawatch/features/explore/domain/entities/explore_trending_window.dart';
 
 abstract interface class ExploreRepository {
-  Future<ExploreTrending> getTrending({String? language});
+  Future<ExploreTrending> getTrending({
+    required ExploreTrendingWindow window,
+    String? language,
+  });
 }

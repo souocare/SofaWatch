@@ -1,22 +1,50 @@
 import 'package:equatable/equatable.dart';
 import 'package:sofawatch/core/state/remote_state.dart';
+import 'package:sofawatch/features/explore/domain/entities/explore_media_item.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending.dart';
+
+enum ExploreWeekFilter { all, shows, movies }
 
 class ExploreState extends Equatable {
   const ExploreState({
-    this.trending = const RemoteState<ExploreTrending>.initial(),
+    this.today = const RemoteState<ExploreTrending>.initial(),
+    this.week = const RemoteState<ExploreTrending>.initial(),
+    this.weekFilter = ExploreWeekFilter.all,
   });
 
-  final RemoteState<ExploreTrending> trending;
+  final RemoteState<ExploreTrending> today;
+  final RemoteState<ExploreTrending> week;
 
-  bool get hasTrending => trending.data?.isEmpty == false;
+  final ExploreWeekFilter weekFilter;
 
-  bool get isEmpty => trending.isSuccess && trending.data?.isEmpty == true;
+  List<ExploreMediaItem> get filteredWeekItems {
+    final ExploreTrending? trending = week.data;
 
-  ExploreState copyWith({RemoteState<ExploreTrending>? trending}) {
-    return ExploreState(trending: trending ?? this.trending);
+    if (trending == null) {
+      return const <ExploreMediaItem>[];
+    }
+
+    return switch (weekFilter) {
+      ExploreWeekFilter.all => trending.items,
+
+      ExploreWeekFilter.shows => trending.shows,
+
+      ExploreWeekFilter.movies => trending.movies,
+    };
+  }
+
+  ExploreState copyWith({
+    RemoteState<ExploreTrending>? today,
+    RemoteState<ExploreTrending>? week,
+    ExploreWeekFilter? weekFilter,
+  }) {
+    return ExploreState(
+      today: today ?? this.today,
+      week: week ?? this.week,
+      weekFilter: weekFilter ?? this.weekFilter,
+    );
   }
 
   @override
-  List<Object?> get props => <Object?>[trending];
+  List<Object?> get props => <Object?>[today, week, weekFilter];
 }

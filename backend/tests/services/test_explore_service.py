@@ -8,10 +8,14 @@ from app.providers.tmdb import TMDBClient
 from app.providers.tmdb.schemas import (
     TMDBMovieSearchResponse,
     TMDBMovieSearchResult,
+    TMDBMultiMovieSearchResult,
+    TMDBMultiPersonSearchResult,
+    TMDBMultiSearchResponse,
+    TMDBMultiTVSearchResult,
     TMDBTVSearchResponse,
     TMDBTVSearchResult,
 )
-from app.schemas.explore import ExploreMediaType
+from app.schemas.explore import ExploreMediaType, ExploreTrendingWindow
 from app.services.explore import ExploreService
 
 
@@ -39,94 +43,79 @@ def service(
     )
 
 
-def test_get_trending_maps_shows_and_movies(
+def test_get_trending_preserves_mixed_media_order_and_filters_people(
     service: ExploreService,
     tmdb_client: Mock,
 ) -> None:
-    """Map provider results into Explore media items."""
+    """Preserve provider ranking while excluding people."""
 
-    tmdb_client.get_trending_shows.return_value = TMDBTVSearchResponse(
-        page=1,
-        results=[
-            TMDBTVSearchResult(
-                id=95396,
-                name="Severance",
-                original_name="Severance",
-                overview="Employees undergo a severance procedure.",
-                first_air_date=date(2022, 2, 17),
-                poster_path="/severance.jpg",
-                backdrop_path="/severance-backdrop.jpg",
-                original_language="en",
-                genre_ids=[18, 9648],
-                popularity=120.5,
-                vote_average=8.4,
-                vote_count=2100,
-            ),
-        ],
-        total_pages=1,
-        total_results=1,
-    )
-
-    tmdb_client.get_trending_movies.return_value = (
-        TMDBMovieSearchResponse(
+    tmdb_client.get_trending_all.return_value = (
+        TMDBMultiSearchResponse(
             page=1,
             results=[
-                TMDBMovieSearchResult(
+                TMDBMultiMovieSearchResult(
                     id=438631,
+                    media_type="movie",
                     title="Dune",
                     original_title="Dune",
-                    overview="Paul Atreides travels to Arrakis.",
+                    overview="",
                     release_date=date(2021, 9, 15),
-                    poster_path="/dune.jpg",
-                    backdrop_path="/dune-backdrop.jpg",
+                    poster_path=None,
+                    backdrop_path=None,
                     original_language="en",
-                    genre_ids=[878, 12],
+                    genre_ids=[878],
                     popularity=95.4,
                     vote_average=7.8,
                     vote_count=13000,
                 ),
+                TMDBMultiPersonSearchResult(
+                    id=1,
+                    media_type="person",
+                    name="Someone",
+                    popularity=90,
+                ),
+                TMDBMultiTVSearchResult(
+                    id=95396,
+                    media_type="tv",
+                    name="Severance",
+                    original_name="Severance",
+                    overview="",
+                    first_air_date=date(2022, 2, 17),
+                    poster_path=None,
+                    backdrop_path=None,
+                    original_language="en",
+                    genre_ids=[18],
+                    popularity=120,
+                    vote_average=8.4,
+                    vote_count=2100,
+                ),
             ],
             total_pages=1,
-            total_results=1,
+            total_results=3,
         )
     )
 
     result = service.get_trending(
-        language="pt-PT",
+        window=ExploreTrendingWindow.DAY,
     )
 
-    tmdb_client.get_trending_shows.assert_called_once_with(
-        language="pt-PT",
+    assert len(result.items) == 2
+
+    assert result.items[0].media_type is (
+        ExploreMediaType.MOVIE
     )
 
-    tmdb_client.get_trending_movies.assert_called_once_with(
-        language="pt-PT",
+    assert result.items[0].title == "Dune"
+
+    assert result.items[1].media_type is (
+        ExploreMediaType.SHOW
     )
 
-    assert len(result.shows) == 1
-    assert len(result.movies) == 1
+    assert result.items[1].title == "Severance"
 
-    show = result.shows[0]
-
-    assert show.media_type is ExploreMediaType.SHOW
-    assert show.tmdb_id == 95396
-    assert show.title == "Severance"
-    assert show.release_date == date(2022, 2, 17)
-    assert show.poster_url == (
-        "https://image.tmdb.org/t/p/w500/severance.jpg"
-    )
-    assert show.backdrop_url == (
-        "https://image.tmdb.org/t/p/original/severance-backdrop.jpg"
-    )
-
-    movie = result.movies[0]
-
-    assert movie.media_type is ExploreMediaType.MOVIE
-    assert movie.tmdb_id == 438631
-    assert movie.title == "Dune"
-    assert movie.release_date == date(2021, 9, 15)
-    assert movie.poster_url == (
-        "https://image.tmdb.org/t/p/w500/dune.jpg"
+    tmdb_client.get_trending_all.assert_called_once_with(
+        time_window="day",
+        language=None,
     )
 
 
@@ -136,12 +125,13 @@ def test_get_trending_preserves_missing_images(
 ) -> None:
     """Keep missing provider artwork as null."""
 
-    tmdb_client.get_trending_shows.return_value = (
-        TMDBTVSearchResponse(
+    tmdb_client.get_trending_all.return_value = (
+        TMDBMultiSearchResponse(
             page=1,
             results=[
-                TMDBTVSearchResult(
+                TMDBMultiTVSearchResult(
                     id=95396,
+                    media_type="tv",
                     name="Severance",
                     original_name="Severance",
                     overview="",
@@ -160,19 +150,21 @@ def test_get_trending_preserves_missing_images(
         )
     )
 
-    tmdb_client.get_trending_movies.return_value = (
-        TMDBMovieSearchResponse(
-            page=1,
-            results=[],
-            total_pages=0,
-            total_results=0,
-        )
+    result = service.get_trending(
+        window=ExploreTrendingWindow.WEEK,
     )
 
-    result = service.get_trending()
+    assert len(result.items) == 1
 
-    assert result.shows[0].poster_url is None
-    assert result.shows[0].backdrop_url is None
+    item = result.items[0]
+
+    assert item.poster_url is None
+    assert item.backdrop_url is None
+
+    tmdb_client.get_trending_all.assert_called_once_with(
+        time_window="week",
+        language=None,
+    )
 
 
 def test_get_trending_supports_trailing_image_base_slash(
@@ -190,12 +182,13 @@ def test_get_trending_supports_trailing_image_base_slash(
         tmdb_client=tmdb_client,
     )
 
-    tmdb_client.get_trending_shows.return_value = (
-        TMDBTVSearchResponse(
+    tmdb_client.get_trending_all.return_value = (
+        TMDBMultiSearchResponse(
             page=1,
             results=[
-                TMDBTVSearchResult(
+                TMDBMultiTVSearchResult(
                     id=95396,
+                    media_type="tv",
                     name="Severance",
                     original_name="Severance",
                     overview="",
@@ -214,17 +207,20 @@ def test_get_trending_supports_trailing_image_base_slash(
         )
     )
 
-    tmdb_client.get_trending_movies.return_value = (
-        TMDBMovieSearchResponse(
-            page=1,
-            results=[],
-            total_pages=0,
-            total_results=0,
-        )
+    result = service.get_trending(
+        window=ExploreTrendingWindow.WEEK,
     )
 
-    result = service.get_trending()
+    assert len(result.items) == 1
 
-    assert result.shows[0].poster_url == (
-        "https://image.tmdb.org/t/p/w500/poster.jpg"
+    item = result.items[0]
+
+    assert (
+        item.poster_url
+        == "https://image.tmdb.org/t/p/w500/poster.jpg"
+    )
+
+    assert (
+        item.backdrop_url
+        == "https://image.tmdb.org/t/p/original/backdrop.jpg"
     )

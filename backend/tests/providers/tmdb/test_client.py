@@ -1337,73 +1337,23 @@ def test_get_tv_season_details_rejects_invalid_schema(
     finally:
         http_client.close()
 
-def test_get_trending_shows_returns_validated_response(
+
+def test_get_trending_all_returns_daily_mixed_results(
     settings: Settings,
 ) -> None:
-    """Return weekly trending TV series from TMDB."""
+    """Return ordered daily trending media from TMDB."""
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
         assert request.method == "GET"
-        assert request.url.path.endswith("/trending/tv/week")
-        assert request.url.params["language"] == "en-US"
-
-        return httpx.Response(
-            status_code=200,
-            request=request,
-            json={
-                "page": 1,
-                "results": [
-                    {
-                        "id": 95396,
-                        "name": "Severance",
-                        "original_name": "Severance",
-                        "overview": "Employees undergo a severance procedure.",
-                        "first_air_date": "2022-02-17",
-                        "poster_path": "/severance.jpg",
-                        "backdrop_path": "/severance-backdrop.jpg",
-                        "original_language": "en",
-                        "genre_ids": [18, 9648],
-                        "popularity": 120.5,
-                        "vote_average": 8.4,
-                        "vote_count": 2100,
-                    }
-                ],
-                "total_pages": 1,
-                "total_results": 1,
-            },
+        assert request.url.path.endswith(
+            "/trending/all/day"
         )
-
-    tmdb_client, http_client = create_tmdb_client(
-        settings,
-        handler,
-    )
-
-    try:
-        response = tmdb_client.get_trending_shows()
-    finally:
-        http_client.close()
-
-    assert response.page == 1
-    assert response.total_results == 1
-    assert len(response.results) == 1
-
-    show = response.results[0]
-
-    assert show.id == 95396
-    assert show.name == "Severance"
-    assert show.first_air_date is not None
-    assert show.first_air_date.isoformat() == "2022-02-17"
-
-
-def test_get_trending_movies_returns_validated_response(
-    settings: Settings,
-) -> None:
-    """Return weekly trending Movies from TMDB."""
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        assert request.method == "GET"
-        assert request.url.path.endswith("/trending/movie/week")
-        assert request.url.params["language"] == "en-US"
+        assert (
+            request.url.params["language"]
+            == "en-US"
+        )
 
         return httpx.Response(
             status_code=200,
@@ -1413,23 +1363,37 @@ def test_get_trending_movies_returns_validated_response(
                 "results": [
                     {
                         "id": 438631,
+                        "media_type": "movie",
                         "title": "Dune",
                         "original_title": "Dune",
-                        "overview": "Paul Atreides travels to Arrakis.",
+                        "overview": "",
                         "release_date": "2021-09-15",
                         "poster_path": "/dune.jpg",
-                        "backdrop_path": "/dune-backdrop.jpg",
+                        "backdrop_path": None,
                         "original_language": "en",
-                        "genre_ids": [878, 12],
+                        "genre_ids": [878],
                         "popularity": 95.4,
                         "vote_average": 7.8,
                         "vote_count": 13000,
-                        "adult": False,
-                        "video": False,
-                    }
+                    },
+                    {
+                        "id": 95396,
+                        "media_type": "tv",
+                        "name": "Severance",
+                        "original_name": "Severance",
+                        "overview": "",
+                        "first_air_date": "2022-02-17",
+                        "poster_path": "/severance.jpg",
+                        "backdrop_path": None,
+                        "original_language": "en",
+                        "genre_ids": [18],
+                        "popularity": 120.5,
+                        "vote_average": 8.4,
+                        "vote_count": 2100,
+                    },
                 ],
                 "total_pages": 1,
-                "total_results": 1,
+                "total_results": 2,
             },
         )
 
@@ -1439,17 +1403,74 @@ def test_get_trending_movies_returns_validated_response(
     )
 
     try:
-        response = tmdb_client.get_trending_movies()
+        response = tmdb_client.get_trending_all(
+            time_window="day",
+        )
     finally:
         http_client.close()
 
-    assert response.page == 1
-    assert response.total_results == 1
-    assert len(response.results) == 1
+    assert len(response.results) == 2
 
-    movie = response.results[0]
+    assert response.results[0].media_type == "movie"
+    assert response.results[1].media_type == "tv"
 
-    assert movie.id == 438631
-    assert movie.title == "Dune"
-    assert movie.release_date is not None
-    assert movie.release_date.isoformat() == "2021-09-15"
+
+def test_get_trending_all_supports_week_window(
+    settings: Settings,
+) -> None:
+    """Request weekly trending media."""
+
+    def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        assert request.url.path.endswith(
+            "/trending/all/week"
+        )
+
+        return httpx.Response(
+            status_code=200,
+            request=request,
+            json={
+                "page": 1,
+                "results": [],
+                "total_pages": 1,
+                "total_results": 0,
+            },
+        )
+
+    tmdb_client, http_client = create_tmdb_client(
+        settings,
+        handler,
+    )
+
+    try:
+        tmdb_client.get_trending_all(
+            time_window="week",
+        )
+    finally:
+        http_client.close()
+
+@pytest.mark.parametrize(
+    "time_window",
+    [
+        "",
+        "month",
+        "today",
+    ],
+)
+def test_get_trending_all_rejects_invalid_window(
+    settings: Settings,
+    time_window: str,
+) -> None:
+    client = TMDBClient(settings)
+
+    try:
+        with pytest.raises(
+            ValueError,
+            match="time window",
+        ):
+            client.get_trending_all(
+                time_window=time_window,
+            )
+    finally:
+        client.close()

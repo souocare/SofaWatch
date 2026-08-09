@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/features/explore/application/cubit/explore_cubit.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_media_item.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending.dart';
+import 'package:sofawatch/features/explore/domain/entities/explore_trending_window.dart';
 import 'package:sofawatch/features/explore/domain/repositories/explore_repository.dart';
 import 'package:sofawatch/features/explore/presentation/views/explore_view.dart';
 
@@ -12,7 +13,7 @@ void main() {
     testWidgets('shows the Explore discovery header', (
       WidgetTester tester,
     ) async {
-      final ExploreCubit cubit = _createLoadedCubit();
+      final ExploreCubit cubit = await _createLoadedCubit();
 
       await tester.pumpWidget(_buildTestApp(cubit));
 
@@ -33,7 +34,7 @@ void main() {
     testWidgets('provides a scrollable discovery content area', (
       WidgetTester tester,
     ) async {
-      final ExploreCubit cubit = _createLoadedCubit();
+      final ExploreCubit cubit = await _createLoadedCubit();
 
       await tester.pumpWidget(_buildTestApp(cubit));
 
@@ -55,13 +56,29 @@ void main() {
     testWidgets('does not expose a local Search field', (
       WidgetTester tester,
     ) async {
-      final ExploreCubit cubit = _createLoadedCubit();
+      final ExploreCubit cubit = await _createLoadedCubit();
 
       await tester.pumpWidget(_buildTestApp(cubit));
 
       await tester.pump();
 
       expect(find.byType(TextField), findsNothing);
+
+      await cubit.close();
+    });
+
+    testWidgets('shows Today and Week discovery sections', (
+      WidgetTester tester,
+    ) async {
+      final ExploreCubit cubit = await _createLoadedCubit();
+
+      await tester.pumpWidget(_buildTestApp(cubit));
+
+      await tester.pump();
+
+      expect(find.text('Trending Today'), findsOneWidget);
+
+      expect(find.text('Trending This Week'), findsOneWidget);
 
       await cubit.close();
     });
@@ -79,44 +96,51 @@ Widget _buildTestApp(ExploreCubit cubit) {
   );
 }
 
-ExploreCubit _createLoadedCubit() {
+Future<ExploreCubit> _createLoadedCubit() async {
   final ExploreCubit cubit = ExploreCubit(_FakeExploreRepository());
 
-  cubit.load();
+  await cubit.load();
 
   return cubit;
 }
 
 final class _FakeExploreRepository implements ExploreRepository {
   @override
-  Future<ExploreTrending> getTrending({String? language}) async {
-    return ExploreTrending(
-      shows: const <ExploreMediaItem>[
-        ExploreMediaItem(
-          mediaType: ExploreMediaType.show,
-          tmdbId: 95396,
-          title: 'Severance',
-          originalTitle: 'Severance',
-          originalLanguage: 'en',
-          genreIds: <int>[18],
-          popularity: 120,
-          voteAverage: 8.4,
-          voteCount: 2100,
-        ),
-      ],
-      movies: const <ExploreMediaItem>[
-        ExploreMediaItem(
-          mediaType: ExploreMediaType.movie,
-          tmdbId: 438631,
-          title: 'Dune',
-          originalTitle: 'Dune',
-          originalLanguage: 'en',
-          genreIds: <int>[878],
-          popularity: 95,
-          voteAverage: 7.8,
-          voteCount: 13000,
-        ),
-      ],
-    );
+  Future<ExploreTrending> getTrending({
+    required ExploreTrendingWindow window,
+    String? language,
+  }) async {
+    return switch (window) {
+      ExploreTrendingWindow.day => ExploreTrending(
+        items: const <ExploreMediaItem>[
+          ExploreMediaItem(
+            mediaType: ExploreMediaType.movie,
+            tmdbId: 438631,
+            title: 'Dune',
+            originalTitle: 'Dune',
+            originalLanguage: 'en',
+            genreIds: <int>[878],
+            popularity: 95,
+            voteAverage: 7.8,
+            voteCount: 13000,
+          ),
+        ],
+      ),
+      ExploreTrendingWindow.week => ExploreTrending(
+        items: const <ExploreMediaItem>[
+          ExploreMediaItem(
+            mediaType: ExploreMediaType.show,
+            tmdbId: 95396,
+            title: 'Severance',
+            originalTitle: 'Severance',
+            originalLanguage: 'en',
+            genreIds: <int>[18],
+            popularity: 120,
+            voteAverage: 8.4,
+            voteCount: 2100,
+          ),
+        ],
+      ),
+    };
   }
 }

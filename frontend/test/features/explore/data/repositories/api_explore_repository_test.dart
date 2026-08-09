@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/explore/data/repositories/api_explore_repository.dart';
+import 'package:sofawatch/features/explore/domain/entities/explore_trending_window.dart';
 
 void main() {
   test('loads and maps trending content', () async {
@@ -12,14 +13,17 @@ void main() {
       InterceptorsWrapper(
         onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
           expect(options.method, 'GET');
+
           expect(options.path, '/explore/trending');
+
+          expect(options.queryParameters['window'], 'day');
 
           handler.resolve(
             Response<Map<String, dynamic>>(
               requestOptions: options,
               statusCode: 200,
               data: <String, dynamic>{
-                'shows': <Map<String, dynamic>>[
+                'items': <Map<String, dynamic>>[
                   <String, dynamic>{
                     'media_type': 'show',
                     'tmdb_id': 95396,
@@ -35,8 +39,22 @@ void main() {
                     'vote_average': 8.4,
                     'vote_count': 2100,
                   },
+                  <String, dynamic>{
+                    'media_type': 'movie',
+                    'tmdb_id': 438631,
+                    'title': 'Dune',
+                    'original_title': 'Dune',
+                    'overview': '',
+                    'release_date': '2021-09-15',
+                    'poster_url': null,
+                    'backdrop_url': null,
+                    'original_language': 'en',
+                    'genre_ids': <int>[878],
+                    'popularity': 95.4,
+                    'vote_average': 7.8,
+                    'vote_count': 13000,
+                  },
                 ],
-                'movies': <Map<String, dynamic>>[],
               },
             ),
           );
@@ -48,10 +66,43 @@ void main() {
       ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
     );
 
-    final trending = await repository.getTrending();
+    final trending = await repository.getTrending(
+      window: ExploreTrendingWindow.day,
+    );
+
+    expect(trending.items, hasLength(2));
+
+    expect(trending.items.first.title, 'Severance');
 
     expect(trending.shows, hasLength(1));
-    expect(trending.shows.single.title, 'Severance');
+
+    expect(trending.movies, hasLength(1));
+  });
+
+  test('forwards the Week window', () async {
+    final Dio dio = Dio();
+
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          expect(options.queryParameters['window'], 'week');
+
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: <String, dynamic>{'items': <Map<String, dynamic>>[]},
+            ),
+          );
+        },
+      ),
+    );
+
+    final ApiExploreRepository repository = ApiExploreRepository(
+      ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+    );
+
+    await repository.getTrending(window: ExploreTrendingWindow.week);
   });
 
   test('forwards the language parameter', () async {
@@ -60,16 +111,15 @@ void main() {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          expect(options.queryParameters['window'], 'week');
+
           expect(options.queryParameters['language'], 'pt-PT');
 
           handler.resolve(
             Response<Map<String, dynamic>>(
               requestOptions: options,
               statusCode: 200,
-              data: <String, dynamic>{
-                'shows': <Map<String, dynamic>>[],
-                'movies': <Map<String, dynamic>>[],
-              },
+              data: <String, dynamic>{'items': <Map<String, dynamic>>[]},
             ),
           );
         },
@@ -80,7 +130,10 @@ void main() {
       ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
     );
 
-    await repository.getTrending(language: 'pt-PT');
+    await repository.getTrending(
+      window: ExploreTrendingWindow.week,
+      language: 'pt-PT',
+    );
   });
 
   test('maps invalid response data to invalidData', () async {
@@ -93,10 +146,7 @@ void main() {
             Response<Map<String, dynamic>>(
               requestOptions: options,
               statusCode: 200,
-              data: <String, dynamic>{
-                'shows': 'invalid',
-                'movies': <Map<String, dynamic>>[],
-              },
+              data: <String, dynamic>{'items': 'invalid'},
             ),
           );
         },
@@ -108,7 +158,7 @@ void main() {
     );
 
     expect(
-      repository.getTrending(),
+      repository.getTrending(window: ExploreTrendingWindow.day),
       throwsA(
         isA<AppException>().having(
           (AppException error) => error.type,

@@ -2,17 +2,25 @@ import 'package:equatable/equatable.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_media_item.dart';
 
 class ExploreTrending extends Equatable {
-  ExploreTrending({
-    required List<ExploreMediaItem> shows,
-    required List<ExploreMediaItem> movies,
-  }) : shows = List<ExploreMediaItem>.unmodifiable(shows),
-       movies = List<ExploreMediaItem>.unmodifiable(movies);
+  ExploreTrending({required List<ExploreMediaItem> items})
+    : items = List<ExploreMediaItem>.unmodifiable(items);
 
-  final List<ExploreMediaItem> shows;
-  final List<ExploreMediaItem> movies;
+  final List<ExploreMediaItem> items;
 
-  bool get isEmpty => shows.isEmpty && movies.isEmpty;
+  List<ExploreMediaItem> get shows => List<ExploreMediaItem>.unmodifiable(
+    items.where(
+      (ExploreMediaItem item) => item.mediaType == ExploreMediaType.show,
+    ),
+  );
+
+  List<ExploreMediaItem> get movies => List<ExploreMediaItem>.unmodifiable(
+    items.where(
+      (ExploreMediaItem item) => item.mediaType == ExploreMediaType.movie,
+    ),
+  );
+
+  bool get isEmpty => items.isEmpty;
 
   @override
-  List<Object?> get props => <Object?>[shows, movies];
+  List<Object?> get props => <Object?>[items];
 }

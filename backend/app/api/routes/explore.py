@@ -10,6 +10,10 @@ from app.providers.tmdb.exceptions import (
     TMDBResponseError,
 )
 from app.schemas.explore import ExploreTrendingResponse
+from app.schemas.explore import (
+    ExploreTrendingResponse,
+    ExploreTrendingWindow,
+)
 
 router = APIRouter(
     prefix="/explore",
@@ -20,38 +24,41 @@ router = APIRouter(
 @router.get(
     "/trending",
     response_model=ExploreTrendingResponse,
-    summary="Get trending movies and TV series",
+    summary="Get trending Movies and TV series",
 )
 def get_trending(
     service: ExploreServiceDependency,
+    window: ExploreTrendingWindow = ExploreTrendingWindow.WEEK,
     language: Annotated[
         str | None,
         Query(
             min_length=2,
             max_length=10,
-            description="TMDB response language.",
-            examples=["en-US", "pt-PT"],
         ),
     ] = None,
 ) -> ExploreTrendingResponse:
-    """Return weekly trending movies and TV series."""
+    """Return trending discovery content."""
 
     try:
         return service.get_trending(
+            window=window,
             language=language,
         )
+
     except TMDBConfigurationError as error:
         raise APIError(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             code="tmdb_not_configured",
             message="The TMDB provider is not configured.",
         ) from error
+
     except TMDBRequestError as error:
         raise APIError(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             code="tmdb_unavailable",
             message="The TMDB service is currently unavailable.",
         ) from error
+
     except TMDBResponseError as error:
         raise APIError(
             status_code=status.HTTP_502_BAD_GATEWAY,

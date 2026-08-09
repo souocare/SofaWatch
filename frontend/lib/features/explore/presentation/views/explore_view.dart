@@ -8,6 +8,7 @@ import 'package:sofawatch/features/explore/domain/entities/explore_trending.dart
 import 'package:sofawatch/features/explore/presentation/widgets/explore_header.dart';
 import 'package:sofawatch/features/explore/presentation/widgets/explore_horizontal_section.dart';
 import 'package:sofawatch/features/explore/presentation/widgets/explore_trending_loading.dart';
+import 'package:sofawatch/features/explore/presentation/widgets/explore_week_filter_bar.dart';
 
 class ExploreView extends StatelessWidget {
   const ExploreView({super.key});
@@ -35,12 +36,12 @@ class ExploreView extends StatelessWidget {
               constraints: const BoxConstraints(
                 maxWidth: AppSpacing.maxContentWidth,
               ),
-              child: Column(
+              child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  const ExploreHeader(),
-                  const SizedBox(height: AppSpacing.xxxl),
-                  const _ExploreContent(),
+                  ExploreHeader(),
+                  SizedBox(height: AppSpacing.xxxl),
+                  _ExploreContent(),
                 ],
               ),
             ),
@@ -58,19 +59,30 @@ class _ExploreContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ExploreCubit, ExploreState>(
       builder: (BuildContext context, ExploreState state) {
-        if (state.trending.isInitial || state.trending.isLoading) {
+        final bool isInitial = state.today.isInitial && state.week.isInitial;
+
+        final bool isLoading = state.today.isLoading || state.week.isLoading;
+
+        if (isInitial || isLoading) {
           return const ExploreTrendingLoading();
         }
 
-        if (state.trending.isFailure) {
+        final bool hasFailure = state.today.isFailure || state.week.isFailure;
+
+        if (hasFailure) {
           return const SizedBox(
             key: ValueKey<String>('explore-trending-failure'),
           );
         }
 
-        final ExploreTrending? trending = state.trending.data;
+        final ExploreTrending? today = state.today.data;
+        final ExploreTrending? week = state.week.data;
 
-        if (trending == null || trending.isEmpty) {
+        final bool todayIsEmpty = today == null || today.isEmpty;
+
+        final bool weekIsEmpty = week == null || week.isEmpty;
+
+        if (todayIsEmpty && weekIsEmpty) {
           return const SizedBox(
             key: ValueKey<String>('explore-trending-empty'),
           );
@@ -80,16 +92,27 @@ class _ExploreContent extends StatelessWidget {
           key: const ValueKey<String>('explore-trending-content'),
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            ExploreHorizontalSection(
-              title: 'Trending Shows',
-              items: trending.shows,
-            ),
-            if (trending.shows.isNotEmpty && trending.movies.isNotEmpty)
+            if (!todayIsEmpty) ...<Widget>[
+              ExploreHorizontalSection(
+                title: 'Trending Today',
+                items: today.items,
+              ),
+            ],
+            if (!todayIsEmpty && !weekIsEmpty)
               const SizedBox(height: AppSpacing.xxxl),
-            ExploreHorizontalSection(
-              title: 'Trending Movies',
-              items: trending.movies,
-            ),
+            if (!weekIsEmpty) ...<Widget>[
+              Text(
+                'Trending This Week',
+                key: const ValueKey<String>('explore-week-title'),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const ExploreWeekFilterBar(),
+              const SizedBox(height: AppSpacing.lg),
+              ExploreHorizontalSection(items: state.filteredWeekItems),
+            ],
           ],
         );
       },

@@ -4,13 +4,9 @@ import 'package:sofawatch/features/explore/domain/entities/explore_media_item.da
 import 'package:sofawatch/features/explore/presentation/widgets/explore_media_card.dart';
 
 class ExploreHorizontalSection extends StatelessWidget {
-  const ExploreHorizontalSection({
-    required this.title,
-    required this.items,
-    super.key,
-  });
+  const ExploreHorizontalSection({required this.items, this.title, super.key});
 
-  final String title;
+  final String? title;
   final List<ExploreMediaItem> items;
 
   @override
@@ -19,19 +15,26 @@ class ExploreHorizontalSection extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    final String? sectionTitle = title;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(
-          title,
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: AppSpacing.lg),
+        if (sectionTitle != null) ...<Widget>[
+          Text(
+            sectionTitle,
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
         SizedBox(
           height: 270,
           child: ListView.separated(
+            key: ValueKey<String>(
+              'explore-horizontal-section-${sectionTitle ?? 'untitled'}',
+            ),
             scrollDirection: Axis.horizontal,
             itemCount: items.length,
             separatorBuilder: (BuildContext context, int index) {

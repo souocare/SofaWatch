@@ -41,13 +41,18 @@ class ExploreMediaItem(BaseModel):
     )
 
 
+
+
+class ExploreTrendingWindow(StrEnum):
+    """Supported TMDB trending time windows."""
+
+    DAY = "day"
+    WEEK = "week"
+
+
 class ExploreTrendingResponse(BaseModel):
-    """Trending media returned to Explore."""
+    """Ordered trending media returned to Explore."""
 
-    shows: list[ExploreMediaItem] = Field(
-        default_factory=list,
-    )
-
-    movies: list[ExploreMediaItem] = Field(
+    items: list[ExploreMediaItem] = Field(
         default_factory=list,
     )
