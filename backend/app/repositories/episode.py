@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 from datetime import date
 
@@ -189,3 +189,52 @@ class EpisodeRepository:
             )
             or 0
         )
+
+    def get_counts_by_show_id(
+        self,
+        show_id: UUID,
+        *,
+        as_of: date,
+    ) -> dict[UUID, tuple[int, int]]:
+        """Return total and aired episode counts grouped by season."""
+
+        statement = (
+            select(
+                Episode.season_id,
+                func.count(Episode.id),
+                func.sum(
+                    case(
+                        (
+                            (
+                                Episode.air_date.is_not(None)
+                                & (Episode.air_date <= as_of)
+                            ),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ),
+            )
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .where(
+                Season.show_id == show_id,
+            )
+            .group_by(
+                Episode.season_id,
+            )
+        )
+
+        rows = self._session.execute(
+            statement,
+        ).all()
+
+        return {
+            season_id: (
+                int(total_episodes or 0),
+                int(aired_episodes or 0),
+            )
+            for season_id, total_episodes, aired_episodes in rows
+        }

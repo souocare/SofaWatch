@@ -27,6 +27,7 @@ from app.schemas.pagination import PaginatedResponse
 from app.schemas.progress import (
     NextEpisodeResponse,
     NextUpcomingEpisodeResponse,
+    SeasonProgressResponse,
     ShowProgressResponse,
 )
 
@@ -456,3 +457,38 @@ def refresh_show(
             code="tmdb_invalid_response",
             message="TMDB returned an invalid response.",
         ) from error
+
+@router.get(
+    "/{show_id}/seasons/progress",
+    response_model=list[SeasonProgressResponse],
+    summary="Get TV series season progress",
+    description=(
+        "Return viewing progress for every locally stored season "
+        "of a TV series for the current user."
+    ),
+)
+def get_show_seasons_progress(
+    show_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV series identifier.",
+        ),
+    ],
+    service: EpisodeProgressServiceDependency,
+    current_user: CurrentUserDependency,
+) -> list[SeasonProgressResponse]:
+    """Return viewing progress for all seasons of a TV series."""
+
+    progress = service.get_show_seasons_progress(
+        user_id=current_user.id,
+        show_id=show_id,
+    )
+
+    if progress is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="show_not_found",
+            message="TV series not found.",
+        )
+
+    return progress

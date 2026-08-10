@@ -179,6 +179,89 @@ class EpisodeProgressService:
             caught_up=caught_up,
         )
 
+    def get_show_seasons_progress(
+        self,
+        *,
+        user_id: UUID,
+        show_id: UUID,
+    ) -> list[SeasonProgressResponse] | None:
+        """Calculate viewing progress for every locally stored season of a show.
+
+        Returns None when the TV series does not exist.
+        """
+
+        show = self._show_repository.get_by_id(
+            show_id,
+        )
+
+        if show is None:
+            return None
+
+        seasons = self._season_repository.list_by_show_id(
+            show_id,
+        )
+
+        if not seasons:
+            return []
+
+        today = date.today()
+
+        episode_counts = self._episode_repository.get_counts_by_show_id(
+            show_id,
+            as_of=today,
+        )
+
+        watched_counts = self._progress_repository.get_watched_counts_by_show_id(
+            user_id=user_id,
+            show_id=show_id,
+            as_of=today,
+        )
+
+        results: list[SeasonProgressResponse] = []
+
+        for season in seasons:
+            total_episodes, aired_episodes = episode_counts.get(
+                season.id,
+                (0, 0),
+            )
+
+            watched_episodes, watched_aired_episodes = watched_counts.get(
+                season.id,
+                (0, 0),
+            )
+
+            progress_percentage = (
+                watched_episodes / total_episodes * 100
+                if total_episodes > 0
+                else 0.0
+            )
+
+            aired_progress_percentage = (
+                watched_aired_episodes / aired_episodes * 100
+                if aired_episodes > 0
+                else 0.0
+            )
+
+            caught_up = (
+                aired_episodes > 0
+                and watched_aired_episodes == aired_episodes
+            )
+
+            results.append(
+                SeasonProgressResponse(
+                    season_id=season.id,
+                    watched_episodes=watched_episodes,
+                    total_episodes=total_episodes,
+                    progress_percentage=progress_percentage,
+                    aired_episodes=aired_episodes,
+                    watched_aired_episodes=watched_aired_episodes,
+                    aired_progress_percentage=aired_progress_percentage,
+                    caught_up=caught_up,
+                )
+            )
+
+        return results
+
     def get_show_progress(
         self,
         *,

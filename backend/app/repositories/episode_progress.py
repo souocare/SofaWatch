@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 from datetime import date
 
@@ -220,3 +220,60 @@ class EpisodeProgressRepository:
             )
             or 0
         )
+
+    def get_watched_counts_by_show_id(
+        self,
+        *,
+        user_id: UUID,
+        show_id: UUID,
+        as_of: date,
+    ) -> dict[UUID, tuple[int, int]]:
+        """Return watched and watched-aired counts grouped by season."""
+
+        statement = (
+            select(
+                Episode.season_id,
+                func.count(EpisodeProgress.id),
+                func.sum(
+                    case(
+                        (
+                            (
+                                Episode.air_date.is_not(None)
+                                & (Episode.air_date <= as_of)
+                            ),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ),
+            )
+            .select_from(EpisodeProgress)
+            .join(
+                Episode,
+                Episode.id == EpisodeProgress.episode_id,
+            )
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .where(
+                EpisodeProgress.user_id == user_id,
+                EpisodeProgress.is_watched.is_(True),
+                Season.show_id == show_id,
+            )
+            .group_by(
+                Episode.season_id,
+            )
+        )
+
+        rows = self._session.execute(
+            statement,
+        ).all()
+
+        return {
+            season_id: (
+                int(watched_episodes or 0),
+                int(watched_aired_episodes or 0),
+            )
+            for season_id, watched_episodes, watched_aired_episodes in rows
+        }

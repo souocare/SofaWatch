@@ -107,19 +107,16 @@ class _SeasonHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final ShowDetailsSeasonProgress? currentProgress = progress;
 
-    final String episodeLabel;
+    final bool hasProgress =
+        currentProgress != null && currentProgress.hasAiredEpisodes;
 
-    if (currentProgress != null && currentProgress.hasAiredEpisodes) {
-      episodeLabel =
-          '${currentProgress.watchedAiredEpisodes}'
-          ' / '
-          '${currentProgress.airedEpisodes}'
-          ' aired episodes';
-    } else {
-      episodeLabel =
-          '${season.episodeCount} '
-          '${season.episodeCount == 1 ? 'Episode' : 'Episodes'}';
-    }
+    final String episodeLabel = hasProgress
+        ? '${currentProgress.watchedAiredEpisodes}'
+              ' / '
+              '${currentProgress.airedEpisodes}'
+              ' aired episodes'
+        : '${season.episodeCount} '
+              '${season.episodeCount == 1 ? 'Episode' : 'Episodes'}';
 
     return Material(
       color: Colors.transparent,
@@ -146,30 +143,34 @@ class _SeasonHeader extends StatelessWidget {
                                 ?.copyWith(fontWeight: FontWeight.w700),
                           ),
                         ),
-
                         if (currentProgress?.caughtUp ?? false)
-                          const Icon(Icons.check_circle_rounded, size: 18),
+                          Icon(
+                            Icons.check_circle_rounded,
+                            key: ValueKey<String>(
+                              'show-details-season-caught-up-${season.seasonNumber}',
+                            ),
+                            size: 18,
+                          ),
                       ],
                     ),
-
                     const SizedBox(height: AppSpacing.xs),
-
                     Text(
                       episodeLabel,
+                      key: ValueKey<String>(
+                        'show-details-season-progress-label-${season.seasonNumber}',
+                      ),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
                       ),
                     ),
-
-                    if (currentProgress != null &&
-                        currentProgress.hasAiredEpisodes) ...<Widget>[
+                    if (hasProgress) ...<Widget>[
                       const SizedBox(height: AppSpacing.md),
-
                       ClipRRect(
                         borderRadius: AppRadius.borderFull,
                         child: LinearProgressIndicator(
                           key: ValueKey<String>(
-                            'show-details-season-progress-${season.seasonNumber}',
+                            'show-details-season-progress-'
+                            '${season.seasonNumber}',
                           ),
                           value: currentProgress.airedProgressValue,
                           minHeight: 5,
@@ -180,9 +181,7 @@ class _SeasonHeader extends StatelessWidget {
                   ],
                 ),
               ),
-
               const SizedBox(width: AppSpacing.md),
-
               AnimatedRotation(
                 duration: const Duration(milliseconds: 180),
                 turns: expanded ? 0.5 : 0,

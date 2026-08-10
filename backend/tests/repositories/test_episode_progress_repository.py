@@ -1286,3 +1286,203 @@ def test_get_next_upcoming_for_show_returns_none_when_no_future_episode_exists(
     )
 
     assert result is None
+
+def test_get_watched_counts_by_show_id_groups_progress_by_season(
+    db_session: Session,
+) -> None:
+    """Return watched and watched-aired counts grouped by Season."""
+
+    user = create_user(
+        db_session,
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    first_season = Season(
+        show_id=show.id,
+        tmdb_id=1001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    second_season = Season(
+        show_id=show.id,
+        tmdb_id=1002,
+        season_number=2,
+        title="Season 2",
+    )
+
+    db_session.add_all(
+        [
+            first_season,
+            second_season,
+        ]
+    )
+    db_session.flush()
+
+    aired_watched = Episode(
+        season_id=first_season.id,
+        tmdb_id=2001,
+        episode_number=1,
+        title="Episode 1",
+        air_date=date(2026, 7, 1),
+    )
+
+    future_watched = Episode(
+        season_id=first_season.id,
+        tmdb_id=2002,
+        episode_number=2,
+        title="Episode 2",
+        air_date=date(2026, 8, 20),
+    )
+
+    aired_unwatched = Episode(
+        season_id=first_season.id,
+        tmdb_id=2003,
+        episode_number=3,
+        title="Episode 3",
+        air_date=date(2026, 7, 15),
+    )
+
+    second_season_watched = Episode(
+        season_id=second_season.id,
+        tmdb_id=3001,
+        episode_number=1,
+        title="Episode 1",
+        air_date=date(2026, 7, 10),
+    )
+
+    db_session.add_all(
+        [
+            aired_watched,
+            future_watched,
+            aired_unwatched,
+            second_season_watched,
+        ]
+    )
+    db_session.flush()
+
+    db_session.add_all(
+        [
+            EpisodeProgress(
+                user_id=user.id,
+                episode_id=aired_watched.id,
+                is_watched=True,
+                watched_at=datetime.now(UTC),
+            ),
+            EpisodeProgress(
+                user_id=user.id,
+                episode_id=future_watched.id,
+                is_watched=True,
+                watched_at=datetime.now(UTC),
+            ),
+            EpisodeProgress(
+                user_id=user.id,
+                episode_id=aired_unwatched.id,
+                is_watched=False,
+                watched_at=None,
+            ),
+            EpisodeProgress(
+                user_id=user.id,
+                episode_id=second_season_watched.id,
+                is_watched=True,
+                watched_at=datetime.now(UTC),
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    repository = EpisodeProgressRepository(
+        db_session,
+    )
+
+    result = repository.get_watched_counts_by_show_id(
+        user_id=user.id,
+        show_id=show.id,
+        as_of=date(2026, 8, 10),
+    )
+
+    assert result[first_season.id] == (2, 1)
+    assert result[second_season.id] == (1, 1)
+
+
+def test_get_watched_counts_by_show_id_isolated_by_user(
+    db_session: Session,
+) -> None:
+    """Only count watched Episodes belonging to the requested user."""
+
+    first_user = create_user(
+        db_session,
+    )
+
+    second_user = User(
+        display_name="Another User",
+        is_local=False,
+    )
+
+    db_session.add(
+        second_user,
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=1001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2001,
+        episode_number=1,
+        title="Episode 1",
+        air_date=date(2026, 7, 1),
+    )
+
+    episode.air_date = date(2026, 7, 1)
+
+    db_session.add_all(
+        [
+            EpisodeProgress(
+                user_id=first_user.id,
+                episode_id=episode.id,
+                is_watched=True,
+                watched_at=datetime.now(UTC),
+            ),
+            EpisodeProgress(
+                user_id=second_user.id,
+                episode_id=episode.id,
+                is_watched=True,
+                watched_at=datetime.now(UTC),
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    repository = EpisodeProgressRepository(
+        db_session,
+    )
+
+    result = repository.get_watched_counts_by_show_id(
+        user_id=first_user.id,
+        show_id=show.id,
+        as_of=date(2026, 8, 10),
+    )
+
+    assert result == {
+        season.id: (1, 1),
+    }

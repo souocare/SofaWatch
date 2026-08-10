@@ -6,6 +6,7 @@ import 'package:sofawatch/features/show_details/data/repositories/api_show_detai
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_local_season.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_seasons_bootstrap.dart';
 
 void main() {
   group('ApiShowDetailsSeasonsRepository', () {
@@ -75,12 +76,14 @@ void main() {
             ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
           );
 
-      final List<ShowDetailsLocalSeason> seasons = await repository
+      final ShowDetailsSeasonsBootstrap bootstrap = await repository
           .resolveLocalSeasons(showTmdbId: 95396);
 
       expect(requestIndex, 2);
 
-      expect(seasons, <ShowDetailsLocalSeason>[
+      expect(bootstrap.showId, 'show-uuid');
+
+      expect(bootstrap.seasons, <ShowDetailsLocalSeason>[
         const ShowDetailsLocalSeason(
           id: 'season-1-uuid',
           tmdbId: 134792,
@@ -92,6 +95,72 @@ void main() {
           seasonNumber: 2,
         ),
       ]);
+    });
+
+    test('loads Show Seasons progress in one request', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                expect(options.method, 'GET');
+
+                expect(options.path, '/shows/show-uuid/seasons/progress');
+
+                handler.resolve(
+                  Response<List<dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <Map<String, dynamic>>[
+                      <String, dynamic>{
+                        'season_id': 'season-1-uuid',
+                        'watched_episodes': 4,
+                        'total_episodes': 8,
+                        'progress_percentage': 50.0,
+                        'aired_episodes': 8,
+                        'watched_aired_episodes': 4,
+                        'aired_progress_percentage': 50.0,
+                        'caught_up': false,
+                      },
+                      <String, dynamic>{
+                        'season_id': 'season-2-uuid',
+                        'watched_episodes': 10,
+                        'total_episodes': 10,
+                        'progress_percentage': 100.0,
+                        'aired_episodes': 10,
+                        'watched_aired_episodes': 10,
+                        'aired_progress_percentage': 100.0,
+                        'caught_up': true,
+                      },
+                    ],
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiShowDetailsSeasonsRepository repository =
+          ApiShowDetailsSeasonsRepository(
+            ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+          );
+
+      final List<ShowDetailsSeasonProgress> result = await repository
+          .getSeasonsProgress(showId: 'show-uuid');
+
+      expect(result, hasLength(2));
+
+      expect(result[0].seasonId, 'season-1-uuid');
+
+      expect(result[0].airedProgressPercentage, 50);
+
+      expect(result[0].caughtUp, isFalse);
+
+      expect(result[1].seasonId, 'season-2-uuid');
+
+      expect(result[1].airedProgressPercentage, 100);
+
+      expect(result[1].caughtUp, isTrue);
     });
 
     test('maps invalid imported Show response to invalidData', () async {
@@ -668,5 +737,64 @@ void main() {
         ),
       );
     });
+  });
+  test('synchronizes and maps Season Episodes', () async {
+    final Dio dio = Dio();
+
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          expect(options.method, 'POST');
+          expect(options.path, '/seasons/season-1-uuid/sync');
+
+          handler.resolve(
+            Response<List<dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: <dynamic>[
+                <String, dynamic>{
+                  'id': 'episode-1-uuid',
+                  'tmdb_id': 1947647,
+                  'episode_number': 1,
+                  'title': 'Good News About Hell',
+                  'overview': 'Episode one.',
+                  'air_date': '2022-02-18',
+                  'runtime': 57,
+                  'vote_average': 8.1,
+                  'vote_count': 42,
+                  'tmdb_still_path': '/episode.jpg',
+                  'local_still_path': null,
+                  'still_url': '/api/v1/images/episodes/episode-1-uuid/still',
+                },
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    final ApiShowDetailsSeasonsRepository repository =
+        ApiShowDetailsSeasonsRepository(
+          ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+        );
+
+    final List<ShowDetailsEpisode> episodes = await repository.syncEpisodes(
+      seasonId: 'season-1-uuid',
+    );
+
+    expect(episodes, hasLength(1));
+
+    final ShowDetailsEpisode episode = episodes.single;
+
+    expect(episode.id, 'episode-1-uuid');
+    expect(episode.tmdbId, 1947647);
+    expect(episode.episodeNumber, 1);
+    expect(episode.title, 'Good News About Hell');
+    expect(episode.overview, 'Episode one.');
+    expect(episode.airDate, DateTime(2022, 2, 18));
+    expect(episode.runtime, 57);
+    expect(episode.voteAverage, 8.1);
+    expect(episode.voteCount, 42);
+    expect(episode.stillUrl, '/api/v1/images/episodes/episode-1-uuid/still');
   });
 }

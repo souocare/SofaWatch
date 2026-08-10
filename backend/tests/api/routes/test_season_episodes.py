@@ -8,6 +8,12 @@ from sqlalchemy.orm import Session
 from app.models.episode import Episode
 from app.models.season import Season
 from app.models.show import Show
+from typing import cast
+from uuid import UUID
+
+from fastapi import FastAPI
+
+from app.api.dependencies import get_season_episode_sync_service
 
 
 def create_local_show(
@@ -60,6 +66,51 @@ def create_local_season(
 
     return season
 
+class FakeSeasonEpisodeSyncService:
+    """Controllable Season Episode sync service for route tests."""
+
+    def __init__(
+        self,
+        *,
+        episodes: list[Episode] | None = None,
+        season_exists: bool = True,
+    ) -> None:
+        self.episodes = episodes or []
+        self.season_exists = season_exists
+
+        self.requested_season_ids: list[UUID] = []
+
+    def sync(
+        self,
+        *,
+        season_id: UUID,
+        language: str | None = None,
+    ) -> list[Episode] | None:
+        self.requested_season_ids.append(
+            season_id,
+        )
+
+        if not self.season_exists:
+            return None
+
+        return self.episodes
+
+def override_season_episode_sync_service(
+    client: TestClient,
+    service: FakeSeasonEpisodeSyncService,
+) -> FastAPI:
+    """Override the Season Episode sync dependency for one route test."""
+
+    app = cast(
+        FastAPI,
+        client.app,
+    )
+
+    app.dependency_overrides[
+        get_season_episode_sync_service
+    ] = lambda: service
+
+    return app
 
 def create_local_episode(
     db_session: Session,
@@ -397,3 +448,191 @@ def test_list_season_episodes_rejects_invalid_season_id(
     )
 
     assert response.status_code == 422
+
+def test_sync_season_episodes_returns_synced_episodes(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Synchronize one Season and return its locally stored Episodes."""
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+        overview="Mark starts a new day at Lumon.",
+        air_date=date(2022, 2, 18),
+        runtime=57,
+        vote_average=8.1,
+        vote_count=42,
+        tmdb_still_path="/episode-1.jpg",
+    )
+
+    sync_service = FakeSeasonEpisodeSyncService(
+        episodes=[episode],
+    )
+
+    app = override_season_episode_sync_service(
+        client,
+        sync_service,
+    )
+
+    try:
+        response = client.post(
+            f"/api/v1/seasons/{season.id}/sync",
+        )
+    finally:
+        app.dependency_overrides.pop(
+            get_season_episode_sync_service,
+            None,
+        )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+
+    assert body[0] == {
+        "id": str(episode.id),
+        "tmdb_id": 2101,
+        "episode_number": 1,
+        "title": "Good News About Hell",
+        "overview": "Mark starts a new day at Lumon.",
+        "air_date": "2022-02-18",
+        "runtime": 57,
+        "vote_average": 8.1,
+        "vote_count": 42,
+        "tmdb_still_path": "/episode-1.jpg",
+        "local_still_path": None,
+        "still_url": (
+            f"/api/v1/images/episodes/{episode.id}/still"
+        ),
+    }
+
+def test_sync_season_episodes_syncs_only_requested_season(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Forward only the requested local Season identifier to the sync service."""
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    first_season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=1001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=1002,
+        season_number=2,
+        title="Season 2",
+    )
+
+    sync_service = FakeSeasonEpisodeSyncService()
+
+    app = override_season_episode_sync_service(
+        client,
+        sync_service,
+    )
+
+    try:
+        response = client.post(
+            f"/api/v1/seasons/{first_season.id}/sync",
+        )
+    finally:
+        app.dependency_overrides.pop(
+            get_season_episode_sync_service,
+            None,
+        )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+    assert sync_service.requested_season_ids == [
+        first_season.id,
+    ]
+
+def test_sync_season_episodes_returns_404_when_season_does_not_exist(
+    client: TestClient,
+) -> None:
+    """Return HTTP 404 when the Season cannot be resolved by the sync service."""
+
+    season_id = uuid4()
+
+    sync_service = FakeSeasonEpisodeSyncService(
+        season_exists=False,
+    )
+
+    app = override_season_episode_sync_service(
+        client,
+        sync_service,
+    )
+
+    try:
+        response = client.post(
+            f"/api/v1/seasons/{season_id}/sync",
+        )
+    finally:
+        app.dependency_overrides.pop(
+            get_season_episode_sync_service,
+            None,
+        )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "error": {
+            "code": "season_not_found",
+            "message": "TV season not found.",
+        }
+    }
+
+    assert sync_service.requested_season_ids == [
+        season_id,
+    ]
+
+@pytest.mark.parametrize(
+    "season_id",
+    [
+        "not-a-valid-uuid",
+        "123",
+        "invalid",
+    ],
+)
+def test_sync_season_episodes_rejects_invalid_season_id(
+    client: TestClient,
+    season_id: str,
+) -> None:
+    """Reject an invalid local Season identifier."""
+
+    response = client.post(
+        f"/api/v1/seasons/{season_id}/sync",
+    )
+
+    assert response.status_code == 422
+

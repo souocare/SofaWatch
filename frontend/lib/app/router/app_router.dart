@@ -270,7 +270,7 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                         context.read<ApiClient>(),
                       ),
                       showTmdbId: tmdbId,
-                    );
+                    )..loadInitialProgress();
                   },
                 ),
               ],

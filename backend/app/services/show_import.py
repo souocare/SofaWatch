@@ -127,18 +127,11 @@ class ShowImportService:
                 show.genres = genres
                 show.networks = networks
 
-            seasons = self._sync_seasons(
+            self._sync_seasons(
                 show=show,
                 seasons=details.seasons,
             )
 
-            self._session.flush()
-
-            self._sync_episodes(
-                show=show,
-                seasons=seasons,
-                language=metadata_language,
-            )
             show.metadata_updated_at = datetime.now(UTC)
 
             self._session.commit()
@@ -344,66 +337,66 @@ class ShowImportService:
 
         return resolved_seasons
 
-    def _sync_episodes(
-        self,
-        *,
-        show: Show,
-        seasons: list[Season],
-        language: str,
-    ) -> None:
-        """Synchronize locally stored episodes with TMDB."""
+    # def _sync_episodes(
+    #     self,
+    #     *,
+    #     show: Show,
+    #     seasons: list[Season],
+    #     language: str,
+    # ) -> None:
+    #     """Synchronize locally stored episodes with TMDB."""
 
-        for season in seasons:
-            episodes = self._tmdb_season_details_service.get_episodes(
-                tmdb_id=show.tmdb_id,
-                season_number=season.season_number,
-                language=language,
-            )
+    #     for season in seasons:
+    #         episodes = self._tmdb_season_details_service.get_episodes(
+    #             tmdb_id=show.tmdb_id,
+    #             season_number=season.season_number,
+    #             language=language,
+    #         )
 
-            self._sync_season_episodes(
-                season=season,
-                episodes=episodes,
-            )
+    #         self._sync_season_episodes(
+    #             season=season,
+    #             episodes=episodes,
+    #         )
 
-    def _sync_season_episodes(
-        self,
-        *,
-        season: Season,
-        episodes: list[EpisodeSummary],
-    ) -> None:
-        """Create or update episodes returned by TMDB.
+    # def _sync_season_episodes(
+    #     self,
+    #     *,
+    #     season: Season,
+    #     episodes: list[EpisodeSummary],
+    # ) -> None:
+    #     """Create or update episodes returned by TMDB.
 
-        Episodes missing from the TMDB response are preserved locally.
-        """
+    #     Episodes missing from the TMDB response are preserved locally.
+    #     """
 
-        for episode_details in episodes:
-            episode = self._episode_repository.get_by_tmdb_id(
-                episode_details.tmdb_id,
-            )
+    #     for episode_details in episodes:
+    #         episode = self._episode_repository.get_by_tmdb_id(
+    #             episode_details.tmdb_id,
+    #         )
 
-            if episode is None:
-                episode = self._episode_repository.get_by_number(
-                    season_id=season.id,
-                    episode_number=episode_details.episode_number,
-                )
+    #         if episode is None:
+    #             episode = self._episode_repository.get_by_number(
+    #                 season_id=season.id,
+    #                 episode_number=episode_details.episode_number,
+    #             )
 
-            if episode is None:
-                episode = Episode(
-                    season_id=season.id,
-                )
+    #         if episode is None:
+    #             episode = Episode(
+    #                 season_id=season.id,
+    #             )
 
-                self._apply_episode_metadata(
-                    episode=episode,
-                    details=episode_details,
-                )
+    #             self._apply_episode_metadata(
+    #                 episode=episode,
+    #                 details=episode_details,
+    #             )
 
-                self._episode_repository.add(episode)
-                continue
+    #             self._episode_repository.add(episode)
+    #             continue
 
-            self._apply_episode_metadata(
-                episode=episode,
-                details=episode_details,
-            )
+    #         self._apply_episode_metadata(
+    #             episode=episode,
+    #             details=episode_details,
+    #         )
 
     def refresh_show(
         self,

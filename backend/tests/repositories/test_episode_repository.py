@@ -854,3 +854,153 @@ def test_count_aired_by_show_id_excludes_future_unknown_and_specials(
         )
         == 1
     )
+
+def test_get_counts_by_show_id_groups_episode_counts_by_season(
+    db_session: Session,
+) -> None:
+    """Return total and aired Episode counts grouped by Season."""
+
+    show = persist_show(
+        db_session,
+    )
+
+    first_season = persist_season(
+        db_session,
+        show=show,
+        tmdb_id=1001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    second_season = persist_season(
+        db_session,
+        show=show,
+        tmdb_id=1002,
+        season_number=2,
+        title="Season 2",
+    )
+
+    empty_season = persist_season(
+        db_session,
+        show=show,
+        tmdb_id=1003,
+        season_number=3,
+        title="Season 3",
+    )
+
+    db_session.add_all(
+        [
+            make_episode(
+                season_id=first_season.id,
+                tmdb_id=2001,
+                episode_number=1,
+                air_date=date(2026, 7, 1),
+            ),
+            make_episode(
+                season_id=first_season.id,
+                tmdb_id=2002,
+                episode_number=2,
+                air_date=date(2026, 8, 20),
+            ),
+            make_episode(
+                season_id=first_season.id,
+                tmdb_id=2003,
+                episode_number=3,
+                air_date=None,
+            ),
+            make_episode(
+                season_id=second_season.id,
+                tmdb_id=3001,
+                episode_number=1,
+                air_date=date(2026, 7, 15),
+            ),
+            make_episode(
+                season_id=second_season.id,
+                tmdb_id=3002,
+                episode_number=2,
+                air_date=date(2026, 7, 22),
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    repository = EpisodeRepository(
+        db_session,
+    )
+
+    result = repository.get_counts_by_show_id(
+        show.id,
+        as_of=date(2026, 8, 10),
+    )
+
+    assert result[first_season.id] == (3, 1)
+    assert result[second_season.id] == (2, 2)
+
+    # Seasons without locally stored Episodes do not need a row.
+    # The service treats a missing entry as (0, 0).
+    assert empty_season.id not in result
+
+
+def test_get_counts_by_show_id_does_not_include_another_show(
+    db_session: Session,
+) -> None:
+    """Do not include Episode counts belonging to another TV series."""
+
+    first_show = persist_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    second_show = persist_show(
+        db_session,
+        tmdb_id=1620,
+        title="CSI",
+    )
+
+    first_season = persist_season(
+        db_session,
+        show=first_show,
+        tmdb_id=1001,
+        season_number=1,
+    )
+
+    second_season = persist_season(
+        db_session,
+        show=second_show,
+        tmdb_id=1002,
+        season_number=1,
+    )
+
+    db_session.add_all(
+        [
+            make_episode(
+                season_id=first_season.id,
+                tmdb_id=2001,
+                episode_number=1,
+                air_date=date(2026, 7, 1),
+            ),
+            make_episode(
+                season_id=second_season.id,
+                tmdb_id=3001,
+                episode_number=1,
+                air_date=date(2026, 7, 1),
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    repository = EpisodeRepository(
+        db_session,
+    )
+
+    result = repository.get_counts_by_show_id(
+        first_show.id,
+        as_of=date(2026, 8, 10),
+    )
+
+    assert result == {
+        first_season.id: (1, 1),
+    }

@@ -1103,3 +1103,200 @@ def test_get_show_progress_calculates_percentage(
     assert result.aired_progress_percentage == 100.0
 
     assert result.caught_up is True
+
+from types import SimpleNamespace
+from unittest.mock import Mock
+from uuid import uuid4
+
+from sqlalchemy.orm import Session
+
+from app.repositories.episode import EpisodeRepository
+from app.repositories.episode_progress import EpisodeProgressRepository
+from app.repositories.season import SeasonRepository
+from app.repositories.show import ShowRepository
+from app.services.episode_progress import EpisodeProgressService
+
+
+def make_service(
+    *,
+    session: Mock,
+    progress_repository: Mock,
+    episode_repository: Mock,
+    season_repository: Mock,
+    show_repository: Mock,
+) -> EpisodeProgressService:
+    """Build an EpisodeProgressService with mocked repositories."""
+
+    return EpisodeProgressService(
+        session=session,
+        progress_repository=progress_repository,
+        episode_repository=episode_repository,
+        season_repository=season_repository,
+        show_repository=show_repository,
+    )
+
+
+def test_get_show_seasons_progress_returns_none_when_show_does_not_exist() -> None:
+    """Return None when the requested TV series does not exist."""
+
+    session = Mock(spec=Session)
+    progress_repository = Mock(spec=EpisodeProgressRepository)
+    episode_repository = Mock(spec=EpisodeRepository)
+    season_repository = Mock(spec=SeasonRepository)
+    show_repository = Mock(spec=ShowRepository)
+
+    show_repository.get_by_id.return_value = None
+
+    service = make_service(
+        session=session,
+        progress_repository=progress_repository,
+        episode_repository=episode_repository,
+        season_repository=season_repository,
+        show_repository=show_repository,
+    )
+
+    result = service.get_show_seasons_progress(
+        user_id=uuid4(),
+        show_id=uuid4(),
+    )
+
+    assert result is None
+
+    season_repository.list_by_show_id.assert_not_called()
+    episode_repository.get_counts_by_show_id.assert_not_called()
+    progress_repository.get_watched_counts_by_show_id.assert_not_called()
+
+
+def test_get_show_seasons_progress_returns_empty_list_without_seasons() -> None:
+    """Return an empty result when the TV series has no local Seasons."""
+
+    session = Mock(spec=Session)
+    progress_repository = Mock(spec=EpisodeProgressRepository)
+    episode_repository = Mock(spec=EpisodeRepository)
+    season_repository = Mock(spec=SeasonRepository)
+    show_repository = Mock(spec=ShowRepository)
+
+    show_id = uuid4()
+
+    show_repository.get_by_id.return_value = SimpleNamespace(
+        id=show_id,
+    )
+
+    season_repository.list_by_show_id.return_value = []
+
+    service = make_service(
+        session=session,
+        progress_repository=progress_repository,
+        episode_repository=episode_repository,
+        season_repository=season_repository,
+        show_repository=show_repository,
+    )
+
+    result = service.get_show_seasons_progress(
+        user_id=uuid4(),
+        show_id=show_id,
+    )
+
+    assert result == []
+
+    episode_repository.get_counts_by_show_id.assert_not_called()
+    progress_repository.get_watched_counts_by_show_id.assert_not_called()
+
+
+def test_get_show_seasons_progress_calculates_all_seasons() -> None:
+    """Calculate progress for every locally stored Season in one batch."""
+
+    session = Mock(spec=Session)
+    progress_repository = Mock(spec=EpisodeProgressRepository)
+    episode_repository = Mock(spec=EpisodeRepository)
+    season_repository = Mock(spec=SeasonRepository)
+    show_repository = Mock(spec=ShowRepository)
+
+    user_id = uuid4()
+    show_id = uuid4()
+
+    first_season_id = uuid4()
+    second_season_id = uuid4()
+    third_season_id = uuid4()
+
+    show_repository.get_by_id.return_value = SimpleNamespace(
+        id=show_id,
+    )
+
+    season_repository.list_by_show_id.return_value = [
+        SimpleNamespace(
+            id=first_season_id,
+            season_number=1,
+        ),
+        SimpleNamespace(
+            id=second_season_id,
+            season_number=2,
+        ),
+        SimpleNamespace(
+            id=third_season_id,
+            season_number=3,
+        ),
+    ]
+
+    episode_repository.get_counts_by_show_id.return_value = {
+        first_season_id: (10, 10),
+        second_season_id: (8, 4),
+    }
+
+    progress_repository.get_watched_counts_by_show_id.return_value = {
+        first_season_id: (10, 10),
+        second_season_id: (2, 2),
+    }
+
+    service = make_service(
+        session=session,
+        progress_repository=progress_repository,
+        episode_repository=episode_repository,
+        season_repository=season_repository,
+        show_repository=show_repository,
+    )
+
+    result = service.get_show_seasons_progress(
+        user_id=user_id,
+        show_id=show_id,
+    )
+
+    assert result is not None
+    assert len(result) == 3
+
+    first = result[0]
+
+    assert first.season_id == first_season_id
+    assert first.watched_episodes == 10
+    assert first.total_episodes == 10
+    assert first.progress_percentage == 100.0
+    assert first.aired_episodes == 10
+    assert first.watched_aired_episodes == 10
+    assert first.aired_progress_percentage == 100.0
+    assert first.caught_up is True
+
+    second = result[1]
+
+    assert second.season_id == second_season_id
+    assert second.watched_episodes == 2
+    assert second.total_episodes == 8
+    assert second.progress_percentage == 25.0
+    assert second.aired_episodes == 4
+    assert second.watched_aired_episodes == 2
+    assert second.aired_progress_percentage == 50.0
+    assert second.caught_up is False
+
+    third = result[2]
+
+    assert third.season_id == third_season_id
+    assert third.watched_episodes == 0
+    assert third.total_episodes == 0
+    assert third.progress_percentage == 0.0
+    assert third.aired_episodes == 0
+    assert third.watched_aired_episodes == 0
+    assert third.aired_progress_percentage == 0.0
+    assert third.caught_up is False
+
+    episode_repository.get_counts_by_show_id.assert_called_once()
+
+    progress_repository.get_watched_counts_by_show_id.assert_called_once()

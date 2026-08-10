@@ -46,7 +46,7 @@ from app.services.tmdb_movie_details import (
     TMDBMovieDetailsService,
 )
 from app.services.explore import ExploreService
-
+from app.services.season_episode_sync import SeasonEpisodeSyncService
 
 def get_genre_service(
     session: DatabaseSession,
@@ -84,7 +84,7 @@ TMDBClientDependency = Annotated[
 
 
 def get_media_search_service(
-    session: DatabaseSession,
+    session: DatabaseSession, # type: ignore
     settings: Annotated[
         Settings,
         Depends(get_settings),
@@ -487,4 +487,26 @@ def get_explore_service(
 ExploreServiceDependency = Annotated[
     ExploreService,
     Depends(get_explore_service),
+]
+
+def get_season_episode_sync_service(
+    session: DatabaseSession,
+    season_details_service: Annotated[
+        TMDBSeasonDetailsService,
+        Depends(get_tmdb_season_details_service),
+    ],
+) -> SeasonEpisodeSyncService:
+    """Provide the Season Episode synchronization service."""
+
+    return SeasonEpisodeSyncService(
+        session=session,
+        show_repository=ShowRepository(session),
+        season_repository=SeasonRepository(session),
+        episode_repository=EpisodeRepository(session),
+        tmdb_season_details_service=season_details_service,
+    )
+
+SeasonEpisodeSyncServiceDependency = Annotated[
+    SeasonEpisodeSyncService,
+    Depends(get_season_episode_sync_service),
 ]

@@ -5,6 +5,7 @@ import 'package:sofawatch/features/show_details/domain/models/show_details_episo
 import 'package:sofawatch/features/show_details/domain/models/show_details_local_season.dart';
 import 'package:sofawatch/features/show_details/domain/repositories/show_details_seasons_repository.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_seasons_bootstrap.dart';
 
 final class ApiShowDetailsSeasonsRepository
     implements ShowDetailsSeasonsRepository {
@@ -13,7 +14,7 @@ final class ApiShowDetailsSeasonsRepository
   final ApiClient _apiClient;
 
   @override
-  Future<List<ShowDetailsLocalSeason>> resolveLocalSeasons({
+  Future<ShowDetailsSeasonsBootstrap> resolveLocalSeasons({
     required int showTmdbId,
   }) async {
     try {
@@ -45,7 +46,7 @@ final class ApiShowDetailsSeasonsRepository
         throw const FormatException('Invalid Show seasons response.');
       }
 
-      return response
+      final List<ShowDetailsLocalSeason> seasons = response
           .map((dynamic rawSeason) {
             if (rawSeason is! Map<String, dynamic>) {
               throw const FormatException('Invalid local Season response.');
@@ -71,6 +72,8 @@ final class ApiShowDetailsSeasonsRepository
             );
           })
           .toList(growable: false);
+
+      return ShowDetailsSeasonsBootstrap(showId: rawShowId, seasons: seasons);
     } on AppException {
       rethrow;
     } catch (error) {
@@ -87,19 +90,53 @@ final class ApiShowDetailsSeasonsRepository
         '/seasons/$seasonId/episodes',
       );
 
-      final Object? response = episodesResponse.data;
+      return _episodesFromResponse(episodesResponse.data);
+    } on AppException {
+      rethrow;
+    } catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  @override
+  Future<List<ShowDetailsEpisode>> syncEpisodes({
+    required String seasonId,
+  }) async {
+    try {
+      final Response<dynamic> episodesResponse = await _apiClient.post<dynamic>(
+        '/seasons/$seasonId/sync',
+      );
+
+      return _episodesFromResponse(episodesResponse.data);
+    } on AppException {
+      rethrow;
+    } catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  @override
+  Future<List<ShowDetailsSeasonProgress>> getSeasonsProgress({
+    required String showId,
+  }) async {
+    try {
+      final Response<dynamic> progressResponse = await _apiClient.get<dynamic>(
+        '/shows/$showId/seasons/progress',
+      );
+
+      final Object? response = progressResponse.data;
 
       if (response is! List<dynamic>) {
-        throw const FormatException('Invalid Season episodes response.');
+        throw const FormatException('Invalid Show Seasons progress response.');
       }
 
       return response
-          .map((dynamic rawEpisode) {
-            if (rawEpisode is! Map<String, dynamic>) {
-              throw const FormatException('Invalid Episode response.');
+          .map((dynamic rawProgress) {
+            if (rawProgress is! Map<String, dynamic>) {
+              throw const FormatException('Invalid Season progress response.');
             }
 
-            return _episodeFromJson(rawEpisode);
+            return _seasonProgressFromJson(rawProgress);
           })
           .toList(growable: false);
     } on AppException {
@@ -179,6 +216,22 @@ final class ApiShowDetailsSeasonsRepository
       airedProgressPercentage: airedProgressPercentage.toDouble(),
       caughtUp: caughtUp,
     );
+  }
+
+  List<ShowDetailsEpisode> _episodesFromResponse(Object? response) {
+    if (response is! List<dynamic>) {
+      throw const FormatException('Invalid Season episodes response.');
+    }
+
+    return response
+        .map((dynamic rawEpisode) {
+          if (rawEpisode is! Map<String, dynamic>) {
+            throw const FormatException('Invalid Episode response.');
+          }
+
+          return _episodeFromJson(rawEpisode);
+        })
+        .toList(growable: false);
   }
 
   ShowDetailsEpisode _episodeFromJson(Map<String, dynamic> json) {

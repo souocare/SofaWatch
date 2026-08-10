@@ -7,6 +7,7 @@ final class ShowDetailsSeasonState extends Equatable {
   const ShowDetailsSeasonState({
     this.isExpanded = false,
     this.isLoading = false,
+    this.hasLoadedEpisodes = false,
     this.episodes = const <ShowDetailsEpisode>[],
     this.progress,
     this.error,
@@ -15,6 +16,8 @@ final class ShowDetailsSeasonState extends Equatable {
   final bool isExpanded;
   final bool isLoading;
 
+  final bool hasLoadedEpisodes;
+
   final List<ShowDetailsEpisode> episodes;
 
   final ShowDetailsSeasonProgress? progress;
@@ -22,7 +25,7 @@ final class ShowDetailsSeasonState extends Equatable {
   final AppException? error;
 
   bool get isLoaded {
-    return !isLoading && error == null && progress != null;
+    return hasLoadedEpisodes && !isLoading && error == null;
   }
 
   bool get hasError => error != null;
@@ -30,6 +33,7 @@ final class ShowDetailsSeasonState extends Equatable {
   ShowDetailsSeasonState copyWith({
     bool? isExpanded,
     bool? isLoading,
+    bool? hasLoadedEpisodes,
     List<ShowDetailsEpisode>? episodes,
     ShowDetailsSeasonProgress? progress,
     AppException? error,
@@ -38,6 +42,7 @@ final class ShowDetailsSeasonState extends Equatable {
     return ShowDetailsSeasonState(
       isExpanded: isExpanded ?? this.isExpanded,
       isLoading: isLoading ?? this.isLoading,
+      hasLoadedEpisodes: hasLoadedEpisodes ?? this.hasLoadedEpisodes,
       episodes: episodes ?? this.episodes,
       progress: progress ?? this.progress,
       error: clearError ? null : error ?? this.error,
@@ -48,6 +53,7 @@ final class ShowDetailsSeasonState extends Equatable {
   List<Object?> get props => <Object?>[
     isExpanded,
     isLoading,
+    hasLoadedEpisodes,
     episodes,
     progress,
     error,

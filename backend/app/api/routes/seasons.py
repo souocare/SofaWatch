@@ -8,6 +8,7 @@ from app.api.dependencies import (
     CurrentUserDependency,
     EpisodeProgressServiceDependency,
     EpisodeServiceDependency,
+    SeasonEpisodeSyncServiceDependency,
 )
 from app.schemas.episode import EpisodeResponse
 from app.schemas.progress import SeasonProgressResponse
@@ -78,3 +79,36 @@ def get_season_progress(
         )
 
     return progress
+
+@router.post(
+    "/{season_id}/sync",
+    response_model=list[EpisodeResponse],
+    summary="Synchronize TV season episodes",
+    description=(
+        "Synchronize episode metadata for one locally stored TV season "
+        "and return its locally stored episodes."
+    ),
+)
+def sync_season_episodes(
+    season_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV season identifier.",
+        ),
+    ],
+    service: SeasonEpisodeSyncServiceDependency,
+) -> list[EpisodeResponse]:
+    """Synchronize episodes for one locally stored TV season."""
+
+    episodes = service.sync(
+        season_id=season_id,
+    )
+
+    if episodes is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="season_not_found",
+            message="TV season not found.",
+        )
+
+    return episodes

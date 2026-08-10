@@ -14,7 +14,7 @@ def get_db_session() -> Generator[Session, None, None]:
         yield session
 
 
-DatabaseSession = Annotated[
+type DatabaseSession = Annotated[
     Session,
     Depends(get_db_session),
 ]
