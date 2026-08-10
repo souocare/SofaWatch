@@ -4,6 +4,9 @@ import 'package:sofawatch/features/show_details/application/cubit/show_details_c
 import 'package:sofawatch/features/show_details/application/cubit/show_details_state.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details.dart';
 import 'package:sofawatch/features/show_details/domain/repositories/show_details_repository.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_genre.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_network.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_season.dart';
 
 void main() {
   group('ShowDetailsCubit', () {
@@ -66,12 +69,30 @@ const ShowDetails _showDetails = ShowDetails(
   originalTitle: 'Severance',
   overview: 'A mysterious workplace thriller.',
   tagline: 'We work for Lumon.',
-  genres: <String>['Drama', 'Mystery'],
+  genres: <ShowDetailsGenre>[
+    ShowDetailsGenre(tmdbId: 18, name: 'Drama'),
+    ShowDetailsGenre(tmdbId: 9648, name: 'Mystery'),
+  ],
+  seasons: <ShowDetailsSeason>[
+    ShowDetailsSeason(
+      tmdbId: 134792,
+      seasonNumber: 1,
+      title: 'Season 1',
+      episodeCount: 9,
+      voteAverage: 8.4,
+    ),
+  ],
+  networks: <ShowDetailsNetwork>[
+    ShowDetailsNetwork(tmdbId: 2552, name: 'Apple TV+', originCountry: 'US'),
+  ],
   originalLanguage: 'en',
+  episodeRunTimes: <int>[50],
   numberOfSeasons: 2,
   numberOfEpisodes: 19,
   inProduction: true,
   status: 'Returning Series',
+  showType: 'Scripted',
+  popularity: 120.5,
   voteAverage: 8.4,
   voteCount: 3000,
 );

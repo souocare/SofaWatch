@@ -17,6 +17,9 @@ import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
 import 'package:sofawatch/features/search/domain/repositories/search_repository.dart';
 import 'package:sofawatch/features/search/presentation/views/search_mobile_view.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_text_field.dart';
+import 'package:sofawatch/core/api/api_client.dart';
+import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
+import 'package:sofawatch/features/library/data/repositories/api_library_repository.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({required this.navigationShell, super.key});
@@ -347,6 +350,7 @@ class _MobileAppShellState extends State<_MobileAppShell>
 
   SearchBloc? _searchBloc;
   int? _searchOriginBranchIndex;
+  LibraryCubit? _searchLibraryCubit;
 
   bool get _isNavigationState {
     return _visualState == _DualPillVisualState.navigation;
@@ -427,6 +431,9 @@ class _MobileAppShellState extends State<_MobileAppShell>
     final int originBranchIndex = widget.navigationShell.currentIndex;
 
     final SearchBloc searchBloc = SearchBloc(context.read<SearchRepository>());
+    final LibraryCubit libraryCubit = LibraryCubit(
+      ApiLibraryRepository(context.read<ApiClient>()),
+    );
 
     final bool reduceMotion = _shouldReduceMotion;
 
@@ -436,6 +443,7 @@ class _MobileAppShellState extends State<_MobileAppShell>
       setState(() {
         _searchOriginBranchIndex = originBranchIndex;
         _searchBloc = searchBloc;
+        _searchLibraryCubit = libraryCubit;
         _visualState = _DualPillVisualState.search;
       });
 
@@ -453,6 +461,7 @@ class _MobileAppShellState extends State<_MobileAppShell>
     setState(() {
       _searchOriginBranchIndex = originBranchIndex;
       _searchBloc = searchBloc;
+      _searchLibraryCubit = libraryCubit;
       _visualState = _DualPillVisualState.openingSearch;
     });
 
@@ -501,6 +510,7 @@ class _MobileAppShellState extends State<_MobileAppShell>
 
     final bool reduceMotion = _shouldReduceMotion;
     final SearchBloc? searchBloc = _searchBloc;
+    final LibraryCubit? libraryCubit = _searchLibraryCubit;
 
     if (reduceMotion) {
       _pillTransitionController.value = 0;
@@ -510,6 +520,7 @@ class _MobileAppShellState extends State<_MobileAppShell>
       setState(() {
         _visualState = _DualPillVisualState.navigation;
         _searchBloc = null;
+        _searchLibraryCubit = null;
         _searchOriginBranchIndex = null;
       });
 
@@ -535,15 +546,25 @@ class _MobileAppShellState extends State<_MobileAppShell>
     setState(() {
       _visualState = _DualPillVisualState.navigation;
       _searchBloc = null;
+      _searchLibraryCubit = null;
       _searchOriginBranchIndex = null;
     });
 
     if (searchBloc != null && !searchBloc.isClosed) {
       unawaited(searchBloc.close());
     }
+    if (libraryCubit != null && !libraryCubit.isClosed) {
+      unawaited(libraryCubit.close());
+    }
   }
 
   Widget _buildSearchOverlay() {
+    final LibraryCubit? libraryCubit = _searchLibraryCubit;
+
+    if (libraryCubit == null) {
+      return const SizedBox.shrink();
+    }
+
     return Positioned.fill(
       child: FadeTransition(
         opacity: _searchContentOpacity,
@@ -551,7 +572,10 @@ class _MobileAppShellState extends State<_MobileAppShell>
           container: true,
           explicitChildNodes: true,
           label: 'Search',
-          child: const SearchMobileView(),
+          child: BlocProvider<LibraryCubit>.value(
+            value: libraryCubit,
+            child: const SearchMobileView(),
+          ),
         ),
       ),
     );
@@ -793,9 +817,14 @@ class _MobileAppShellState extends State<_MobileAppShell>
     _pillTransitionController.dispose();
 
     final SearchBloc? searchBloc = _searchBloc;
+    final LibraryCubit? libraryCubit = _searchLibraryCubit;
 
     if (searchBloc != null && !searchBloc.isClosed) {
       unawaited(searchBloc.close());
+    }
+
+    if (libraryCubit != null && !libraryCubit.isClosed) {
+      unawaited(libraryCubit.close());
     }
 
     super.dispose();

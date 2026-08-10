@@ -180,35 +180,23 @@ def get_show_import_service(
         TMDBSeasonDetailsService,
         Depends(get_tmdb_season_details_service),
     ],
-    
 ) -> ShowImportService:
     """Provide the TV series import service."""
+
     genre_repository = GenreRepository(
         session,
-    )
-
-    genre_mapping_repository = (
-        GenreProviderMappingRepository(
-            session,
-        )
-    )
-
-    genre_mapping_service = GenreMappingService(
-        genre_repository=genre_repository,
-        mapping_repository=genre_mapping_repository,
     )
 
     return ShowImportService(
         session=session,
         settings=settings,
         show_repository=ShowRepository(session),
-        genre_repository=GenreRepository(session),
+        genre_repository=genre_repository,
         network_repository=NetworkRepository(session),
         season_repository=SeasonRepository(session),
         episode_repository=EpisodeRepository(session),
         tmdb_show_details_service=show_details_service,
         tmdb_season_details_service=season_details_service,
-        genre_mapping_service=genre_mapping_service,
     )
 
 

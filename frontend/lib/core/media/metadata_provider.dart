@@ -1,0 +1,1 @@
+enum MetadataProvider { tmdb, tvdb }
