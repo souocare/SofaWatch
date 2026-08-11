@@ -49,7 +49,7 @@ void main() {
         findsOneWidget,
       );
 
-      expect(find.text('1 / 2 aired episodes'), findsOneWidget);
+      expect(find.text('1 of 2 aired episodes'), findsOneWidget);
 
       expect(
         find.byKey(const ValueKey<String>('show-details-season-episodes-1')),
@@ -117,7 +117,7 @@ void main() {
         findsOneWidget,
       );
 
-      expect(find.text('1 / 1 aired episodes'), findsOneWidget);
+      expect(find.text('1 of 1 aired episodes'), findsOneWidget);
 
       expect(
         find.byKey(const ValueKey<String>('show-details-season-episodes-2')),
@@ -167,7 +167,7 @@ void main() {
         findsNothing,
       );
 
-      expect(find.text('10 Episodes'), findsOneWidget);
+      expect(find.text('10 episodes'), findsOneWidget);
 
       await cubit.close();
     });
@@ -206,7 +206,7 @@ void main() {
         findsOneWidget,
       );
 
-      expect(find.text('1 / 2 aired episodes'), findsOneWidget);
+      expect(find.text('1 of 2 aired episodes'), findsOneWidget);
 
       expect(
         find.byKey(const ValueKey<String>('show-details-season-episodes-1')),

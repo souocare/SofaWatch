@@ -9,6 +9,7 @@ import 'package:sofawatch/features/show_details/domain/models/show_details_seaso
 import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_episode_operation.dart';
+import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 
 class ShowDetailsSeasonsSection extends StatelessWidget {
   const ShowDetailsSeasonsSection({required this.seasons, super.key});
@@ -120,9 +121,10 @@ class _SeasonAccordion extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       key: ValueKey<String>('show-details-season-${season.seasonNumber}'),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surfaceHigh,
         borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
       ),
       child: ClipRRect(
         borderRadius: AppRadius.borderLarge,
@@ -167,13 +169,13 @@ class _SeasonHeader extends StatelessWidget {
     final bool hasProgress =
         currentProgress != null && currentProgress.hasAiredEpisodes;
 
+    final bool isCaughtUp = currentProgress?.caughtUp ?? false;
+
     final String episodeLabel = hasProgress
-        ? '${currentProgress.watchedAiredEpisodes}'
-              ' / '
-              '${currentProgress.airedEpisodes}'
-              ' aired episodes'
+        ? '${currentProgress.watchedAiredEpisodes} of '
+              '${currentProgress.airedEpisodes} aired episodes'
         : '${season.episodeCount} '
-              '${season.episodeCount == 1 ? 'Episode' : 'Episodes'}';
+              '${season.episodeCount == 1 ? 'episode' : 'episodes'}';
 
     return Material(
       color: Colors.transparent,
@@ -185,7 +187,6 @@ class _SeasonHeader extends StatelessWidget {
         child: Padding(
           padding: AppSpacing.cardPadding,
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Expanded(
                 child: Column(
@@ -193,28 +194,34 @@ class _SeasonHeader extends StatelessWidget {
                   children: <Widget>[
                     Row(
                       children: <Widget>[
-                        Expanded(
+                        Flexible(
                           child: Text(
                             season.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(fontWeight: FontWeight.w700),
                           ),
                         ),
-                        if (currentProgress?.caughtUp ?? false)
+                        if (isCaughtUp) ...<Widget>[
+                          const SizedBox(width: AppSpacing.sm),
                           Icon(
                             Icons.check_circle_rounded,
                             key: ValueKey<String>(
-                              'show-details-season-caught-up-${season.seasonNumber}',
+                              'show-details-season-caught-up-'
+                              '${season.seasonNumber}',
                             ),
                             size: 18,
                           ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       episodeLabel,
                       key: ValueKey<String>(
-                        'show-details-season-progress-label-${season.seasonNumber}',
+                        'show-details-season-progress-label-'
+                        '${season.seasonNumber}',
                       ),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
@@ -230,7 +237,7 @@ class _SeasonHeader extends StatelessWidget {
                             '${season.seasonNumber}',
                           ),
                           value: currentProgress.airedProgressValue,
-                          minHeight: 5,
+                          minHeight: 4,
                           backgroundColor: AppColors.surfaceLow,
                         ),
                       ),
@@ -238,11 +245,14 @@ class _SeasonHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: AppSpacing.md),
+              const SizedBox(width: AppSpacing.lg),
               AnimatedRotation(
                 duration: const Duration(milliseconds: 180),
                 turns: expanded ? 0.5 : 0,
-                child: const Icon(Icons.keyboard_arrow_down_rounded),
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -413,37 +423,138 @@ class _EpisodeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasImage =
-        episode.stillUrl != null && episode.stillUrl!.trim().isNotEmpty;
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool isCompact = constraints.maxWidth < AppBreakpoints.tablet;
 
-    return Padding(
-      key: ValueKey<String>('show-details-episode-${episode.id}'),
-      padding: AppSpacing.cardPadding,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          if (hasImage) ...<Widget>[
-            _EpisodeImage(url: episode.stillUrl!),
-            const SizedBox(width: AppSpacing.lg),
-          ],
-          Expanded(
-            child: _EpisodeInformation(
-              seasonNumber: seasonNumber,
-              episode: episode,
-            ),
+        final bool hasImage =
+            !isCompact &&
+            episode.stillUrl != null &&
+            episode.stillUrl!.trim().isNotEmpty;
+
+        return Padding(
+          key: ValueKey<String>('show-details-episode-${episode.id}'),
+          padding: isCompact
+              ? const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.sm,
+                )
+              : AppSpacing.cardPadding,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              if (hasImage) ...<Widget>[
+                _EpisodeImage(url: episode.stillUrl!),
+                const SizedBox(width: AppSpacing.lg),
+              ],
+
+              Expanded(
+                child: _EpisodeInformation(
+                  seasonNumber: seasonNumber,
+                  episode: episode,
+                  isCompact: isCompact,
+                ),
+              ),
+
+              const SizedBox(width: AppSpacing.sm),
+
+              _EpisodeStatusButton(
+                seasonNumber: seasonNumber,
+                episode: episode,
+                progress: progress,
+                operation: operation,
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.sm),
-          _EpisodeStatusButton(
-            seasonNumber: seasonNumber,
-            episode: episode,
-            progress: progress,
-            operation: operation,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
+
+// class _WideEpisodeLayout extends StatelessWidget {
+//   const _WideEpisodeLayout({
+//     required this.seasonNumber,
+//     required this.episode,
+//     required this.progress,
+//     required this.operation,
+//   });
+
+//   final int seasonNumber;
+//   final ShowDetailsEpisode episode;
+//   final ShowDetailsEpisodeProgress? progress;
+//   final ShowDetailsEpisodeOperation operation;
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final bool hasImage =
+//         episode.stillUrl != null && episode.stillUrl!.trim().isNotEmpty;
+
+//     return Row(
+//       crossAxisAlignment: CrossAxisAlignment.start,
+//       children: <Widget>[
+//         if (hasImage) ...<Widget>[
+//           _EpisodeImage(url: episode.stillUrl!),
+//           const SizedBox(width: AppSpacing.lg),
+//         ],
+//         Expanded(
+//           child: _EpisodeInformation(
+//             seasonNumber: seasonNumber,
+//             episode: episode,
+//           ),
+//         ),
+//         const SizedBox(width: AppSpacing.md),
+//         _EpisodeStatusButton(
+//           seasonNumber: seasonNumber,
+//           episode: episode,
+//           progress: progress,
+//           operation: operation,
+//         ),
+//       ],
+//     );
+//   }
+// }
+
+// class _CompactEpisodeLayout extends StatelessWidget {
+//   const _CompactEpisodeLayout({
+//     required this.seasonNumber,
+//     required this.episode,
+//     required this.progress,
+//     required this.operation,
+//   });
+
+//   final int seasonNumber;
+//   final ShowDetailsEpisode episode;
+//   final ShowDetailsEpisodeProgress? progress;
+//   final ShowDetailsEpisodeOperation operation;
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final bool hasImage =
+//         episode.stillUrl != null && episode.stillUrl!.trim().isNotEmpty;
+
+//     return Column(
+//       crossAxisAlignment: CrossAxisAlignment.stretch,
+//       children: <Widget>[
+//         if (hasImage) ...<Widget>[
+//           _EpisodeImage(url: episode.stillUrl!, width: double.infinity),
+//           const SizedBox(height: AppSpacing.md),
+//         ],
+//         _EpisodeInformation(seasonNumber: seasonNumber, episode: episode),
+//         const SizedBox(height: AppSpacing.sm),
+//         Align(
+//           alignment: Alignment.centerRight,
+//           child: _EpisodeStatusButton(
+//             seasonNumber: seasonNumber,
+//             episode: episode,
+//             progress: progress,
+//             operation: operation,
+//           ),
+//         ),
+//       ],
+//     );
+//   }
+// }
 
 class _EpisodeImage extends StatelessWidget {
   const _EpisodeImage({required this.url});
@@ -476,16 +587,19 @@ class _EpisodeInformation extends StatelessWidget {
   const _EpisodeInformation({
     required this.seasonNumber,
     required this.episode,
+    required this.isCompact,
   });
 
   final int seasonNumber;
   final ShowDetailsEpisode episode;
+  final bool isCompact;
 
   @override
   Widget build(BuildContext context) {
-    final String code =
-        'S${seasonNumber.toString().padLeft(2, '0')}'
-        'E${episode.episodeNumber.toString().padLeft(2, '0')}';
+    final String code = isCompact
+        ? 'E${episode.episodeNumber.toString().padLeft(2, '0')}'
+        : 'S${seasonNumber.toString().padLeft(2, '0')}'
+              'E${episode.episodeNumber.toString().padLeft(2, '0')}';
 
     final bool isUpcoming = _isUpcomingEpisode(episode);
 
@@ -502,29 +616,23 @@ class _EpisodeInformation extends StatelessWidget {
         Text(
           '$code  ${episode.title}',
           key: ValueKey<String>('show-details-episode-title-${episode.id}'),
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          maxLines: isCompact ? 1 : 2,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            height: 1.2,
+          ),
         ),
+
         if (metadata.isNotEmpty) ...<Widget>[
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: isCompact ? 2 : AppSpacing.xs),
           Text(
             metadata.join(' • '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-          ),
-        ],
-        if (episode.overview?.trim().isNotEmpty ?? false) ...<Widget>[
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            episode.overview!,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
-              height: 1.35,
-            ),
           ),
         ],
       ],

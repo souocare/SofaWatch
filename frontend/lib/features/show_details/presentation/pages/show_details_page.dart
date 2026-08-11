@@ -57,55 +57,98 @@ class _ShowDetailsContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               _ShowHero(details: details, isDesktop: isDesktop),
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1000),
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      left: isDesktop ? AppSpacing.xxxl : AppSpacing.xl,
-                      right: isDesktop ? AppSpacing.xxxl : AppSpacing.xl,
-                      top: AppSpacing.xxl,
-                      bottom: AppSpacing.section,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        if (_hasTagline(details)) ...<Widget>[
-                          _Tagline(tagline: details.tagline!),
-                          const SizedBox(height: AppSpacing.xxl),
-                          ShowDetailsLibraryAction(tmdbId: details.tmdbId),
-
-                          const SizedBox(height: AppSpacing.xxl),
-                        ],
-
-                        if (details.genres.isNotEmpty) ...<Widget>[
-                          _Genres(genres: details.genres),
-                          const SizedBox(height: AppSpacing.xxxl),
-                        ],
-
-                        _Overview(overview: details.overview),
-
-                        const SizedBox(height: AppSpacing.section),
-
-                        _SeriesInfo(details: details),
-
-                        if (details.seasons.isNotEmpty) ...<Widget>[
-                          const SizedBox(height: AppSpacing.section),
-                          ShowDetailsSeasonsSection(seasons: details.seasons),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              _ShowDetailsBody(details: details, isDesktop: isDesktop),
             ],
           ),
         );
       },
     );
   }
+}
 
-  bool _hasTagline(ShowDetails details) {
+class _ShowDetailsBody extends StatelessWidget {
+  const _ShowDetailsBody({required this.details, required this.isDesktop});
+
+  final ShowDetails details;
+  final bool isDesktop;
+
+  bool _hasAdditionalInfo(ShowDetails details) {
+    final String originalTitle = details.originalTitle.trim();
+
+    final bool hasDistinctOriginalTitle =
+        originalTitle.isNotEmpty && originalTitle != details.title.trim();
+
+    return hasDistinctOriginalTitle || details.networks.isNotEmpty;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1000),
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: isDesktop ? AppSpacing.xxxl : AppSpacing.xl,
+            right: isDesktop ? AppSpacing.xxxl : AppSpacing.xl,
+            top: AppSpacing.xxl,
+            bottom: AppSpacing.section,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              _ShowPrimaryDetails(details: details),
+
+              const SizedBox(height: AppSpacing.section),
+
+              _SeriesInfo(details: details),
+
+              if (details.seasons.isNotEmpty) ...<Widget>[
+                const SizedBox(height: AppSpacing.section),
+                ShowDetailsSeasonsSection(seasons: details.seasons),
+              ],
+
+              if (_hasAdditionalInfo(details)) ...<Widget>[
+                const SizedBox(height: AppSpacing.section),
+                _AdditionalInfo(details: details),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShowPrimaryDetails extends StatelessWidget {
+  const _ShowPrimaryDetails({required this.details});
+
+  final ShowDetails details;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        if (_hasTagline) ...<Widget>[
+          _Tagline(tagline: details.tagline!.trim()),
+          const SizedBox(height: AppSpacing.xxl),
+        ],
+
+        ShowDetailsLibraryAction(tmdbId: details.tmdbId),
+
+        if (details.genres.isNotEmpty) ...<Widget>[
+          const SizedBox(height: AppSpacing.xxl),
+          _Genres(genres: details.genres),
+        ],
+
+        const SizedBox(height: AppSpacing.xxxl),
+
+        _Overview(overview: details.overview),
+      ],
+    );
+  }
+
+  bool get _hasTagline {
     return details.tagline?.trim().isNotEmpty ?? false;
   }
 }
@@ -118,29 +161,17 @@ class _ShowHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double heroHeight = isDesktop ? 420 : 360;
+    final double heroHeight = isDesktop ? 440 : 380;
 
     return SizedBox(
+      key: const ValueKey<String>('show-details-hero'),
       height: heroHeight,
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
           _BackdropImage(url: details.backdropUrl),
 
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: <double>[0, 0.45, 1],
-                colors: <Color>[
-                  Colors.transparent,
-                  Color(0x66000000),
-                  AppColors.surface,
-                ],
-              ),
-            ),
-          ),
+          _HeroBackdropOverlay(isDesktop: isDesktop),
 
           Positioned(
             top: AppSpacing.lg,
@@ -148,19 +179,78 @@ class _ShowHero extends StatelessWidget {
             child: IconButton.filledTonal(
               key: const ValueKey<String>('show-details-close-button'),
               onPressed: context.pop,
-              icon: const Icon(Icons.close_rounded),
               tooltip: 'Close',
+              icon: const Icon(Icons.close_rounded),
             ),
           ),
 
           Positioned(
-            left: isDesktop ? AppSpacing.extraHuge : AppSpacing.xl,
-            right: isDesktop ? AppSpacing.extraHuge : AppSpacing.xl,
+            left: 0,
+            right: 0,
             bottom: AppSpacing.xxl,
-            child: _HeroContent(details: details, isDesktop: isDesktop),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1200),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isDesktop
+                        ? AppSpacing.extraHuge
+                        : AppSpacing.xl,
+                  ),
+                  child: _HeroContent(details: details, isDesktop: isDesktop),
+                ),
+              ),
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _HeroBackdropOverlay extends StatelessWidget {
+  const _HeroBackdropOverlay({required this.isDesktop});
+
+  final bool isDesktop;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              stops: <double>[0, 0.45, 0.78, 1],
+              colors: <Color>[
+                Color(0x14000000),
+                Color(0x33000000),
+                Color(0xA6000000),
+                AppColors.surface,
+              ],
+            ),
+          ),
+        ),
+
+        if (isDesktop)
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                stops: <double>[0, 0.42, 0.75, 1],
+                colors: <Color>[
+                  Color(0x99000000),
+                  Color(0x55000000),
+                  Color(0x16000000),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -173,10 +263,13 @@ class _HeroContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double posterWidth = isDesktop ? 154 : 108;
+
     return Row(
+      key: const ValueKey<String>('show-details-hero-content'),
       crossAxisAlignment: CrossAxisAlignment.end,
       children: <Widget>[
-        _PosterImage(url: details.posterUrl, width: isDesktop ? 150 : 112),
+        _PosterImage(url: details.posterUrl, width: posterWidth),
 
         SizedBox(width: isDesktop ? AppSpacing.xxxl : AppSpacing.lg),
 
@@ -190,13 +283,17 @@ class _HeroContent extends StatelessWidget {
                 Text(
                   details.title,
                   key: const ValueKey<String>('show-details-title'),
-                  maxLines: 2,
+                  maxLines: isDesktop ? 2 : 3,
                   overflow: TextOverflow.ellipsis,
                   style:
                       (isDesktop
                               ? Theme.of(context).textTheme.headlineLarge
                               : Theme.of(context).textTheme.headlineMedium)
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                          ?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            height: 1.02,
+                            letterSpacing: -0.4,
+                          ),
                 ),
 
                 const SizedBox(height: AppSpacing.sm),
@@ -269,28 +366,42 @@ class _RatingBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return DecoratedBox(
       key: const ValueKey<String>('show-details-rating'),
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        const Icon(Icons.star_rounded, size: 19),
-        const SizedBox(width: AppSpacing.xs),
-        Text(
-          rating.toStringAsFixed(1),
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderFull,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
         ),
-        if (voteCount > 0) ...<Widget>[
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            '${_formatCount(voteCount)} votes',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-          ),
-        ],
-      ],
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Icon(Icons.star_rounded, size: 18),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              rating.toStringAsFixed(1),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            if (voteCount > 0) ...<Widget>[
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                '${_formatCount(voteCount)} votes',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -356,16 +467,23 @@ class _GenreChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surfaceHigh,
         borderRadius: AppRadius.borderFull,
+        border: Border.all(color: AppColors.outlineVariant),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
           vertical: AppSpacing.sm,
         ),
-        child: Text(genre, style: Theme.of(context).textTheme.bodySmall),
+        child: Text(
+          genre,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
@@ -378,14 +496,21 @@ class _Overview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String resolvedOverview = _resolvedOverview();
+    final bool hasOverview = overview?.trim().isNotEmpty ?? false;
+
     return _DetailsSection(
       title: 'Overview',
-      child: Text(
-        _resolvedOverview(),
-        key: const ValueKey<String>('show-details-overview'),
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-          color: AppColors.textSecondary,
-          height: 1.5,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: Text(
+          resolvedOverview,
+          key: const ValueKey<String>('show-details-overview'),
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: hasOverview ? AppColors.textSecondary : AppColors.textMuted,
+            height: 1.55,
+            fontStyle: hasOverview ? FontStyle.normal : FontStyle.italic,
+          ),
         ),
       ),
     );
@@ -410,37 +535,19 @@ class _SeriesInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final List<_InfoItem> items = <_InfoItem>[
-      _InfoItem(
-        icon: Icons.calendar_today_rounded,
-        label: 'Aired',
-        value: _dateRange(),
-      ),
-      _InfoItem(icon: Icons.tv_rounded, label: 'Status', value: details.status),
+      _InfoItem(label: 'Aired', value: _dateRange()),
+      _InfoItem(label: 'Status', value: details.status),
       if (details.showType.trim().isNotEmpty)
-        _InfoItem(
-          icon: Icons.category_outlined,
-          label: 'Type',
-          value: details.showType,
-        ),
-      _InfoItem(
-        icon: Icons.video_library_outlined,
-        label: 'Seasons',
-        value: details.numberOfSeasons.toString(),
-      ),
-      _InfoItem(
-        icon: Icons.playlist_play_rounded,
-        label: 'Episodes',
-        value: details.numberOfEpisodes.toString(),
-      ),
+        _InfoItem(label: 'Type', value: details.showType),
+      _InfoItem(label: 'Seasons', value: details.numberOfSeasons.toString()),
+      _InfoItem(label: 'Episodes', value: details.numberOfEpisodes.toString()),
       if (details.primaryEpisodeRunTime != null)
         _InfoItem(
-          icon: Icons.schedule_rounded,
           label: 'Runtime',
           value: '~${details.primaryEpisodeRunTime} min',
         ),
       if (details.originalLanguage.trim().isNotEmpty)
         _InfoItem(
-          icon: Icons.language_rounded,
           label: 'Language',
           value: details.originalLanguage.toUpperCase(),
         ),
@@ -448,16 +555,7 @@ class _SeriesInfo extends StatelessWidget {
 
     return _DetailsSection(
       title: 'Series Info',
-      child: Column(
-        children: <Widget>[
-          _InfoGrid(items: items),
-
-          if (details.networks.isNotEmpty) ...<Widget>[
-            const SizedBox(height: AppSpacing.xxl),
-            _Networks(networks: details.networks),
-          ],
-        ],
-      ),
+      child: _InfoGrid(items: items),
     );
   }
 
@@ -489,86 +587,114 @@ class _InfoGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool useTwoColumns = constraints.maxWidth >= 600;
-
-        if (!useTwoColumns) {
-          return Column(
-            children: items
-                .map((_InfoItem item) {
-                  return _InfoRow(item: item);
-                })
-                .toList(growable: false),
-          );
-        }
-
-        return Wrap(
-          spacing: AppSpacing.xxl,
-          runSpacing: AppSpacing.sm,
-          children: items
-              .map((_InfoItem item) {
-                return SizedBox(
-                  width: (constraints.maxWidth - AppSpacing.xxl) / 2,
-                  child: _InfoRow(item: item),
-                );
-              })
-              .toList(growable: false),
-        );
-      },
+    return Wrap(
+      key: const ValueKey<String>('show-details-series-info'),
+      spacing: AppSpacing.lg,
+      runSpacing: AppSpacing.sm,
+      children: items
+          .map((_InfoItem item) {
+            return _CompactInfoItem(item: item);
+          })
+          .toList(growable: false),
     );
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.item});
+class _CompactInfoItem extends StatelessWidget {
+  const _CompactInfoItem({required this.item});
 
   final _InfoItem item;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: Row(
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          item.label,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          item.value,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+final class _InfoItem {
+  const _InfoItem({required this.label, required this.value});
+
+  final String label;
+  final String value;
+}
+
+class _AdditionalInfo extends StatelessWidget {
+  const _AdditionalInfo({required this.details});
+
+  final ShowDetails details;
+
+  @override
+  Widget build(BuildContext context) {
+    final String originalTitle = details.originalTitle.trim();
+
+    final bool hasDistinctOriginalTitle =
+        originalTitle.isNotEmpty && originalTitle != details.title.trim();
+
+    return _DetailsSection(
+      title: 'Additional Info',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(item.icon, size: 18, color: AppColors.textMuted),
-          const SizedBox(width: AppSpacing.md),
-          SizedBox(
-            width: 82,
-            child: Text(
-              item.label,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              item.value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
+          if (hasDistinctOriginalTitle)
+            _AdditionalInfoItem(label: 'Original title', value: originalTitle),
+
+          if (hasDistinctOriginalTitle && details.networks.isNotEmpty)
+            const SizedBox(height: AppSpacing.xxl),
+
+          if (details.networks.isNotEmpty)
+            _Networks(networks: details.networks),
         ],
       ),
     );
   }
 }
 
-final class _InfoItem {
-  const _InfoItem({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
+class _AdditionalInfoItem extends StatelessWidget {
+  const _AdditionalInfoItem({required this.label, required this.value});
 
-  final IconData icon;
   final String label;
   final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          value,
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
 }
 
 class _Networks extends StatelessWidget {
@@ -583,9 +709,10 @@ class _Networks extends StatelessWidget {
       children: <Widget>[
         Text(
           'Networks',
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w600,
+          ),
         ),
 
         const SizedBox(height: AppSpacing.md),
@@ -599,9 +726,10 @@ class _Networks extends StatelessWidget {
                   key: ValueKey<String>(
                     'show-details-network-${network.tmdbId}',
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceHigh,
-                    borderRadius: AppRadius.borderMedium,
+                    borderRadius: AppRadius.borderFull,
+                    border: Border.all(color: AppColors.outlineVariant),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
@@ -610,7 +738,10 @@ class _Networks extends StatelessWidget {
                     ),
                     child: Text(
                       network.name,
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 );
