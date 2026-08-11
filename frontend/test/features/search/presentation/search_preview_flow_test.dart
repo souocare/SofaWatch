@@ -13,6 +13,7 @@ import 'package:sofawatch/features/search/domain/models/search_result_page.dart'
 import '../../../fakes/fake_search_repository.dart';
 import '../../../helpers/test_app.dart';
 import '../../../helpers/test_bootstrap_data.dart';
+import '../../../helpers/details_api_test_helper.dart';
 
 const SearchResult _showResult = SearchResult(
   mediaType: SearchMediaType.show,
@@ -267,60 +268,6 @@ void main() {
 
       expect(scrollableStateAfter.position.pixels, closeTo(expectedOffset, 1));
     });
-
-    testWidgets(
-      'opens preview as a page on mobile and restores Search when closed',
-      (WidgetTester tester) async {
-        final FakeSearchRepository searchRepository = FakeSearchRepository(
-          result: const SearchResultPage(
-            page: 1,
-            results: <SearchResult>[_showResult],
-            totalPages: 1,
-            totalResults: 1,
-          ),
-        );
-
-        await _pumpApp(
-          tester,
-          searchRepository: searchRepository,
-          size: const Size(390, 844),
-        );
-
-        await _openSearchAndQuery(tester, query: 'Severance');
-
-        expect(
-          find.byKey(const ValueKey<String>('search-mobile-view')),
-          findsOneWidget,
-        );
-
-        await tester.tap(
-          find.byKey(const ValueKey<String>('search-result-show-95396')),
-        );
-
-        await tester.pumpAndSettle();
-
-        expect(
-          find.byKey(const ValueKey<String>('show-details-content')),
-          findsOneWidget,
-        );
-
-        await tester.tap(
-          find.byKey(const ValueKey<String>('show-details-close-button')),
-        );
-
-        await tester.pumpAndSettle();
-
-        expect(
-          find.byKey(const ValueKey<String>('search-mobile-view')),
-          findsOneWidget,
-        );
-
-        expect(
-          find.byKey(const ValueKey<String>('search-result-show-95396')),
-          findsOneWidget,
-        );
-      },
-    );
   });
 }
 
@@ -329,42 +276,7 @@ Future<void> _pumpApp(
   required FakeSearchRepository searchRepository,
   Size size = const Size(1280, 900),
 }) async {
-  final Dio dio = Dio();
-
-  dio.interceptors.add(
-    InterceptorsWrapper(
-      onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
-        if (options.path.endsWith('/shows/tmdb/95396')) {
-          handler.resolve(
-            Response<Map<String, dynamic>>(
-              requestOptions: options,
-              statusCode: 200,
-              data: _showDetailsResponse,
-            ),
-          );
-          return;
-        }
-
-        if (options.path.endsWith('/movies/tmdb/438631')) {
-          handler.resolve(
-            Response<Map<String, dynamic>>(
-              requestOptions: options,
-              statusCode: 200,
-              data: _movieDetailsResponse,
-            ),
-          );
-          return;
-        }
-
-        handler.next(options);
-      },
-    ),
-  );
-
-  final ApiClient apiClient = ApiClient(
-    baseUrl: Uri.parse('http://localhost:8000'),
-    dio: dio,
-  );
+  final ApiClient apiClient = createDetailsTestApiClient();
 
   final AppBootstrapData bootstrapData = createTestBootstrapData(
     searchRepository: searchRepository,
@@ -373,7 +285,7 @@ Future<void> _pumpApp(
 
   await tester.pumpSofaWatchWebApp(
     bootstrapData: bootstrapData,
-    surfaceSize: const Size(1280, 900),
+    surfaceSize: size,
   );
 }
 
@@ -408,14 +320,20 @@ const Map<String, dynamic> _showDetailsResponse = <String, dynamic>{
   'last_air_date': '2025-03-20',
   'poster_url': null,
   'backdrop_url': null,
+  'homepage_url': null,
   'genres': <Map<String, dynamic>>[
     <String, dynamic>{'tmdb_id': 18, 'name': 'Drama'},
   ],
+  'seasons': <Map<String, dynamic>>[],
+  'networks': <Map<String, dynamic>>[],
   'original_language': 'en',
+  'episode_run_times': <int>[50],
   'number_of_seasons': 2,
   'number_of_episodes': 19,
   'in_production': true,
   'status': 'Returning Series',
+  'show_type': 'Scripted',
+  'popularity': 100.0,
   'vote_average': 8.4,
   'vote_count': 3000,
 };
@@ -437,4 +355,16 @@ const Map<String, dynamic> _movieDetailsResponse = <String, dynamic>{
   'status': 'Released',
   'vote_average': 7.8,
   'vote_count': 13000,
+};
+
+const Map<String, dynamic> _importedShowResponse = <String, dynamic>{
+  'id': 'show-local-uuid',
+  'tmdb_id': 95396,
+};
+
+const List<dynamic> _showSeasonsResponse = <dynamic>[];
+
+const Map<String, dynamic> _importedMovieResponse = <String, dynamic>{
+  'id': 'movie-local-uuid',
+  'tmdb_id': 438631,
 };

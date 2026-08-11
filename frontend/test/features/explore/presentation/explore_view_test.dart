@@ -15,6 +15,9 @@ import 'package:sofawatch/features/explore/domain/entities/explore_trending_wind
 import 'package:sofawatch/features/explore/domain/repositories/explore_repository.dart';
 import 'package:sofawatch/features/explore/presentation/views/explore_view.dart';
 import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
+import 'package:sofawatch/features/library/domain/models/library_entry.dart';
+import 'package:sofawatch/features/library/domain/models/library_media_type.dart';
+import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/library/domain/repositories/library_repository.dart';
 
 void main() {
@@ -892,6 +895,21 @@ final class _FakeExploreRepository implements ExploreRepository {
   Future<ExploreGenreOptions> getGenres({String? language}) async {
     genresCalls++;
     return genres;
+  }
+
+  @override
+  Future<LibraryEntry> updateMovieStatus(
+    String movieId,
+    LibraryStatus status,
+  ) async {
+    return LibraryEntry(
+      id: 'entry-uuid',
+      mediaId: movieId,
+      mediaType: LibraryMediaType.movie,
+      status: status,
+      createdAt: DateTime.utc(2026, 8, 10),
+      updatedAt: DateTime.utc(2026, 8, 10),
+    );
   }
 
   @override

@@ -205,3 +205,61 @@ def remove_movie_from_library(
             code="library_entry_not_found",
             message="The movie is not in the user's library.",
         )
+
+@router.get(
+    "/movies/{movie_id}",
+    response_model=LibraryEntryResponse,
+    summary="Get movie library entry",
+)
+def get_movie_library_entry(
+    movie_id: UUID,
+    current_user: CurrentUserDependency,
+    service: LibraryServiceDependency,
+) -> LibraryEntryResponse:
+    """Return the current user's library entry for a Movie."""
+
+    entry = service.get_movie_entry(
+        user_id=current_user.id,
+        movie_id=movie_id,
+    )
+
+    if entry is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="library_entry_not_found",
+            message="The movie is not in the user's library.",
+        )
+
+    return entry
+
+
+@router.patch(
+    "/movies/{movie_id}/status",
+    response_model=LibraryEntryResponse,
+    summary="Update movie library status",
+    description="Update the tracking status of a Movie in the current user's library.",
+)
+def update_movie_library_status(
+    movie_id: UUID,
+    payload: LibraryStatusUpdate,
+    current_user: CurrentUserDependency,
+    service: LibraryServiceDependency,
+) -> LibraryEntryResponse:
+    """Update the tracking status of a Movie in the library."""
+
+    entry = service.update_movie_status(
+        user_id=current_user.id,
+        movie_id=movie_id,
+        status=payload.status,
+    )
+
+    if entry is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="library_entry_not_found",
+            message="The movie is not in the user's library.",
+        )
+
+    return entry
+
+

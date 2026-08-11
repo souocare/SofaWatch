@@ -74,6 +74,32 @@ void main() {
 
       await cubit.close();
     });
+
+    test('maps unexpected repository errors to unknown failure', () async {
+      final _UnexpectedMovieDetailsRepository repository =
+          _UnexpectedMovieDetailsRepository();
+
+      final MovieDetailsCubit cubit = MovieDetailsCubit(
+        repository: repository,
+        tmdbId: 438631,
+      );
+
+      final Future<List<MovieDetailsState>> statesFuture = cubit.stream
+          .take(2)
+          .toList();
+
+      await cubit.load();
+
+      final List<MovieDetailsState> states = await statesFuture;
+
+      expect(states.first, const MovieDetailsLoading());
+
+      final MovieDetailsFailure failure = states.last as MovieDetailsFailure;
+
+      expect(failure.error.type, AppExceptionType.unknown);
+
+      await cubit.close();
+    });
   });
 }
 
@@ -111,5 +137,13 @@ final class _FakeMovieDetailsRepository implements MovieDetailsRepository {
     }
 
     return _movieDetails;
+  }
+}
+
+final class _UnexpectedMovieDetailsRepository
+    implements MovieDetailsRepository {
+  @override
+  Future<MovieDetails> getByTmdbId(int tmdbId, {String? language}) async {
+    throw StateError('Unexpected repository failure.');
   }
 }

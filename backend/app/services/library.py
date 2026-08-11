@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -222,6 +223,12 @@ class LibraryService:
 
         if entry is None:
             return None
+
+        if status == LibraryStatus.COMPLETED:
+            if entry.completed_at is None:
+                entry.completed_at = datetime.now(UTC)
+        else:
+            entry.completed_at = None
 
         entry.status = status
 

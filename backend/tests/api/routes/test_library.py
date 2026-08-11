@@ -1,4 +1,5 @@
 from uuid import uuid4
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -719,6 +720,85 @@ def test_add_movie_to_library_rejects_invalid_movie_id(
 
     assert response.status_code == 422
 
+def test_get_movie_library_entry(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return the current user's library entry for a Movie."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    entry = create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+    )
+
+    response = client.get(
+        f"/api/v1/library/movies/{movie.id}",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["id"] == str(entry.id)
+    assert body["show_id"] is None
+    assert body["movie_id"] == str(movie.id)
+    assert body["status"] == "planning"
+    assert body["rating"] is None
+    assert body["started_at"] is None
+    assert body["completed_at"] is None
+
+
+def test_get_movie_library_entry_returns_404_when_missing(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return HTTP 404 when the Movie is not in the current user's library."""
+
+    create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    response = client.get(
+        f"/api/v1/library/movies/{movie.id}",
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "error": {
+            "code": "library_entry_not_found",
+            "message": "The movie is not in the user's library.",
+        }
+    }
+
+
+def test_get_movie_library_entry_rejects_invalid_movie_id(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Reject an invalid Movie identifier."""
+
+    create_local_user(db_session)
+
+    response = client.get(
+        "/api/v1/library/movies/not-a-valid-uuid",
+    )
+
+    assert response.status_code == 422
+
 
 def test_remove_movie_from_library(
     client: TestClient,
@@ -785,3 +865,152 @@ def test_remove_movie_from_library_returns_404_when_missing(
         }
     }
 
+
+def test_update_movie_library_status_to_completed(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Mark a Movie in the library as completed."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    entry = create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+        status=LibraryStatus.PLANNING,
+    )
+
+    assert entry.completed_at is None
+
+    response = client.patch(
+        f"/api/v1/library/movies/{movie.id}/status",
+        json={
+            "status": "completed",
+        },
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["movie_id"] == str(movie.id)
+    assert body["show_id"] is None
+    assert body["status"] == "completed"
+    assert body["completed_at"] is not None
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.COMPLETED
+    assert entry.completed_at is not None
+
+def test_update_movie_library_status_to_planning(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Mark a completed Movie as not watched."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    entry = create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+        status=LibraryStatus.COMPLETED,
+    )
+
+    entry.completed_at = datetime.now(UTC)
+
+    db_session.commit()
+    db_session.refresh(entry)
+
+    response = client.patch(
+        f"/api/v1/library/movies/{movie.id}/status",
+        json={
+            "status": "planning",
+        },
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["movie_id"] == str(movie.id)
+    assert body["status"] == "planning"
+    assert body["completed_at"] is None
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.PLANNING
+    assert entry.completed_at is None
+
+def test_update_movie_library_status_returns_404_when_missing(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return HTTP 404 when the Movie is not in the library."""
+
+    create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    response = client.patch(
+        f"/api/v1/library/movies/{movie.id}/status",
+        json={
+            "status": "completed",
+        },
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "error": {
+            "code": "library_entry_not_found",
+            "message": "The movie is not in the user's library.",
+        }
+    }
+
+def test_update_movie_library_status_rejects_invalid_status(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Reject an unsupported Movie library status."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+    )
+
+    response = client.patch(
+        f"/api/v1/library/movies/{movie.id}/status",
+        json={
+            "status": "banana",
+        },
+    )
+
+    assert response.status_code == 422

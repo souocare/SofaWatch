@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import UUID, uuid4
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy.orm import Session
@@ -667,3 +668,229 @@ def test_remove_movie_deletes_existing_entry(
     library_repository.delete.assert_called_once_with(
         entry
     )
+
+def test_update_movie_status_returns_none_when_entry_does_not_exist(
+    library_service: LibraryService,
+    library_repository: Mock,
+) -> None:
+    """Return None when the Movie is not in the user's library."""
+
+    user_id = uuid4()
+    movie_id = uuid4()
+
+    library_repository.get_by_user_and_movie.return_value = None
+
+    result = library_service.update_movie_status(
+        user_id=user_id,
+        movie_id=movie_id,
+        status=LibraryStatus.COMPLETED,
+    )
+
+    assert result is None
+
+    library_repository.get_by_user_and_movie.assert_called_once_with(
+        user_id=user_id,
+        movie_id=movie_id,
+    )
+
+def test_update_movie_status_to_completed_sets_completed_at(
+    db_session: Session,
+    library_repository: Mock,
+    show_repository: Mock,
+    movie_repository: Mock,
+) -> None:
+    """Mark a Movie as completed and store when it was watched."""
+
+    user = User(
+        display_name="Local User",
+        is_local=True,
+    )
+
+    movie = Movie(
+        tmdb_id=438631,
+        title="Dune",
+        original_title="Dune",
+        original_language="en",
+        runtime=155,
+        status="Released",
+        adult=False,
+        video=False,
+        popularity=10.0,
+        vote_average=8.0,
+        vote_count=100,
+        metadata_language="en-US",
+    )
+
+    entry = LibraryEntry(
+        user=user,
+        movie=movie,
+        status=LibraryStatus.PLANNING,
+    )
+
+    db_session.add_all(
+        [
+            user,
+            movie,
+            entry,
+        ]
+    )
+    db_session.commit()
+
+    db_session.refresh(user)
+    db_session.refresh(movie)
+    db_session.refresh(entry)
+
+    library_repository.get_by_user_and_movie.return_value = entry
+
+    service = LibraryService(
+        session=db_session,
+        library_repository=library_repository,
+        show_repository=show_repository,
+        movie_repository=movie_repository,
+    )
+
+    result = service.update_movie_status(
+        user_id=user.id,
+        movie_id=movie.id,
+        status=LibraryStatus.COMPLETED,
+    )
+
+    assert result is entry
+    assert result.status == LibraryStatus.COMPLETED
+    assert result.completed_at is not None
+
+def test_update_movie_status_to_planning_clears_completed_at(
+    db_session: Session,
+    library_repository: Mock,
+    show_repository: Mock,
+    movie_repository: Mock,
+) -> None:
+    """Mark a completed Movie as not watched and clear completed_at."""
+
+    user = User(
+        display_name="Local User",
+        is_local=True,
+    )
+
+    movie = Movie(
+        tmdb_id=438631,
+        title="Dune",
+        original_title="Dune",
+        original_language="en",
+        runtime=155,
+        status="Released",
+        adult=False,
+        video=False,
+        popularity=10.0,
+        vote_average=8.0,
+        vote_count=100,
+        metadata_language="en-US",
+    )
+
+    entry = LibraryEntry(
+        user=user,
+        movie=movie,
+        status=LibraryStatus.COMPLETED,
+        completed_at=datetime.now(UTC),
+    )
+
+    db_session.add_all(
+        [
+            user,
+            movie,
+            entry,
+        ]
+    )
+    db_session.commit()
+
+    db_session.refresh(entry)
+
+    assert entry.completed_at is not None
+
+    library_repository.get_by_user_and_movie.return_value = entry
+
+    service = LibraryService(
+        session=db_session,
+        library_repository=library_repository,
+        show_repository=show_repository,
+        movie_repository=movie_repository,
+    )
+
+    result = service.update_movie_status(
+        user_id=user.id,
+        movie_id=movie.id,
+        status=LibraryStatus.PLANNING,
+    )
+
+    assert result is entry
+    assert result.status == LibraryStatus.PLANNING
+    assert result.completed_at is None
+
+def test_update_movie_status_keeps_existing_completed_at(
+    db_session: Session,
+    library_repository: Mock,
+    show_repository: Mock,
+    movie_repository: Mock,
+) -> None:
+    """Preserve the original completion date when Movie is already completed."""
+
+    user = User(
+        display_name="Local User",
+        is_local=True,
+    )
+
+    movie = Movie(
+        tmdb_id=438631,
+        title="Dune",
+        original_title="Dune",
+        original_language="en",
+        runtime=155,
+        status="Released",
+        adult=False,
+        video=False,
+        popularity=10.0,
+        vote_average=8.0,
+        vote_count=100,
+        metadata_language="en-US",
+    )
+
+    original_completed_at = datetime(2026, 8, 1, 20, 30, tzinfo=UTC)
+
+    entry = LibraryEntry(
+        user=user,
+        movie=movie,
+        status=LibraryStatus.COMPLETED,
+        completed_at=original_completed_at,
+    )
+
+    db_session.add_all(
+        [
+            user,
+            movie,
+            entry,
+        ]
+    )
+    db_session.commit()
+
+    db_session.refresh(entry)
+
+    library_repository.get_by_user_and_movie.return_value = entry
+
+    service = LibraryService(
+        session=db_session,
+        library_repository=library_repository,
+        show_repository=show_repository,
+        movie_repository=movie_repository,
+    )
+
+    result = service.update_movie_status(
+        user_id=user.id,
+        movie_id=movie.id,
+        status=LibraryStatus.COMPLETED,
+    )
+
+    assert result is entry
+    assert result.status == LibraryStatus.COMPLETED
+    assert result.completed_at is not None
+
+    assert result.completed_at == original_completed_at.replace(tzinfo=None)

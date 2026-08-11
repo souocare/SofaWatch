@@ -13,6 +13,8 @@ import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
 import 'package:sofawatch/features/explore/presentation/pages/explore_page.dart';
 import 'package:sofawatch/features/home/presentation/pages/home_page.dart';
+import 'package:sofawatch/features/library/domain/models/library_media_key.dart';
+import 'package:sofawatch/features/library/domain/models/library_media_type.dart';
 import 'package:sofawatch/features/movie_details/application/cubit/movie_details_cubit.dart';
 import 'package:sofawatch/features/movie_details/data/repositories/api_movie_details_repository.dart';
 import 'package:sofawatch/features/movie_details/presentation/pages/movie_details_page.dart';
@@ -30,6 +32,8 @@ import 'package:sofawatch/features/show_details/presentation/pages/show_details_
 import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_seasons_cubit.dart';
 import 'package:sofawatch/features/show_details/data/repositories/api_show_details_seasons_repository.dart';
+import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
+import 'package:sofawatch/features/library/data/repositories/api_library_repository.dart';
 
 GoRouter createAppRouter({required ApiClient apiClient}) {
   final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -296,13 +300,33 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
 
           return buildDetailsModalPage(
             state: state,
-            child: BlocProvider<MovieDetailsCubit>(
-              create: (BuildContext context) {
-                return MovieDetailsCubit(
-                  repository: ApiMovieDetailsRepository(apiClient),
-                  tmdbId: tmdbId,
-                )..load();
-              },
+            child: MultiBlocProvider(
+              providers: <BlocProvider<dynamic>>[
+                BlocProvider<MovieDetailsCubit>(
+                  create: (BuildContext context) {
+                    return MovieDetailsCubit(
+                      repository: ApiMovieDetailsRepository(apiClient),
+                      tmdbId: tmdbId,
+                    )..load();
+                  },
+                ),
+                BlocProvider<LibraryCubit>(
+                  create: (BuildContext context) {
+                    final LibraryCubit cubit = LibraryCubit(
+                      ApiLibraryRepository(apiClient),
+                    );
+
+                    cubit.loadMovieState(
+                      LibraryMediaKey(
+                        mediaType: LibraryMediaType.movie,
+                        tmdbId: tmdbId,
+                      ),
+                    );
+
+                    return cubit;
+                  },
+                ),
+              ],
               child: const MovieDetailsPage(),
             ),
           );

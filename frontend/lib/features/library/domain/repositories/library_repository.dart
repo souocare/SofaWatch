@@ -7,6 +7,8 @@ abstract interface class LibraryRepository {
 
   Future<ImportedLibraryMedia> importMovieByTmdbId(int tmdbId);
 
+  Future<LibraryEntry?> getMovieEntry(String movieId);
+
   Future<LibraryEntry> addShow(String showId);
 
   Future<LibraryEntry> addMovie(String movieId);
@@ -16,4 +18,6 @@ abstract interface class LibraryRepository {
   Future<void> removeMovie(String movieId);
 
   Future<LibraryEntry> updateShowStatus(String showId, LibraryStatus status);
+
+  Future<LibraryEntry> updateMovieStatus(String movieId, LibraryStatus status);
 }

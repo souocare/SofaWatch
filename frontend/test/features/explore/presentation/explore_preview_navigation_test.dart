@@ -331,6 +331,26 @@ final class _FakeLibraryRepository implements LibraryRepository {
   }
 
   @override
+  Future<LibraryEntry?> getMovieEntry(String movieId) async {
+    return null;
+  }
+
+  @override
+  Future<LibraryEntry> updateMovieStatus(
+    String movieId,
+    LibraryStatus status,
+  ) async {
+    return LibraryEntry(
+      id: 'entry-uuid',
+      mediaId: movieId,
+      mediaType: LibraryMediaType.movie,
+      status: status,
+      createdAt: DateTime.utc(2026, 8, 10),
+      updatedAt: DateTime.utc(2026, 8, 10),
+    );
+  }
+
+  @override
   Future<ImportedLibraryMedia> importMovieByTmdbId(int tmdbId) async {
     return ImportedLibraryMedia(
       id: 'movie-$tmdbId',

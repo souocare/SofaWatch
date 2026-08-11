@@ -55,6 +55,40 @@ final class ApiLibraryRepository implements LibraryRepository {
     return _updateStatus(path: '/library/shows/$showId/status', status: status);
   }
 
+  @override
+  Future<LibraryEntry> updateMovieStatus(String movieId, LibraryStatus status) {
+    return _updateStatus(
+      path: '/library/movies/$movieId/status',
+      status: status,
+    );
+  }
+
+  @override
+  Future<LibraryEntry?> getMovieEntry(String movieId) async {
+    try {
+      final Response<Map<String, dynamic>> response = await _apiClient
+          .get<Map<String, dynamic>>('/library/movies/$movieId');
+
+      final Map<String, dynamic>? data = response.data;
+
+      if (data == null) {
+        throw const FormatException('The library response body is missing.');
+      }
+
+      return LibraryEntryDto.fromJson(data).toDomain();
+    } on AppException catch (error) {
+      if (error.code == 'library_entry_not_found') {
+        return null;
+      }
+
+      rethrow;
+    } on FormatException catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } on TypeError catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
   Future<ImportedLibraryMedia> _importMedia({
     required String path,
     required LibraryMediaType mediaType,
