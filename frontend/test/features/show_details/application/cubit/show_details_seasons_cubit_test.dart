@@ -9,6 +9,8 @@ import 'package:sofawatch/features/show_details/domain/models/show_details_local
 import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_seasons_bootstrap.dart';
 import 'package:sofawatch/features/show_details/domain/repositories/show_details_seasons_repository.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
+import 'package:sofawatch/features/show_details/application/cubit/show_details_episode_operation.dart';
 
 void main() {
   group('ShowDetailsSeasonsCubit', () {
@@ -909,6 +911,439 @@ void main() {
         await cubit.close();
       },
     );
+
+    test('loads Episode progress when a Season is expanded', () async {
+      final _FakeShowDetailsSeasonsRepository repository =
+          _FakeShowDetailsSeasonsRepository();
+
+      final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      await cubit.toggleSeason(1);
+
+      final ShowDetailsSeasonState seasonState = cubit.state[1]!;
+
+      expect(seasonState.isLoaded, isTrue);
+
+      expect(seasonState.episodeProgressById.keys, <String>['episode-1-uuid']);
+
+      final ShowDetailsEpisodeProgress? progress =
+          seasonState.episodeProgressById['episode-1-uuid'];
+
+      expect(progress, isNotNull);
+      expect(progress!.isWatched, isTrue);
+
+      expect(progress.watchedAt, DateTime.utc(2026, 8, 10, 21, 30));
+
+      expect(
+        seasonState.episodeProgressById.containsKey('episode-2-uuid'),
+        isFalse,
+      );
+
+      await cubit.close();
+    });
+    test('marks an Episode as watched and refreshes Season progress', () async {
+      final _FakeShowDetailsSeasonsRepository repository =
+          _FakeShowDetailsSeasonsRepository();
+
+      final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      await cubit.toggleSeason(1);
+
+      expect(
+        cubit.state[1]!.episodeProgressById.containsKey('episode-2-uuid'),
+        isFalse,
+      );
+
+      await cubit.markEpisodeWatched(
+        seasonNumber: 1,
+        episodeId: 'episode-2-uuid',
+      );
+
+      final ShowDetailsSeasonState seasonState = cubit.state[1]!;
+
+      final ShowDetailsEpisodeProgress progress =
+          seasonState.episodeProgressById['episode-2-uuid']!;
+
+      expect(progress.isWatched, isTrue);
+      expect(progress.watchedAt, DateTime.utc(2026, 8, 11));
+
+      expect(
+        seasonState.operationForEpisode('episode-2-uuid').status,
+        ShowDetailsEpisodeOperationStatus.idle,
+      );
+
+      expect(repository.requestedProgressSeasonIds.last, 'season-1-uuid');
+
+      await cubit.close();
+    });
+
+    test('marks a watched Episode as unwatched', () async {
+      final _FakeShowDetailsSeasonsRepository repository =
+          _FakeShowDetailsSeasonsRepository();
+
+      final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      await cubit.toggleSeason(1);
+
+      expect(
+        cubit.state[1]!.episodeProgressById['episode-1-uuid']!.isWatched,
+        isTrue,
+      );
+
+      await cubit.markEpisodeUnwatched(
+        seasonNumber: 1,
+        episodeId: 'episode-1-uuid',
+      );
+
+      final ShowDetailsEpisodeProgress progress =
+          cubit.state[1]!.episodeProgressById['episode-1-uuid']!;
+
+      expect(progress.isWatched, isFalse);
+      expect(progress.watchedAt, isNull);
+
+      expect(
+        cubit.state[1]!.operationForEpisode('episode-1-uuid').status,
+        ShowDetailsEpisodeOperationStatus.idle,
+      );
+
+      await cubit.close();
+    });
+    test('updates only the affected Episode while marking watched', () async {
+      final _ControlledEpisodeUpdateRepository repository =
+          _ControlledEpisodeUpdateRepository();
+
+      final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      await cubit.toggleSeason(1);
+
+      final Future<void> updateFuture = cubit.markEpisodeWatched(
+        seasonNumber: 1,
+        episodeId: 'episode-2-uuid',
+      );
+
+      await Future<void>.delayed(Duration.zero);
+
+      final ShowDetailsSeasonState updatingState = cubit.state[1]!;
+
+      expect(
+        updatingState.operationForEpisode('episode-2-uuid').isUpdating,
+        isTrue,
+      );
+
+      expect(
+        updatingState.operationForEpisode('episode-1-uuid').isUpdating,
+        isFalse,
+      );
+
+      expect(
+        updatingState.episodeProgressById['episode-1-uuid']!.isWatched,
+        isTrue,
+      );
+
+      repository.completeWatched(episodeId: 'episode-2-uuid');
+
+      await updateFuture;
+
+      expect(
+        cubit.state[1]!.operationForEpisode('episode-2-uuid').isUpdating,
+        isFalse,
+      );
+
+      expect(
+        cubit.state[1]!.episodeProgressById['episode-2-uuid']!.isWatched,
+        isTrue,
+      );
+
+      await cubit.close();
+    });
+    test(
+      'preserves Episode state when marking watched fails and Retry succeeds',
+      () async {
+        final _RetryEpisodeUpdateRepository repository =
+            _RetryEpisodeUpdateRepository();
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        await cubit.toggleSeason(1);
+
+        expect(
+          cubit.state[1]!.episodeProgressById.containsKey('episode-2-uuid'),
+          isFalse,
+        );
+
+        await cubit.markEpisodeWatched(
+          seasonNumber: 1,
+          episodeId: 'episode-2-uuid',
+        );
+
+        final ShowDetailsSeasonState failedState = cubit.state[1]!;
+
+        expect(
+          failedState.episodeProgressById.containsKey('episode-2-uuid'),
+          isFalse,
+        );
+
+        final ShowDetailsEpisodeOperation failedOperation = failedState
+            .operationForEpisode('episode-2-uuid');
+
+        expect(failedOperation.hasFailed, isTrue);
+        expect(failedOperation.targetWatched, isTrue);
+        expect(
+          failedOperation.intent,
+          ShowDetailsEpisodeOperationIntent.setWatchedState,
+        );
+        expect(failedOperation.error, isA<AppException>());
+        expect(repository.markWatchedCalls, 1);
+
+        await cubit.retryEpisodeUpdate(
+          seasonNumber: 1,
+          episodeId: 'episode-2-uuid',
+        );
+
+        final ShowDetailsSeasonState retriedState = cubit.state[1]!;
+
+        expect(repository.markWatchedCalls, 2);
+
+        expect(
+          retriedState.episodeProgressById['episode-2-uuid']!.isWatched,
+          isTrue,
+        );
+
+        expect(
+          retriedState.operationForEpisode('episode-2-uuid').status,
+          ShowDetailsEpisodeOperationStatus.idle,
+        );
+
+        await cubit.close();
+      },
+    );
+    test(
+      'preserves watched Episode when marking unwatched fails and Retry succeeds',
+      () async {
+        final _RetryEpisodeUpdateRepository repository =
+            _RetryEpisodeUpdateRepository();
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        await cubit.toggleSeason(1);
+
+        expect(
+          cubit.state[1]!.episodeProgressById['episode-1-uuid']!.isWatched,
+          isTrue,
+        );
+
+        await cubit.markEpisodeUnwatched(
+          seasonNumber: 1,
+          episodeId: 'episode-1-uuid',
+        );
+
+        final ShowDetailsSeasonState failedState = cubit.state[1]!;
+
+        expect(
+          failedState.episodeProgressById['episode-1-uuid']!.isWatched,
+          isTrue,
+        );
+
+        final ShowDetailsEpisodeOperation failedOperation = failedState
+            .operationForEpisode('episode-1-uuid');
+
+        expect(failedOperation.hasFailed, isTrue);
+        expect(failedOperation.targetWatched, isFalse);
+        expect(
+          failedOperation.intent,
+          ShowDetailsEpisodeOperationIntent.setWatchedState,
+        );
+        expect(repository.markUnwatchedCalls, 1);
+
+        await cubit.retryEpisodeUpdate(
+          seasonNumber: 1,
+          episodeId: 'episode-1-uuid',
+        );
+
+        final ShowDetailsSeasonState retriedState = cubit.state[1]!;
+
+        expect(repository.markUnwatchedCalls, 2);
+
+        expect(
+          retriedState.episodeProgressById['episode-1-uuid']!.isWatched,
+          isFalse,
+        );
+
+        expect(
+          retriedState.operationForEpisode('episode-1-uuid').status,
+          ShowDetailsEpisodeOperationStatus.idle,
+        );
+
+        await cubit.close();
+      },
+    );
+    test('Retry does nothing when Episode operation has not failed', () async {
+      final _FakeShowDetailsSeasonsRepository repository =
+          _FakeShowDetailsSeasonsRepository();
+
+      final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      await cubit.toggleSeason(1);
+
+      await cubit.retryEpisodeUpdate(
+        seasonNumber: 1,
+        episodeId: 'episode-2-uuid',
+      );
+
+      expect(
+        cubit.state[1]!.operationForEpisode('episode-2-uuid').status,
+        ShowDetailsEpisodeOperationStatus.idle,
+      );
+
+      await cubit.close();
+    });
+    test(
+      'rewatches an already watched Episode and updates watchedAt',
+      () async {
+        final _FakeShowDetailsSeasonsRepository repository =
+            _FakeShowDetailsSeasonsRepository();
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        await cubit.toggleSeason(1);
+
+        final ShowDetailsEpisodeProgress originalProgress =
+            cubit.state[1]!.episodeProgressById['episode-1-uuid']!;
+
+        expect(originalProgress.isWatched, isTrue);
+        expect(originalProgress.watchedAt, DateTime.utc(2026, 8, 10, 21, 30));
+
+        await cubit.rewatchEpisode(
+          seasonNumber: 1,
+          episodeId: 'episode-1-uuid',
+        );
+
+        final ShowDetailsSeasonState seasonState = cubit.state[1]!;
+
+        final ShowDetailsEpisodeProgress rewatchedProgress =
+            seasonState.episodeProgressById['episode-1-uuid']!;
+
+        expect(rewatchedProgress.isWatched, isTrue);
+
+        expect(rewatchedProgress.watchedAt, DateTime.utc(2026, 8, 11));
+
+        expect(rewatchedProgress.watchedAt, isNot(originalProgress.watchedAt));
+
+        expect(
+          seasonState.operationForEpisode('episode-1-uuid').status,
+          ShowDetailsEpisodeOperationStatus.idle,
+        );
+
+        await cubit.close();
+      },
+    );
+    test(
+      'preserves watched Episode when rewatch fails and Retry succeeds',
+      () async {
+        final _RetryEpisodeUpdateRepository repository =
+            _RetryEpisodeUpdateRepository();
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        await cubit.toggleSeason(1);
+
+        final ShowDetailsEpisodeProgress originalProgress =
+            cubit.state[1]!.episodeProgressById['episode-1-uuid']!;
+
+        expect(originalProgress.isWatched, isTrue);
+
+        final DateTime? originalWatchedAt = originalProgress.watchedAt;
+
+        await cubit.rewatchEpisode(
+          seasonNumber: 1,
+          episodeId: 'episode-1-uuid',
+        );
+
+        final ShowDetailsSeasonState failedState = cubit.state[1]!;
+
+        /*
+     * A failed rewatch must not destroy the existing watched state
+     * or its previous viewing date.
+     */
+        expect(
+          failedState.episodeProgressById['episode-1-uuid']!.isWatched,
+          isTrue,
+        );
+
+        expect(
+          failedState.episodeProgressById['episode-1-uuid']!.watchedAt,
+          originalWatchedAt,
+        );
+
+        final ShowDetailsEpisodeOperation failedOperation = failedState
+            .operationForEpisode('episode-1-uuid');
+
+        expect(failedOperation.hasFailed, isTrue);
+
+        expect(
+          failedOperation.intent,
+          ShowDetailsEpisodeOperationIntent.rewatch,
+        );
+
+        expect(failedOperation.targetWatched, isTrue);
+
+        expect(failedOperation.error, isA<AppException>());
+
+        expect(repository.markWatchedCalls, 1);
+
+        await cubit.retryEpisodeUpdate(
+          seasonNumber: 1,
+          episodeId: 'episode-1-uuid',
+        );
+
+        final ShowDetailsSeasonState retriedState = cubit.state[1]!;
+
+        expect(repository.markWatchedCalls, 2);
+
+        final ShowDetailsEpisodeProgress retriedProgress =
+            retriedState.episodeProgressById['episode-1-uuid']!;
+
+        expect(retriedProgress.isWatched, isTrue);
+
+        expect(retriedProgress.watchedAt, DateTime.utc(2026, 8, 11));
+
+        expect(retriedProgress.watchedAt, isNot(originalWatchedAt));
+
+        expect(
+          retriedState.operationForEpisode('episode-1-uuid').status,
+          ShowDetailsEpisodeOperationStatus.idle,
+        );
+
+        await cubit.close();
+      },
+    );
   });
 }
 
@@ -1139,6 +1574,47 @@ final class _FakeShowDetailsSeasonsRepository
       ),
     };
   }
+
+  @override
+  Future<List<ShowDetailsEpisodeProgress>> getEpisodeProgress({
+    required String seasonId,
+  }) async {
+    return switch (seasonId) {
+      'season-1-uuid' => <ShowDetailsEpisodeProgress>[
+        ShowDetailsEpisodeProgress(
+          id: 'progress-1-uuid',
+          episodeId: 'episode-1-uuid',
+          isWatched: true,
+          watchedAt: DateTime.utc(2026, 8, 10, 21, 30),
+        ),
+      ],
+      _ => const <ShowDetailsEpisodeProgress>[],
+    };
+  }
+
+  @override
+  Future<ShowDetailsEpisodeProgress> markEpisodeWatched({
+    required String episodeId,
+    DateTime? watchedAt,
+  }) async {
+    return ShowDetailsEpisodeProgress(
+      id: 'progress-$episodeId',
+      episodeId: episodeId,
+      isWatched: true,
+      watchedAt: watchedAt ?? DateTime.utc(2026, 8, 11),
+    );
+  }
+
+  @override
+  Future<ShowDetailsEpisodeProgress> markEpisodeUnwatched({
+    required String episodeId,
+  }) async {
+    return ShowDetailsEpisodeProgress(
+      id: 'progress-$episodeId',
+      episodeId: episodeId,
+      isWatched: false,
+    );
+  }
 }
 
 final class _ControlledShowDetailsSeasonsRepository
@@ -1284,6 +1760,37 @@ final class _ControlledShowDetailsSeasonsRepository
       ),
     };
   }
+
+  @override
+  Future<List<ShowDetailsEpisodeProgress>> getEpisodeProgress({
+    required String seasonId,
+  }) async {
+    return const <ShowDetailsEpisodeProgress>[];
+  }
+
+  @override
+  Future<ShowDetailsEpisodeProgress> markEpisodeWatched({
+    required String episodeId,
+    DateTime? watchedAt,
+  }) async {
+    return ShowDetailsEpisodeProgress(
+      id: 'progress-$episodeId',
+      episodeId: episodeId,
+      isWatched: true,
+      watchedAt: watchedAt ?? DateTime.utc(2026, 8, 11),
+    );
+  }
+
+  @override
+  Future<ShowDetailsEpisodeProgress> markEpisodeUnwatched({
+    required String episodeId,
+  }) async {
+    return ShowDetailsEpisodeProgress(
+      id: 'progress-$episodeId',
+      episodeId: episodeId,
+      isWatched: false,
+    );
+  }
 }
 
 final class _ManySeasonsRepository implements ShowDetailsSeasonsRepository {
@@ -1360,5 +1867,103 @@ final class _ManySeasonsRepository implements ShowDetailsSeasonsRepository {
     return progressItems.firstWhere((ShowDetailsSeasonProgress progress) {
       return progress.seasonId == seasonId;
     });
+  }
+
+  @override
+  Future<List<ShowDetailsEpisodeProgress>> getEpisodeProgress({
+    required String seasonId,
+  }) async {
+    return const <ShowDetailsEpisodeProgress>[];
+  }
+
+  @override
+  Future<ShowDetailsEpisodeProgress> markEpisodeWatched({
+    required String episodeId,
+    DateTime? watchedAt,
+  }) async {
+    return ShowDetailsEpisodeProgress(
+      id: 'progress-$episodeId',
+      episodeId: episodeId,
+      isWatched: true,
+      watchedAt: watchedAt ?? DateTime.utc(2026, 8, 11),
+    );
+  }
+
+  @override
+  Future<ShowDetailsEpisodeProgress> markEpisodeUnwatched({
+    required String episodeId,
+  }) async {
+    return ShowDetailsEpisodeProgress(
+      id: 'progress-$episodeId',
+      episodeId: episodeId,
+      isWatched: false,
+    );
+  }
+}
+
+final class _ControlledEpisodeUpdateRepository
+    extends _FakeShowDetailsSeasonsRepository {
+  final Completer<ShowDetailsEpisodeProgress> _updateCompleter =
+      Completer<ShowDetailsEpisodeProgress>();
+
+  void completeWatched({required String episodeId}) {
+    _updateCompleter.complete(
+      ShowDetailsEpisodeProgress(
+        id: 'progress-$episodeId',
+        episodeId: episodeId,
+        isWatched: true,
+        watchedAt: DateTime.utc(2026, 8, 11),
+      ),
+    );
+  }
+
+  @override
+  Future<ShowDetailsEpisodeProgress> markEpisodeWatched({
+    required String episodeId,
+    DateTime? watchedAt,
+  }) {
+    return _updateCompleter.future;
+  }
+}
+
+final class _RetryEpisodeUpdateRepository
+    extends _FakeShowDetailsSeasonsRepository {
+  int markWatchedCalls = 0;
+  int markUnwatchedCalls = 0;
+
+  @override
+  Future<ShowDetailsEpisodeProgress> markEpisodeWatched({
+    required String episodeId,
+    DateTime? watchedAt,
+  }) async {
+    markWatchedCalls++;
+
+    if (markWatchedCalls == 1) {
+      throw const AppException.connection();
+    }
+
+    return ShowDetailsEpisodeProgress(
+      id: 'progress-$episodeId',
+      episodeId: episodeId,
+      isWatched: true,
+      watchedAt: DateTime.utc(2026, 8, 11),
+    );
+  }
+
+  @override
+  Future<ShowDetailsEpisodeProgress> markEpisodeUnwatched({
+    required String episodeId,
+  }) async {
+    markUnwatchedCalls++;
+
+    if (markUnwatchedCalls == 1) {
+      throw const AppException.connection();
+    }
+
+    return ShowDetailsEpisodeProgress(
+      id: 'progress-$episodeId',
+      episodeId: episodeId,
+      isWatched: false,
+    );
   }
 }

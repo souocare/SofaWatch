@@ -7,6 +7,7 @@ import 'package:sofawatch/features/show_details/domain/models/show_details_episo
 import 'package:sofawatch/features/show_details/domain/models/show_details_local_season.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_seasons_bootstrap.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
 
 void main() {
   group('ApiShowDetailsSeasonsRepository', () {
@@ -728,6 +729,193 @@ void main() {
 
       expect(
         repository.getSeasonProgress(seasonId: 'season-1-uuid'),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
+
+    test('loads Episode progress for a Season', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                expect(options.method, 'GET');
+                expect(
+                  options.path,
+                  '/seasons/season-1-uuid/episodes/progress',
+                );
+
+                handler.resolve(
+                  Response<List<dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <dynamic>[
+                      <String, dynamic>{
+                        'id': 'progress-1-uuid',
+                        'episode_id': 'episode-1-uuid',
+                        'is_watched': true,
+                        'watched_at': '2026-08-10T21:30:00Z',
+                      },
+                      <String, dynamic>{
+                        'id': 'progress-2-uuid',
+                        'episode_id': 'episode-2-uuid',
+                        'is_watched': false,
+                        'watched_at': null,
+                      },
+                    ],
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiShowDetailsSeasonsRepository repository =
+          ApiShowDetailsSeasonsRepository(
+            ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+          );
+
+      final List<ShowDetailsEpisodeProgress> result = await repository
+          .getEpisodeProgress(seasonId: 'season-1-uuid');
+
+      expect(result, hasLength(2));
+
+      expect(result[0].id, 'progress-1-uuid');
+      expect(result[0].episodeId, 'episode-1-uuid');
+      expect(result[0].isWatched, isTrue);
+      expect(result[0].watchedAt, DateTime.utc(2026, 8, 10, 21, 30));
+
+      expect(result[1].id, 'progress-2-uuid');
+      expect(result[1].episodeId, 'episode-2-uuid');
+      expect(result[1].isWatched, isFalse);
+      expect(result[1].watchedAt, isNull);
+    });
+
+    test('marks an Episode as watched', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                expect(options.method, 'POST');
+
+                expect(options.path, '/episodes/episode-1-uuid/watched');
+
+                expect(options.data, <String, dynamic>{
+                  'watched_at': '2026-08-11T19:30:00.000Z',
+                });
+
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <String, dynamic>{
+                      'id': 'progress-1-uuid',
+                      'episode_id': 'episode-1-uuid',
+                      'is_watched': true,
+                      'watched_at': '2026-08-11T19:30:00Z',
+                    },
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiShowDetailsSeasonsRepository repository =
+          ApiShowDetailsSeasonsRepository(
+            ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+          );
+
+      final ShowDetailsEpisodeProgress result = await repository
+          .markEpisodeWatched(
+            episodeId: 'episode-1-uuid',
+            watchedAt: DateTime.utc(2026, 8, 11, 19, 30),
+          );
+
+      expect(result.episodeId, 'episode-1-uuid');
+      expect(result.isWatched, isTrue);
+      expect(result.watchedAt, DateTime.utc(2026, 8, 11, 19, 30));
+    });
+
+    test('marks an Episode as unwatched', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                expect(options.method, 'DELETE');
+
+                expect(options.path, '/episodes/episode-1-uuid/watched');
+
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <String, dynamic>{
+                      'id': 'progress-1-uuid',
+                      'episode_id': 'episode-1-uuid',
+                      'is_watched': false,
+                      'watched_at': null,
+                    },
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiShowDetailsSeasonsRepository repository =
+          ApiShowDetailsSeasonsRepository(
+            ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+          );
+
+      final ShowDetailsEpisodeProgress result = await repository
+          .markEpisodeUnwatched(episodeId: 'episode-1-uuid');
+
+      expect(result.episodeId, 'episode-1-uuid');
+      expect(result.isWatched, isFalse);
+      expect(result.watchedAt, isNull);
+    });
+
+    test('rejects watched Episode progress without watched_at', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                handler.resolve(
+                  Response<List<dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <dynamic>[
+                      <String, dynamic>{
+                        'id': 'progress-1-uuid',
+                        'episode_id': 'episode-1-uuid',
+                        'is_watched': true,
+                        'watched_at': null,
+                      },
+                    ],
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiShowDetailsSeasonsRepository repository =
+          ApiShowDetailsSeasonsRepository(
+            ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+          );
+
+      expect(
+        repository.getEpisodeProgress(seasonId: 'season-1-uuid'),
         throwsA(
           isA<AppException>().having(
             (AppException error) => error.type,

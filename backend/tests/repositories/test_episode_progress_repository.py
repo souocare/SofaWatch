@@ -1486,3 +1486,103 @@ def test_get_watched_counts_by_show_id_isolated_by_user(
     assert result == {
         season.id: (1, 1),
     }
+
+def test_list_by_user_and_season_returns_only_requested_season_progress(
+    db_session: Session,
+) -> None:
+    """Return progress entries only for the requested user and season."""
+
+    user = create_user(db_session)
+
+    other_user = create_user(
+        db_session,
+        display_name="Other User",
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season_one = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    season_two = create_season(
+        db_session,
+        show=show,
+        tmdb_id=200001,
+        season_number=2,
+        title="Season 2",
+    )
+
+    episode_one = create_episode(
+        db_session,
+        season=season_one,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Episode 1",
+    )
+
+    episode_two = create_episode(
+        db_session,
+        season=season_one,
+        tmdb_id=2102,
+        episode_number=2,
+        title="Episode 2",
+    )
+
+    episode_other_season = create_episode(
+        db_session,
+        season=season_two,
+        tmdb_id=2201,
+        episode_number=1,
+        title="Season 2 Episode 1",
+    )
+
+    first_progress = create_progress(
+        db_session,
+        user=user,
+        episode=episode_one,
+        is_watched=True,
+    )
+
+    second_progress = create_progress(
+        db_session,
+        user=user,
+        episode=episode_two,
+        is_watched=False,
+    )
+
+    create_progress(
+        db_session,
+        user=user,
+        episode=episode_other_season,
+        is_watched=True,
+    )
+
+    create_progress(
+        db_session,
+        user=other_user,
+        episode=episode_one,
+        is_watched=True,
+    )
+
+    repository = EpisodeProgressRepository(
+        db_session,
+    )
+
+    result = repository.list_by_user_and_season(
+        user_id=user.id,
+        season_id=season_one.id,
+    )
+
+    assert result == [
+        first_progress,
+        second_progress,
+    ]

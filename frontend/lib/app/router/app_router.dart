@@ -277,6 +277,22 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                     )..loadInitialProgress();
                   },
                 ),
+                BlocProvider<LibraryCubit>(
+                  create: (BuildContext context) {
+                    final LibraryCubit cubit = LibraryCubit(
+                      ApiLibraryRepository(apiClient),
+                    );
+
+                    cubit.loadShowState(
+                      LibraryMediaKey(
+                        mediaType: LibraryMediaType.show,
+                        tmdbId: tmdbId,
+                      ),
+                    );
+
+                    return cubit;
+                  },
+                ),
               ],
               child: const ShowDetailsPage(),
             ),

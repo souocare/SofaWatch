@@ -6,6 +6,7 @@ import 'package:sofawatch/features/show_details/domain/models/show_details_local
 import 'package:sofawatch/features/show_details/domain/repositories/show_details_seasons_repository.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_seasons_bootstrap.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
 
 final class ApiShowDetailsSeasonsRepository
     implements ShowDetailsSeasonsRepository {
@@ -167,6 +168,141 @@ final class ApiShowDetailsSeasonsRepository
     } catch (error) {
       throw AppException.invalidData(originalError: error);
     }
+  }
+
+  @override
+  Future<List<ShowDetailsEpisodeProgress>> getEpisodeProgress({
+    required String seasonId,
+  }) async {
+    try {
+      final Response<dynamic> progressResponse = await _apiClient.get<dynamic>(
+        '/seasons/$seasonId/episodes/progress',
+      );
+
+      final Object? response = progressResponse.data;
+
+      if (response is! List<dynamic>) {
+        throw const FormatException(
+          'Invalid Season Episode progress response.',
+        );
+      }
+
+      return response
+          .map((dynamic rawProgress) {
+            if (rawProgress is! Map<String, dynamic>) {
+              throw const FormatException('Invalid Episode progress response.');
+            }
+
+            return _episodeProgressFromJson(rawProgress);
+          })
+          .toList(growable: false);
+    } on AppException {
+      rethrow;
+    } catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  @override
+  Future<ShowDetailsEpisodeProgress> markEpisodeWatched({
+    required String episodeId,
+    DateTime? watchedAt,
+  }) async {
+    try {
+      final Response<dynamic> progressResponse = await _apiClient.post<dynamic>(
+        '/episodes/$episodeId/watched',
+        data: <String, dynamic>{
+          'watched_at': watchedAt?.toUtc().toIso8601String(),
+        },
+      );
+
+      final Object? response = progressResponse.data;
+
+      if (response is! Map<String, dynamic>) {
+        throw const FormatException('Invalid Episode progress response.');
+      }
+
+      return _episodeProgressFromJson(response);
+    } on AppException {
+      rethrow;
+    } catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  @override
+  Future<ShowDetailsEpisodeProgress> markEpisodeUnwatched({
+    required String episodeId,
+  }) async {
+    try {
+      final Response<dynamic> progressResponse = await _apiClient
+          .delete<dynamic>('/episodes/$episodeId/watched');
+
+      final Object? response = progressResponse.data;
+
+      if (response is! Map<String, dynamic>) {
+        throw const FormatException('Invalid Episode progress response.');
+      }
+
+      return _episodeProgressFromJson(response);
+    } on AppException {
+      rethrow;
+    } catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  ShowDetailsEpisodeProgress _episodeProgressFromJson(
+    Map<String, dynamic> json,
+  ) {
+    final Object? id = json['id'];
+    final Object? episodeId = json['episode_id'];
+    final Object? isWatched = json['is_watched'];
+
+    if (id is! String ||
+        id.isEmpty ||
+        episodeId is! String ||
+        episodeId.isEmpty ||
+        isWatched is! bool) {
+      throw const FormatException('Invalid Episode progress data.');
+    }
+
+    final DateTime? watchedAt = _nullableDateTime(json['watched_at']);
+
+    if (isWatched && watchedAt == null) {
+      throw const FormatException(
+        'Watched Episode progress must contain watched_at.',
+      );
+    }
+
+    if (!isWatched && watchedAt != null) {
+      throw const FormatException(
+        'Unwatched Episode progress cannot contain watched_at.',
+      );
+    }
+
+    return ShowDetailsEpisodeProgress(
+      id: id,
+      episodeId: episodeId,
+      isWatched: isWatched,
+      watchedAt: watchedAt,
+    );
+  }
+
+  DateTime? _nullableDateTime(Object? value) {
+    final String? raw = _nullableString(value);
+
+    if (raw == null) {
+      return null;
+    }
+
+    final DateTime? parsed = DateTime.tryParse(raw);
+
+    if (parsed == null) {
+      throw const FormatException('Invalid Episode progress datetime.');
+    }
+
+    return parsed;
   }
 
   ShowDetailsSeasonProgress _seasonProgressFromJson(Map<String, dynamic> json) {

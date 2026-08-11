@@ -10,6 +10,7 @@ import 'package:sofawatch/features/show_details/domain/models/show_details_genre
 import 'package:sofawatch/features/show_details/domain/models/show_details_network.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_season.dart';
 import 'package:sofawatch/features/show_details/presentation/widgets/show_details_seasons_section.dart';
+import 'package:sofawatch/features/show_details/presentation/widgets/show_details_library_action.dart';
 
 class ShowDetailsPage extends StatelessWidget {
   const ShowDetailsPage({super.key});
@@ -71,6 +72,9 @@ class _ShowDetailsContent extends StatelessWidget {
                       children: <Widget>[
                         if (_hasTagline(details)) ...<Widget>[
                           _Tagline(tagline: details.tagline!),
+                          const SizedBox(height: AppSpacing.xxl),
+                          ShowDetailsLibraryAction(tmdbId: details.tmdbId),
+
                           const SizedBox(height: AppSpacing.xxl),
                         ],
 

@@ -1,6 +1,7 @@
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_seasons_bootstrap.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
 
 abstract interface class ShowDetailsSeasonsRepository {
   Future<ShowDetailsSeasonsBootstrap> resolveLocalSeasons({
@@ -17,5 +18,18 @@ abstract interface class ShowDetailsSeasonsRepository {
 
   Future<ShowDetailsSeasonProgress> getSeasonProgress({
     required String seasonId,
+  });
+
+  Future<List<ShowDetailsEpisodeProgress>> getEpisodeProgress({
+    required String seasonId,
+  });
+
+  Future<ShowDetailsEpisodeProgress> markEpisodeWatched({
+    required String episodeId,
+    DateTime? watchedAt,
+  });
+
+  Future<ShowDetailsEpisodeProgress> markEpisodeUnwatched({
+    required String episodeId,
   });
 }

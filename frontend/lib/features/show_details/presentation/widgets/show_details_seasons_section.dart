@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_season_state.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_seasons_cubit.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_season.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
+import 'package:sofawatch/features/show_details/application/cubit/show_details_episode_operation.dart';
 
 class ShowDetailsSeasonsSection extends StatelessWidget {
   const ShowDetailsSeasonsSection({required this.seasons, super.key});
@@ -14,41 +17,95 @@ class ShowDetailsSeasonsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      key: const ValueKey<String>('show-details-seasons-section'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          'Seasons',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+    return BlocConsumer<
+      ShowDetailsSeasonsCubit,
+      Map<int, ShowDetailsSeasonState>
+    >(
+      listenWhen:
+          (
+            Map<int, ShowDetailsSeasonState> previous,
+            Map<int, ShowDetailsSeasonState> current,
+          ) {
+            return _findNewEpisodeFailure(previous, current) != null;
+          },
+      listener:
+          (BuildContext context, Map<int, ShowDetailsSeasonState> current) {
+            final _EpisodeFailure? failure = _findCurrentEpisodeFailure(
+              current,
+            );
+
+            if (failure == null) {
+              return;
+            }
+
+            _showEpisodeFailure(context, failure: failure);
+          },
+      builder: (BuildContext context, Map<int, ShowDetailsSeasonState> state) {
+        return Column(
+          key: const ValueKey<String>('show-details-seasons-section'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'Seasons',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+
+            Column(
+              children: <Widget>[
+                for (
+                  int index = 0;
+                  index < seasons.length;
+                  index++
+                ) ...<Widget>[
+                  _SeasonAccordion(
+                    season: seasons[index],
+                    state:
+                        state[seasons[index].seasonNumber] ??
+                        const ShowDetailsSeasonState(),
+                  ),
+                  if (index != seasons.length - 1)
+                    const SizedBox(height: AppSpacing.md),
+                ],
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEpisodeFailure(
+    BuildContext context, {
+    required _EpisodeFailure failure,
+  }) {
+    final AppException? error = failure.operation.error;
+
+    if (error == null) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        key: ValueKey<String>(
+          'show-details-episode-update-failure-${failure.episodeId}',
         ),
-        const SizedBox(height: AppSpacing.lg),
-        BlocBuilder<ShowDetailsSeasonsCubit, Map<int, ShowDetailsSeasonState>>(
-          builder:
-              (BuildContext context, Map<int, ShowDetailsSeasonState> state) {
-                return Column(
-                  children: <Widget>[
-                    for (
-                      int index = 0;
-                      index < seasons.length;
-                      index++
-                    ) ...<Widget>[
-                      _SeasonAccordion(
-                        season: seasons[index],
-                        state:
-                            state[seasons[index].seasonNumber] ??
-                            const ShowDetailsSeasonState(),
-                      ),
-                      if (index != seasons.length - 1)
-                        const SizedBox(height: AppSpacing.md),
-                    ],
-                  ],
-                );
-              },
-        ),
-      ],
+        content: const Text('Could not update this episode. Please try again.'),
+        action: error.canRetry
+            ? SnackBarAction(
+                label: 'Retry',
+                onPressed: () {
+                  context.read<ShowDetailsSeasonsCubit>().retryEpisodeUpdate(
+                    seasonNumber: failure.seasonNumber,
+                    episodeId: failure.episodeId,
+                  );
+                },
+              )
+            : null,
+      ),
     );
   }
 }
@@ -223,6 +280,8 @@ class _ExpandedSeasonContent extends StatelessWidget {
     return _EpisodeList(
       seasonNumber: season.seasonNumber,
       episodes: state.episodes,
+      episodeProgressById: state.episodeProgressById,
+      episodeOperationsById: state.episodeOperationsById,
     );
   }
 }
@@ -300,10 +359,17 @@ class _SeasonEmpty extends StatelessWidget {
 }
 
 class _EpisodeList extends StatelessWidget {
-  const _EpisodeList({required this.seasonNumber, required this.episodes});
+  const _EpisodeList({
+    required this.seasonNumber,
+    required this.episodes,
+    required this.episodeProgressById,
+    required this.episodeOperationsById,
+  });
 
   final int seasonNumber;
   final List<ShowDetailsEpisode> episodes;
+  final Map<String, ShowDetailsEpisodeProgress> episodeProgressById;
+  final Map<String, ShowDetailsEpisodeOperation> episodeOperationsById;
 
   @override
   Widget build(BuildContext context) {
@@ -312,7 +378,14 @@ class _EpisodeList extends StatelessWidget {
       children: <Widget>[
         const Divider(height: 1),
         for (int index = 0; index < episodes.length; index++) ...<Widget>[
-          _EpisodeRow(seasonNumber: seasonNumber, episode: episodes[index]),
+          _EpisodeRow(
+            seasonNumber: seasonNumber,
+            episode: episodes[index],
+            progress: episodeProgressById[episodes[index].id],
+            operation:
+                episodeOperationsById[episodes[index].id] ??
+                const ShowDetailsEpisodeOperation.idle(),
+          ),
           if (index != episodes.length - 1)
             const Divider(
               height: 1,
@@ -326,10 +399,17 @@ class _EpisodeList extends StatelessWidget {
 }
 
 class _EpisodeRow extends StatelessWidget {
-  const _EpisodeRow({required this.seasonNumber, required this.episode});
+  const _EpisodeRow({
+    required this.seasonNumber,
+    required this.episode,
+    required this.progress,
+    required this.operation,
+  });
 
   final int seasonNumber;
   final ShowDetailsEpisode episode;
+  final ShowDetailsEpisodeProgress? progress;
+  final ShowDetailsEpisodeOperation operation;
 
   @override
   Widget build(BuildContext context) {
@@ -353,7 +433,12 @@ class _EpisodeRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          _EpisodeStatusButton(episode: episode),
+          _EpisodeStatusButton(
+            seasonNumber: seasonNumber,
+            episode: episode,
+            progress: progress,
+            operation: operation,
+          ),
         ],
       ),
     );
@@ -402,10 +487,13 @@ class _EpisodeInformation extends StatelessWidget {
         'S${seasonNumber.toString().padLeft(2, '0')}'
         'E${episode.episodeNumber.toString().padLeft(2, '0')}';
 
+    final bool isUpcoming = _isUpcomingEpisode(episode);
+
     final List<String> metadata = <String>[
       if (episode.runtime != null) '${episode.runtime} min',
       if (episode.airDate != null)
         MaterialLocalizations.of(context).formatMediumDate(episode.airDate!),
+      if (isUpcoming) 'Upcoming',
     ];
 
     return Column(
@@ -445,23 +533,199 @@ class _EpisodeInformation extends StatelessWidget {
 }
 
 class _EpisodeStatusButton extends StatelessWidget {
-  const _EpisodeStatusButton({required this.episode});
+  const _EpisodeStatusButton({
+    required this.seasonNumber,
+    required this.episode,
+    required this.progress,
+    required this.operation,
+  });
 
+  final int seasonNumber;
   final ShowDetailsEpisode episode;
+  final ShowDetailsEpisodeProgress? progress;
+  final ShowDetailsEpisodeOperation operation;
 
   @override
   Widget build(BuildContext context) {
-    /*
-     * O estado watched ainda será ligado ao backend na próxima passagem.
-     *
-     * Já deixamos o elemento visual no layout para não termos de alterar
-     * novamente a geometria de cada episode row.
-     */
-    return IconButton(
-      key: ValueKey<String>('show-details-episode-watched-${episode.id}'),
-      onPressed: null,
-      tooltip: 'Not watched',
-      icon: const Icon(Icons.radio_button_unchecked_rounded),
+    final bool isWatched = progress?.isWatched ?? false;
+    final bool isUpcoming = _isUpcomingEpisode(episode);
+
+    if (operation.isUpdating) {
+      return SizedBox(
+        key: ValueKey<String>('show-details-episode-updating-${episode.id}'),
+        width: 48,
+        height: 48,
+        child: const Padding(
+          padding: EdgeInsets.all(13),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        if (isUpcoming)
+          IconButton(
+            key: ValueKey<String>('show-details-episode-watched-${episode.id}'),
+            onPressed: null,
+            tooltip: 'Not released yet',
+            icon: const Icon(Icons.schedule_rounded),
+          )
+        else if (isWatched)
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: <Widget>[
+              IconButton(
+                key: ValueKey<String>(
+                  'show-details-episode-watched-${episode.id}',
+                ),
+                onPressed: () {
+                  context.read<ShowDetailsSeasonsCubit>().markEpisodeUnwatched(
+                    seasonNumber: seasonNumber,
+                    episodeId: episode.id,
+                  );
+                },
+                tooltip: 'Mark as not watched',
+                icon: const Icon(Icons.check_circle_rounded),
+              ),
+              IconButton(
+                key: ValueKey<String>(
+                  'show-details-episode-rewatch-${episode.id}',
+                ),
+                onPressed: () {
+                  context.read<ShowDetailsSeasonsCubit>().rewatchEpisode(
+                    seasonNumber: seasonNumber,
+                    episodeId: episode.id,
+                  );
+                },
+                tooltip: 'Watched again',
+                icon: const Icon(Icons.replay_rounded),
+              ),
+            ],
+          )
+        else
+          IconButton(
+            key: ValueKey<String>('show-details-episode-watched-${episode.id}'),
+            onPressed: () {
+              context.read<ShowDetailsSeasonsCubit>().markEpisodeWatched(
+                seasonNumber: seasonNumber,
+                episodeId: episode.id,
+              );
+            },
+            tooltip: 'Mark as watched',
+            icon: const Icon(Icons.radio_button_unchecked_rounded),
+          ),
+
+        if (isWatched && progress?.watchedAt != null)
+          Text(
+            MaterialLocalizations.of(
+              context,
+            ).formatMediumDate(progress!.watchedAt!.toLocal()),
+            key: ValueKey<String>(
+              'show-details-episode-watched-date-${episode.id}',
+            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+          ),
+      ],
     );
   }
+}
+
+_EpisodeFailure? _findNewEpisodeFailure(
+  Map<int, ShowDetailsSeasonState> previous,
+  Map<int, ShowDetailsSeasonState> current,
+) {
+  for (final MapEntry<int, ShowDetailsSeasonState> seasonEntry
+      in current.entries) {
+    final int seasonNumber = seasonEntry.key;
+    final ShowDetailsSeasonState currentSeason = seasonEntry.value;
+
+    final ShowDetailsSeasonState previousSeason =
+        previous[seasonNumber] ?? const ShowDetailsSeasonState();
+
+    for (final MapEntry<String, ShowDetailsEpisodeOperation> operationEntry
+        in currentSeason.episodeOperationsById.entries) {
+      final String episodeId = operationEntry.key;
+      final ShowDetailsEpisodeOperation currentOperation = operationEntry.value;
+
+      if (!currentOperation.hasFailed) {
+        continue;
+      }
+
+      final ShowDetailsEpisodeOperation previousOperation = previousSeason
+          .operationForEpisode(episodeId);
+
+      if (previousOperation == currentOperation) {
+        continue;
+      }
+
+      return _EpisodeFailure(
+        seasonNumber: seasonNumber,
+        episodeId: episodeId,
+        operation: currentOperation,
+      );
+    }
+  }
+
+  return null;
+}
+
+_EpisodeFailure? _findCurrentEpisodeFailure(
+  Map<int, ShowDetailsSeasonState> state,
+) {
+  for (final MapEntry<int, ShowDetailsSeasonState> seasonEntry
+      in state.entries) {
+    for (final MapEntry<String, ShowDetailsEpisodeOperation> operationEntry
+        in seasonEntry.value.episodeOperationsById.entries) {
+      if (!operationEntry.value.hasFailed) {
+        continue;
+      }
+
+      return _EpisodeFailure(
+        seasonNumber: seasonEntry.key,
+        episodeId: operationEntry.key,
+        operation: operationEntry.value,
+      );
+    }
+  }
+
+  return null;
+}
+
+final class _EpisodeFailure {
+  const _EpisodeFailure({
+    required this.seasonNumber,
+    required this.episodeId,
+    required this.operation,
+  });
+
+  final int seasonNumber;
+  final String episodeId;
+  final ShowDetailsEpisodeOperation operation;
+}
+
+bool _isUpcomingEpisode(ShowDetailsEpisode episode) {
+  final DateTime? airDate = episode.airDate;
+
+  if (airDate == null) {
+    return false;
+  }
+
+  final DateTime now = DateTime.now();
+
+  final DateTime today = DateTime(now.year, now.month, now.day);
+
+  final DateTime episodeDate = DateTime(
+    airDate.year,
+    airDate.month,
+    airDate.day,
+  );
+
+  return episodeDate.isAfter(today);
 }

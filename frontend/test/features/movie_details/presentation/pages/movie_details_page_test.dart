@@ -1284,6 +1284,11 @@ final class _FakeMovieDetailsLibraryRepository implements LibraryRepository {
   }
 
   @override
+  Future<LibraryEntry?> getShowEntry(String showId) async {
+    return null;
+  }
+
+  @override
   Future<LibraryEntry?> getMovieEntry(String movieId) async {
     return null;
   }

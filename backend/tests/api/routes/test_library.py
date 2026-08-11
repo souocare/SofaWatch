@@ -1014,3 +1014,64 @@ def test_update_movie_library_status_rejects_invalid_status(
     )
 
     assert response.status_code == 422
+
+def test_get_show_library_entry(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return the current user's library entry for a TV series."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    entry = create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    response = client.get(
+        f"/api/v1/library/shows/{show.id}",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["id"] == str(entry.id)
+    assert body["show_id"] == str(show.id)
+    assert body["movie_id"] is None
+    assert body["status"] == "watching"
+
+def test_get_show_library_entry_returns_404_when_missing(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return HTTP 404 when the TV series is not in the library."""
+
+    create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    response = client.get(
+        f"/api/v1/library/shows/{show.id}",
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "error": {
+            "code": "library_entry_not_found",
+            "message": "TV series is not in the library.",
+        }
+    }

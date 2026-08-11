@@ -14,52 +14,59 @@ final class LibraryCubit extends Cubit<LibraryState> {
 
   final LibraryRepository _repository;
 
-  Future<void> loadMovieState(LibraryMediaKey key) async {
-    if (key.mediaType != LibraryMediaType.movie) {
-      return;
+  Future<void> loadShowState(LibraryMediaKey key) {
+    if (key.mediaType != LibraryMediaType.show) {
+      return Future<void>.value();
     }
 
+    return _loadMediaState(key);
+  }
+
+  Future<void> loadMovieState(LibraryMediaKey key) {
+    if (key.mediaType != LibraryMediaType.movie) {
+      return Future<void>.value();
+    }
+
+    return _loadMediaState(key);
+  }
+
+  Future<void> _loadMediaState(LibraryMediaKey key) async {
     final LibraryItemOperation currentOperation = state.operationFor(key);
 
     /*
    * Do not overwrite an operation that may already have been performed
-   * while the initial state was being resolved.
+   * while the initial Library state is being resolved.
    */
-    if (currentOperation.isAdding ||
-        currentOperation.isAdded ||
-        currentOperation.isRemoving ||
-        currentOperation.isUpdating) {
+    if (_protectsResolvedState(currentOperation)) {
       return;
     }
 
     try {
-      final ImportedLibraryMedia movie = await _repository.importMovieByTmdbId(
-        key.tmdbId,
-      );
+      final ImportedLibraryMedia media = await _importMedia(key);
 
-      final LibraryEntry? entry = await _repository.getMovieEntry(movie.id);
+      final LibraryEntry? entry = await switch (media.mediaType) {
+        LibraryMediaType.show => _repository.getShowEntry(media.id),
+        LibraryMediaType.movie => _repository.getMovieEntry(media.id),
+      };
 
       if (isClosed) {
         return;
       }
 
       /*
-     * Check the state again because another operation may have completed
-     * while the initial request was running.
+     * Another operation may have completed while the requests above
+     * were running. Never overwrite that newer state.
      */
       final LibraryItemOperation latestOperation = state.operationFor(key);
 
-      if (latestOperation.isAdding ||
-          latestOperation.isAdded ||
-          latestOperation.isRemoving ||
-          latestOperation.isUpdating) {
+      if (_protectsResolvedState(latestOperation)) {
         return;
       }
 
       if (entry == null) {
         /*
-       * Idle is already the correct state for a Movie that is not
-       * currently in the Watchlist.
+       * Idle already represents media that is not currently
+       * in the user's Library.
        */
         return;
       }
@@ -67,17 +74,22 @@ final class LibraryCubit extends Cubit<LibraryState> {
       emit(state.withOperation(key, LibraryItemOperation.added(entry: entry)));
     } on AppException {
       /*
-     * Loading the existing Watchlist state is supplementary.
-     *
-     * A failure here must not prevent Movie Details from opening.
-     * Add/remove operations still expose their own failures.
+     * Resolving the initial Library state is supplementary.
+     * Details must remain usable if it fails.
      */
     } on Object {
       /*
-     * Same reasoning as above: Movie Details should remain usable even
-     * when its initial Watchlist state cannot be resolved.
+     * Unexpected failures here must also not prevent Details
+     * from opening.
      */
     }
+  }
+
+  bool _protectsResolvedState(LibraryItemOperation operation) {
+    return operation.isAdding ||
+        operation.isAdded ||
+        operation.isRemoving ||
+        operation.isUpdating;
   }
 
   Future<void> addToLibrary(LibraryMediaKey key) async {

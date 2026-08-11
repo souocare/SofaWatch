@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from uuid import uuid4
 
 import pytest
@@ -10,6 +10,8 @@ from app.models.season import Season
 from app.models.show import Show
 from typing import cast
 from uuid import UUID
+from app.models.episode_progress import EpisodeProgress
+from app.models.user import User
 
 from fastapi import FastAPI
 
@@ -65,6 +67,45 @@ def create_local_season(
     db_session.refresh(season)
 
     return season
+
+def create_local_user(
+    db_session: Session,
+) -> User:
+    """Create and persist a user for Season route tests."""
+
+    user = User(
+        display_name="Local User",
+        is_local=True,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    return user
+
+def create_episode_progress(
+    db_session: Session,
+    *,
+    user: User,
+    episode: Episode,
+    is_watched: bool,
+    watched_at: datetime | None = None,
+) -> EpisodeProgress:
+    """Create and persist episode viewing progress."""
+
+    progress = EpisodeProgress(
+        user_id=user.id,
+        episode_id=episode.id,
+        is_watched=is_watched,
+        watched_at=watched_at,
+    )
+
+    db_session.add(progress)
+    db_session.commit()
+    db_session.refresh(progress)
+
+    return progress
 
 class FakeSeasonEpisodeSyncService:
     """Controllable Season Episode sync service for route tests."""
@@ -635,4 +676,99 @@ def test_sync_season_episodes_rejects_invalid_season_id(
     )
 
     assert response.status_code == 422
+
+
+
+def test_list_season_episode_progress_returns_user_progress(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return existing episode progress for the current user and season."""
+
+    user = create_local_user(db_session)
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    watched_episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2102,
+        episode_number=2,
+        title="Half Loop",
+    )
+
+    watched_at = datetime(
+        2026,
+        8,
+        10,
+        21,
+        30,
+        tzinfo=UTC,
+    )
+
+    progress = create_episode_progress(
+        db_session,
+        user=user,
+        episode=watched_episode,
+        is_watched=True,
+        watched_at=watched_at,
+    )
+
+    response = client.get(
+        f"/api/v1/seasons/{season.id}/episodes/progress",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+
+    assert body[0]["id"] == str(progress.id)
+    assert body[0]["episode_id"] == str(watched_episode.id)
+    assert body[0]["is_watched"] is True
+    assert body[0]["watched_at"] is not None
+
+
+def test_list_season_episode_progress_returns_404_when_season_missing(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return HTTP 404 when the requested season does not exist."""
+
+    create_local_user(db_session)
+
+    response = client.get(
+        f"/api/v1/seasons/{uuid4()}/episodes/progress",
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "error": {
+            "code": "season_not_found",
+            "message": "TV season not found.",
+        }
+    }
+
 

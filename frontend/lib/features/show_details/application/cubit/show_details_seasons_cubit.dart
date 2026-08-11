@@ -6,6 +6,8 @@ import 'package:sofawatch/features/show_details/domain/models/show_details_local
 import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_seasons_bootstrap.dart';
 import 'package:sofawatch/features/show_details/domain/repositories/show_details_seasons_repository.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
+import 'package:sofawatch/features/show_details/application/cubit/show_details_episode_operation.dart';
 
 final class ShowDetailsSeasonsCubit
     extends Cubit<Map<int, ShowDetailsSeasonState>> {
@@ -71,6 +73,210 @@ final class ShowDetailsSeasonsCubit
        * is expanded.
        */
     }
+  }
+
+  Future<void> markEpisodeWatched({
+    required int seasonNumber,
+    required String episodeId,
+  }) {
+    return _updateEpisodeWatchedState(
+      seasonNumber: seasonNumber,
+      episodeId: episodeId,
+      watched: true,
+      intent: ShowDetailsEpisodeOperationIntent.setWatchedState,
+    );
+  }
+
+  Future<void> markEpisodeUnwatched({
+    required int seasonNumber,
+    required String episodeId,
+  }) {
+    return _updateEpisodeWatchedState(
+      seasonNumber: seasonNumber,
+      episodeId: episodeId,
+      watched: false,
+      intent: ShowDetailsEpisodeOperationIntent.setWatchedState,
+    );
+  }
+
+  Future<void> rewatchEpisode({
+    required int seasonNumber,
+    required String episodeId,
+  }) {
+    return _updateEpisodeWatchedState(
+      seasonNumber: seasonNumber,
+      episodeId: episodeId,
+      watched: true,
+      intent: ShowDetailsEpisodeOperationIntent.rewatch,
+    );
+  }
+
+  Future<void> _updateEpisodeWatchedState({
+    required int seasonNumber,
+    required String episodeId,
+    required bool watched,
+    required ShowDetailsEpisodeOperationIntent intent,
+  }) async {
+    final ShowDetailsSeasonState current =
+        state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+    final ShowDetailsEpisodeOperation operation = current.operationForEpisode(
+      episodeId,
+    );
+
+    if (operation.isUpdating) {
+      return;
+    }
+
+    final ShowDetailsEpisodeProgress? currentProgress =
+        current.episodeProgressById[episodeId];
+
+    final bool currentlyWatched = currentProgress?.isWatched ?? false;
+
+    switch (intent) {
+      case ShowDetailsEpisodeOperationIntent.setWatchedState:
+        if (currentlyWatched == watched) {
+          return;
+        }
+
+      case ShowDetailsEpisodeOperationIntent.rewatch:
+        /*
+       * Rewatch only makes sense for an Episode that is already watched.
+       *
+       * The backend keeps it watched and updates watched_at.
+       */
+        if (!currentlyWatched) {
+          return;
+        }
+    }
+
+    final Map<String, ShowDetailsEpisodeOperation> updatingOperations =
+        <String, ShowDetailsEpisodeOperation>{
+          ...current.episodeOperationsById,
+          episodeId: ShowDetailsEpisodeOperation.updating(
+            targetWatched: watched,
+            intent: intent,
+          ),
+        };
+
+    _setSeasonState(
+      seasonNumber,
+      current.copyWith(episodeOperationsById: updatingOperations),
+    );
+
+    try {
+      final ShowDetailsEpisodeProgress updatedProgress = watched
+          ? await _repository.markEpisodeWatched(episodeId: episodeId)
+          : await _repository.markEpisodeUnwatched(episodeId: episodeId);
+
+      final ShowDetailsLocalSeason? localSeason = _findSeason(
+        _bootstrap?.seasons ?? const <ShowDetailsLocalSeason>[],
+        seasonNumber,
+      );
+
+      if (localSeason == null) {
+        throw const AppException.invalidData();
+      }
+
+      final ShowDetailsSeasonProgress seasonProgress = await _repository
+          .getSeasonProgress(seasonId: localSeason.id);
+
+      if (isClosed) {
+        return;
+      }
+
+      final ShowDetailsSeasonState latest =
+          state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+      final Map<String, ShowDetailsEpisodeProgress> nextProgressById =
+          <String, ShowDetailsEpisodeProgress>{
+            ...latest.episodeProgressById,
+            episodeId: updatedProgress,
+          };
+
+      final Map<String, ShowDetailsEpisodeOperation> nextOperations =
+          <String, ShowDetailsEpisodeOperation>{
+            ...latest.episodeOperationsById,
+            episodeId: const ShowDetailsEpisodeOperation.idle(),
+          };
+
+      _setSeasonState(
+        seasonNumber,
+        latest.copyWith(
+          episodeProgressById: nextProgressById,
+          progress: seasonProgress,
+          episodeOperationsById: nextOperations,
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      final ShowDetailsSeasonState latest =
+          state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+      _setSeasonState(
+        seasonNumber,
+        latest.copyWith(
+          episodeOperationsById: <String, ShowDetailsEpisodeOperation>{
+            ...latest.episodeOperationsById,
+            episodeId: ShowDetailsEpisodeOperation.failure(
+              error,
+              targetWatched: watched,
+              intent: intent,
+            ),
+          },
+        ),
+      );
+    } catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      final ShowDetailsSeasonState latest =
+          state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+      _setSeasonState(
+        seasonNumber,
+        latest.copyWith(
+          episodeOperationsById: <String, ShowDetailsEpisodeOperation>{
+            ...latest.episodeOperationsById,
+            episodeId: ShowDetailsEpisodeOperation.failure(
+              AppException.unknown(originalError: error),
+              targetWatched: watched,
+              intent: intent,
+            ),
+          },
+        ),
+      );
+    }
+  }
+
+  Future<void> retryEpisodeUpdate({
+    required int seasonNumber,
+    required String episodeId,
+  }) async {
+    final ShowDetailsSeasonState current =
+        state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+    final ShowDetailsEpisodeOperation operation = current.operationForEpisode(
+      episodeId,
+    );
+
+    final bool? targetWatched = operation.targetWatched;
+    final ShowDetailsEpisodeOperationIntent? intent = operation.intent;
+
+    if (!operation.hasFailed || targetWatched == null || intent == null) {
+      return;
+    }
+
+    await _updateEpisodeWatchedState(
+      seasonNumber: seasonNumber,
+      episodeId: episodeId,
+      watched: targetWatched,
+      intent: intent,
+    );
   }
 
   Future<void> toggleSeason(int seasonNumber) async {
@@ -141,6 +347,15 @@ final class ShowDetailsSeasonsCubit
         episodes = await _repository.syncEpisodes(seasonId: localSeason.id);
       }
 
+      final List<ShowDetailsEpisodeProgress> episodeProgress = await _repository
+          .getEpisodeProgress(seasonId: localSeason.id);
+
+      final Map<String, ShowDetailsEpisodeProgress> episodeProgressById =
+          <String, ShowDetailsEpisodeProgress>{
+            for (final ShowDetailsEpisodeProgress progress in episodeProgress)
+              progress.episodeId: progress,
+          };
+
       /*
        * Recalculate progress after Episode loading/synchronization.
        *
@@ -160,6 +375,7 @@ final class ShowDetailsSeasonsCubit
           isExpanded: true,
           hasLoadedEpisodes: true,
           episodes: episodes,
+          episodeProgressById: episodeProgressById,
           progress: progress,
         ),
       );

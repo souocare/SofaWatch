@@ -64,10 +64,19 @@ final class ApiLibraryRepository implements LibraryRepository {
   }
 
   @override
-  Future<LibraryEntry?> getMovieEntry(String movieId) async {
+  Future<LibraryEntry?> getShowEntry(String showId) {
+    return _getLibraryEntry('/library/shows/$showId');
+  }
+
+  @override
+  Future<LibraryEntry?> getMovieEntry(String movieId) {
+    return _getLibraryEntry('/library/movies/$movieId');
+  }
+
+  Future<LibraryEntry?> _getLibraryEntry(String path) async {
     try {
       final Response<Map<String, dynamic>> response = await _apiClient
-          .get<Map<String, dynamic>>('/library/movies/$movieId');
+          .get<Map<String, dynamic>>(path);
 
       final Map<String, dynamic>? data = response.data;
 

@@ -367,20 +367,23 @@ def test_mark_watched_updates_existing_unwatched_progress(
     progress_repository.add.assert_not_called()
 
 
-def test_mark_watched_preserves_existing_watched_at(
+def test_mark_watched_updates_existing_watched_at(
     db_session: Session,
     progress_service: EpisodeProgressService,
     progress_repository: Mock,
     episode_repository: Mock,
 ) -> None:
-    """Preserve the viewing date when an already watched episode is marked again."""
+    """Update the viewing date when an already watched episode is marked again."""
 
     user = persist_user(db_session)
+
     show = persist_show(db_session)
+
     season = persist_season(
         db_session,
         show=show,
     )
+
     episode = persist_episode(
         db_session,
         season=season,
@@ -409,14 +412,32 @@ def test_mark_watched_preserves_existing_watched_at(
 
     progress_repository.get_by_user_and_episode.return_value = progress
 
+    rewatched_at = datetime(
+        2026,
+        8,
+        11,
+        20,
+        15,
+        tzinfo=UTC,
+    )
+
     result = progress_service.mark_watched(
         user_id=user.id,
         episode_id=episode.id,
+        watched_at=rewatched_at,
     )
 
     assert result is progress
+
+    assert result.is_watched is True
+
     assert result.watched_at is not None
-    assert as_utc(result.watched_at) == original_watched_at
+
+    assert as_utc(result.watched_at) == rewatched_at
+
+    assert as_utc(result.watched_at) != original_watched_at
+
+    progress_repository.add.assert_not_called()
 
 
 def test_mark_unwatched_returns_none_when_episode_does_not_exist(
@@ -1300,3 +1321,176 @@ def test_get_show_seasons_progress_calculates_all_seasons() -> None:
     episode_repository.get_counts_by_show_id.assert_called_once()
 
     progress_repository.get_watched_counts_by_show_id.assert_called_once()
+
+
+def test_get_episode_progress_for_season_returns_entries(
+    db_session: Session,
+    progress_repository: Mock,
+    episode_repository: Mock,
+    season_repository: Mock,
+    show_repository: Mock,
+) -> None:
+    """Return the user's episode progress entries for an existing season."""
+
+    user_id = uuid4()
+    season_id = uuid4()
+
+    first_progress = EpisodeProgress(
+        user_id=user_id,
+        episode_id=uuid4(),
+        is_watched=True,
+        watched_at=datetime(2026, 8, 10, 20, 30, tzinfo=UTC),
+    )
+
+    second_progress = EpisodeProgress(
+        user_id=user_id,
+        episode_id=uuid4(),
+        is_watched=False,
+        watched_at=None,
+    )
+
+    season_repository.get_by_id.return_value = SimpleNamespace(
+        id=season_id,
+    )
+
+    progress_repository.list_by_user_and_season.return_value = [
+        first_progress,
+        second_progress,
+    ]
+
+    service = EpisodeProgressService(
+        session=db_session,
+        progress_repository=progress_repository,
+        episode_repository=episode_repository,
+        season_repository=season_repository,
+        show_repository=show_repository,
+    )
+
+    result = service.get_episode_progress_for_season(
+        user_id=user_id,
+        season_id=season_id,
+    )
+
+    assert result == [
+        first_progress,
+        second_progress,
+    ]
+
+    season_repository.get_by_id.assert_called_once_with(
+        season_id,
+    )
+
+    progress_repository.list_by_user_and_season.assert_called_once_with(
+        user_id=user_id,
+        season_id=season_id,
+    )
+
+
+def test_get_episode_progress_for_season_returns_none_when_season_missing(
+    db_session: Session,
+    progress_repository: Mock,
+    episode_repository: Mock,
+    season_repository: Mock,
+    show_repository: Mock,
+) -> None:
+    """Return None when the requested season does not exist."""
+
+    user_id = uuid4()
+    season_id = uuid4()
+
+    season_repository.get_by_id.return_value = None
+
+    service = EpisodeProgressService(
+        session=db_session,
+        progress_repository=progress_repository,
+        episode_repository=episode_repository,
+        season_repository=season_repository,
+        show_repository=show_repository,
+    )
+
+    result = service.get_episode_progress_for_season(
+        user_id=user_id,
+        season_id=season_id,
+    )
+
+    assert result is None
+
+    season_repository.get_by_id.assert_called_once_with(
+        season_id,
+    )
+
+    progress_repository.list_by_user_and_season.assert_not_called()
+
+
+def test_mark_watched_updates_watched_at_when_episode_is_already_watched(
+    db_session: Session,
+    progress_service: EpisodeProgressService,
+    progress_repository: Mock,
+    episode_repository: Mock,
+) -> None:
+    """Update the viewing date when an already watched episode is watched again."""
+
+    user = persist_user(db_session)
+
+    show = persist_show(db_session)
+
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+
+    previous_watched_at = datetime(
+        2026,
+        7,
+        20,
+        21,
+        30,
+        tzinfo=UTC,
+    )
+
+    progress = EpisodeProgress(
+        user_id=user.id,
+        episode_id=episode.id,
+        is_watched=True,
+        watched_at=previous_watched_at,
+    )
+
+    db_session.add(progress)
+    db_session.commit()
+    db_session.refresh(progress)
+
+    episode_repository.get_by_id.return_value = episode
+
+    progress_repository.get_by_user_and_episode.return_value = progress
+
+    rewatched_at = datetime(
+        2026,
+        8,
+        11,
+        20,
+        15,
+        tzinfo=UTC,
+    )
+
+    result = progress_service.mark_watched(
+        user_id=user.id,
+        episode_id=episode.id,
+        watched_at=rewatched_at,
+    )
+
+    assert result is not None
+
+    assert result.is_watched is True
+
+    assert result.watched_at is not None
+
+    assert as_utc(result.watched_at) == rewatched_at
+
+    assert as_utc(result.watched_at) != previous_watched_at
+
+    progress_repository.add.assert_not_called()

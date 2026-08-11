@@ -525,14 +525,93 @@ void main() {
 
     await cubit.close();
   });
+  test('loads existing Show library state', () async {
+    final DateTime now = DateTime.utc(2026, 8, 11);
+
+    final LibraryEntry existingEntry = LibraryEntry(
+      id: 'show-entry-uuid',
+      mediaId: 'show-uuid',
+      mediaType: LibraryMediaType.show,
+      status: LibraryStatus.watching,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    final _FakeLibraryRepository repository = _FakeLibraryRepository(
+      showEntry: existingEntry,
+    );
+
+    final LibraryCubit cubit = LibraryCubit(repository);
+
+    const LibraryMediaKey key = LibraryMediaKey(
+      mediaType: LibraryMediaType.show,
+      tmdbId: 95396,
+    );
+
+    await cubit.loadShowState(key);
+
+    final LibraryItemOperation operation = cubit.state.operationFor(key);
+
+    expect(operation.isAdded, isTrue);
+    expect(operation.entry, existingEntry);
+
+    expect(repository.importedShowTmdbIds, <int>[95396]);
+    expect(repository.requestedShowEntryIds, <String>['show-uuid']);
+
+    await cubit.close();
+  });
+  test('keeps Show idle when it is not in the library', () async {
+    final _FakeLibraryRepository repository = _FakeLibraryRepository();
+
+    final LibraryCubit cubit = LibraryCubit(repository);
+
+    const LibraryMediaKey key = LibraryMediaKey(
+      mediaType: LibraryMediaType.show,
+      tmdbId: 95396,
+    );
+
+    await cubit.loadShowState(key);
+
+    expect(
+      cubit.state.operationFor(key).status,
+      LibraryItemOperationStatus.idle,
+    );
+
+    expect(repository.importedShowTmdbIds, <int>[95396]);
+    expect(repository.requestedShowEntryIds, <String>['show-uuid']);
+
+    await cubit.close();
+  });
+  test('does not overwrite an already added Show state', () async {
+    final _FakeLibraryRepository repository = _FakeLibraryRepository();
+
+    final LibraryCubit cubit = LibraryCubit(repository);
+
+    const LibraryMediaKey key = LibraryMediaKey(
+      mediaType: LibraryMediaType.show,
+      tmdbId: 95396,
+    );
+
+    cubit.markAdded(key);
+
+    await cubit.loadShowState(key);
+
+    expect(cubit.state.operationFor(key).isAdded, isTrue);
+
+    expect(repository.importedShowTmdbIds, isEmpty);
+    expect(repository.requestedShowEntryIds, isEmpty);
+
+    await cubit.close();
+  });
 }
 
 final class _FakeLibraryRepository implements LibraryRepository {
-  _FakeLibraryRepository({this.error, this.movieEntry});
+  _FakeLibraryRepository({this.error, this.showEntry, this.movieEntry});
 
   final AppException? error;
   AppException? removeError;
   final LibraryEntry? movieEntry;
+  final LibraryEntry? showEntry;
   AppException? updateMovieStatusError;
   Completer<void>? pendingMovieRemoval;
 
@@ -545,6 +624,7 @@ final class _FakeLibraryRepository implements LibraryRepository {
   final List<String> removedShowIds = <String>[];
   final List<String> removedMovieIds = <String>[];
   final List<String> requestedMovieEntryIds = <String>[];
+  final List<String> requestedShowEntryIds = <String>[];
 
   final List<({String showId, LibraryStatus status})> updatedShowStatuses =
       <({String showId, LibraryStatus status})>[];
@@ -584,6 +664,13 @@ final class _FakeLibraryRepository implements LibraryRepository {
       tmdbId: tmdbId,
       mediaType: LibraryMediaType.movie,
     );
+  }
+
+  @override
+  Future<LibraryEntry?> getShowEntry(String showId) async {
+    requestedShowEntryIds.add(showId);
+
+    return showEntry;
   }
 
   @override

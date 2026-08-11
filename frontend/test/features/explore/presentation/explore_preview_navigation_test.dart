@@ -336,6 +336,11 @@ final class _FakeLibraryRepository implements LibraryRepository {
   }
 
   @override
+  Future<LibraryEntry?> getShowEntry(String showId) async {
+    return null;
+  }
+
+  @override
   Future<LibraryEntry> updateMovieStatus(
     String movieId,
     LibraryStatus status,

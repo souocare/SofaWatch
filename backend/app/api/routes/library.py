@@ -91,6 +91,36 @@ def remove_show_from_library(
             message="TV series is not in the library.",
         )
 
+@router.get(
+    "/shows/{show_id}",
+    response_model=LibraryEntryResponse,
+    summary="Get TV series library entry",
+)
+def get_show_library_entry(
+    show_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV series identifier.",
+        ),
+    ],
+    service: LibraryServiceDependency,
+    current_user: CurrentUserDependency,
+) -> LibraryEntryResponse:
+    """Return the current user's library entry for a TV series."""
+
+    entry = service.get_show_entry(
+        user_id=current_user.id,
+        show_id=show_id,
+    )
+
+    if entry is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="library_entry_not_found",
+            message="TV series is not in the library.",
+        )
+
+    return entry
 
 @router.patch(
     "/shows/{show_id}/status",

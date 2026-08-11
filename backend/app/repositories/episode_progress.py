@@ -33,6 +33,33 @@ class EpisodeProgressRepository:
             )
         )
 
+    def list_by_user_and_season(
+        self,
+        *,
+        user_id: UUID,
+        season_id: UUID,
+    ) -> list[EpisodeProgress]:
+        """Return a user's episode progress entries for a season."""
+
+        statement = (
+            select(EpisodeProgress)
+            .join(
+                Episode,
+                Episode.id == EpisodeProgress.episode_id,
+            )
+            .where(
+                EpisodeProgress.user_id == user_id,
+                Episode.season_id == season_id,
+            )
+            .order_by(
+                Episode.episode_number.asc(),
+            )
+        )
+
+        return list(
+            self._session.scalars(statement).all()
+        )
+
     def add(
         self,
         progress: EpisodeProgress,

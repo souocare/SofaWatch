@@ -73,7 +73,7 @@ class EpisodeProgressService:
 
             self._progress_repository.add(progress)
 
-        elif not progress.is_watched:
+        else:
             progress.is_watched = True
             progress.watched_at = viewed_at
 
@@ -177,6 +177,30 @@ class EpisodeProgressService:
             watched_aired_episodes=watched_aired_episodes,
             aired_progress_percentage=aired_progress_percentage,
             caught_up=caught_up,
+        )
+
+    def get_episode_progress_for_season(
+        self,
+        *,
+        user_id: UUID,
+        season_id: UUID,
+    ) -> list[EpisodeProgress] | None:
+        """Return episode viewing progress for a season.
+
+        Returns None when the season does not exist.
+        Episodes without a progress entry are implicitly unwatched.
+        """
+
+        season = self._season_repository.get_by_id(
+            season_id,
+        )
+
+        if season is None:
+            return None
+
+        return self._progress_repository.list_by_user_and_season(
+            user_id=user_id,
+            season_id=season_id,
         )
 
     def get_show_seasons_progress(
