@@ -236,6 +236,124 @@ void main() {
 
       await cubit.close();
     });
+
+    testWidgets('shows updating state while changing Show status', (
+      WidgetTester tester,
+    ) async {
+      final _ControlledStatusLibraryRepository repository =
+          _ControlledStatusLibraryRepository(showEntry: _libraryEntry);
+
+      final LibraryCubit cubit = LibraryCubit(repository);
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+
+      await cubit.loadShowState(
+        const LibraryMediaKey(mediaType: LibraryMediaType.show, tmdbId: 95396),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('show-details-library-status')),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>('show-details-library-status-paused'),
+        ),
+      );
+
+      await tester.pump();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('show-details-library-status-updating'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(find.text('Updating to Paused…'), findsOneWidget);
+
+      expect(repository.updateShowStatusCalls, 1);
+
+      repository.completeStatusUpdate(status: LibraryStatus.paused);
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('show-details-library-status-updating'),
+        ),
+        findsNothing,
+      );
+
+      expect(find.text('Paused'), findsOneWidget);
+
+      await cubit.close();
+    });
+
+    testWidgets(
+      'preserves previous Show status when update fails and Retry succeeds',
+      (WidgetTester tester) async {
+        final _RetryStatusLibraryRepository repository =
+            _RetryStatusLibraryRepository(showEntry: _libraryEntry);
+
+        final LibraryCubit cubit = LibraryCubit(repository);
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubit));
+
+        await cubit.loadShowState(
+          const LibraryMediaKey(
+            mediaType: LibraryMediaType.show,
+            tmdbId: 95396,
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(find.text('Watching'), findsOneWidget);
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('show-details-library-status')),
+        );
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('show-details-library-status-paused'),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(repository.updateShowStatusCalls, 1);
+
+        // Failed update must preserve the old LibraryEntry/status.
+        expect(find.text('Watching'), findsOneWidget);
+        expect(find.text('Paused'), findsNothing);
+
+        expect(
+          find.byKey(const ValueKey<String>('show-details-library-failure')),
+          findsOneWidget,
+        );
+
+        expect(find.text('Retry'), findsOneWidget);
+
+        await tester.tap(find.text('Retry'));
+
+        await tester.pumpAndSettle();
+
+        expect(repository.updateShowStatusCalls, 2);
+
+        expect(find.text('Paused'), findsOneWidget);
+        expect(find.text('Watching'), findsNothing);
+
+        await cubit.close();
+      },
+    );
   });
 }
 
@@ -274,10 +392,12 @@ class _FakeLibraryRepository implements LibraryRepository {
   int importShowCalls = 0;
   int addShowCalls = 0;
   int removeShowCalls = 0;
+  int updateShowStatusCalls = 0;
 
   final List<int> requestedTmdbIds = <int>[];
   final List<String> requestedShowIds = <String>[];
   final List<String> requestedRemovedShowIds = <String>[];
+  final List<LibraryStatus> requestedStatuses = <LibraryStatus>[];
 
   @override
   Future<ImportedLibraryMedia> importShowByTmdbId(int tmdbId) async {
@@ -337,6 +457,9 @@ class _FakeLibraryRepository implements LibraryRepository {
     String showId,
     LibraryStatus status,
   ) async {
+    updateShowStatusCalls++;
+    requestedStatuses.add(status);
+
     return LibraryEntry(
       id: 'library-entry-uuid',
       mediaId: showId,
@@ -350,6 +473,63 @@ class _FakeLibraryRepository implements LibraryRepository {
   @override
   Future<LibraryEntry> updateMovieStatus(String movieId, LibraryStatus status) {
     throw UnimplementedError();
+  }
+}
+
+final class _ControlledStatusLibraryRepository extends _FakeLibraryRepository {
+  _ControlledStatusLibraryRepository({required super.showEntry});
+
+  final Completer<LibraryEntry> _statusCompleter = Completer<LibraryEntry>();
+
+  void completeStatusUpdate({required LibraryStatus status}) {
+    _statusCompleter.complete(
+      LibraryEntry(
+        id: 'library-entry-uuid',
+        mediaId: 'show-local-uuid',
+        mediaType: LibraryMediaType.show,
+        status: status,
+        createdAt: DateTime(2026, 8, 11),
+        updatedAt: DateTime(2026, 8, 11),
+      ),
+    );
+  }
+
+  @override
+  Future<LibraryEntry> updateShowStatus(String showId, LibraryStatus status) {
+    updateShowStatusCalls++;
+    requestedStatuses.add(status);
+
+    return _statusCompleter.future;
+  }
+}
+
+final class _RetryStatusLibraryRepository extends _FakeLibraryRepository {
+  _RetryStatusLibraryRepository({required super.showEntry});
+
+  int _attempts = 0;
+
+  @override
+  Future<LibraryEntry> updateShowStatus(
+    String showId,
+    LibraryStatus status,
+  ) async {
+    updateShowStatusCalls++;
+    requestedStatuses.add(status);
+
+    _attempts++;
+
+    if (_attempts == 1) {
+      throw const AppException.connection();
+    }
+
+    return LibraryEntry(
+      id: 'library-entry-uuid',
+      mediaId: showId,
+      mediaType: LibraryMediaType.show,
+      status: status,
+      createdAt: DateTime(2026, 8, 11),
+      updatedAt: DateTime(2026, 8, 11),
+    );
   }
 }
 

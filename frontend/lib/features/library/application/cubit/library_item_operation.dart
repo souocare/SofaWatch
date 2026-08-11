@@ -57,7 +57,7 @@ final class LibraryItemOperation extends Equatable {
   final LibraryEntry? entry;
   final AppException? error;
 
-  /// Desired Movie status when a status update is in progress or failed.
+  /// Desired Library status when a status update is in progress or failed.
   final LibraryStatus? targetStatus;
 
   bool get isAdding => status == LibraryItemOperationStatus.adding;

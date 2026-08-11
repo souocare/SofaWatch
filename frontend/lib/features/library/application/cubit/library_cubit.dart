@@ -162,14 +162,38 @@ final class LibraryCubit extends Cubit<LibraryState> {
   }
 
   Future<void> markMovieWatched(LibraryMediaKey key) {
-    return _updateMovieStatus(key: key, status: LibraryStatus.completed);
+    return updateStatus(key: key, status: LibraryStatus.completed);
   }
 
   Future<void> markMovieUnwatched(LibraryMediaKey key) {
-    return _updateMovieStatus(key: key, status: LibraryStatus.planning);
+    return updateStatus(key: key, status: LibraryStatus.planning);
   }
 
-  Future<void> retryMovieStatus(LibraryMediaKey key) async {
+  Future<void> updateShowStatus(LibraryMediaKey key, LibraryStatus status) {
+    if (key.mediaType != LibraryMediaType.show) {
+      return Future<void>.value();
+    }
+
+    return updateStatus(key: key, status: status);
+  }
+
+  Future<void> retryMovieStatus(LibraryMediaKey key) {
+    if (key.mediaType != LibraryMediaType.movie) {
+      return Future<void>.value();
+    }
+
+    return retryStatus(key);
+  }
+
+  Future<void> retryShowStatus(LibraryMediaKey key) {
+    if (key.mediaType != LibraryMediaType.show) {
+      return Future<void>.value();
+    }
+
+    return retryStatus(key);
+  }
+
+  Future<void> retryStatus(LibraryMediaKey key) async {
     final LibraryItemOperation operation = state.operationFor(key);
 
     final LibraryStatus? targetStatus = operation.targetStatus;
@@ -181,17 +205,13 @@ final class LibraryCubit extends Cubit<LibraryState> {
       return;
     }
 
-    await _updateMovieStatus(key: key, status: targetStatus);
+    await updateStatus(key: key, status: targetStatus);
   }
 
-  Future<void> _updateMovieStatus({
+  Future<void> updateStatus({
     required LibraryMediaKey key,
     required LibraryStatus status,
   }) async {
-    if (key.mediaType != LibraryMediaType.movie) {
-      return;
-    }
-
     final LibraryItemOperation currentOperation = state.operationFor(key);
     final LibraryEntry? entry = currentOperation.entry;
 
@@ -203,7 +223,8 @@ final class LibraryCubit extends Cubit<LibraryState> {
     }
 
     /*
-   * Avoid sending a request when the Movie is already in the requested state.
+   * Do not send a request when the media item already has
+   * the requested Library status.
    */
     if (entry.status == status) {
       return;
@@ -217,10 +238,16 @@ final class LibraryCubit extends Cubit<LibraryState> {
     );
 
     try {
-      final LibraryEntry updatedEntry = await _repository.updateMovieStatus(
-        entry.mediaId,
-        status,
-      );
+      final LibraryEntry updatedEntry = await switch (key.mediaType) {
+        LibraryMediaType.show => _repository.updateShowStatus(
+          entry.mediaId,
+          status,
+        ),
+        LibraryMediaType.movie => _repository.updateMovieStatus(
+          entry.mediaId,
+          status,
+        ),
+      };
 
       if (isClosed) {
         return;
@@ -268,7 +295,9 @@ final class LibraryCubit extends Cubit<LibraryState> {
   Future<void> removeFromLibrary(LibraryMediaKey key) async {
     final LibraryItemOperation currentOperation = state.operationFor(key);
 
-    if (currentOperation.isAdding || currentOperation.isRemoving) {
+    if (currentOperation.isAdding ||
+        currentOperation.isRemoving ||
+        currentOperation.isUpdating) {
       return;
     }
 
