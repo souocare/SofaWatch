@@ -551,6 +551,96 @@ void main() {
 
       await cubit.close();
     });
+    testWidgets('uses compact Episode layout on mobile', (
+      WidgetTester tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(390, 844);
+
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final _EpisodeStillRepository repository = _EpisodeStillRepository();
+
+      final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      addTearDown(cubit.close);
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          cubit: cubit,
+          seasons: const <ShowDetailsSeason>[_seasonOne],
+        ),
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('show-details-season-toggle-1')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Image), findsNothing);
+
+      expect(find.textContaining('E01'), findsOneWidget);
+
+      expect(find.textContaining('S01E01'), findsNothing);
+
+      expect(
+        find.text('This overview must not appear in the Season list.'),
+        findsNothing,
+      );
+
+      expect(tester.takeException(), isNull);
+    });
+    testWidgets('uses expanded Episode layout on desktop', (
+      WidgetTester tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1280, 900);
+
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final _EpisodeStillRepository repository = _EpisodeStillRepository();
+
+      final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      addTearDown(cubit.close);
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          cubit: cubit,
+          seasons: const <ShowDetailsSeason>[_seasonOne],
+        ),
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('show-details-season-toggle-1')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Image), findsOneWidget);
+
+      expect(find.textContaining('S01E01'), findsOneWidget);
+
+      expect(
+        find.text('This overview must not appear in the Season list.'),
+        findsNothing,
+      );
+
+      expect(tester.takeException(), isNull);
+    });
   });
 }
 
@@ -814,5 +904,31 @@ final class _RetryEpisodeUpdateRepository
       isWatched: true,
       watchedAt: DateTime.utc(2026, 8, 11),
     );
+  }
+}
+
+final ShowDetailsEpisode _episodeWithStill = ShowDetailsEpisode(
+  id: 'episode-with-still-uuid',
+  tmdbId: 900001,
+  episodeNumber: 1,
+  title: 'A Very Important Episode',
+  overview: 'This overview must not appear in the Season list.',
+  airDate: DateTime(2026, 8, 10),
+  runtime: 52,
+  stillUrl: 'https://example.com/episode.jpg',
+  voteAverage: 8.5,
+  voteCount: 100,
+);
+
+final class _EpisodeStillRepository extends _FakeShowDetailsSeasonsRepository {
+  @override
+  Future<List<ShowDetailsEpisode>> getEpisodes({
+    required String seasonId,
+  }) async {
+    if (seasonId == 'season-1-uuid') {
+      return <ShowDetailsEpisode>[_episodeWithStill];
+    }
+
+    return super.getEpisodes(seasonId: seasonId);
   }
 }

@@ -305,6 +305,7 @@ class _HeroContent extends StatelessWidget {
                   _RatingBadge(
                     rating: details.voteAverage,
                     voteCount: details.voteCount,
+                    showVoteCount: isDesktop,
                   ),
                 ],
               ],
@@ -359,49 +360,40 @@ class _HeroSubtitle extends StatelessWidget {
 }
 
 class _RatingBadge extends StatelessWidget {
-  const _RatingBadge({required this.rating, required this.voteCount});
+  const _RatingBadge({
+    required this.rating,
+    required this.voteCount,
+    required this.showVoteCount,
+  });
 
   final double rating;
   final int voteCount;
+  final bool showVoteCount;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
+    return Row(
       key: const ValueKey<String>('show-details-rating'),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderFull,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        const Icon(Icons.star_rounded, size: 19),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          rating.toStringAsFixed(1),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            const Icon(Icons.star_rounded, size: 18),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              rating.toStringAsFixed(1),
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            if (voteCount > 0) ...<Widget>[
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                '${_formatCount(voteCount)} votes',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
+        if (showVoteCount && voteCount > 0) ...<Widget>[
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            '${_formatCount(voteCount)} votes',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+        ],
+      ],
     );
   }
 
@@ -536,7 +528,8 @@ class _SeriesInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     final List<_InfoItem> items = <_InfoItem>[
       _InfoItem(label: 'Aired', value: _dateRange()),
-      _InfoItem(label: 'Status', value: details.status),
+      if (details.status.trim().isNotEmpty)
+        _InfoItem(label: 'Status', value: details.status),
       if (details.showType.trim().isNotEmpty)
         _InfoItem(label: 'Type', value: details.showType),
       _InfoItem(label: 'Seasons', value: details.numberOfSeasons.toString()),
@@ -858,9 +851,151 @@ class _ShowDetailsLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      key: ValueKey<String>('show-details-loading'),
-      child: CircularProgressIndicator(),
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool isDesktop = constraints.maxWidth >= AppBreakpoints.tablet;
+
+        return SingleChildScrollView(
+          key: const ValueKey<String>('show-details-loading'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              _ShowDetailsHeroSkeleton(isDesktop: isDesktop),
+              _ShowDetailsBodySkeleton(isDesktop: isDesktop),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ShowDetailsHeroSkeleton extends StatelessWidget {
+  const _ShowDetailsHeroSkeleton({required this.isDesktop});
+
+  final bool isDesktop;
+
+  @override
+  Widget build(BuildContext context) {
+    final double heroHeight = isDesktop ? 420 : 360;
+
+    return SizedBox(
+      height: heroHeight,
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          const ColoredBox(color: AppColors.surfaceLow),
+          Positioned(
+            left: isDesktop ? AppSpacing.extraHuge : AppSpacing.xl,
+            right: isDesktop ? AppSpacing.extraHuge : AppSpacing.xl,
+            bottom: AppSpacing.xxl,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                _SkeletonBlock(
+                  width: isDesktop ? 150 : 112,
+                  height: isDesktop ? 225 : 168,
+                  borderRadius: AppRadius.borderLarge,
+                ),
+                SizedBox(width: isDesktop ? AppSpacing.xxxl : AppSpacing.lg),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const _SkeletonBlock(width: 260, height: 28),
+                        const SizedBox(height: AppSpacing.md),
+                        const _SkeletonBlock(width: 180, height: 16),
+                        const SizedBox(height: AppSpacing.md),
+                        const _SkeletonBlock(
+                          width: 120,
+                          height: 30,
+                          borderRadius: AppRadius.borderFull,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShowDetailsBodySkeleton extends StatelessWidget {
+  const _ShowDetailsBodySkeleton({required this.isDesktop});
+
+  final bool isDesktop;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1000),
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: isDesktop ? AppSpacing.xxxl : AppSpacing.xl,
+            right: isDesktop ? AppSpacing.xxxl : AppSpacing.xl,
+            top: AppSpacing.xxl,
+            bottom: AppSpacing.section,
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              _SkeletonBlock(width: 180, height: 18),
+              SizedBox(height: AppSpacing.xxl),
+              _SkeletonBlock(
+                width: 150,
+                height: 40,
+                borderRadius: AppRadius.borderFull,
+              ),
+              SizedBox(height: AppSpacing.xxl),
+              _SkeletonBlock(
+                width: 250,
+                height: 30,
+                borderRadius: AppRadius.borderFull,
+              ),
+              SizedBox(height: AppSpacing.xxxl),
+              _SkeletonBlock(width: 110, height: 24),
+              SizedBox(height: AppSpacing.lg),
+              _SkeletonBlock(width: double.infinity, height: 16),
+              SizedBox(height: AppSpacing.sm),
+              _SkeletonBlock(width: double.infinity, height: 16),
+              SizedBox(height: AppSpacing.sm),
+              _SkeletonBlock(width: 320, height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SkeletonBlock extends StatelessWidget {
+  const _SkeletonBlock({
+    required this.width,
+    required this.height,
+    this.borderRadius = AppRadius.borderMedium,
+  });
+
+  final double width;
+  final double height;
+  final BorderRadius borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: borderRadius,
+      ),
     );
   }
 }
