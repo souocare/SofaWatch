@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.models.enums import LibraryStatus
+from app.schemas.show import ShowSummaryResponse
 
 
 class LibraryEntryResponse(BaseModel):
@@ -39,6 +40,25 @@ class LibraryEntryResponse(BaseModel):
             )
 
         return self
+
+
+class LibraryShowResponse(BaseModel):
+    """TV series stored in the current user's library."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    status: LibraryStatus
+
+    rating: float | None
+
+    started_at: datetime | None
+    completed_at: datetime | None
+
+    created_at: datetime
+    updated_at: datetime
+
+    show: ShowSummaryResponse
 
 
 class LibraryStatusUpdate(BaseModel):

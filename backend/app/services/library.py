@@ -39,6 +39,19 @@ class LibraryService:
             status=status,
         )
 
+    def list_shows_for_user(
+        self,
+        user_id: UUID,
+        *,
+        status: LibraryStatus | None = None,
+    ) -> list[LibraryEntry]:
+        """Return TV series in a user's library."""
+
+        return self._library_repository.list_shows_by_user(
+            user_id,
+            status=status,
+        )
+
     def get_show_entry(
         self,
         *,

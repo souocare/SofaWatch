@@ -1075,3 +1075,135 @@ def test_get_show_library_entry_returns_404_when_missing(
             "message": "TV series is not in the library.",
         }
     }
+
+def test_list_library_shows_returns_show_metadata(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return Library state together with TV series metadata."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    entry = create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    response = client.get(
+        "/api/v1/library/shows",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+
+    item = body[0]
+
+    assert item["id"] == str(entry.id)
+    assert item["status"] == "watching"
+
+    assert item["show"]["id"] == str(show.id)
+    assert item["show"]["tmdb_id"] == 95396
+    assert item["show"]["title"] == "Severance"
+
+def test_list_library_shows_excludes_movies(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return only TV series from a mixed media library."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+    )
+
+    create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+    )
+
+    response = client.get(
+        "/api/v1/library/shows",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+    assert body[0]["show"]["tmdb_id"] == 95396
+
+def test_list_library_shows_filters_by_status(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Filter Library TV series by tracking status."""
+
+    local_user = create_local_user(db_session)
+
+    watching_show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    planning_show = create_show(
+        db_session,
+        tmdb_id=1396,
+        title="Breaking Bad",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=watching_show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=planning_show,
+        status=LibraryStatus.PLANNING,
+    )
+
+    response = client.get(
+        "/api/v1/library/shows",
+        params={
+            "status": "watching",
+        },
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+    assert body[0]["status"] == "watching"
+    assert body[0]["show"]["tmdb_id"] == 95396

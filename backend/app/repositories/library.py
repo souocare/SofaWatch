@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.enums import LibraryStatus
 from app.models.library import LibraryEntry
@@ -71,6 +71,39 @@ class LibraryRepository:
 
         statement = select(LibraryEntry).where(
             LibraryEntry.user_id == user_id,
+        )
+
+        if status is not None:
+            statement = statement.where(
+                LibraryEntry.status == status,
+            )
+
+        statement = statement.order_by(
+            LibraryEntry.updated_at.desc(),
+            LibraryEntry.created_at.desc(),
+        )
+
+        return list(
+            self._session.scalars(statement).all()
+        )
+
+    def list_shows_by_user(
+        self,
+        user_id: UUID,
+        *,
+        status: LibraryStatus | None = None,
+    ) -> list[LibraryEntry]:
+        """Return TV series library entries belonging to a user."""
+
+        statement = (
+            select(LibraryEntry)
+            .options(
+                joinedload(LibraryEntry.show),
+            )
+            .where(
+                LibraryEntry.user_id == user_id,
+                LibraryEntry.show_id.is_not(None),
+            )
         )
 
         if status is not None:

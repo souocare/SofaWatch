@@ -16,6 +16,7 @@ from app.api.dependencies import (
 from app.models.enums import LibraryStatus
 from app.schemas.library import (
     LibraryEntryResponse,
+    LibraryShowResponse,
     LibraryStatusUpdate,
 )
 
@@ -24,6 +25,33 @@ router = APIRouter(
     tags=["Library"],
 )
 
+
+@router.get(
+    "/shows",
+    response_model=list[LibraryShowResponse],
+    summary="List TV series in library",
+    description=(
+        "Return TV series in the current user's personal library, "
+        "optionally filtered by tracking status."
+    ),
+)
+def list_library_shows(
+    current_user: CurrentUserDependency,
+    service: LibraryServiceDependency,
+    library_status: Annotated[
+        LibraryStatus | None,
+        Query(
+            alias="status",
+            description="Filter TV series by tracking status.",
+        ),
+    ] = None,
+) -> list[LibraryShowResponse]:
+    """Return TV series in the current user's personal library."""
+
+    return service.list_shows_for_user(
+        current_user.id,
+        status=library_status,
+    )
 
 @router.post(
     "/shows/{show_id}",
