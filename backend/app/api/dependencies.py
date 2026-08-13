@@ -48,6 +48,8 @@ from app.services.tmdb_movie_details import (
 from app.services.explore import ExploreService
 from app.services.season_episode_sync import SeasonEpisodeSyncService
 from app.services.watch_next import WatchNextService
+from app.services.stale_watching import StaleWatchingService
+from app.services.watch_history import WatchHistoryService
 
 
 def get_genre_service(
@@ -527,4 +529,35 @@ def get_watch_next_service(
 WatchNextServiceDependency = Annotated[
     WatchNextService,
     Depends(get_watch_next_service),
+]
+
+def get_stale_watching_service(
+    session: DatabaseSession,
+) -> StaleWatchingService:
+    """Provide the stale Watching service for a single request."""
+
+    return StaleWatchingService(
+        library_repository=LibraryRepository(session),
+        progress_repository=EpisodeProgressRepository(session),
+    )
+
+
+StaleWatchingServiceDependency = Annotated[
+    StaleWatchingService,
+    Depends(get_stale_watching_service),
+]
+
+def get_watch_history_service(
+    session: DatabaseSession,
+) -> WatchHistoryService:
+    """Provide the Watch History service for a single request."""
+
+    return WatchHistoryService(
+        progress_repository=EpisodeProgressRepository(session),
+    )
+
+
+WatchHistoryServiceDependency = Annotated[
+    WatchHistoryService,
+    Depends(get_watch_history_service),
 ]

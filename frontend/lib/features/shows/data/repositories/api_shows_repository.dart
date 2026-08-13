@@ -6,6 +6,10 @@ import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
 import 'package:sofawatch/features/shows/data/models/watch_next_show_dto.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
+import 'package:sofawatch/features/shows/data/models/stale_watching_show_dto.dart';
+import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
+import 'package:sofawatch/features/shows/data/models/watch_history_page_dto.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 
 final class ApiShowsRepository implements ShowsRepository {
   const ApiShowsRepository(this._apiClient);
@@ -67,6 +71,75 @@ final class ApiShowsRepository implements ShowsRepository {
             return WatchNextShowDto.fromJson(item).toDomain();
           })
           .toList(growable: false);
+    } on AppException {
+      rethrow;
+    } on FormatException catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } on TypeError catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    try {
+      final Response<List<dynamic>> response = await _apiClient
+          .get<List<dynamic>>('/library/shows/stale-watching');
+
+      final List<dynamic>? data = response.data;
+
+      if (data == null) {
+        throw const FormatException(
+          'The stale Watching response body is missing.',
+        );
+      }
+
+      return data
+          .map((dynamic item) {
+            if (item is! Map<String, dynamic>) {
+              throw const FormatException(
+                'Invalid stale Watching response item.',
+              );
+            }
+
+            return StaleWatchingShowDto.fromJson(item).toDomain();
+          })
+          .toList(growable: false);
+    } on AppException {
+      rethrow;
+    } on FormatException catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } on TypeError catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    try {
+      final Map<String, dynamic> queryParameters = <String, dynamic>{
+        'limit': limit,
+        'cursor': ?cursor,
+      };
+
+      final Response<Map<String, dynamic>> response = await _apiClient
+          .get<Map<String, dynamic>>(
+            '/library/shows/watch-history',
+            queryParameters: queryParameters,
+          );
+
+      final Map<String, dynamic>? data = response.data;
+
+      if (data == null) {
+        throw const FormatException(
+          'The Watch History response body is missing.',
+        );
+      }
+
+      return WatchHistoryPageDto.fromJson(data).toDomain();
     } on AppException {
       rethrow;
     } on FormatException catch (error) {

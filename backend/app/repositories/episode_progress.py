@@ -2,12 +2,13 @@ from uuid import UUID
 
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
-from datetime import date
+from datetime import date, datetime
 from dataclasses import dataclass
 
 from app.models.episode import Episode
 from app.models.episode_progress import EpisodeProgress
 from app.models.season import Season
+from app.models.show import Show
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,6 +18,35 @@ class NextUnwatchedEpisode:
     show_id: UUID
     episode: Episode
     season_number: int
+
+@dataclass(frozen=True, slots=True)
+class LastWatchedEpisode:
+    """Most recently watched Episode for a TV series."""
+
+    show_id: UUID
+    episode: Episode
+    season_number: int
+    watched_at: datetime
+
+@dataclass(frozen=True, slots=True)
+class WatchHistoryEpisode:
+    """A watched Episode displayed in the user's Watch History."""
+
+    progress_id: UUID
+    show: Show
+    episode: Episode
+    season_number: int
+    watched_at: datetime
+
+
+
+@dataclass(frozen=True, slots=True)
+class WatchHistoryPage:
+    """One cursor-paginated page of Watch History."""
+
+    items: list[WatchHistoryEpisode]
+    has_more: bool
+
 
 class EpisodeProgressRepository:
     """Persistence operations for episode viewing progress."""
@@ -387,3 +417,184 @@ class EpisodeProgressRepository:
             )
             for show_id, season_number, episode in rows
         }
+
+    def list_last_watched_for_shows(
+        self,
+        *,
+        user_id: UUID,
+        show_ids: list[UUID],
+    ) -> dict[UUID, LastWatchedEpisode]:
+        """Return the most recently watched regular Episode for each Show."""
+
+        if not show_ids:
+            return {}
+
+        ranked_progress = (
+            select(
+                Season.show_id.label("show_id"),
+                Episode.id.label("episode_id"),
+                Season.season_number.label("season_number"),
+                EpisodeProgress.watched_at.label("watched_at"),
+                func.row_number()
+                .over(
+                    partition_by=Season.show_id,
+                    order_by=EpisodeProgress.watched_at.desc(),
+                )
+                .label("row_number"),
+            )
+            .select_from(EpisodeProgress)
+            .join(
+                Episode,
+                Episode.id == EpisodeProgress.episode_id,
+            )
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .where(
+                EpisodeProgress.user_id == user_id,
+                EpisodeProgress.is_watched.is_(True),
+                EpisodeProgress.watched_at.is_not(None),
+                Season.show_id.in_(show_ids),
+                Season.season_number > 0,
+            )
+            .subquery()
+        )
+
+        statement = (
+            select(
+                ranked_progress.c.show_id,
+                ranked_progress.c.season_number,
+                ranked_progress.c.watched_at,
+                Episode,
+            )
+            .join(
+                Episode,
+                Episode.id == ranked_progress.c.episode_id,
+            )
+            .where(
+                ranked_progress.c.row_number == 1,
+            )
+        )
+
+        rows = self._session.execute(statement).all()
+
+        return {
+            show_id: LastWatchedEpisode(
+                show_id=show_id,
+                episode=episode,
+                season_number=season_number,
+                watched_at=watched_at,
+            )
+            for show_id, season_number, watched_at, episode in rows
+        }
+
+    def list_watch_history(
+        self,
+        *,
+        user_id: UUID,
+        limit: int = 30,
+        before_watched_at: datetime | None = None,
+        before_progress_id: UUID | None = None,
+    ) -> WatchHistoryPage:
+        """Return one cursor-paginated page of recently watched Episodes.
+
+        Results are ordered newest first.
+
+        The cursor consists of both ``watched_at`` and ``progress_id`` so
+        pagination remains deterministic even when multiple progress entries
+        share the same viewing timestamp.
+        """
+
+        if limit <= 0:
+            return WatchHistoryPage(
+                items=[],
+                has_more=False,
+            )
+
+        if (before_watched_at is None) != (before_progress_id is None):
+            raise ValueError(
+                "Watch History cursor requires both "
+                "before_watched_at and before_progress_id."
+            )
+
+        statement = (
+            select(
+                EpisodeProgress.id,
+                Show,
+                Season.season_number,
+                EpisodeProgress.watched_at,
+                Episode,
+            )
+            .select_from(EpisodeProgress)
+            .join(
+                Episode,
+                Episode.id == EpisodeProgress.episode_id,
+            )
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .join(
+                Show,
+                Show.id == Season.show_id,
+            )
+            .where(
+                EpisodeProgress.user_id == user_id,
+                EpisodeProgress.is_watched.is_(True),
+                EpisodeProgress.watched_at.is_not(None),
+                Season.season_number > 0,
+            )
+        )
+
+        if before_watched_at is not None and before_progress_id is not None:
+            statement = statement.where(
+                (
+                    EpisodeProgress.watched_at < before_watched_at
+                )
+                | (
+                    (
+                        EpisodeProgress.watched_at
+                        == before_watched_at
+                    )
+                    & (
+                        EpisodeProgress.id
+                        < before_progress_id
+                    )
+                )
+            )
+
+        # Request one extra row so we can determine whether another page
+        # exists without an additional COUNT query.
+        statement = statement.order_by(
+            EpisodeProgress.watched_at.desc(),
+            EpisodeProgress.id.desc(),
+        ).limit(limit + 1)
+
+        rows = self._session.execute(statement).all()
+
+        has_more = len(rows) > limit
+
+        page_rows = rows[:limit]
+
+        items = [
+            WatchHistoryEpisode(
+                progress_id=progress_id,
+                show=show,
+                episode=episode,
+                season_number=season_number,
+                watched_at=watched_at,
+            )
+            for (
+                progress_id,
+                show,
+                season_number,
+                watched_at,
+                episode,
+            ) in page_rows
+        ]
+
+        return WatchHistoryPage(
+            items=items,
+            has_more=has_more,
+        )

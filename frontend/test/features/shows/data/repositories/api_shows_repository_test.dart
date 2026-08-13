@@ -7,6 +7,8 @@ import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/data/repositories/api_shows_repository.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
+import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 
 void main() {
   group('ApiShowsRepository', () {
@@ -274,6 +276,339 @@ void main() {
 
       expect(
         repository.getWatchNext(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.server,
+          ),
+        ),
+      );
+    });
+    test('loads and maps stale Watching Shows', () async {
+      dioAdapter.onGet('/library/shows/stale-watching', (server) {
+        server.reply(200, <Map<String, dynamic>>[
+          <String, dynamic>{
+            'library_entry_id': 'library-entry-1',
+            'library_status': 'watching',
+            'show': <String, dynamic>{
+              'id': 'show-1',
+              'tmdb_id': 95396,
+              'title': 'Severance',
+              'poster_url': 'https://example.com/poster.jpg',
+              'backdrop_url': 'https://example.com/backdrop.jpg',
+            },
+            'last_watched': <String, dynamic>{
+              'id': 'episode-1',
+              'tmdb_id': 1001,
+              'season_number': 1,
+              'episode_number': 3,
+              'title': 'In Perpetuity',
+              'air_date': '2022-03-04',
+              'runtime': 50,
+              'still_url': 'https://example.com/last.jpg',
+              'watched_at': '2026-05-01T20:00:00Z',
+            },
+            'next_episode': <String, dynamic>{
+              'id': 'episode-2',
+              'tmdb_id': 1002,
+              'season_number': 1,
+              'episode_number': 4,
+              'title': 'The You You Are',
+              'air_date': '2022-03-11',
+              'runtime': 51,
+              'still_url': 'https://example.com/next.jpg',
+            },
+          },
+        ]);
+      });
+
+      final List<StaleWatchingShow> result = await repository
+          .getStaleWatching();
+
+      expect(result, hasLength(1));
+
+      final StaleWatchingShow item = result.single;
+
+      expect(item.libraryEntryId, 'library-entry-1');
+      expect(item.libraryStatus, LibraryStatus.watching);
+
+      expect(item.showId, 'show-1');
+      expect(item.showTmdbId, 95396);
+      expect(item.showTitle, 'Severance');
+
+      expect(
+        item.lastWatched.watchedAt,
+        DateTime.parse('2026-05-01T20:00:00Z'),
+      );
+
+      expect(item.lastWatched.code, 'S01E03');
+      expect(item.nextEpisode.code, 'S01E04');
+      expect(item.nextEpisode.title, 'The You You Are');
+    });
+
+    test('supports an empty stale Watching collection', () async {
+      dioAdapter.onGet('/library/shows/stale-watching', (server) {
+        server.reply(200, <Map<String, dynamic>>[]);
+      });
+
+      final List<StaleWatchingShow> result = await repository
+          .getStaleWatching();
+
+      expect(result, isEmpty);
+    });
+
+    test('maps malformed stale Watching data to invalidData', () async {
+      dioAdapter.onGet('/library/shows/stale-watching', (server) {
+        server.reply(200, <Map<String, dynamic>>[
+          <String, dynamic>{
+            'library_entry_id': 'library-entry-1',
+            'library_status': 'watching',
+            'show': <String, dynamic>{
+              'id': 'show-1',
+              'tmdb_id': 95396,
+              'title': 'Severance',
+            },
+            'last_watched': <String, dynamic>{
+              'id': 'episode-1',
+              'tmdb_id': 1001,
+              'season_number': 1,
+              'episode_number': 3,
+              'title': 'In Perpetuity',
+              'watched_at': 'not-a-date',
+            },
+            'next_episode': <String, dynamic>{
+              'id': 'episode-2',
+              'tmdb_id': 1002,
+              'season_number': 1,
+              'episode_number': 4,
+              'title': 'The You You Are',
+            },
+          },
+        ]);
+      });
+
+      expect(
+        repository.getStaleWatching(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
+
+    test('propagates stale Watching API errors unchanged', () async {
+      dioAdapter.onGet('/library/shows/stale-watching', (server) {
+        server.reply(500, <String, dynamic>{
+          'code': 'server_error',
+          'message': 'Something went wrong.',
+        });
+      });
+
+      expect(
+        repository.getStaleWatching(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.server,
+          ),
+        ),
+      );
+    });
+    test('loads and maps the first Watch History page', () async {
+      dioAdapter.onGet(
+        '/library/shows/watch-history',
+        (server) {
+          server.reply(200, <String, dynamic>{
+            'items': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'show': <String, dynamic>{
+                  'id': 'show-1',
+                  'tmdb_id': 95396,
+                  'title': 'Severance',
+                  'original_title': 'Severance',
+                  'first_air_date': '2022-02-18',
+                  'tmdb_poster_path': null,
+                  'local_poster_path': null,
+                  'poster_url': 'https://example.com/poster.jpg',
+                  'backdrop_url': 'https://example.com/backdrop.jpg',
+                  'status': 'Returning Series',
+                  'vote_average': 8.4,
+                },
+                'episode': <String, dynamic>{
+                  'id': 'episode-1',
+                  'tmdb_id': 1947648,
+                  'season_number': 2,
+                  'episode_number': 4,
+                  'title': "Woe's Hollow",
+                  'air_date': '2026-08-10',
+                  'runtime': 52,
+                  'still_url': 'https://example.com/still.jpg',
+                  'watched_at': '2026-08-13T20:00:00Z',
+                },
+              },
+            ],
+            'next_cursor': null,
+            'has_more': false,
+          });
+        },
+        queryParameters: <String, dynamic>{'limit': 30},
+      );
+
+      final WatchHistoryPage result = await repository.getWatchHistory();
+
+      expect(result.items, hasLength(1));
+      expect(result.hasMore, isFalse);
+      expect(result.nextCursor, isNull);
+
+      final item = result.items.single;
+
+      expect(item.showId, 'show-1');
+      expect(item.showTmdbId, 95396);
+      expect(item.showTitle, 'Severance');
+      expect(item.posterUrl, 'https://example.com/poster.jpg');
+
+      expect(item.episode.id, 'episode-1');
+      expect(item.episode.tmdbId, 1947648);
+      expect(item.episode.seasonNumber, 2);
+      expect(item.episode.episodeNumber, 4);
+      expect(item.episode.code, 'S02E04');
+      expect(item.episode.title, "Woe's Hollow");
+      expect(item.episode.runtime, 52);
+      expect(item.episode.watchedAt, DateTime.parse('2026-08-13T20:00:00Z'));
+    });
+    test('forwards Watch History cursor and maps next page', () async {
+      const String cursor = 'opaque-cursor';
+
+      dioAdapter.onGet(
+        '/library/shows/watch-history',
+        (server) {
+          server.reply(200, <String, dynamic>{
+            'items': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'show': <String, dynamic>{
+                  'id': 'show-2',
+                  'tmdb_id': 100088,
+                  'title': 'The Last of Us',
+                  'original_title': 'The Last of Us',
+                  'first_air_date': '2023-01-15',
+                  'tmdb_poster_path': null,
+                  'local_poster_path': null,
+                  'poster_url': null,
+                  'backdrop_url': null,
+                  'status': 'Returning Series',
+                  'vote_average': 8.6,
+                },
+                'episode': <String, dynamic>{
+                  'id': 'episode-2',
+                  'tmdb_id': 3000001,
+                  'season_number': 1,
+                  'episode_number': 3,
+                  'title': 'Long, Long Time',
+                  'air_date': '2023-01-29',
+                  'runtime': 76,
+                  'still_url': null,
+                  'watched_at': '2026-07-01T21:00:00Z',
+                },
+              },
+            ],
+            'next_cursor': 'next-opaque-cursor',
+            'has_more': true,
+          });
+        },
+        queryParameters: <String, dynamic>{'limit': 20, 'cursor': cursor},
+      );
+
+      final WatchHistoryPage result = await repository.getWatchHistory(
+        limit: 20,
+        cursor: cursor,
+      );
+
+      expect(result.items, hasLength(1));
+      expect(result.hasMore, isTrue);
+      expect(result.nextCursor, 'next-opaque-cursor');
+
+      expect(result.items.single.showTitle, 'The Last of Us');
+      expect(result.items.single.episode.code, 'S01E03');
+    });
+    test('supports an empty Watch History page', () async {
+      dioAdapter.onGet(
+        '/library/shows/watch-history',
+        (server) {
+          server.reply(200, <String, dynamic>{
+            'items': <dynamic>[],
+            'next_cursor': null,
+            'has_more': false,
+          });
+        },
+        queryParameters: <String, dynamic>{'limit': 30},
+      );
+
+      final WatchHistoryPage result = await repository.getWatchHistory();
+
+      expect(result.items, isEmpty);
+      expect(result.nextCursor, isNull);
+      expect(result.hasMore, isFalse);
+    });
+    test('maps malformed Watch History data to invalidData', () async {
+      dioAdapter.onGet(
+        '/library/shows/watch-history',
+        (server) {
+          server.reply(200, <String, dynamic>{
+            'items': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'show': <String, dynamic>{
+                  'id': 'show-1',
+                  'tmdb_id': 95396,
+                  'title': 'Severance',
+                },
+                'episode': <String, dynamic>{
+                  'id': 'episode-1',
+                  'tmdb_id': 1947648,
+                  'season_number': 2,
+                  'episode_number': 4,
+                  'title': "Woe's Hollow",
+
+                  // watched_at intentionally missing
+                },
+              },
+            ],
+            'next_cursor': null,
+            'has_more': false,
+          });
+        },
+        queryParameters: <String, dynamic>{'limit': 30},
+      );
+
+      expect(
+        repository.getWatchHistory(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
+    test('propagates Watch History API errors unchanged', () async {
+      dioAdapter.onGet(
+        '/library/shows/watch-history',
+        (server) {
+          server.reply(500, <String, dynamic>{
+            'code': 'server_error',
+            'message': 'Something went wrong.',
+          });
+        },
+        queryParameters: <String, dynamic>{'limit': 30},
+      );
+
+      expect(
+        repository.getWatchHistory(),
         throwsA(
           isA<AppException>().having(
             (AppException error) => error.type,

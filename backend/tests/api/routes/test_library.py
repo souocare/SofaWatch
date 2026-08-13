@@ -1515,3 +1515,605 @@ def test_list_watch_next_excludes_future_episode(
 
     assert response.status_code == 200
     assert response.json() == []
+
+def test_list_stale_watching_returns_inactive_show_with_next_episode(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return a Watching Show inactive for at least 60 days."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    last_watched_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947647,
+        episode_number=1,
+        title="Good News About Hell",
+        air_date=date(2026, 1, 1),
+    )
+
+    next_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947648,
+        episode_number=2,
+        title="Half Loop",
+        air_date=date(2026, 1, 8),
+    )
+
+    progress = create_episode_progress(
+        db_session,
+        user=local_user,
+        episode=last_watched_episode,
+        is_watched=True,
+    )
+
+    progress.watched_at = datetime(
+        2026,
+        5,
+        1,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/library/shows/stale-watching",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+
+    item = body[0]
+
+    assert item["library_status"] == "watching"
+
+    assert item["show"]["id"] == str(show.id)
+    assert item["show"]["tmdb_id"] == 95396
+    assert item["show"]["title"] == "Severance"
+
+    assert item["last_watched"]["id"] == str(
+        last_watched_episode.id,
+    )
+    assert item["last_watched"]["season_number"] == 1
+    assert item["last_watched"]["episode_number"] == 1
+    assert item["last_watched"]["title"] == "Good News About Hell"
+    assert item["last_watched"]["watched_at"].startswith(
+        "2026-05-01T20:00:00",
+    )
+
+    assert item["next_episode"]["id"] == str(
+        next_episode.id,
+    )
+    assert item["next_episode"]["season_number"] == 1
+    assert item["next_episode"]["episode_number"] == 2
+    assert item["next_episode"]["title"] == "Half Loop"
+
+
+def test_list_stale_watching_excludes_recently_watched_show(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Do not include a Show whose last activity is recent."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    watched_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947647,
+        episode_number=1,
+        title="Good News About Hell",
+        air_date=date(2026, 8, 1),
+    )
+
+    create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947648,
+        episode_number=2,
+        title="Half Loop",
+        air_date=date(2026, 8, 8),
+    )
+
+    create_episode_progress(
+        db_session,
+        user=local_user,
+        episode=watched_episode,
+        is_watched=True,
+    )
+
+    response = client.get(
+        "/api/v1/library/shows/stale-watching",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_list_stale_watching_excludes_never_started_show(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Do not treat a never-started Show as stale Watching."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947647,
+        episode_number=1,
+        title="Good News About Hell",
+        air_date=date(2026, 1, 1),
+    )
+
+    response = client.get(
+        "/api/v1/library/shows/stale-watching",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_list_stale_watching_excludes_caught_up_show(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Do not include stale Shows with no aired Episode left to watch."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947647,
+        episode_number=1,
+        title="Good News About Hell",
+        air_date=date(2026, 1, 1),
+    )
+
+    progress = create_episode_progress(
+        db_session,
+        user=local_user,
+        episode=episode,
+        is_watched=True,
+    )
+
+    progress.watched_at = datetime(
+        2026,
+        5,
+        1,
+        tzinfo=UTC,
+    )
+
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/library/shows/stale-watching",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_list_stale_watching_isolated_to_current_user(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Ignore viewing progress belonging to another user."""
+
+    local_user = create_local_user(db_session)
+
+    other_user = create_user(
+        db_session,
+        display_name="Other User",
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    first_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947647,
+        episode_number=1,
+        title="Good News About Hell",
+        air_date=date(2026, 1, 1),
+    )
+
+    create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947648,
+        episode_number=2,
+        title="Half Loop",
+        air_date=date(2026, 1, 8),
+    )
+
+    progress = create_episode_progress(
+        db_session,
+        user=other_user,
+        episode=first_episode,
+        is_watched=True,
+    )
+
+    progress.watched_at = datetime(
+        2026,
+        1,
+        1,
+        tzinfo=UTC,
+    )
+
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/library/shows/stale-watching",
+    )
+
+    assert response.status_code == 200
+
+    # The local user has never watched this Show.
+    assert response.json() == []
+
+
+def test_list_watch_history_returns_recently_watched_episodes(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return watched Episodes ordered from newest to oldest."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    first_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947647,
+        episode_number=1,
+        title="Good News About Hell",
+        air_date=date(2026, 8, 1),
+    )
+
+    second_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947648,
+        episode_number=2,
+        title="Half Loop",
+        air_date=date(2026, 8, 8),
+    )
+
+    first_progress = EpisodeProgress(
+        user_id=local_user.id,
+        episode_id=first_episode.id,
+        is_watched=True,
+        watched_at=datetime(
+            2026,
+            8,
+            10,
+            20,
+            tzinfo=UTC,
+        ),
+    )
+
+    second_progress = EpisodeProgress(
+        user_id=local_user.id,
+        episode_id=second_episode.id,
+        is_watched=True,
+        watched_at=datetime(
+            2026,
+            8,
+            12,
+            21,
+            tzinfo=UTC,
+        ),
+    )
+
+    db_session.add_all(
+        [
+            first_progress,
+            second_progress,
+        ]
+    )
+
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/library/shows/watch-history",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["has_more"] is False
+    assert body["next_cursor"] is None
+
+    assert len(body["items"]) == 2
+
+    assert body["items"][0]["show"]["tmdb_id"] == 95396
+    assert body["items"][0]["show"]["title"] == "Severance"
+
+    assert body["items"][0]["episode"]["id"] == str(second_episode.id)
+    assert body["items"][0]["episode"]["season_number"] == 1
+    assert body["items"][0]["episode"]["episode_number"] == 2
+    assert body["items"][0]["episode"]["title"] == "Half Loop"
+
+    assert body["items"][1]["episode"]["id"] == str(first_episode.id)
+
+
+def test_list_watch_history_supports_cursor_pagination(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Load older Watch History entries using the returned opaque cursor."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episodes = [
+        create_episode(
+            db_session,
+            season=season,
+            tmdb_id=3000 + index,
+            episode_number=index,
+            title=f"Episode {index}",
+            air_date=date(2026, 8, index),
+        )
+        for index in range(1, 6)
+    ]
+
+    for index, episode in enumerate(
+        episodes,
+        start=1,
+    ):
+        db_session.add(
+            EpisodeProgress(
+                user_id=local_user.id,
+                episode_id=episode.id,
+                is_watched=True,
+                watched_at=datetime(
+                    2026,
+                    8,
+                    index,
+                    20,
+                    tzinfo=UTC,
+                ),
+            )
+        )
+
+    db_session.commit()
+
+    first_response = client.get(
+        "/api/v1/library/shows/watch-history",
+        params={
+            "limit": 2,
+        },
+    )
+
+    assert first_response.status_code == 200
+
+    first_page = first_response.json()
+
+    assert len(first_page["items"]) == 2
+    assert first_page["has_more"] is True
+    assert first_page["next_cursor"] is not None
+
+    assert first_page["items"][0]["episode"]["id"] == str(episodes[4].id)
+    assert first_page["items"][1]["episode"]["id"] == str(episodes[3].id)
+
+    second_response = client.get(
+        "/api/v1/library/shows/watch-history",
+        params={
+            "limit": 2,
+            "cursor": first_page["next_cursor"],
+        },
+    )
+
+    assert second_response.status_code == 200
+
+    second_page = second_response.json()
+
+    assert len(second_page["items"]) == 2
+    assert second_page["has_more"] is True
+    assert second_page["next_cursor"] is not None
+
+    assert second_page["items"][0]["episode"]["id"] == str(episodes[2].id)
+    assert second_page["items"][1]["episode"]["id"] == str(episodes[1].id)
+
+    third_response = client.get(
+        "/api/v1/library/shows/watch-history",
+        params={
+            "limit": 2,
+            "cursor": second_page["next_cursor"],
+        },
+    )
+
+    assert third_response.status_code == 200
+
+    third_page = third_response.json()
+
+    assert len(third_page["items"]) == 1
+    assert third_page["has_more"] is False
+    assert third_page["next_cursor"] is None
+
+    assert third_page["items"][0]["episode"]["id"] == str(episodes[0].id)
+
+
+def test_list_watch_history_returns_400_for_invalid_cursor(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Reject malformed Watch History cursors safely."""
+
+    create_local_user(db_session)
+
+    response = client.get(
+        "/api/v1/library/shows/watch-history",
+        params={
+            "cursor": "definitely-not-valid",
+        },
+    )
+
+    assert response.status_code == 400
+
+    assert response.json() == {
+        "error": {
+            "code": "invalid_watch_history_cursor",
+            "message": "Invalid Watch History cursor.",
+        }
+    }
+
+def test_list_watch_history_rejects_invalid_limit(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Validate the supported Watch History page size."""
+
+    create_local_user(db_session)
+
+    response = client.get(
+        "/api/v1/library/shows/watch-history",
+        params={
+            "limit": 0,
+        },
+    )
+
+    assert response.status_code == 422
+
+

@@ -12,9 +12,13 @@ from app.core.exceptions import APIError
 from app.api.dependencies import (
     CurrentUserDependency,
     LibraryServiceDependency,
+    WatchHistoryServiceDependency,
     WatchNextServiceDependency,
+    StaleWatchingServiceDependency,
 )
 from app.schemas.watch_next import WatchNextShowResponse
+from app.schemas.stale_watching import StaleWatchingShowResponse
+from app.schemas.watch_history import WatchHistoryPageResponse
 from app.models.enums import LibraryStatus
 from app.schemas.library import (
     LibraryEntryResponse,
@@ -74,6 +78,70 @@ def list_watch_next_shows(
     return service.list_for_user(
         user_id=current_user.id,
     )
+
+@router.get(
+    "/shows/stale-watching",
+    response_model=list[StaleWatchingShowResponse],
+    summary="List stale Watching TV series",
+    description=(
+        "Return Watching TV series whose most recent watched Episode "
+        "was at least 60 days ago and that still have an aired "
+        "unwatched Episode available."
+    ),
+)
+def list_stale_watching_shows(
+    current_user: CurrentUserDependency,
+    service: StaleWatchingServiceDependency,
+) -> list[StaleWatchingShowResponse]:
+    """Return the current user's inactive Watching Shows."""
+
+    return service.list_for_user(
+        user_id=current_user.id,
+    )
+
+
+@router.get(
+    "/shows/watch-history",
+    response_model=WatchHistoryPageResponse,
+    summary="List Watch History",
+    description=(
+        "Return recently watched regular TV Episodes for the current user, "
+        "ordered from newest to oldest using cursor pagination."
+    ),
+)
+def list_watch_history(
+    current_user: CurrentUserDependency,
+    service: WatchHistoryServiceDependency,
+    limit: Annotated[
+        int,
+        Query(
+            ge=1,
+            le=100,
+            description="Maximum number of Watch History entries to return.",
+        ),
+    ] = 30,
+    cursor: Annotated[
+        str | None,
+        Query(
+            description="Opaque cursor returned by the previous page.",
+        ),
+    ] = None,
+) -> WatchHistoryPageResponse:
+    """Return one cursor-paginated page of Watch History."""
+
+    try:
+        return service.list_for_user(
+            user_id=current_user.id,
+            limit=limit,
+            cursor=cursor,
+        )
+    except ValueError as error:
+        raise APIError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="invalid_watch_history_cursor",
+            message="Invalid Watch History cursor.",
+        ) from error
+
 
 @router.post(
     "/shows/{show_id}",

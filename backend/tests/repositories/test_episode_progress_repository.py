@@ -1,5 +1,7 @@
 from datetime import UTC, date, datetime
 
+import pytest
+
 from sqlalchemy.orm import Session
 
 from app.models.episode import Episode
@@ -8,7 +10,7 @@ from app.models.season import Season
 from app.models.show import Show
 from app.models.user import User
 from app.repositories.episode_progress import EpisodeProgressRepository
-
+from app.repositories.episode_progress import EpisodeProgressRepository
 
 def create_user(
     db_session: Session,
@@ -1839,3 +1841,782 @@ def test_list_next_unwatched_for_shows_excludes_specials(
     assert result == {}
 
 
+def test_list_last_watched_for_shows_returns_latest_watched_episode(
+    db_session: Session,
+) -> None:
+    """Return the most recently watched Episode for each requested Show."""
+
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    first_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1001,
+        episode_number=1,
+        title="Episode 1",
+        air_date=date(2026, 1, 1),
+    )
+
+    second_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1002,
+        episode_number=2,
+        title="Episode 2",
+        air_date=date(2026, 1, 8),
+    )
+
+    first_progress = create_progress(
+        db_session,
+        user=user,
+        episode=first_episode,
+        is_watched=True,
+    )
+
+    second_progress = create_progress(
+        db_session,
+        user=user,
+        episode=second_episode,
+        is_watched=True,
+    )
+
+    first_progress.watched_at = datetime(
+        2026,
+        4,
+        1,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+    second_progress.watched_at = datetime(
+        2026,
+        6,
+        1,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+    db_session.commit()
+
+    repository = EpisodeProgressRepository(db_session)
+
+    result = repository.list_last_watched_for_shows(
+        user_id=user.id,
+        show_ids=[show.id],
+    )
+
+    assert set(result) == {show.id}
+
+    candidate = result[show.id]
+
+    assert candidate.show_id == show.id
+    assert candidate.episode.id == second_episode.id
+    assert candidate.season_number == 1
+    assert candidate.watched_at.replace(tzinfo=UTC) == datetime(
+        2026,
+        6,
+        1,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+def test_list_last_watched_for_shows_returns_each_show_independently(
+    db_session: Session,
+) -> None:
+    """Resolve the latest watched Episode independently for each Show."""
+
+    user = create_user(db_session)
+
+    first_show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    second_show = create_show(
+        db_session,
+        tmdb_id=100088,
+        title="The Last of Us",
+    )
+
+    first_season = create_season(
+        db_session,
+        show=first_show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    second_season = create_season(
+        db_session,
+        show=second_show,
+        tmdb_id=200001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    first_episode = create_episode(
+        db_session,
+        season=first_season,
+        tmdb_id=1001,
+        episode_number=1,
+        title="Episode 1",
+    )
+
+    second_episode = create_episode(
+        db_session,
+        season=second_season,
+        tmdb_id=2001,
+        episode_number=1,
+        title="Episode 1",
+    )
+
+    first_progress = create_progress(
+        db_session,
+        user=user,
+        episode=first_episode,
+        is_watched=True,
+    )
+
+    second_progress = create_progress(
+        db_session,
+        user=user,
+        episode=second_episode,
+        is_watched=True,
+    )
+
+    first_progress.watched_at = datetime(
+        2026,
+        4,
+        1,
+        tzinfo=UTC,
+    )
+
+    second_progress.watched_at = datetime(
+        2026,
+        5,
+        1,
+        tzinfo=UTC,
+    )
+
+    db_session.commit()
+
+    repository = EpisodeProgressRepository(db_session)
+
+    result = repository.list_last_watched_for_shows(
+        user_id=user.id,
+        show_ids=[
+            first_show.id,
+            second_show.id,
+        ],
+    )
+
+    assert set(result) == {
+        first_show.id,
+        second_show.id,
+    }
+
+    assert result[first_show.id].episode.id == first_episode.id
+    assert result[second_show.id].episode.id == second_episode.id
+
+
+def test_list_last_watched_for_shows_excludes_never_started_show(
+    db_session: Session,
+) -> None:
+    """Do not return a Show when the user has never watched an Episode."""
+
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1001,
+        episode_number=1,
+        title="Episode 1",
+    )
+
+    repository = EpisodeProgressRepository(db_session)
+
+    result = repository.list_last_watched_for_shows(
+        user_id=user.id,
+        show_ids=[show.id],
+    )
+
+    assert result == {}
+
+def test_list_watch_history_returns_watched_episodes_newest_first(
+    db_session: Session,
+) -> None:
+    """Return watched regular Episodes ordered by most recent viewing."""
+
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    first_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    second_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2102,
+        episode_number=2,
+        title="Half Loop",
+    )
+
+    db_session.add_all(
+        [
+            EpisodeProgress(
+                user_id=user.id,
+                episode_id=first_episode.id,
+                is_watched=True,
+                watched_at=datetime(
+                    2026,
+                    7,
+                    1,
+                    20,
+                    0,
+                    tzinfo=UTC,
+                ),
+            ),
+            EpisodeProgress(
+                user_id=user.id,
+                episode_id=second_episode.id,
+                is_watched=True,
+                watched_at=datetime(
+                    2026,
+                    8,
+                    10,
+                    21,
+                    0,
+                    tzinfo=UTC,
+                ),
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    repository = EpisodeProgressRepository(db_session)
+
+    page = repository.list_watch_history(
+        user_id=user.id,
+    )
+
+    assert len(page.items) == 2
+    assert page.has_more is False
+
+    assert page.items[0].episode.id == second_episode.id
+    assert page.items[0].season_number == 1
+    assert page.items[0].show.id == show.id
+    assert page.items[0].show.tmdb_id == show.tmdb_id
+    assert page.items[0].show.title == show.title
+
+    assert page.items[1].episode.id == first_episode.id
+
+
+def test_list_watch_history_excludes_unwatched_progress(
+    db_session: Session,
+) -> None:
+    """Do not include Episodes currently marked as unwatched."""
+
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    db_session.add(
+        EpisodeProgress(
+            user_id=user.id,
+            episode_id=episode.id,
+            is_watched=False,
+            watched_at=None,
+        )
+    )
+
+    db_session.commit()
+
+    repository = EpisodeProgressRepository(db_session)
+
+    page = repository.list_watch_history(
+        user_id=user.id,
+    )
+
+    assert page.items == []
+    assert page.has_more is False
+
+
+def test_list_watch_history_is_isolated_by_user(
+    db_session: Session,
+) -> None:
+    """Return only Watch History belonging to the requested user."""
+
+    user = create_user(
+        db_session,
+        display_name="First User",
+    )
+
+    other_user = create_user(
+        db_session,
+        display_name="Other User",
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    first_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    second_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2102,
+        episode_number=2,
+        title="Half Loop",
+    )
+
+    db_session.add_all(
+        [
+            EpisodeProgress(
+                user_id=user.id,
+                episode_id=first_episode.id,
+                is_watched=True,
+                watched_at=datetime.now(UTC),
+            ),
+            EpisodeProgress(
+                user_id=other_user.id,
+                episode_id=second_episode.id,
+                is_watched=True,
+                watched_at=datetime.now(UTC),
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    repository = EpisodeProgressRepository(db_session)
+
+    page = repository.list_watch_history(
+        user_id=user.id,
+    )
+
+    assert len(page.items) == 1
+    assert page.has_more is False
+
+    assert page.items[0].episode.id == first_episode.id
+
+
+def test_list_watch_history_excludes_special_seasons(
+    db_session: Session,
+) -> None:
+    """Do not include Specials in the regular Shows Watch History."""
+
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    special_season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134790,
+        season_number=0,
+        title="Specials",
+    )
+
+    special_episode = create_episode(
+        db_session,
+        season=special_season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Special",
+    )
+
+    db_session.add(
+        EpisodeProgress(
+            user_id=user.id,
+            episode_id=special_episode.id,
+            is_watched=True,
+            watched_at=datetime.now(UTC),
+        )
+    )
+
+    db_session.commit()
+
+    repository = EpisodeProgressRepository(db_session)
+
+    page = repository.list_watch_history(
+        user_id=user.id,
+    )
+
+    assert page.items == []
+    assert page.has_more is False
+
+
+def test_list_watch_history_respects_limit(
+    db_session: Session,
+) -> None:
+    """Limit the number of recent Watch History entries returned."""
+
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episodes = [
+        create_episode(
+            db_session,
+            season=season,
+            tmdb_id=2200 + index,
+            episode_number=index,
+            title=f"Episode {index}",
+        )
+        for index in range(1, 4)
+    ]
+
+    for index, episode in enumerate(episodes, start=1):
+        db_session.add(
+            EpisodeProgress(
+                user_id=user.id,
+                episode_id=episode.id,
+                is_watched=True,
+                watched_at=datetime(
+                    2026,
+                    8,
+                    index,
+                    tzinfo=UTC,
+                ),
+            )
+        )
+
+    db_session.commit()
+
+    repository = EpisodeProgressRepository(db_session)
+
+    page = repository.list_watch_history(
+        user_id=user.id,
+        limit=2,
+    )
+
+    assert len(page.items) == 2
+    assert page.has_more is True
+
+    assert page.items[0].episode.id == episodes[2].id
+    assert page.items[1].episode.id == episodes[1].id
+
+def test_list_watch_history_loads_next_page_from_cursor(
+    db_session: Session,
+) -> None:
+    """Continue Watch History from the last item of the previous page."""
+
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episodes = [
+        create_episode(
+            db_session,
+            season=season,
+            tmdb_id=2300 + index,
+            episode_number=index,
+            title=f"Episode {index}",
+        )
+        for index in range(1, 6)
+    ]
+
+    for index, episode in enumerate(
+        episodes,
+        start=1,
+    ):
+        db_session.add(
+            EpisodeProgress(
+                user_id=user.id,
+                episode_id=episode.id,
+                is_watched=True,
+                watched_at=datetime(
+                    2026,
+                    8,
+                    index,
+                    20,
+                    tzinfo=UTC,
+                ),
+            )
+        )
+
+    db_session.commit()
+
+    repository = EpisodeProgressRepository(
+        db_session,
+    )
+
+    first_page = repository.list_watch_history(
+        user_id=user.id,
+        limit=2,
+    )
+
+    assert len(first_page.items) == 2
+    assert first_page.has_more is True
+
+    assert (
+        first_page.items[0].episode.id
+        == episodes[4].id
+    )
+
+    assert (
+        first_page.items[1].episode.id
+        == episodes[3].id
+    )
+
+    cursor = first_page.items[-1]
+
+    second_page = repository.list_watch_history(
+        user_id=user.id,
+        limit=2,
+        before_watched_at=cursor.watched_at,
+        before_progress_id=cursor.progress_id,
+    )
+
+    assert len(second_page.items) == 2
+    assert second_page.has_more is True
+
+    assert (
+        second_page.items[0].episode.id
+        == episodes[2].id
+    )
+
+    assert (
+        second_page.items[1].episode.id
+        == episodes[1].id
+    )
+
+    cursor = second_page.items[-1]
+
+    third_page = repository.list_watch_history(
+        user_id=user.id,
+        limit=2,
+        before_watched_at=cursor.watched_at,
+        before_progress_id=cursor.progress_id,
+    )
+
+    assert len(third_page.items) == 1
+    assert third_page.has_more is False
+
+    assert (
+        third_page.items[0].episode.id
+        == episodes[0].id
+    )
+
+def test_list_watch_history_cursor_handles_equal_watched_timestamps(
+    db_session: Session,
+) -> None:
+    """Do not skip items when watched_at values are equal."""
+
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episodes = [
+        create_episode(
+            db_session,
+            season=season,
+            tmdb_id=2400 + index,
+            episode_number=index,
+            title=f"Episode {index}",
+        )
+        for index in range(1, 4)
+    ]
+
+    watched_at = datetime(
+        2026,
+        8,
+        10,
+        20,
+        tzinfo=UTC,
+    )
+
+    for episode in episodes:
+        db_session.add(
+            EpisodeProgress(
+                user_id=user.id,
+                episode_id=episode.id,
+                is_watched=True,
+                watched_at=watched_at,
+            )
+        )
+
+    db_session.commit()
+
+    repository = EpisodeProgressRepository(
+        db_session,
+    )
+
+    first_page = repository.list_watch_history(
+        user_id=user.id,
+        limit=2,
+    )
+
+    assert len(first_page.items) == 2
+    assert first_page.has_more is True
+
+    first_page_ids = {
+        item.progress_id
+        for item in first_page.items
+    }
+
+    cursor = first_page.items[-1]
+
+    second_page = repository.list_watch_history(
+        user_id=user.id,
+        limit=2,
+        before_watched_at=cursor.watched_at,
+        before_progress_id=cursor.progress_id,
+    )
+
+    assert len(second_page.items) == 1
+    assert second_page.has_more is False
+
+    assert (
+        second_page.items[0].progress_id
+        not in first_page_ids
+    )
+
+def test_list_watch_history_rejects_partial_cursor(
+    db_session: Session,
+) -> None:
+    """Require both cursor components together."""
+
+    user = create_user(db_session)
+
+    repository = EpisodeProgressRepository(
+        db_session,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="cursor requires both",
+    ):
+        repository.list_watch_history(
+            user_id=user.id,
+            before_watched_at=datetime.now(UTC),
+        )
