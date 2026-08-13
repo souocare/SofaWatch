@@ -1,15 +1,19 @@
-from uuid import uuid4
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+from uuid import UUID, uuid4
 
 from app.models.enums import LibraryStatus
 from app.models.library import LibraryEntry
 from app.models.movie import Movie
 from app.models.show import Show
 from app.models.user import User
+from app.models.episode import Episode
+from app.models.episode_progress import EpisodeProgress
+from app.models.season import Season
+
 
 
 def create_local_user(
@@ -91,6 +95,87 @@ def create_library_entry(
     db_session.refresh(entry)
 
     return entry
+
+
+def create_season(
+    db_session: Session,
+    *,
+    show: Show,
+    tmdb_id: int,
+    season_number: int,
+    title: str,
+) -> Season:
+    """Create and persist a TV season."""
+
+    season = Season(
+        show_id=show.id,
+        tmdb_id=tmdb_id,
+        season_number=season_number,
+        title=title,
+        overview=None,
+        air_date=None,
+        episode_count=0,
+        vote_average=0.0,
+    )
+
+    db_session.add(season)
+    db_session.commit()
+    db_session.refresh(season)
+
+    return season
+
+
+def create_episode(
+    db_session: Session,
+    *,
+    season: Season,
+    tmdb_id: int,
+    episode_number: int,
+    title: str,
+    air_date: date | None,
+) -> Episode:
+    """Create and persist a TV episode."""
+
+    episode = Episode(
+        season_id=season.id,
+        tmdb_id=tmdb_id,
+        episode_number=episode_number,
+        title=title,
+        overview=None,
+        air_date=air_date,
+        runtime=52,
+        vote_average=0.0,
+        vote_count=0,
+    )
+
+    db_session.add(episode)
+    db_session.commit()
+    db_session.refresh(episode)
+
+    return episode
+
+
+def create_episode_progress(
+    db_session: Session,
+    *,
+    user: User,
+    episode: Episode,
+    is_watched: bool,
+) -> EpisodeProgress:
+    """Create and persist Episode progress for a user."""
+
+    progress = EpisodeProgress(
+        user_id=user.id,
+        episode_id=episode.id,
+        is_watched=is_watched,
+        watched_at=datetime.now(UTC) if is_watched else None,
+    )
+
+    db_session.add(progress)
+    db_session.commit()
+    db_session.refresh(progress)
+
+    return progress
 
 def create_movie(
     db_session: Session,
@@ -1207,3 +1292,226 @@ def test_list_library_shows_filters_by_status(
     assert len(body) == 1
     assert body[0]["status"] == "watching"
     assert body[0]["show"]["tmdb_id"] == 95396
+
+def test_list_watch_next_returns_next_unwatched_episode(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return the next aired unwatched Episode for a Watching Show."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    first_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947647,
+        episode_number=1,
+        title="Hello, Ms. Cobel",
+        air_date=date(2026, 8, 1),
+    )
+
+    second_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947648,
+        episode_number=2,
+        title="Goodbye, Mrs. Selvig",
+        air_date=date(2026, 8, 8),
+    )
+
+    create_episode_progress(
+        db_session,
+        user=local_user,
+        episode=first_episode,
+        is_watched=True,
+    )
+
+    response = client.get(
+        "/api/v1/library/shows/watch-next",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+
+    item = body[0]
+
+    assert item["library_status"] == "watching"
+
+    assert item["show"]["id"] == str(show.id)
+    assert item["show"]["tmdb_id"] == 95396
+    assert item["show"]["title"] == "Severance"
+
+    assert item["next_episode"]["id"] == str(second_episode.id)
+    assert item["next_episode"]["tmdb_id"] == 1947648
+    assert item["next_episode"]["season_number"] == 2
+    assert item["next_episode"]["episode_number"] == 2
+    assert item["next_episode"]["title"] == "Goodbye, Mrs. Selvig"
+
+
+def test_list_watch_next_excludes_planning_shows(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Do not include Shows that have not been started yet."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.PLANNING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947647,
+        episode_number=1,
+        title="Good News About Hell",
+        air_date=date(2026, 8, 1),
+    )
+
+    response = client.get(
+        "/api/v1/library/shows/watch-next",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_list_watch_next_excludes_caught_up_show(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Do not include a Show when all aired Episodes are already watched."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947647,
+        episode_number=1,
+        title="Good News About Hell",
+        air_date=date(2026, 8, 1),
+    )
+
+    create_episode_progress(
+        db_session,
+        user=local_user,
+        episode=episode,
+        is_watched=True,
+    )
+
+    response = client.get(
+        "/api/v1/library/shows/watch-next",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_list_watch_next_excludes_future_episode(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Do not expose an Episode that has not aired yet."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947648,
+        episode_number=2,
+        title="Future Episode",
+        air_date=date(2099, 1, 1),
+    )
+
+    response = client.get(
+        "/api/v1/library/shows/watch-next",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []

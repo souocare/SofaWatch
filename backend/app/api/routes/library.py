@@ -12,7 +12,9 @@ from app.core.exceptions import APIError
 from app.api.dependencies import (
     CurrentUserDependency,
     LibraryServiceDependency,
+    WatchNextServiceDependency,
 )
+from app.schemas.watch_next import WatchNextShowResponse
 from app.models.enums import LibraryStatus
 from app.schemas.library import (
     LibraryEntryResponse,
@@ -51,6 +53,26 @@ def list_library_shows(
     return service.list_shows_for_user(
         current_user.id,
         status=library_status,
+    )
+
+
+@router.get(
+    "/shows/watch-next",
+    response_model=list[WatchNextShowResponse],
+    summary="List Watch Next TV series",
+    description=(
+        "Return the next aired unwatched regular Episode for each "
+        "eligible TV series in the current user's Library."
+    ),
+)
+def list_watch_next_shows(
+    current_user: CurrentUserDependency,
+    service: WatchNextServiceDependency,
+) -> list[WatchNextShowResponse]:
+    """Return the current user's Watch Next collection."""
+
+    return service.list_for_user(
+        user_id=current_user.id,
     )
 
 @router.post(

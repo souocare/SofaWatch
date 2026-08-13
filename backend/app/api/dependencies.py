@@ -47,6 +47,8 @@ from app.services.tmdb_movie_details import (
 )
 from app.services.explore import ExploreService
 from app.services.season_episode_sync import SeasonEpisodeSyncService
+from app.services.watch_next import WatchNextService
+
 
 def get_genre_service(
     session: DatabaseSession,
@@ -509,4 +511,20 @@ def get_season_episode_sync_service(
 SeasonEpisodeSyncServiceDependency = Annotated[
     SeasonEpisodeSyncService,
     Depends(get_season_episode_sync_service),
+]
+
+def get_watch_next_service(
+    session: DatabaseSession,
+) -> WatchNextService:
+    """Provide the Watch Next service for a single request."""
+
+    return WatchNextService(
+        library_repository=LibraryRepository(session),
+        progress_repository=EpisodeProgressRepository(session),
+    )
+
+
+WatchNextServiceDependency = Annotated[
+    WatchNextService,
+    Depends(get_watch_next_service),
 ]

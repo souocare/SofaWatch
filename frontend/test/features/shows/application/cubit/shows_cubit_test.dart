@@ -4,21 +4,21 @@ import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_state.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
 
 void main() {
   group('ShowsCubit', () {
-    test('starts in initial state', () {
-      final ShowsCubit cubit = ShowsCubit(
-        repository: _FakeShowsRepository(shows: const <LibraryShow>[]),
-      );
+    test('starts with an empty Shows state', () {
+      final ShowsCubit cubit = ShowsCubit(repository: _FakeShowsRepository());
 
-      expect(cubit.state, const ShowsInitial());
+      expect(cubit.state, const ShowsState());
 
       cubit.close();
     });
 
-    test('loads Shows from the Library', () async {
+    test('loads Library and Watch Next', () async {
       final _FakeShowsRepository repository = _FakeShowsRepository(
         shows: <LibraryShow>[
           _libraryShow(
@@ -26,80 +26,79 @@ void main() {
             title: 'Severance',
             status: LibraryStatus.watching,
           ),
-          _libraryShow(
-            tmdbId: 1396,
-            title: 'Breaking Bad',
-            status: LibraryStatus.completed,
-          ),
         ],
+        watchNext: <WatchNextShow>[_watchNextShow()],
       );
 
       final ShowsCubit cubit = ShowsCubit(repository: repository);
 
-      final List<ShowsState> emittedStates = <ShowsState>[];
-
-      final subscription = cubit.stream.listen(emittedStates.add);
-
-      await cubit.load();
-      await Future<void>.delayed(Duration.zero);
-
-      expect(repository.calls, 1);
-
-      expect(emittedStates, <ShowsState>[
-        const ShowsLoading(),
-        ShowsSuccess(repository.shows),
-      ]);
-
-      expect((cubit.state as ShowsSuccess).shows, hasLength(2));
-
-      await subscription.cancel();
-      await cubit.close();
-    });
-
-    test('supports an empty Library', () async {
-      final ShowsCubit cubit = ShowsCubit(
-        repository: _FakeShowsRepository(shows: const <LibraryShow>[]),
-      );
-
       await cubit.load();
 
-      final ShowsSuccess state = cubit.state as ShowsSuccess;
+      expect(repository.libraryCalls, 1);
+      expect(repository.watchNextCalls, 1);
 
-      expect(state.shows, isEmpty);
-      expect(state.isEmpty, isTrue);
+      expect(cubit.state.libraryShows, repository.shows);
+
+      expect(cubit.state.watchNext, repository.watchNext);
+
+      expect(cubit.state.isLoading, isFalse);
+      expect(cubit.state.error, isNull);
+      expect(cubit.state.watchNextError, isNull);
 
       await cubit.close();
     });
 
-    test('emits failure when repository throws AppException', () async {
+    test('supports an empty Library and empty Watch Next', () async {
+      final ShowsCubit cubit = ShowsCubit(repository: _FakeShowsRepository());
+
+      await cubit.load();
+
+      expect(cubit.state.libraryShows, isEmpty);
+      expect(cubit.state.watchNext, isEmpty);
+
+      expect(cubit.state.isLibraryEmpty, isTrue);
+      expect(cubit.state.isWatchNextEmpty, isTrue);
+
+      await cubit.close();
+    });
+
+    test('does not load Watch Next when Library loading fails', () async {
       const AppException expectedError = AppException.connection();
 
-      final ShowsCubit cubit = ShowsCubit(
-        repository: _FakeShowsRepository(error: expectedError),
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        libraryError: expectedError,
       );
+
+      final ShowsCubit cubit = ShowsCubit(repository: repository);
 
       await cubit.load();
 
-      expect(cubit.state, const ShowsFailure(expectedError));
+      expect(repository.libraryCalls, 1);
+      expect(repository.watchNextCalls, 0);
+
+      expect(cubit.state.error, expectedError);
+      expect(cubit.state.hasFatalError, isTrue);
 
       await cubit.close();
     });
 
-    test('maps unexpected errors to unknown failure', () async {
+    test('maps unexpected Library errors to unknown failure', () async {
       final ShowsCubit cubit = ShowsCubit(
-        repository: _FakeShowsRepository(unexpectedError: StateError('boom')),
+        repository: _FakeShowsRepository(
+          libraryUnexpectedError: StateError('boom'),
+        ),
       );
 
       await cubit.load();
 
-      final ShowsFailure state = cubit.state as ShowsFailure;
-
-      expect(state.error.type, AppExceptionType.unknown);
+      expect(cubit.state.error?.type, AppExceptionType.unknown);
 
       await cubit.close();
     });
 
-    test('retry loads the Library again', () async {
+    test('preserves Library when Watch Next fails', () async {
+      const AppException expectedError = AppException.connection();
+
       final _FakeShowsRepository repository = _FakeShowsRepository(
         shows: <LibraryShow>[
           _libraryShow(
@@ -108,17 +107,102 @@ void main() {
             status: LibraryStatus.watching,
           ),
         ],
+        watchNextError: expectedError,
       );
 
       final ShowsCubit cubit = ShowsCubit(repository: repository);
 
       await cubit.load();
 
-      expect(repository.calls, 1);
+      expect(cubit.state.libraryShows, hasLength(1));
+
+      expect(cubit.state.error, isNull);
+
+      expect(cubit.state.watchNextError, expectedError);
+
+      expect(cubit.state.watchNext, isEmpty);
+
+      await cubit.close();
+    });
+
+    test(
+      'maps unexpected Watch Next errors without failing the page',
+      () async {
+        final ShowsCubit cubit = ShowsCubit(
+          repository: _FakeShowsRepository(
+            shows: <LibraryShow>[
+              _libraryShow(
+                tmdbId: 95396,
+                title: 'Severance',
+                status: LibraryStatus.watching,
+              ),
+            ],
+            watchNextUnexpectedError: StateError('boom'),
+          ),
+        );
+
+        await cubit.load();
+
+        expect(cubit.state.error, isNull);
+
+        expect(cubit.state.watchNextError?.type, AppExceptionType.unknown);
+
+        expect(cubit.state.libraryShows, hasLength(1));
+
+        await cubit.close();
+      },
+    );
+
+    test('retry reloads Library and Watch Next', () async {
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        shows: <LibraryShow>[
+          _libraryShow(
+            tmdbId: 95396,
+            title: 'Severance',
+            status: LibraryStatus.watching,
+          ),
+        ],
+        watchNext: <WatchNextShow>[_watchNextShow()],
+      );
+
+      final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+      await cubit.load();
+
+      expect(repository.libraryCalls, 1);
+      expect(repository.watchNextCalls, 1);
 
       await cubit.retry();
 
-      expect(repository.calls, 2);
+      expect(repository.libraryCalls, 2);
+      expect(repository.watchNextCalls, 2);
+
+      await cubit.close();
+    });
+
+    test('retryWatchNext reloads only Watch Next', () async {
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        shows: <LibraryShow>[
+          _libraryShow(
+            tmdbId: 95396,
+            title: 'Severance',
+            status: LibraryStatus.watching,
+          ),
+        ],
+        watchNext: <WatchNextShow>[_watchNextShow()],
+      );
+
+      final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+      await cubit.load();
+
+      expect(repository.libraryCalls, 1);
+      expect(repository.watchNextCalls, 1);
+
+      await cubit.retryWatchNext();
+
+      expect(repository.libraryCalls, 1);
+      expect(repository.watchNextCalls, 2);
 
       await cubit.close();
     });
@@ -144,35 +228,85 @@ LibraryShow _libraryShow({
   );
 }
 
+WatchNextShow _watchNextShow() {
+  return WatchNextShow(
+    libraryEntryId: 'library-95396',
+    libraryStatus: LibraryStatus.watching,
+    showId: 'show-95396',
+    showTmdbId: 95396,
+    showTitle: 'Severance',
+    posterUrl: null,
+    backdropUrl: null,
+    nextEpisode: WatchNextEpisode(
+      id: 'episode-uuid',
+      tmdbId: 1947648,
+      seasonNumber: 2,
+      episodeNumber: 4,
+      title: "Woe's Hollow",
+      airDate: DateTime(2026, 8, 10),
+      runtime: 52,
+      stillUrl: null,
+    ),
+  );
+}
+
 final class _FakeShowsRepository implements ShowsRepository {
   _FakeShowsRepository({
     this.shows = const <LibraryShow>[],
-    this.error,
-    this.unexpectedError,
+    this.watchNext = const <WatchNextShow>[],
+    this.libraryError,
+    this.libraryUnexpectedError,
+    this.watchNextError,
+    this.watchNextUnexpectedError,
   });
 
   final List<LibraryShow> shows;
-  final AppException? error;
-  final Object? unexpectedError;
+  final List<WatchNextShow> watchNext;
 
-  int calls = 0;
+  final AppException? libraryError;
+  final Object? libraryUnexpectedError;
+
+  final AppException? watchNextError;
+  final Object? watchNextUnexpectedError;
+
+  int libraryCalls = 0;
+  int watchNextCalls = 0;
 
   @override
   Future<List<LibraryShow>> getLibraryShows() async {
-    calls++;
+    libraryCalls++;
 
-    final AppException? appError = error;
+    final AppException? appError = libraryError;
 
     if (appError != null) {
       throw appError;
     }
 
-    final Object? unknownError = unexpectedError;
+    final Object? unknownError = libraryUnexpectedError;
 
     if (unknownError != null) {
       throw unknownError;
     }
 
     return shows;
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    watchNextCalls++;
+
+    final AppException? appError = watchNextError;
+
+    if (appError != null) {
+      throw appError;
+    }
+
+    final Object? unknownError = watchNextUnexpectedError;
+
+    if (unknownError != null) {
+      throw unknownError;
+    }
+
+    return watchNext;
   }
 }

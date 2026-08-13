@@ -3,11 +3,20 @@ from uuid import UUID
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 from datetime import date
+from dataclasses import dataclass
 
 from app.models.episode import Episode
 from app.models.episode_progress import EpisodeProgress
 from app.models.season import Season
 
+
+@dataclass(frozen=True, slots=True)
+class NextUnwatchedEpisode:
+    """Next aired unwatched Episode for a TV series."""
+
+    show_id: UUID
+    episode: Episode
+    season_number: int
 
 class EpisodeProgressRepository:
     """Persistence operations for episode viewing progress."""
@@ -303,4 +312,78 @@ class EpisodeProgressRepository:
                 int(watched_aired_episodes or 0),
             )
             for season_id, watched_episodes, watched_aired_episodes in rows
+        }
+
+    def list_next_unwatched_for_shows(
+        self,
+        *,
+        user_id: UUID,
+        show_ids: list[UUID],
+        as_of: date,
+    ) -> dict[UUID, NextUnwatchedEpisode]:
+        """Return the next aired unwatched Episode for multiple TV series."""
+
+        if not show_ids:
+            return {}
+
+        watched_episode_ids = select(
+            EpisodeProgress.episode_id,
+        ).where(
+            EpisodeProgress.user_id == user_id,
+            EpisodeProgress.is_watched.is_(True),
+        )
+
+        ranked_episodes = (
+            select(
+                Season.show_id.label("show_id"),
+                Episode.id.label("episode_id"),
+                Season.season_number.label("season_number"),
+                func.row_number()
+                .over(
+                    partition_by=Season.show_id,
+                    order_by=(
+                        Season.season_number.asc(),
+                        Episode.episode_number.asc(),
+                    ),
+                )
+                .label("row_number"),
+            )
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .where(
+                Season.show_id.in_(show_ids),
+                Season.season_number > 0,
+                Episode.air_date.is_not(None),
+                Episode.air_date <= as_of,
+                Episode.id.not_in(watched_episode_ids),
+            )
+            .subquery()
+        )
+
+        statement = (
+            select(
+                ranked_episodes.c.show_id,
+                ranked_episodes.c.season_number,
+                Episode,
+            )
+            .join(
+                Episode,
+                Episode.id == ranked_episodes.c.episode_id,
+            )
+            .where(
+                ranked_episodes.c.row_number == 1,
+            )
+        )
+
+        rows = self._session.execute(statement).all()
+
+        return {
+            show_id: NextUnwatchedEpisode(
+                show_id=show_id,
+                episode=episode,
+                season_number=season_number,
+            )
+            for show_id, season_number, episode in rows
         }

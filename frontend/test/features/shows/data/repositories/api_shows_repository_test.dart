@@ -6,6 +6,7 @@ import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/data/repositories/api_shows_repository.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 
 void main() {
   group('ApiShowsRepository', () {
@@ -150,6 +151,129 @@ void main() {
 
       expect(
         repository.getLibraryShows(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.server,
+          ),
+        ),
+      );
+    });
+    test('loads and maps Watch Next Shows', () async {
+      dioAdapter.onGet('/library/shows/watch-next', (server) {
+        server.reply(200, <Map<String, dynamic>>[
+          <String, dynamic>{
+            'library_entry_id': 'library-entry-1',
+            'library_status': 'watching',
+            'show': <String, dynamic>{
+              'id': 'show-1',
+              'tmdb_id': 95396,
+              'title': 'Severance',
+              'original_title': 'Severance',
+              'first_air_date': '2022-02-18',
+              'tmdb_poster_path': '/poster.jpg',
+              'local_poster_path': null,
+              'poster_url': 'https://example.com/poster.jpg',
+              'backdrop_url': 'https://example.com/backdrop.jpg',
+              'status': 'Returning Series',
+              'vote_average': 8.4,
+            },
+            'next_episode': <String, dynamic>{
+              'id': 'episode-1',
+              'tmdb_id': 1947648,
+              'season_number': 2,
+              'episode_number': 4,
+              'title': "Woe's Hollow",
+              'air_date': '2026-08-10',
+              'runtime': 52,
+              'still_url': 'https://example.com/still.jpg',
+            },
+          },
+        ]);
+      });
+
+      final List<WatchNextShow> result = await repository.getWatchNext();
+
+      expect(result, hasLength(1));
+
+      final WatchNextShow item = result.single;
+
+      expect(item.libraryEntryId, 'library-entry-1');
+      expect(item.libraryStatus, LibraryStatus.watching);
+
+      expect(item.showId, 'show-1');
+      expect(item.showTmdbId, 95396);
+      expect(item.showTitle, 'Severance');
+
+      expect(item.posterUrl, 'https://example.com/poster.jpg');
+      expect(item.backdropUrl, 'https://example.com/backdrop.jpg');
+
+      expect(item.nextEpisode.id, 'episode-1');
+      expect(item.nextEpisode.tmdbId, 1947648);
+      expect(item.nextEpisode.seasonNumber, 2);
+      expect(item.nextEpisode.episodeNumber, 4);
+      expect(item.nextEpisode.code, 'S02E04');
+      expect(item.nextEpisode.title, "Woe's Hollow");
+      expect(item.nextEpisode.airDate, DateTime(2026, 8, 10));
+      expect(item.nextEpisode.runtime, 52);
+      expect(item.nextEpisode.stillUrl, 'https://example.com/still.jpg');
+    });
+
+    test('supports an empty Watch Next collection', () async {
+      dioAdapter.onGet('/library/shows/watch-next', (server) {
+        server.reply(200, <Map<String, dynamic>>[]);
+      });
+
+      final List<WatchNextShow> result = await repository.getWatchNext();
+
+      expect(result, isEmpty);
+    });
+
+    test('maps malformed Watch Next data to invalidData', () async {
+      dioAdapter.onGet('/library/shows/watch-next', (server) {
+        server.reply(200, <Map<String, dynamic>>[
+          <String, dynamic>{
+            'library_entry_id': 'library-entry-1',
+            'library_status': 'watching',
+            'show': <String, dynamic>{
+              'id': 'show-1',
+              'tmdb_id': 95396,
+              'title': 'Severance',
+            },
+            'next_episode': <String, dynamic>{
+              'id': 'episode-1',
+              'tmdb_id': 1947648,
+              'season_number': 0,
+              'episode_number': 4,
+              'title': "Woe's Hollow",
+            },
+          },
+        ]);
+      });
+
+      expect(
+        repository.getWatchNext(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
+
+    test('propagates Watch Next API errors unchanged', () async {
+      dioAdapter.onGet('/library/shows/watch-next', (server) {
+        server.reply(500, <String, dynamic>{
+          'code': 'server_error',
+          'message': 'Something went wrong.',
+        });
+      });
+
+      expect(
+        repository.getWatchNext(),
         throwsA(
           isA<AppException>().having(
             (AppException error) => error.type,

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.enums import LibraryStatus
 from app.models.library import LibraryEntry
 from collections.abc import Collection
+from uuid import UUID
 
 from app.models.movie import Movie
 from app.models.show import Show

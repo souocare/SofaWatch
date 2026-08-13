@@ -1586,3 +1586,256 @@ def test_list_by_user_and_season_returns_only_requested_season_progress(
         first_progress,
         second_progress,
     ]
+
+def test_list_next_unwatched_for_shows_returns_next_episode_for_each_show(
+    db_session: Session,
+) -> None:
+    """Return the first aired unwatched regular Episode for each requested Show."""
+
+    user = create_user(db_session)
+
+    first_show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    second_show = create_show(
+        db_session,
+        tmdb_id=100088,
+        title="The Last of Us",
+    )
+
+    first_season = create_season(
+        db_session,
+        show=first_show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    second_season = create_season(
+        db_session,
+        show=second_show,
+        tmdb_id=200001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    first_show_episode_one = create_episode(
+        db_session,
+        season=first_season,
+        tmdb_id=1001,
+        episode_number=1,
+        title="Episode 1",
+        air_date=date(2026, 8, 1),
+    )
+
+    first_show_episode_two = create_episode(
+        db_session,
+        season=first_season,
+        tmdb_id=1002,
+        episode_number=2,
+        title="Episode 2",
+        air_date=date(2026, 8, 8),
+    )
+
+    second_show_episode_one = create_episode(
+        db_session,
+        season=second_season,
+        tmdb_id=2001,
+        episode_number=1,
+        title="Episode 1",
+        air_date=date(2026, 8, 5),
+    )
+
+    create_progress(
+        db_session,
+        user=user,
+        episode=first_show_episode_one,
+        is_watched=True,
+    )
+
+    repository = EpisodeProgressRepository(
+        db_session,
+    )
+
+    result = repository.list_next_unwatched_for_shows(
+        user_id=user.id,
+        show_ids=[
+            first_show.id,
+            second_show.id,
+        ],
+        as_of=date(2026, 8, 13),
+    )
+
+    assert set(result) == {
+        first_show.id,
+        second_show.id,
+    }
+
+    first_candidate = result[first_show.id]
+
+    assert first_candidate.show_id == first_show.id
+    assert first_candidate.episode.id == first_show_episode_two.id
+    assert first_candidate.season_number == 1
+
+    second_candidate = result[second_show.id]
+
+    assert second_candidate.show_id == second_show.id
+    assert second_candidate.episode.id == second_show_episode_one.id
+    assert second_candidate.season_number == 1
+
+
+def test_list_next_unwatched_for_shows_excludes_fully_watched_show(
+    db_session: Session,
+) -> None:
+    """Do not return a Show when all of its aired Episodes are watched."""
+
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode_one = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1001,
+        episode_number=1,
+        title="Episode 1",
+        air_date=date(2026, 8, 1),
+    )
+
+    episode_two = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1002,
+        episode_number=2,
+        title="Episode 2",
+        air_date=date(2026, 8, 8),
+    )
+
+    create_progress(
+        db_session,
+        user=user,
+        episode=episode_one,
+        is_watched=True,
+    )
+
+    create_progress(
+        db_session,
+        user=user,
+        episode=episode_two,
+        is_watched=True,
+    )
+
+    repository = EpisodeProgressRepository(
+        db_session,
+    )
+
+    result = repository.list_next_unwatched_for_shows(
+        user_id=user.id,
+        show_ids=[show.id],
+        as_of=date(2026, 8, 13),
+    )
+
+    assert result == {}
+
+
+def test_list_next_unwatched_for_shows_excludes_future_episodes(
+    db_session: Session,
+) -> None:
+    """Do not return Episodes that have not aired yet."""
+
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1001,
+        episode_number=1,
+        title="Future Episode",
+        air_date=date(2026, 8, 14),
+    )
+
+    repository = EpisodeProgressRepository(
+        db_session,
+    )
+
+    result = repository.list_next_unwatched_for_shows(
+        user_id=user.id,
+        show_ids=[show.id],
+        as_of=date(2026, 8, 13),
+    )
+
+    assert result == {}
+
+
+def test_list_next_unwatched_for_shows_excludes_specials(
+    db_session: Session,
+) -> None:
+    """Do not use Season 0 Episodes as Watch Next candidates."""
+
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    specials = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134791,
+        season_number=0,
+        title="Specials",
+    )
+
+    create_episode(
+        db_session,
+        season=specials,
+        tmdb_id=999,
+        episode_number=1,
+        title="Behind the Scenes",
+        air_date=date(2026, 8, 1),
+    )
+
+    repository = EpisodeProgressRepository(
+        db_session,
+    )
+
+    result = repository.list_next_unwatched_for_shows(
+        user_id=user.id,
+        show_ids=[show.id],
+        as_of=date(2026, 8, 13),
+    )
+
+    assert result == {}
+
+
