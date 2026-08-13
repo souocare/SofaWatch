@@ -9,8 +9,32 @@ import 'package:sofawatch/features/shows/application/cubit/shows_state.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 
-class ShowsPage extends StatelessWidget {
+class ShowsPage extends StatefulWidget {
   const ShowsPage({super.key});
+
+  @override
+  State<ShowsPage> createState() {
+    return _ShowsPageState();
+  }
+}
+
+class _ShowsPageState extends State<ShowsPage>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,15 +44,22 @@ class ShowsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            const _ShowsHeader(),
+            _ShowsHeader(tabController: _tabController),
             Expanded(
               child: BlocBuilder<ShowsCubit, ShowsState>(
                 builder: (BuildContext context, ShowsState state) {
                   return switch (state) {
                     ShowsInitial() || ShowsLoading() => const _ShowsLoading(),
-                    ShowsSuccess(:final shows) when shows.isEmpty =>
-                      const _ShowsEmpty(),
-                    ShowsSuccess(:final shows) => _ShowsContent(shows: shows),
+
+                    ShowsSuccess(:final shows) => TabBarView(
+                      key: const ValueKey<String>('shows-tab-view'),
+                      controller: _tabController,
+                      children: <Widget>[
+                        _WatchListTab(shows: shows),
+                        const _UpcomingTab(),
+                      ],
+                    ),
+
                     ShowsFailure(:final error) => _ShowsFailure(
                       message: error.isTimeout
                           ? 'Loading your shows took too long.'
@@ -47,7 +78,9 @@ class ShowsPage extends StatelessWidget {
 }
 
 class _ShowsHeader extends StatelessWidget {
-  const _ShowsHeader();
+  const _ShowsHeader({required this.tabController});
+
+  final TabController tabController;
 
   @override
   Widget build(BuildContext context) {
@@ -56,21 +89,44 @@ class _ShowsHeader extends StatelessWidget {
         AppSpacing.xl,
         AppSpacing.xl,
         AppSpacing.xl,
-        AppSpacing.lg,
+        AppSpacing.md,
       ),
-      child: Text(
-        'Shows',
-        key: const ValueKey<String>('shows-page-title'),
-        style: Theme.of(
-          context,
-        ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Shows',
+            key: const ValueKey<String>('shows-page-title'),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          TabBar(
+            key: const ValueKey<String>('shows-tabs'),
+            controller: tabController,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            dividerColor: Colors.transparent,
+            tabs: const <Widget>[
+              Tab(
+                key: ValueKey<String>('shows-tab-watch-list'),
+                text: 'Watch List',
+              ),
+              Tab(
+                key: ValueKey<String>('shows-tab-upcoming'),
+                text: 'Upcoming',
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
 class _ShowsContent extends StatelessWidget {
-  const _ShowsContent({required this.shows});
+  const _ShowsContent({required this.shows, super.key});
 
   final List<LibraryShow> shows;
 
@@ -246,12 +302,14 @@ class _ShowsLoading extends StatelessWidget {
 }
 
 class _ShowsEmpty extends StatelessWidget {
-  const _ShowsEmpty();
+  const _ShowsEmpty({required this.title, required this.message, super.key});
+
+  final String title;
+  final String message;
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      key: const ValueKey<String>('shows-empty'),
       child: Padding(
         padding: AppSpacing.cardPaddingLarge,
         child: Column(
@@ -264,14 +322,14 @@ class _ShowsEmpty extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
-              'No shows yet',
+              title,
               style: Theme.of(
                 context,
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Shows you add to your Library will appear here.',
+              message,
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,
@@ -327,6 +385,41 @@ class _ShowsFailure extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _WatchListTab extends StatelessWidget {
+  const _WatchListTab({required this.shows});
+
+  final List<LibraryShow> shows;
+
+  @override
+  Widget build(BuildContext context) {
+    if (shows.isEmpty) {
+      return const _ShowsEmpty(
+        key: ValueKey<String>('shows-watch-list-empty'),
+        title: 'Nothing to watch yet',
+        message: 'Shows you add to your Library will appear here.',
+      );
+    }
+
+    return _ShowsContent(
+      key: const ValueKey<String>('shows-watch-list'),
+      shows: shows,
+    );
+  }
+}
+
+class _UpcomingTab extends StatelessWidget {
+  const _UpcomingTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _ShowsEmpty(
+      key: ValueKey<String>('shows-upcoming-empty'),
+      title: 'No upcoming episodes',
+      message: 'Upcoming episodes from your shows will appear here.',
     );
   }
 }
