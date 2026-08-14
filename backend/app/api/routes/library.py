@@ -15,7 +15,9 @@ from app.api.dependencies import (
     WatchHistoryServiceDependency,
     WatchNextServiceDependency,
     StaleWatchingServiceDependency,
+    StartShowServiceDependency,
 )
+from app.schemas.start_show import StartShowResponse
 from app.schemas.watch_next import WatchNextShowResponse
 from app.schemas.stale_watching import StaleWatchingShowResponse
 from app.schemas.watch_history import WatchHistoryPageResponse
@@ -410,4 +412,41 @@ def update_movie_library_status(
 
     return entry
 
+
+@router.post(
+    "/shows/{show_id}/start",
+    response_model=StartShowResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Start TV series",
+    description=(
+        "Start a TV series from the current user's Library by marking "
+        "its first aired regular Episode as watched and changing the "
+        "Library status to Watching."
+    ),
+)
+def start_library_show(
+    show_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV series identifier.",
+        ),
+    ],
+    service: StartShowServiceDependency,
+    current_user: CurrentUserDependency,
+) -> StartShowResponse:
+    """Start a TV series from its first aired regular Episode."""
+
+    result = service.start(
+        user_id=current_user.id,
+        show_id=show_id,
+    )
+
+    if result is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="show_cannot_be_started",
+            message="TV series cannot be started.",
+        )
+
+    return result
 

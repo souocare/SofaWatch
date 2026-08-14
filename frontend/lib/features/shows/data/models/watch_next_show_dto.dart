@@ -1,5 +1,6 @@
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/data/models/watch_next_episode_dto.dart';
+import 'package:sofawatch/features/shows/data/models/watch_next_progress_dto.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 
 final class WatchNextShowDto {
@@ -10,26 +11,17 @@ final class WatchNextShowDto {
     required this.showTmdbId,
     required this.showTitle,
     required this.nextEpisode,
+    required this.progress,
     this.posterUrl,
     this.backdropUrl,
   });
-
-  final String libraryEntryId;
-  final LibraryStatus libraryStatus;
-
-  final String showId;
-  final int showTmdbId;
-  final String showTitle;
-
-  final String? posterUrl;
-  final String? backdropUrl;
-
-  final WatchNextEpisodeDto nextEpisode;
 
   factory WatchNextShowDto.fromJson(Map<String, dynamic> json) {
     final Map<String, dynamic> show = _requiredMap(json, 'show');
 
     final Map<String, dynamic> nextEpisode = _requiredMap(json, 'next_episode');
+
+    final Map<String, dynamic> progress = _requiredMap(json, 'progress');
 
     return WatchNextShowDto(
       libraryEntryId: _requiredString(json, 'library_entry_id'),
@@ -42,8 +34,22 @@ final class WatchNextShowDto {
       posterUrl: _optionalString(show['poster_url']),
       backdropUrl: _optionalString(show['backdrop_url']),
       nextEpisode: WatchNextEpisodeDto.fromJson(nextEpisode),
+      progress: WatchNextProgressDto.fromJson(progress),
     );
   }
+
+  final String libraryEntryId;
+  final LibraryStatus libraryStatus;
+
+  final String showId;
+  final int showTmdbId;
+  final String showTitle;
+
+  final String? posterUrl;
+  final String? backdropUrl;
+
+  final WatchNextEpisodeDto nextEpisode;
+  final WatchNextProgressDto progress;
 
   WatchNextShow toDomain() {
     return WatchNextShow(
@@ -55,6 +61,7 @@ final class WatchNextShowDto {
       posterUrl: posterUrl,
       backdropUrl: backdropUrl,
       nextEpisode: nextEpisode.toDomain(),
+      progress: progress.toDomain(),
     );
   }
 }

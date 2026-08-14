@@ -17,6 +17,7 @@ from app.models.show import Show
 from app.models.user import User
 from app.models.movie import Movie
 
+from app.repositories.episode import EpisodeRepository
 
 @pytest.fixture
 def library_repository() -> Mock:
@@ -38,6 +39,7 @@ def library_service(
     library_repository: Mock,
     show_repository: Mock,
     movie_repository: Mock,
+    episode_repository: Mock,
 ) -> LibraryService:
     """Provide a library service using mocked repositories."""
 
@@ -46,6 +48,7 @@ def library_service(
         library_repository=library_repository,
         show_repository=show_repository,
         movie_repository=movie_repository,
+        episode_repository=episode_repository,
     )
 
 @pytest.fixture
@@ -56,14 +59,27 @@ def movie_repository() -> Mock:
         spec=MovieRepository,
     )
 
+@pytest.fixture
+def episode_repository() -> Mock:
+    """Provide a mocked Episode repository."""
+
+    return Mock(spec=EpisodeRepository)
+
 def make_show(
     *,
     show_id: UUID,
+    tmdb_id: int = 95396,
+    title: str = "Severance",
 ) -> SimpleNamespace:
-    """Create a lightweight show object for service tests."""
+    """Create Show-like data required by LibraryService responses."""
 
     return SimpleNamespace(
         id=show_id,
+        tmdb_id=tmdb_id,
+        title=title,
+        original_title=title,
+        status="Returning Series",
+        vote_average=8.4,
     )
 
 
@@ -574,6 +590,7 @@ def test_add_movie_creates_library_entry(
     library_repository: Mock,
     show_repository: Mock,
     movie_repository: Mock,
+    episode_repository: Mock,
 ) -> None:
     """Create a new library entry for a locally stored Movie."""
 
@@ -617,6 +634,7 @@ def test_add_movie_creates_library_entry(
         library_repository=library_repository,
         show_repository=show_repository,
         movie_repository=movie_repository,
+        episode_repository=episode_repository,
     )
 
     result = service.add_movie(
@@ -637,6 +655,7 @@ def test_remove_movie_deletes_existing_entry(
     library_repository: Mock,
     show_repository: Mock,
     movie_repository: Mock,
+    episode_repository: Mock,
 ) -> None:
     """Remove a Movie library entry."""
 
@@ -656,6 +675,7 @@ def test_remove_movie_deletes_existing_entry(
         library_repository=library_repository,
         show_repository=show_repository,
         movie_repository=movie_repository,
+        episode_repository=episode_repository,
     )
 
     removed = service.remove_movie(
@@ -698,6 +718,7 @@ def test_update_movie_status_to_completed_sets_completed_at(
     library_repository: Mock,
     show_repository: Mock,
     movie_repository: Mock,
+    episode_repository: Mock,
 ) -> None:
     """Mark a Movie as completed and store when it was watched."""
 
@@ -747,6 +768,7 @@ def test_update_movie_status_to_completed_sets_completed_at(
         library_repository=library_repository,
         show_repository=show_repository,
         movie_repository=movie_repository,
+        episode_repository=episode_repository,
     )
 
     result = service.update_movie_status(
@@ -764,6 +786,7 @@ def test_update_movie_status_to_planning_clears_completed_at(
     library_repository: Mock,
     show_repository: Mock,
     movie_repository: Mock,
+    episode_repository: Mock,
 ) -> None:
     """Mark a completed Movie as not watched and clear completed_at."""
 
@@ -814,6 +837,7 @@ def test_update_movie_status_to_planning_clears_completed_at(
         library_repository=library_repository,
         show_repository=show_repository,
         movie_repository=movie_repository,
+        episode_repository=episode_repository,
     )
 
     result = service.update_movie_status(
@@ -831,6 +855,7 @@ def test_update_movie_status_keeps_existing_completed_at(
     library_repository: Mock,
     show_repository: Mock,
     movie_repository: Mock,
+    episode_repository: Mock,
 ) -> None:
     """Preserve the original completion date when Movie is already completed."""
 
@@ -881,6 +906,7 @@ def test_update_movie_status_keeps_existing_completed_at(
         library_repository=library_repository,
         show_repository=show_repository,
         movie_repository=movie_repository,
+        episode_repository=episode_repository,
     )
 
     result = service.update_movie_status(
@@ -894,3 +920,139 @@ def test_update_movie_status_keeps_existing_completed_at(
     assert result.completed_at is not None
 
     assert result.completed_at == original_completed_at.replace(tzinfo=None)
+
+def test_list_shows_for_user_includes_first_available_episode_for_planning_show(
+    library_service: LibraryService,
+    library_repository: Mock,
+    episode_repository: Mock,
+) -> None:
+    """Expose the first aired regular Episode for a Planning Show."""
+
+    user_id = uuid4()
+    show_id = uuid4()
+    episode_id = uuid4()
+
+    show = make_show(
+        show_id=show_id,
+    )
+
+    entry = SimpleNamespace(
+        id=uuid4(),
+        show_id=show_id,
+        show=show,
+        status=LibraryStatus.PLANNING,
+        rating=None,
+        started_at=None,
+        completed_at=None,
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
+    )
+
+    episode = SimpleNamespace(
+        id=episode_id,
+        tmdb_id=1947647,
+        episode_number=1,
+        title="Good News About Hell",
+        air_date=None,
+        runtime=52,
+    )
+
+    library_repository.list_shows_by_user.return_value = [entry]
+
+    episode_repository.get_first_aired_regular_for_shows.return_value = {
+        show_id: (
+            episode,
+            1,
+        )
+    }
+
+    result = library_service.list_shows_for_user(
+        user_id,
+    )
+
+    assert len(result) == 1
+
+    item = result[0]
+
+    assert item.first_available_episode is not None
+    assert item.first_available_episode.id == episode_id
+    assert item.first_available_episode.tmdb_id == 1947647
+    assert item.first_available_episode.season_number == 1
+    assert item.first_available_episode.episode_number == 1
+    assert item.first_available_episode.title == "Good News About Hell"
+
+    episode_repository.get_first_aired_regular_for_shows.assert_called_once()
+
+
+def test_list_shows_for_user_only_requests_first_episode_for_planning_shows(
+    library_service: LibraryService,
+    library_repository: Mock,
+    episode_repository: Mock,
+) -> None:
+    """Only Planning Shows need their first available Episode."""
+
+    user_id = uuid4()
+
+    planning_show_id = uuid4()
+    watching_show_id = uuid4()
+
+    planning_entry = SimpleNamespace(
+        id=uuid4(),
+        show_id=planning_show_id,
+        show=make_show(
+            show_id=planning_show_id,
+            tmdb_id=1396,
+            title="Breaking Bad",
+        ),
+        status=LibraryStatus.PLANNING,
+        rating=None,
+        started_at=None,
+        completed_at=None,
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
+    )
+
+    watching_entry = SimpleNamespace(
+        id=uuid4(),
+        show_id=watching_show_id,
+        show=make_show(
+            show_id=watching_show_id,
+            tmdb_id=95396,
+            title="Severance",
+        ),
+        status=LibraryStatus.WATCHING,
+        rating=None,
+        started_at=datetime.now(UTC),
+        completed_at=None,
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
+    )
+
+    library_repository.list_shows_by_user.return_value = [
+        planning_entry,
+        watching_entry,
+    ]
+
+    episode_repository.get_first_aired_regular_for_shows.return_value = {}
+
+    result = library_service.list_shows_for_user(
+        user_id,
+    )
+
+    assert len(result) == 2
+
+    episode_repository.get_first_aired_regular_for_shows.assert_called_once()
+
+    _, kwargs = (
+        episode_repository
+        .get_first_aired_regular_for_shows
+        .call_args
+    )
+
+    assert kwargs["show_ids"] == [
+        planning_show_id,
+    ]
+
+    assert result[0].first_available_episode is None
+    assert result[1].first_available_episode is None
+

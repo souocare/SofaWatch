@@ -238,3 +238,142 @@ class EpisodeRepository:
             )
             for season_id, total_episodes, aired_episodes in rows
         }
+
+    def get_first_aired_regular_for_shows(
+        self,
+        *,
+        show_ids: list[UUID],
+        as_of: date,
+    ) -> dict[UUID, tuple[Episode, int]]:
+        """Return the first aired regular Episode for each TV series."""
+
+        if not show_ids:
+            return {}
+
+        ranked_episodes = (
+            select(
+                Season.show_id.label("show_id"),
+                Episode.id.label("episode_id"),
+                Season.season_number.label("season_number"),
+                func.row_number()
+                .over(
+                    partition_by=Season.show_id,
+                    order_by=(
+                        Season.season_number.asc(),
+                        Episode.episode_number.asc(),
+                    ),
+                )
+                .label("position"),
+            )
+            .select_from(Episode)
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .where(
+                Season.show_id.in_(show_ids),
+                Season.season_number > 0,
+                Episode.air_date.is_not(None),
+                Episode.air_date <= as_of,
+            )
+            .subquery()
+        )
+
+        rows = self._session.execute(
+            select(
+                ranked_episodes.c.show_id,
+                Episode,
+                ranked_episodes.c.season_number,
+            )
+            .join(
+                Episode,
+                Episode.id == ranked_episodes.c.episode_id,
+            )
+            .where(
+                ranked_episodes.c.position == 1,
+            )
+        ).all()
+
+        return {
+            show_id: (
+                episode,
+                int(season_number),
+            )
+            for show_id, episode, season_number in rows
+        }
+
+    def get_first_aired_regular_for_show(
+        self,
+        *,
+        show_id: UUID,
+        as_of: date,
+    ) -> tuple[Episode, int] | None:
+        """Return the first aired regular Episode of a TV series."""
+
+        row = self._session.execute(
+            select(
+                Episode,
+                Season.season_number,
+            )
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .where(
+                Season.show_id == show_id,
+                Season.season_number > 0,
+                Episode.air_date.is_not(None),
+                Episode.air_date <= as_of,
+            )
+            .order_by(
+                Season.season_number.asc(),
+                Episode.episode_number.asc(),
+            )
+            .limit(1)
+        ).first()
+
+        if row is None:
+            return None
+
+        episode, season_number = row
+
+        return episode, season_number
+
+    def get_aired_counts_by_show_ids(
+        self,
+        *,
+        show_ids: list[UUID],
+        as_of: date,
+    ) -> dict[UUID, int]:
+        """Return aired regular Episode counts grouped by Show."""
+
+        if not show_ids:
+            return {}
+
+        statement = (
+            select(
+                Season.show_id,
+                func.count(Episode.id),
+            )
+            .select_from(Episode)
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .where(
+                Season.show_id.in_(show_ids),
+                Season.season_number > 0,
+                Episode.air_date.is_not(None),
+                Episode.air_date <= as_of,
+            )
+            .group_by(
+                Season.show_id,
+            )
+        )
+
+        rows = self._session.execute(statement).all()
+
+        return {
+            show_id: int(aired_episodes or 0)
+            for show_id, aired_episodes in rows
+        }

@@ -12,6 +12,7 @@ from typing import cast
 from uuid import UUID
 from app.models.episode_progress import EpisodeProgress
 from app.models.user import User
+from app.models.episode_watch_event import EpisodeWatchEvent
 
 from fastapi import FastAPI
 
@@ -683,7 +684,7 @@ def test_list_season_episode_progress_returns_user_progress(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    """Return existing episode progress for the current user and season."""
+    """Return current progress and historical watch count for the user."""
 
     user = create_local_user(db_session)
 
@@ -717,7 +718,16 @@ def test_list_season_episode_progress_returns_user_progress(
         title="Half Loop",
     )
 
-    watched_at = datetime(
+    first_watched_at = datetime(
+        2026,
+        7,
+        10,
+        21,
+        30,
+        tzinfo=UTC,
+    )
+
+    latest_watched_at = datetime(
         2026,
         8,
         10,
@@ -731,8 +741,25 @@ def test_list_season_episode_progress_returns_user_progress(
         user=user,
         episode=watched_episode,
         is_watched=True,
-        watched_at=watched_at,
+        watched_at=latest_watched_at,
     )
+
+    db_session.add_all(
+        [
+            EpisodeWatchEvent(
+                user_id=user.id,
+                episode_id=watched_episode.id,
+                watched_at=first_watched_at,
+            ),
+            EpisodeWatchEvent(
+                user_id=user.id,
+                episode_id=watched_episode.id,
+                watched_at=latest_watched_at,
+            ),
+        ]
+    )
+
+    db_session.commit()
 
     response = client.get(
         f"/api/v1/seasons/{season.id}/episodes/progress",
@@ -746,8 +773,11 @@ def test_list_season_episode_progress_returns_user_progress(
 
     assert body[0]["id"] == str(progress.id)
     assert body[0]["episode_id"] == str(watched_episode.id)
+
     assert body[0]["is_watched"] is True
     assert body[0]["watched_at"] is not None
+
+    assert body[0]["watch_count"] == 2
 
 
 def test_list_season_episode_progress_returns_404_when_season_missing(

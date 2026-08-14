@@ -2,6 +2,7 @@ from datetime import date
 from uuid import UUID
 
 from app.models.enums import LibraryStatus
+from app.repositories.episode import EpisodeRepository
 from app.repositories.episode_progress import (
     EpisodeProgressRepository,
     NextUnwatchedEpisode,
@@ -9,6 +10,7 @@ from app.repositories.episode_progress import (
 from app.repositories.library import LibraryRepository
 from app.schemas.watch_next import (
     WatchNextEpisodeResponse,
+    WatchNextProgressResponse,
     WatchNextShowResponse,
 )
 
@@ -20,9 +22,11 @@ class WatchNextService:
         self,
         *,
         library_repository: LibraryRepository,
+        episode_repository: EpisodeRepository,
         progress_repository: EpisodeProgressRepository,
     ) -> None:
         self._library_repository = library_repository
+        self._episode_repository = episode_repository
         self._progress_repository = progress_repository
 
     def list_for_user(
@@ -53,10 +57,27 @@ class WatchNextService:
             if entry.show_id is not None
         ]
 
-        next_by_show = self._progress_repository.list_next_unwatched_for_shows(
-            user_id=user_id,
+        today = date.today()
+
+        next_by_show = (
+            self._progress_repository.list_next_unwatched_for_shows(
+                user_id=user_id,
+                show_ids=show_ids,
+                as_of=today,
+            )
+        )
+
+        aired_counts = self._episode_repository.get_aired_counts_by_show_ids(
             show_ids=show_ids,
-            as_of=date.today(),
+            as_of=today,
+        )
+
+        watched_aired_counts = (
+            self._progress_repository.get_watched_aired_counts_by_show_ids(
+                user_id=user_id,
+                show_ids=show_ids,
+                as_of=today,
+            )
         )
 
         results: list[WatchNextShowResponse] = []
@@ -77,6 +98,22 @@ class WatchNextService:
 
             episode = candidate.episode
 
+            aired_episodes = aired_counts.get(
+                show_id,
+                0,
+            )
+
+            watched_episodes = watched_aired_counts.get(
+                show_id,
+                0,
+            )
+
+            percentage = (
+                watched_episodes / aired_episodes * 100
+                if aired_episodes > 0
+                else 0.0
+            )
+
             results.append(
                 WatchNextShowResponse(
                     library_entry_id=entry.id,
@@ -91,6 +128,11 @@ class WatchNextService:
                         air_date=episode.air_date,
                         runtime=episode.runtime,
                         still_url=episode.still_url,
+                    ),
+                    progress=WatchNextProgressResponse(
+                        watched_episodes=watched_episodes,
+                        aired_episodes=aired_episodes,
+                        percentage=percentage,
                     ),
                 )
             )

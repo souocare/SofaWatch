@@ -3,6 +3,7 @@ import 'package:sofawatch/features/shows/domain/models/watch_history_episode.dar
 
 final class WatchHistoryItem extends Equatable {
   const WatchHistoryItem({
+    required this.eventId,
     required this.showId,
     required this.showTmdbId,
     required this.showTitle,
@@ -10,6 +11,12 @@ final class WatchHistoryItem extends Equatable {
     this.posterUrl,
     this.backdropUrl,
   });
+
+  /// Identifier of this specific historical viewing.
+  ///
+  /// Multiple Watch History items may reference the same Episode while
+  /// having different event IDs.
+  final String eventId;
 
   final String showId;
   final int showTmdbId;
@@ -22,6 +29,7 @@ final class WatchHistoryItem extends Equatable {
 
   @override
   List<Object?> get props => <Object?>[
+    eventId,
     showId,
     showTmdbId,
     showTitle,

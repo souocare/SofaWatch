@@ -747,6 +747,7 @@ void main() {
           onRequest:
               (RequestOptions options, RequestInterceptorHandler handler) {
                 expect(options.method, 'GET');
+
                 expect(
                   options.path,
                   '/seasons/season-1-uuid/episodes/progress',
@@ -762,12 +763,14 @@ void main() {
                         'episode_id': 'episode-1-uuid',
                         'is_watched': true,
                         'watched_at': '2026-08-10T21:30:00Z',
+                        'watch_count': 2,
                       },
                       <String, dynamic>{
                         'id': 'progress-2-uuid',
                         'episode_id': 'episode-2-uuid',
                         'is_watched': false,
                         'watched_at': null,
+                        'watch_count': 0,
                       },
                     ],
                   ),
@@ -790,11 +793,13 @@ void main() {
       expect(result[0].episodeId, 'episode-1-uuid');
       expect(result[0].isWatched, isTrue);
       expect(result[0].watchedAt, DateTime.utc(2026, 8, 10, 21, 30));
+      expect(result[0].watchCount, 2);
 
       expect(result[1].id, 'progress-2-uuid');
       expect(result[1].episodeId, 'episode-2-uuid');
       expect(result[1].isWatched, isFalse);
       expect(result[1].watchedAt, isNull);
+      expect(result[1].watchCount, 0);
     });
 
     test('marks an Episode as watched', () async {
@@ -821,6 +826,7 @@ void main() {
                       'episode_id': 'episode-1-uuid',
                       'is_watched': true,
                       'watched_at': '2026-08-11T19:30:00Z',
+                      'watch_count': 2,
                     },
                   ),
                 );
@@ -841,7 +847,10 @@ void main() {
 
       expect(result.episodeId, 'episode-1-uuid');
       expect(result.isWatched, isTrue);
+
       expect(result.watchedAt, DateTime.utc(2026, 8, 11, 19, 30));
+
+      expect(result.watchCount, 2);
     });
 
     test('marks an Episode as unwatched', () async {
@@ -864,6 +873,7 @@ void main() {
                       'episode_id': 'episode-1-uuid',
                       'is_watched': false,
                       'watched_at': null,
+                      'watch_count': 0,
                     },
                   ),
                 );
@@ -882,6 +892,7 @@ void main() {
       expect(result.episodeId, 'episode-1-uuid');
       expect(result.isWatched, isFalse);
       expect(result.watchedAt, isNull);
+      expect(result.watchCount, 0);
     });
 
     test('rejects watched Episode progress without watched_at', () async {
@@ -901,6 +912,7 @@ void main() {
                         'episode_id': 'episode-1-uuid',
                         'is_watched': true,
                         'watched_at': null,
+                        'watch_count': 1,
                       },
                     ],
                   ),

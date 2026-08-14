@@ -1,25 +1,29 @@
 import base64
+import binascii
 import json
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
-import binascii
 
 
 @dataclass(frozen=True, slots=True)
 class WatchHistoryCursor:
+    """Position within the cursor-paginated Watch History."""
+
     watched_at: datetime
-    progress_id: UUID
+    event_id: UUID
 
 
 class WatchHistoryCursorCodec:
     """Encode and decode opaque Watch History pagination cursors."""
 
     @staticmethod
-    def encode(cursor: WatchHistoryCursor) -> str:
+    def encode(
+        cursor: WatchHistoryCursor,
+    ) -> str:
         payload = {
             "watched_at": cursor.watched_at.isoformat(),
-            "progress_id": str(cursor.progress_id),
+            "event_id": str(cursor.event_id),
         }
 
         raw = json.dumps(
@@ -27,10 +31,14 @@ class WatchHistoryCursorCodec:
             separators=(",", ":"),
         ).encode("utf-8")
 
-        return base64.urlsafe_b64encode(raw).decode("ascii")
+        return base64.urlsafe_b64encode(
+            raw,
+        ).decode("ascii")
 
     @staticmethod
-    def decode(value: str) -> WatchHistoryCursor:
+    def decode(
+        value: str,
+    ) -> WatchHistoryCursor:
         try:
             raw = base64.urlsafe_b64decode(
                 value.encode("ascii"),
@@ -44,8 +52,8 @@ class WatchHistoryCursorCodec:
                 payload["watched_at"],
             )
 
-            progress_id = UUID(
-                payload["progress_id"],
+            event_id = UUID(
+                payload["event_id"],
             )
         except (
             ValueError,
@@ -61,5 +69,5 @@ class WatchHistoryCursorCodec:
 
         return WatchHistoryCursor(
             watched_at=watched_at,
-            progress_id=progress_id,
+            event_id=event_id,
         )

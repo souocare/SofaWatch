@@ -13,11 +13,13 @@ import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart'
 import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_next_progress.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
 import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_episode.dart';
+import 'package:sofawatch/features/shows/domain/models/library_first_episode.dart';
 
 void main() {
   group('ShowsPage', () {
@@ -105,6 +107,27 @@ void main() {
       expect(find.textContaining('S02E04'), findsOneWidget);
 
       expect(find.textContaining('52 min'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('shows-watch-next-progress-95396')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('shows-watch-next-progress-label-95396'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(find.text('7/10'), findsOneWidget);
+      final LinearProgressIndicator progressIndicator = tester
+          .widget<LinearProgressIndicator>(
+            find.byKey(
+              const ValueKey<String>('shows-watch-next-progress-95396'),
+            ),
+          );
+
+      expect(progressIndicator.value, 0.7);
     });
 
     testWidgets('switches from Watch List to Upcoming', (
@@ -713,6 +736,15 @@ void main() {
         voteAverage: 8.9,
         createdAt: DateTime.utc(2026, 8, 1),
         updatedAt: DateTime.utc(2026, 8, 10),
+        firstAvailableEpisode: LibraryFirstEpisode(
+          id: 'episode-first',
+          tmdbId: 62085,
+          seasonNumber: 1,
+          episodeNumber: 1,
+          title: 'Pilot',
+          airDate: DateTime(2008, 1, 20),
+          runtime: 58,
+        ),
       );
 
       final ShowsCubit cubit = ShowsCubit(
@@ -748,7 +780,230 @@ void main() {
 
       expect(find.text('Breaking Bad'), findsOneWidget);
 
-      expect(find.text('Not started yet'), findsOneWidget);
+      expect(find.text('S01E01 • 58 min'), findsOneWidget);
+      expect(find.text('Pilot'), findsOneWidget);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('shows-havent-started-episode-code-1396'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('shows-havent-started-episode-title-1396'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('shows-havent-started-start-1396')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Start'), findsOneWidget);
+    });
+
+    testWidgets(
+      'shows loading state while starting a Show and prevents duplicate starts',
+      (WidgetTester tester) async {
+        final LibraryShow planningShow = LibraryShow(
+          libraryEntryId: 'library-planning',
+          showId: 'show-planning',
+          tmdbId: 1396,
+          title: 'Breaking Bad',
+          originalTitle: 'Breaking Bad',
+          status: LibraryStatus.planning,
+          showStatus: 'Ended',
+          voteAverage: 8.9,
+          createdAt: DateTime.utc(2026, 8, 1),
+          updatedAt: DateTime.utc(2026, 8, 10),
+          firstAvailableEpisode: LibraryFirstEpisode(
+            id: 'episode-first',
+            tmdbId: 62085,
+            seasonNumber: 1,
+            episodeNumber: 1,
+            title: 'Pilot',
+            airDate: DateTime(2008, 1, 20),
+            runtime: 58,
+          ),
+        );
+
+        final _PendingStartShowRepository repository =
+            _PendingStartShowRepository(planningShow: planningShow);
+
+        final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubit));
+        await tester.pumpAndSettle();
+
+        final Finder startButton = find.byKey(
+          const ValueKey<String>('shows-havent-started-start-1396'),
+        );
+
+        await tester.ensureVisible(startButton);
+        await tester.pumpAndSettle();
+
+        await tester.tap(startButton);
+        await tester.pump();
+
+        expect(repository.startShowCalls, 1);
+
+        expect(find.text('Starting…'), findsOneWidget);
+
+        expect(
+          find.byKey(
+            const ValueKey<String>('shows-havent-started-start-progress'),
+          ),
+          findsOneWidget,
+        );
+
+        final FilledButton button = tester.widget<FilledButton>(startButton);
+
+        expect(button.onPressed, isNull);
+
+        await tester.tap(startButton);
+        await tester.pump();
+
+        expect(
+          repository.startShowCalls,
+          1,
+          reason: 'A pending Start operation must not be submitted twice.',
+        );
+
+        repository.completeStart();
+
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets('moves a successfully started Show out of Haven\'t Started', (
+      WidgetTester tester,
+    ) async {
+      final LibraryShow planningShow = LibraryShow(
+        libraryEntryId: 'library-planning',
+        showId: 'show-planning',
+        tmdbId: 1396,
+        title: 'Breaking Bad',
+        originalTitle: 'Breaking Bad',
+        status: LibraryStatus.planning,
+        showStatus: 'Ended',
+        voteAverage: 8.9,
+        createdAt: DateTime.utc(2026, 8, 1),
+        updatedAt: DateTime.utc(2026, 8, 10),
+        firstAvailableEpisode: LibraryFirstEpisode(
+          id: 'episode-first',
+          tmdbId: 62085,
+          seasonNumber: 1,
+          episodeNumber: 1,
+          title: 'Pilot',
+          airDate: DateTime(2008, 1, 20),
+          runtime: 58,
+        ),
+      );
+
+      final _SuccessfulStartShowRepository repository =
+          _SuccessfulStartShowRepository(planningShow: planningShow);
+
+      final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      final Finder startButton = find.byKey(
+        const ValueKey<String>('shows-havent-started-start-1396'),
+      );
+
+      await tester.ensureVisible(startButton);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-havent-started-1396')),
+        findsOneWidget,
+      );
+
+      await tester.tap(startButton);
+      await tester.pumpAndSettle();
+
+      expect(repository.startShowCalls, 1);
+      expect(repository.startedShowIds, <String>['show-planning']);
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-havent-started-1396')),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-havent-started-empty')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('preserves Haven\'t Started Show when Start fails', (
+      WidgetTester tester,
+    ) async {
+      final LibraryShow planningShow = LibraryShow(
+        libraryEntryId: 'library-planning',
+        showId: 'show-planning',
+        tmdbId: 1396,
+        title: 'Breaking Bad',
+        originalTitle: 'Breaking Bad',
+        status: LibraryStatus.planning,
+        showStatus: 'Ended',
+        voteAverage: 8.9,
+        createdAt: DateTime.utc(2026, 8, 1),
+        updatedAt: DateTime.utc(2026, 8, 10),
+        firstAvailableEpisode: LibraryFirstEpisode(
+          id: 'episode-first',
+          tmdbId: 62085,
+          seasonNumber: 1,
+          episodeNumber: 1,
+          title: 'Pilot',
+          airDate: DateTime(2008, 1, 20),
+          runtime: 58,
+        ),
+      );
+
+      final _FailingStartShowRepository repository =
+          _FailingStartShowRepository(planningShow: planningShow);
+
+      final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      final Finder startButton = find.byKey(
+        const ValueKey<String>('shows-havent-started-start-1396'),
+      );
+
+      await tester.ensureVisible(startButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(startButton);
+      await tester.pumpAndSettle();
+
+      expect(repository.startShowCalls, 1);
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-havent-started-1396')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Start'), findsOneWidget);
+
+      expect(find.text('Could not start this show.'), findsOneWidget);
     });
 
     testWidgets('shows Haven\'t Started empty state without planning Shows', (
@@ -1149,6 +1404,196 @@ void main() {
         findsNothing,
       );
     });
+    testWidgets('marks Watch Next Episode as watched', (
+      WidgetTester tester,
+    ) async {
+      final _MarkWatchNextRepository repository = _MarkWatchNextRepository(
+        shows: <LibraryShow>[_show],
+        watchNext: <WatchNextShow>[_watchNextShow],
+      );
+
+      final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      final Finder markWatchedButton = find.byKey(
+        const ValueKey<String>('shows-watch-next-mark-watched-episode-uuid'),
+      );
+
+      expect(markWatchedButton, findsOneWidget);
+
+      await tester.tap(markWatchedButton);
+      await tester.pumpAndSettle();
+
+      expect(repository.markEpisodeWatchedCalls, 1);
+      expect(repository.markedEpisodeIds, <String>['episode-uuid']);
+
+      expect(
+        repository.watchNextCalls,
+        2,
+        reason: 'Watch Next must refresh after marking an Episode as watched.',
+      );
+
+      expect(
+        repository.staleWatchingCalls,
+        2,
+        reason: 'Stale Watching may also change after watching an Episode.',
+      );
+    });
+    testWidgets('shows loading only for the Watch Next Episode being updated', (
+      WidgetTester tester,
+    ) async {
+      final _PendingMarkWatchNextRepository repository =
+          _PendingMarkWatchNextRepository(
+            shows: <LibraryShow>[_show],
+            watchNext: <WatchNextShow>[_watchNextShow],
+          );
+
+      final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      final Finder markWatchedButton = find.byKey(
+        const ValueKey<String>('shows-watch-next-mark-watched-episode-uuid'),
+      );
+
+      await tester.tap(markWatchedButton);
+      await tester.pump();
+
+      expect(repository.markEpisodeWatchedCalls, 1);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'shows-watch-next-mark-watched-loading-episode-uuid',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      expect(markWatchedButton, findsNothing);
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-watch-next-95396')),
+        findsOneWidget,
+        reason: 'The Watch Next card must remain visible during the mutation.',
+      );
+
+      repository.complete();
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'shows-watch-next-mark-watched-loading-episode-uuid',
+          ),
+        ),
+        findsNothing,
+      );
+    });
+    testWidgets('shows safe error when marking Watch Next Episode fails', (
+      WidgetTester tester,
+    ) async {
+      final _MarkWatchNextFailureRepository repository =
+          _MarkWatchNextFailureRepository(
+            shows: <LibraryShow>[_show],
+            watchNext: <WatchNextShow>[_watchNextShow],
+          );
+
+      final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      final Finder markWatchedButton = find.byKey(
+        const ValueKey<String>('shows-watch-next-mark-watched-episode-uuid'),
+      );
+
+      await tester.tap(markWatchedButton);
+      await tester.pumpAndSettle();
+
+      expect(repository.markEpisodeWatchedCalls, 1);
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-watch-next-95396')),
+        findsOneWidget,
+        reason: 'A failed mutation must not remove the Watch Next card.',
+      );
+
+      expect(
+        find.text('Could not mark the episode as watched.'),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('shows-watch-next-mark-watched-episode-uuid'),
+        ),
+        findsOneWidget,
+        reason: 'The action must become available again after failure.',
+      );
+    });
+    testWidgets(
+      'disables Start when a Planning Show has no available Episode',
+      (WidgetTester tester) async {
+        final LibraryShow planningShow = LibraryShow(
+          libraryEntryId: 'library-planning',
+          showId: 'show-planning',
+          tmdbId: 1396,
+          title: 'Breaking Bad',
+          originalTitle: 'Breaking Bad',
+          status: LibraryStatus.planning,
+          showStatus: 'Ended',
+          voteAverage: 8.9,
+          createdAt: DateTime.utc(2026, 8, 1),
+          updatedAt: DateTime.utc(2026, 8, 10),
+        );
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: _FakeShowsRepository(shows: <LibraryShow>[planningShow]),
+        );
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubit));
+        await tester.pumpAndSettle();
+
+        final Finder noEpisode = find.byKey(
+          const ValueKey<String>('shows-havent-started-no-episode-1396'),
+        );
+
+        await tester.ensureVisible(noEpisode);
+        await tester.pumpAndSettle();
+
+        expect(noEpisode, findsOneWidget);
+        expect(find.text('No episode available yet'), findsOneWidget);
+
+        final Finder startButton = find.byKey(
+          const ValueKey<String>('shows-havent-started-start-1396'),
+        );
+
+        final FilledButton button = tester.widget<FilledButton>(startButton);
+
+        expect(button.onPressed, isNull);
+      },
+    );
   });
 }
 
@@ -1236,6 +1681,11 @@ final WatchNextShow _watchNextShow = WatchNextShow(
     runtime: 52,
     stillUrl: null,
   ),
+  progress: const WatchNextProgress(
+    watchedEpisodes: 7,
+    airedEpisodes: 10,
+    percentage: 70,
+  ),
 );
 
 WatchHistoryItem _watchHistoryItem({
@@ -1245,6 +1695,7 @@ WatchHistoryItem _watchHistoryItem({
 }) {
   return WatchHistoryItem(
     showId: 'show-uuid',
+    eventId: 'watch-event-1',
     showTmdbId: 95396,
     showTitle: 'Severance',
     posterUrl: null,
@@ -1253,6 +1704,7 @@ WatchHistoryItem _watchHistoryItem({
       id: episodeId,
       tmdbId: 3000000 + episodeNumber,
       seasonNumber: 2,
+      watchCount: 1,
       episodeNumber: episodeNumber,
       title: title,
       watchedAt: DateTime.utc(2026, 8, 13, 20),
@@ -1331,6 +1783,15 @@ final class _FakeShowsRepository implements ShowsRepository {
       hasMore: false,
     );
   }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
 }
 
 final class _PendingShowsRepository implements ShowsRepository {
@@ -1367,6 +1828,15 @@ final class _PendingShowsRepository implements ShowsRepository {
       hasMore: false,
     );
   }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
 }
 
 final class _WatchNextFailureRepository implements ShowsRepository {
@@ -1400,6 +1870,15 @@ final class _WatchNextFailureRepository implements ShowsRepository {
       hasMore: false,
     );
   }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
 }
 
 final class _RetryWatchNextRepository implements ShowsRepository {
@@ -1444,6 +1923,15 @@ final class _RetryWatchNextRepository implements ShowsRepository {
       hasMore: false,
     );
   }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
 }
 
 final class _StaleWatchingFailureRepository implements ShowsRepository {
@@ -1481,6 +1969,15 @@ final class _StaleWatchingFailureRepository implements ShowsRepository {
       hasMore: false,
     );
   }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
 }
 
 final class _RetryStaleWatchingRepository implements ShowsRepository {
@@ -1529,6 +2026,15 @@ final class _RetryStaleWatchingRepository implements ShowsRepository {
       hasMore: false,
     );
   }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
 }
 
 final class _WatchHistoryTrackingRepository implements ShowsRepository {
@@ -1561,6 +2067,15 @@ final class _WatchHistoryTrackingRepository implements ShowsRepository {
 
     return firstPage;
   }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
 }
 
 final class _PaginatedWatchHistoryRepository implements ShowsRepository {
@@ -1615,6 +2130,15 @@ final class _PaginatedWatchHistoryRepository implements ShowsRepository {
       hasMore: false,
     );
   }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
 }
 
 final class _RetryWatchHistoryRepository implements ShowsRepository {
@@ -1657,6 +2181,15 @@ final class _RetryWatchHistoryRepository implements ShowsRepository {
       hasMore: false,
     );
   }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
 }
 
 final class _RetryWatchHistoryPaginationRepository implements ShowsRepository {
@@ -1713,4 +2246,356 @@ final class _RetryWatchHistoryPaginationRepository implements ShowsRepository {
       hasMore: false,
     );
   }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+}
+
+final class _MarkWatchNextRepository implements ShowsRepository {
+  _MarkWatchNextRepository({required this.shows, required this.watchNext});
+
+  final List<LibraryShow> shows;
+  final List<WatchNextShow> watchNext;
+
+  int watchNextCalls = 0;
+  int staleWatchingCalls = 0;
+  int markEpisodeWatchedCalls = 0;
+
+  final List<String> markedEpisodeIds = <String>[];
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    return shows;
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    watchNextCalls++;
+
+    return watchNext;
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    staleWatchingCalls++;
+
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {
+    markEpisodeWatchedCalls++;
+    markedEpisodeIds.add(episodeId);
+  }
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+}
+
+final class _PendingMarkWatchNextRepository implements ShowsRepository {
+  _PendingMarkWatchNextRepository({
+    required this.shows,
+    required this.watchNext,
+  });
+
+  final List<LibraryShow> shows;
+  final List<WatchNextShow> watchNext;
+
+  final Completer<void> _markWatchedCompleter = Completer<void>();
+
+  int markEpisodeWatchedCalls = 0;
+
+  void complete() {
+    _markWatchedCompleter.complete();
+  }
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    return shows;
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    return watchNext;
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) {
+    markEpisodeWatchedCalls++;
+
+    return _markWatchedCompleter.future;
+  }
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+}
+
+final class _MarkWatchNextFailureRepository implements ShowsRepository {
+  _MarkWatchNextFailureRepository({
+    required this.shows,
+    required this.watchNext,
+  });
+
+  final List<LibraryShow> shows;
+  final List<WatchNextShow> watchNext;
+
+  int markEpisodeWatchedCalls = 0;
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    return shows;
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    return watchNext;
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) {
+    markEpisodeWatchedCalls++;
+
+    throw const AppException.connection();
+  }
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+}
+
+final class _PendingStartShowRepository implements ShowsRepository {
+  _PendingStartShowRepository({required this.planningShow});
+
+  final LibraryShow planningShow;
+
+  final Completer<void> _startCompleter = Completer<void>();
+
+  int startShowCalls = 0;
+
+  void completeStart() {
+    _startCompleter.complete();
+  }
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    return <LibraryShow>[planningShow];
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    return const <WatchNextShow>[];
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) {
+    startShowCalls++;
+
+    return _startCompleter.future;
+  }
+}
+
+final class _SuccessfulStartShowRepository implements ShowsRepository {
+  _SuccessfulStartShowRepository({required this.planningShow});
+
+  final LibraryShow planningShow;
+
+  bool _started = false;
+
+  int startShowCalls = 0;
+  final List<String> startedShowIds = <String>[];
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    if (!_started) {
+      return <LibraryShow>[planningShow];
+    }
+
+    return <LibraryShow>[
+      LibraryShow(
+        libraryEntryId: planningShow.libraryEntryId,
+        showId: planningShow.showId,
+        tmdbId: planningShow.tmdbId,
+        title: planningShow.title,
+        originalTitle: planningShow.originalTitle,
+        firstAirDate: planningShow.firstAirDate,
+        posterUrl: planningShow.posterUrl,
+        backdropUrl: planningShow.backdropUrl,
+        status: LibraryStatus.watching,
+        showStatus: planningShow.showStatus,
+        voteAverage: planningShow.voteAverage,
+        rating: planningShow.rating,
+        startedAt: DateTime.utc(2026, 8, 14),
+        completedAt: null,
+        createdAt: planningShow.createdAt,
+        updatedAt: DateTime.utc(2026, 8, 14),
+      ),
+    ];
+  }
+
+  @override
+  Future<void> startShow({required String showId}) async {
+    startShowCalls++;
+    startedShowIds.add(showId);
+
+    _started = true;
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    return const <WatchNextShow>[];
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+}
+
+final class _FailingStartShowRepository implements ShowsRepository {
+  _FailingStartShowRepository({required this.planningShow});
+
+  final LibraryShow planningShow;
+
+  int startShowCalls = 0;
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    return <LibraryShow>[planningShow];
+  }
+
+  @override
+  Future<void> startShow({required String showId}) {
+    startShowCalls++;
+
+    throw const AppException.connection();
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    return const <WatchNextShow>[];
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
 }

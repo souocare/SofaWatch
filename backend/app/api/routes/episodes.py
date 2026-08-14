@@ -8,8 +8,10 @@ from app.api.dependencies import (
     CurrentUserDependency,
     EpisodeProgressServiceDependency,
     EpisodeServiceDependency,
+    EpisodeWatchEventServiceDependency,
 )
 from app.schemas.episode import EpisodeResponse
+from app.schemas.episode_watch_event import EpisodeWatchEventResponse
 from app.schemas.episode_progress import (
     EpisodeProgressResponse,
     EpisodeWatchedRequest,
@@ -118,3 +120,69 @@ def mark_episode_unwatched(
         )
 
     return progress
+
+@router.get(
+    "/{episode_id}/watch-events",
+    response_model=list[EpisodeWatchEventResponse],
+    summary="List Episode watch events",
+    description=(
+        "Return every recorded viewing of an Episode for the current user, "
+        "ordered from newest to oldest."
+    ),
+)
+def list_episode_watch_events(
+    episode_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV episode identifier.",
+        ),
+    ],
+    service: EpisodeWatchEventServiceDependency,
+    current_user: CurrentUserDependency,
+) -> list[EpisodeWatchEventResponse]:
+    """Return the user's historical viewing events for an Episode."""
+
+    return service.list_for_episode(
+        user_id=current_user.id,
+        episode_id=episode_id,
+    )
+
+@router.delete(
+    "/{episode_id}/watch-events/{event_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete Episode watch event",
+    description=(
+        "Delete one historical Episode viewing event and synchronize "
+        "the Episode's current watched state."
+    ),
+)
+def delete_episode_watch_event(
+    episode_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV episode identifier.",
+        ),
+    ],
+    event_id: Annotated[
+        UUID,
+        Path(
+            description="Watch event identifier.",
+        ),
+    ],
+    service: EpisodeWatchEventServiceDependency,
+    current_user: CurrentUserDependency,
+) -> None:
+    """Delete one historical viewing event."""
+
+    deleted = service.delete(
+        user_id=current_user.id,
+        episode_id=episode_id,
+        event_id=event_id,
+    )
+
+    if not deleted:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="episode_watch_event_not_found",
+            message="Episode watch event not found.",
+        )

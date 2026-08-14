@@ -5,10 +5,10 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.repositories.episode_progress import (
-    EpisodeProgressRepository,
-    WatchHistoryEpisode,
-    WatchHistoryPage,
+from app.repositories.episode_watch_event import (
+    EpisodeWatchEventRepository,
+    WatchHistoryEvent,
+    WatchHistoryEventPage,
 )
 from app.services.watch_history import WatchHistoryService
 from app.services.watch_history_cursor import (
@@ -61,9 +61,9 @@ def create_history_item(
     episode: SimpleNamespace | None = None,
     season_number: int = 2,
     watched_at: datetime | None = None,
-) -> WatchHistoryEpisode:
-    return WatchHistoryEpisode(
-        progress_id=uuid4(),
+) -> WatchHistoryEvent:
+    return WatchHistoryEvent(
+        event_id=uuid4(),
         show=show or create_show(),
         episode=episode or create_episode(),
         season_number=season_number,
@@ -81,27 +81,36 @@ def create_history_item(
 
 def create_service(
     *,
-    progress_repository: Mock,
+    watch_event_repository: Mock,
 ) -> WatchHistoryService:
+    watch_event_repository.get_counts_by_user_and_episode_ids.side_effect = (
+        lambda *, user_id, episode_ids: {
+            episode_id: 1
+            for episode_id in episode_ids
+        }
+    )
+
     return WatchHistoryService(
-        progress_repository=progress_repository,
+        watch_event_repository=watch_event_repository,
     )
 
 
 def test_lists_first_watch_history_page() -> None:
-    progress_repository = Mock(
-        spec=EpisodeProgressRepository,
+    watch_event_repository = Mock(
+        spec=EpisodeWatchEventRepository,
     )
 
     history_item = create_history_item()
 
-    progress_repository.list_watch_history.return_value = WatchHistoryPage(
-        items=[history_item],
-        has_more=False,
+    watch_event_repository.list_watch_history.return_value = (
+        WatchHistoryEventPage(
+            items=[history_item],
+            has_more=False,
+        )
     )
 
     service = create_service(
-        progress_repository=progress_repository,
+        watch_event_repository=watch_event_repository,
     )
 
     user_id = uuid4()
@@ -129,17 +138,17 @@ def test_lists_first_watch_history_page() -> None:
     assert item.episode.runtime == 52
     assert item.episode.watched_at == history_item.watched_at
 
-    progress_repository.list_watch_history.assert_called_once_with(
+    watch_event_repository.list_watch_history.assert_called_once_with(
         user_id=user_id,
         limit=30,
         before_watched_at=None,
-        before_progress_id=None,
+        before_event_id=None,
     )
 
 
 def test_returns_next_cursor_when_more_history_exists() -> None:
-    progress_repository = Mock(
-        spec=EpisodeProgressRepository,
+    watch_event_repository = Mock(
+        spec=EpisodeWatchEventRepository,
     )
 
     first_item = create_history_item(
@@ -162,16 +171,18 @@ def test_returns_next_cursor_when_more_history_exists() -> None:
         ),
     )
 
-    progress_repository.list_watch_history.return_value = WatchHistoryPage(
-        items=[
-            first_item,
-            second_item,
-        ],
-        has_more=True,
+    watch_event_repository.list_watch_history.return_value = (
+        WatchHistoryEventPage(
+            items=[
+                first_item,
+                second_item,
+            ],
+            has_more=True,
+        )
     )
 
     service = create_service(
-        progress_repository=progress_repository,
+        watch_event_repository=watch_event_repository,
     )
 
     result = service.list_for_user(
@@ -187,21 +198,23 @@ def test_returns_next_cursor_when_more_history_exists() -> None:
     )
 
     assert decoded.watched_at == second_item.watched_at
-    assert decoded.progress_id == second_item.progress_id
+    assert decoded.event_id == second_item.event_id
 
 
 def test_decodes_cursor_and_forwards_it_to_repository() -> None:
-    progress_repository = Mock(
-        spec=EpisodeProgressRepository,
+    watch_event_repository = Mock(
+        spec=EpisodeWatchEventRepository,
     )
 
-    progress_repository.list_watch_history.return_value = WatchHistoryPage(
-        items=[],
-        has_more=False,
+    watch_event_repository.list_watch_history.return_value = (
+        WatchHistoryEventPage(
+            items=[],
+            has_more=False,
+        )
     )
 
     service = create_service(
-        progress_repository=progress_repository,
+        watch_event_repository=watch_event_repository,
     )
 
     user_id = uuid4()
@@ -214,7 +227,7 @@ def test_decodes_cursor_and_forwards_it_to_repository() -> None:
             18,
             tzinfo=UTC,
         ),
-        progress_id=uuid4(),
+        event_id=uuid4(),
     )
 
     encoded_cursor = WatchHistoryCursorCodec.encode(
@@ -231,26 +244,28 @@ def test_decodes_cursor_and_forwards_it_to_repository() -> None:
     assert result.has_more is False
     assert result.next_cursor is None
 
-    progress_repository.list_watch_history.assert_called_once_with(
+    watch_event_repository.list_watch_history.assert_called_once_with(
         user_id=user_id,
         limit=20,
         before_watched_at=cursor.watched_at,
-        before_progress_id=cursor.progress_id,
+        before_event_id=cursor.event_id,
     )
 
 
 def test_supports_empty_watch_history() -> None:
-    progress_repository = Mock(
-        spec=EpisodeProgressRepository,
+    watch_event_repository = Mock(
+        spec=EpisodeWatchEventRepository,
     )
 
-    progress_repository.list_watch_history.return_value = WatchHistoryPage(
-        items=[],
-        has_more=False,
+    watch_event_repository.list_watch_history.return_value = (
+        WatchHistoryEventPage(
+            items=[],
+            has_more=False,
+        )
     )
 
     service = create_service(
-        progress_repository=progress_repository,
+        watch_event_repository=watch_event_repository,
     )
 
     result = service.list_for_user(
@@ -263,12 +278,12 @@ def test_supports_empty_watch_history() -> None:
 
 
 def test_invalid_cursor_is_rejected_before_repository_call() -> None:
-    progress_repository = Mock(
-        spec=EpisodeProgressRepository,
+    watch_event_repository = Mock(
+        spec=EpisodeWatchEventRepository,
     )
 
     service = create_service(
-        progress_repository=progress_repository,
+        watch_event_repository=watch_event_repository,
     )
 
     with pytest.raises(
@@ -280,12 +295,12 @@ def test_invalid_cursor_is_rejected_before_repository_call() -> None:
             cursor="not-a-valid-cursor",
         )
 
-    progress_repository.list_watch_history.assert_not_called()
+    watch_event_repository.list_watch_history.assert_not_called()
 
 
 def test_maps_multiple_history_items() -> None:
-    progress_repository = Mock(
-        spec=EpisodeProgressRepository,
+    watch_event_repository = Mock(
+        spec=EpisodeWatchEventRepository,
     )
 
     first_show = create_show(
@@ -310,24 +325,26 @@ def test_maps_multiple_history_items() -> None:
         title="Long, Long Time",
     )
 
-    progress_repository.list_watch_history.return_value = WatchHistoryPage(
-        items=[
-            create_history_item(
-                show=first_show,
-                episode=first_episode,
-                season_number=2,
-            ),
-            create_history_item(
-                show=second_show,
-                episode=second_episode,
-                season_number=1,
-            ),
-        ],
-        has_more=False,
+    watch_event_repository.list_watch_history.return_value = (
+        WatchHistoryEventPage(
+            items=[
+                create_history_item(
+                    show=first_show,
+                    episode=first_episode,
+                    season_number=2,
+                ),
+                create_history_item(
+                    show=second_show,
+                    episode=second_episode,
+                    season_number=1,
+                ),
+            ],
+            has_more=False,
+        )
     )
 
     service = create_service(
-        progress_repository=progress_repository,
+        watch_event_repository=watch_event_repository,
     )
 
     result = service.list_for_user(
@@ -343,3 +360,83 @@ def test_maps_multiple_history_items() -> None:
     assert result.items[1].show.title == "The Last of Us"
     assert result.items[1].episode.season_number == 1
     assert result.items[1].episode.episode_number == 3
+
+
+def test_preserves_multiple_watches_of_same_episode() -> None:
+    """Every viewing of the same Episode remains a separate History item."""
+
+    watch_event_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    show = create_show()
+    episode = create_episode()
+
+    first_watch = create_history_item(
+        show=show,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    previous_watch = create_history_item(
+        show=show,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            7,
+            20,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    watch_event_repository.list_watch_history.return_value = (
+        WatchHistoryEventPage(
+            items=[
+                first_watch,
+                previous_watch,
+            ],
+            has_more=False,
+        )
+    )
+
+    service = create_service(
+        watch_event_repository=watch_event_repository,
+    )
+    watch_event_repository.get_counts_by_user_and_episode_ids.side_effect = None
+    watch_event_repository.get_counts_by_user_and_episode_ids.return_value = {
+        episode.id: 2,
+    }
+
+    result = service.list_for_user(
+        user_id=uuid4(),
+    )
+
+    assert len(result.items) == 2
+
+    assert result.items[0].episode.id == episode.id
+    assert result.items[1].episode.id == episode.id
+
+    assert (
+        result.items[0].episode.watched_at
+        == first_watch.watched_at
+    )
+
+    assert (
+        result.items[1].episode.watched_at
+        == previous_watch.watched_at
+    )
+
+    assert result.items[0].event_id == first_watch.event_id
+    assert result.items[1].event_id == previous_watch.event_id
+
+    assert result.items[0].episode.watch_count == 2
+    assert result.items[1].episode.watch_count == 2

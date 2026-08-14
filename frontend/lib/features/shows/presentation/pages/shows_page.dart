@@ -4,12 +4,16 @@ import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
+import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_state.dart';
+import 'package:sofawatch/features/shows/domain/models/stale_watching_episode.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
+import 'package:sofawatch/features/shows/domain/models/library_first_episode.dart';
 
 class ShowsPage extends StatefulWidget {
   const ShowsPage({super.key});
@@ -48,7 +52,83 @@ class _ShowsPageState extends State<ShowsPage>
           children: <Widget>[
             _ShowsHeader(tabController: _tabController),
             Expanded(
-              child: BlocBuilder<ShowsCubit, ShowsState>(
+              child: BlocConsumer<ShowsCubit, ShowsState>(
+                listenWhen: (ShowsState previous, ShowsState current) {
+                  final bool watchNextFailed =
+                      previous.watchNextOperationError !=
+                          current.watchNextOperationError &&
+                      current.watchNextOperationError != null;
+
+                  final bool watchHistoryFailed =
+                      previous.watchHistoryOperationError !=
+                          current.watchHistoryOperationError &&
+                      current.watchHistoryOperationError != null;
+
+                  final bool startShowFailed =
+                      previous.startShowError != current.startShowError &&
+                      current.startShowError != null;
+
+                  return watchNextFailed ||
+                      watchHistoryFailed ||
+                      startShowFailed;
+                },
+                listener: (BuildContext context, ShowsState state) {
+                  final AppException? startShowError = state.startShowError;
+
+                  if (startShowError != null) {
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            startShowError.isTimeout
+                                ? 'Starting the show took too long.'
+                                : 'Could not start this show.',
+                          ),
+                        ),
+                      );
+
+                    return;
+                  }
+
+                  final AppException? watchHistoryError =
+                      state.watchHistoryOperationError;
+
+                  if (watchHistoryError != null) {
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            watchHistoryError.isTimeout
+                                ? 'Updating the episode took too long.'
+                                : 'Could not mark the episode as unwatched.',
+                          ),
+                        ),
+                      );
+
+                    return;
+                  }
+
+                  final AppException? watchNextError =
+                      state.watchNextOperationError;
+
+                  if (watchNextError == null) {
+                    return;
+                  }
+
+                  ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          watchNextError.isTimeout
+                              ? 'Marking the episode as watched took too long.'
+                              : 'Could not mark the episode as watched.',
+                        ),
+                      ),
+                    );
+                },
                 builder: (BuildContext context, ShowsState state) {
                   if (state.isLoading &&
                       state.libraryShows.isEmpty &&
@@ -56,7 +136,7 @@ class _ShowsPageState extends State<ShowsPage>
                     return const _ShowsLoading();
                   }
 
-                  final error = state.error;
+                  final AppException? error = state.error;
 
                   if (error != null) {
                     return _ShowsFailure(
@@ -84,6 +164,11 @@ class _ShowsPageState extends State<ShowsPage>
                         isLoadingMoreWatchHistory:
                             state.isLoadingMoreWatchHistory,
                         watchHistoryError: state.watchHistoryError,
+                        updatingWatchNextEpisodeId:
+                            state.updatingWatchNextEpisodeId,
+                        startingShowId: state.startingShowId,
+                        updatingWatchHistoryEpisodeId:
+                            state.updatingWatchHistoryEpisodeId,
                       ),
                       const _UpcomingTab(),
                     ],
@@ -159,10 +244,14 @@ class _WatchListTab extends StatefulWidget {
     required this.isLoadingWatchHistory,
     required this.isLoadingMoreWatchHistory,
     required this.watchHistoryError,
+    required this.updatingWatchNextEpisodeId,
+    required this.startingShowId,
+    required this.updatingWatchHistoryEpisodeId,
   });
 
   final List<WatchNextShow> watchNext;
   final Object? watchNextError;
+  final String? updatingWatchNextEpisodeId;
 
   final List<StaleWatchingShow> staleWatching;
   final Object? staleWatchingError;
@@ -175,6 +264,8 @@ class _WatchListTab extends StatefulWidget {
   final bool isLoadingWatchHistory;
   final bool isLoadingMoreWatchHistory;
   final Object? watchHistoryError;
+  final String? startingShowId;
+  final String? updatingWatchHistoryEpisodeId;
 
   @override
   State<_WatchListTab> createState() => _WatchListTabState();
@@ -259,13 +350,23 @@ class _WatchListTabState extends State<_WatchListTab> {
             _WatchNextSection(
               items: visibleWatchNext,
               hasError: widget.watchNextError != null,
+              updatingEpisodeId: widget.updatingWatchNextEpisodeId,
               onRetry: context.read<ShowsCubit>().retryWatchNext,
+              onMarkWatched: (String episodeId) {
+                context.read<ShowsCubit>().markWatchNextEpisodeWatched(
+                  episodeId: episodeId,
+                );
+              },
               isDesktop: isDesktop,
             ),
             const SizedBox(height: AppSpacing.section),
 
             _HaventStartedSection(
               items: widget.haventStarted,
+              startingShowId: widget.startingShowId,
+              onStart: (String showId) {
+                context.read<ShowsCubit>().startShow(showId: showId);
+              },
               isDesktop: isDesktop,
             ),
             const SizedBox(height: AppSpacing.section),
@@ -285,6 +386,12 @@ class _WatchListTabState extends State<_WatchListTab> {
               isLoading: widget.isLoadingWatchHistory,
               isLoadingMore: widget.isLoadingMoreWatchHistory,
               hasError: widget.watchHistoryError != null,
+              updatingEpisodeId: widget.updatingWatchHistoryEpisodeId,
+              onMarkUnwatched: (String episodeId) {
+                context.read<ShowsCubit>().markWatchHistoryEpisodeUnwatched(
+                  episodeId: episodeId,
+                );
+              },
               onRetryInitial: context.read<ShowsCubit>().retryWatchHistory,
               onRetryMore: context.read<ShowsCubit>().loadMoreWatchHistory,
               isDesktop: isDesktop,
@@ -404,11 +511,12 @@ class _StaleWatchingInformation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final episode = item.nextEpisode;
+    final StaleWatchingEpisode lastWatched = item.lastWatched;
+    final WatchNextEpisode nextEpisode = item.nextEpisode;
 
     final List<String> nextEpisodeMetadata = <String>[
-      episode.code,
-      if (episode.runtime != null) '${episode.runtime} min',
+      nextEpisode.code,
+      if (nextEpisode.runtime != null) '${nextEpisode.runtime} min',
     ];
 
     return Column(
@@ -427,13 +535,23 @@ class _StaleWatchingInformation extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          _lastWatchedLabel(item.lastWatched.watchedAt),
+          '${lastWatched.code} • ${_lastWatchedLabel(lastWatched.watchedAt)}',
           key: ValueKey<String>('shows-stale-watching-last-${item.showTmdbId}'),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          lastWatched.title,
+          key: ValueKey<String>(
+            'shows-stale-watching-last-title-${lastWatched.id}',
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
@@ -444,9 +562,9 @@ class _StaleWatchingInformation extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          episode.title,
+          nextEpisode.title,
           key: ValueKey<String>(
-            'shows-stale-watching-next-title-${episode.id}',
+            'shows-stale-watching-next-title-${nextEpisode.id}',
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -544,13 +662,17 @@ class _WatchNextSection extends StatelessWidget {
   const _WatchNextSection({
     required this.items,
     required this.hasError,
+    required this.updatingEpisodeId,
     required this.onRetry,
+    required this.onMarkWatched,
     required this.isDesktop,
   });
 
   final List<WatchNextShow> items;
   final bool hasError;
+  final String? updatingEpisodeId;
   final VoidCallback onRetry;
+  final ValueChanged<String> onMarkWatched;
   final bool isDesktop;
 
   @override
@@ -580,11 +702,22 @@ class _WatchNextSection extends StatelessWidget {
     final List<Widget> widgets = <Widget>[];
 
     for (int index = 0; index < items.length; index++) {
+      final WatchNextShow item = items[index];
+
       if (index > 0) {
         widgets.add(const SizedBox(height: AppSpacing.md));
       }
 
-      widgets.add(_WatchNextRow(item: items[index], isDesktop: isDesktop));
+      widgets.add(
+        _WatchNextRow(
+          item: item,
+          isDesktop: isDesktop,
+          isMarkingWatched: updatingEpisodeId == item.nextEpisode.id,
+          onMarkWatched: () {
+            onMarkWatched(item.nextEpisode.id);
+          },
+        ),
+      );
     }
 
     return widgets;
@@ -592,10 +725,17 @@ class _WatchNextSection extends StatelessWidget {
 }
 
 class _WatchNextRow extends StatelessWidget {
-  const _WatchNextRow({required this.item, required this.isDesktop});
+  const _WatchNextRow({
+    required this.item,
+    required this.isDesktop,
+    required this.isMarkingWatched,
+    required this.onMarkWatched,
+  });
 
   final WatchNextShow item;
   final bool isDesktop;
+  final bool isMarkingWatched;
+  final VoidCallback onMarkWatched;
 
   @override
   Widget build(BuildContext context) {
@@ -624,6 +764,12 @@ class _WatchNextRow extends StatelessWidget {
               const SizedBox(width: AppSpacing.lg),
               Expanded(child: _WatchNextInformation(item: item)),
               const SizedBox(width: AppSpacing.md),
+              _WatchNextMarkWatchedButton(
+                episodeId: episode.id,
+                isLoading: isMarkingWatched,
+                onPressed: onMarkWatched,
+              ),
+              const SizedBox(width: AppSpacing.xs),
               const Icon(
                 Icons.chevron_right_rounded,
                 color: AppColors.textMuted,
@@ -631,6 +777,54 @@ class _WatchNextRow extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _WatchNextMarkWatchedButton extends StatelessWidget {
+  const _WatchNextMarkWatchedButton({
+    required this.episodeId,
+    required this.isLoading,
+    required this.onPressed,
+  });
+
+  final String episodeId;
+  final bool isLoading;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: isLoading
+          ? 'Marking episode as watched'
+          : 'Mark episode as watched',
+      child: SizedBox(
+        width: 40,
+        height: 40,
+        child: isLoading
+            ? Center(
+                key: ValueKey<String>(
+                  'shows-watch-next-mark-watched-loading-$episodeId',
+                ),
+                child: const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : IconButton(
+                key: ValueKey<String>(
+                  'shows-watch-next-mark-watched-$episodeId',
+                ),
+                onPressed: onPressed,
+                tooltip: 'Mark as watched',
+                icon: const Icon(
+                  Icons.check_rounded,
+                  color: AppColors.textSecondary,
+                ),
+              ),
       ),
     );
   }
@@ -644,6 +838,7 @@ class _WatchNextInformation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final episode = item.nextEpisode;
+    final progress = item.progress;
 
     final List<String> metadata = <String>[
       episode.code,
@@ -651,6 +846,10 @@ class _WatchNextInformation extends StatelessWidget {
       if (episode.airDate != null)
         MaterialLocalizations.of(context).formatMediumDate(episode.airDate!),
     ];
+
+    final double progressValue = progress.airedEpisodes > 0
+        ? progress.percentage / 100
+        : 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -680,6 +879,34 @@ class _WatchNextInformation extends StatelessWidget {
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: ClipRRect(
+                borderRadius: AppRadius.borderSmall,
+                child: LinearProgressIndicator(
+                  key: ValueKey<String>(
+                    'shows-watch-next-progress-${item.showTmdbId}',
+                  ),
+                  value: progressValue,
+                  minHeight: 4,
+                  backgroundColor: AppColors.surfaceLow,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              '${progress.watchedEpisodes}/${progress.airedEpisodes}',
+              key: ValueKey<String>(
+                'shows-watch-next-progress-label-${item.showTmdbId}',
+              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            ),
+          ],
         ),
       ],
     );
@@ -798,6 +1025,8 @@ class _WatchHistorySection extends StatelessWidget {
     required this.onRetryInitial,
     required this.onRetryMore,
     required this.isDesktop,
+    required this.updatingEpisodeId,
+    required this.onMarkUnwatched,
   });
 
   final List<WatchHistoryItem> items;
@@ -812,6 +1041,8 @@ class _WatchHistorySection extends StatelessWidget {
   final VoidCallback onRetryMore;
 
   final bool isDesktop;
+  final String? updatingEpisodeId;
+  final ValueChanged<String> onMarkUnwatched;
 
   @override
   Widget build(BuildContext context) {
@@ -864,7 +1095,16 @@ class _WatchHistorySection extends StatelessWidget {
         widgets.add(const SizedBox(height: AppSpacing.md));
       }
 
-      widgets.add(_WatchHistoryRow(item: items[index], isDesktop: isDesktop));
+      final WatchHistoryItem item = items[index];
+
+      widgets.add(
+        _WatchHistoryRow(
+          item: item,
+          isUpdating: updatingEpisodeId == item.episode.id,
+          onMarkUnwatched: () => onMarkUnwatched(item.episode.id),
+          isDesktop: isDesktop,
+        ),
+      );
     }
 
     return widgets;
@@ -872,9 +1112,16 @@ class _WatchHistorySection extends StatelessWidget {
 }
 
 class _WatchHistoryRow extends StatelessWidget {
-  const _WatchHistoryRow({required this.item, required this.isDesktop});
+  const _WatchHistoryRow({
+    required this.item,
+    required this.isUpdating,
+    required this.onMarkUnwatched,
+    required this.isDesktop,
+  });
 
   final WatchHistoryItem item;
+  final bool isUpdating;
+  final VoidCallback onMarkUnwatched;
   final bool isDesktop;
 
   @override
@@ -887,14 +1134,16 @@ class _WatchHistoryRow extends StatelessWidget {
       borderRadius: AppRadius.borderLarge,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () {
-          context.pushNamed(
-            AppRoute.showDetails.name,
-            pathParameters: <String, String>{
-              'showId': item.showTmdbId.toString(),
-            },
-          );
-        },
+        onTap: isUpdating
+            ? null
+            : () {
+                context.pushNamed(
+                  AppRoute.showDetails.name,
+                  pathParameters: <String, String>{
+                    'showId': item.showTmdbId.toString(),
+                  },
+                );
+              },
         child: Padding(
           padding: AppSpacing.cardPadding,
           child: Row(
@@ -904,9 +1153,25 @@ class _WatchHistoryRow extends StatelessWidget {
               const SizedBox(width: AppSpacing.lg),
               Expanded(child: _WatchHistoryInformation(item: item)),
               const SizedBox(width: AppSpacing.md),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textMuted,
+              IconButton(
+                key: ValueKey<String>(
+                  'shows-watch-history-unwatched-${episode.id}',
+                ),
+                tooltip: 'Mark as unwatched',
+                onPressed: isUpdating ? null : onMarkUnwatched,
+                icon: isUpdating
+                    ? SizedBox(
+                        key: ValueKey<String>(
+                          'shows-watch-history-unwatched-progress-${episode.id}',
+                        ),
+                        width: 18,
+                        height: 18,
+                        child: const CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(
+                        Icons.visibility_off_outlined,
+                        color: AppColors.textSecondary,
+                      ),
               ),
             ],
           ),
@@ -1248,9 +1513,16 @@ class _ShowsFailure extends StatelessWidget {
 }
 
 class _HaventStartedSection extends StatelessWidget {
-  const _HaventStartedSection({required this.items, required this.isDesktop});
+  const _HaventStartedSection({
+    required this.items,
+    required this.startingShowId,
+    required this.onStart,
+    required this.isDesktop,
+  });
 
   final List<LibraryShow> items;
+  final String? startingShowId;
+  final ValueChanged<String> onStart;
   final bool isDesktop;
 
   @override
@@ -1286,7 +1558,16 @@ class _HaventStartedSection extends StatelessWidget {
         widgets.add(const SizedBox(height: AppSpacing.md));
       }
 
-      widgets.add(_HaventStartedRow(show: items[index], isDesktop: isDesktop));
+      final LibraryShow show = items[index];
+
+      widgets.add(
+        _HaventStartedRow(
+          show: show,
+          isStarting: startingShowId == show.showId,
+          onStart: () => onStart(show.showId),
+          isDesktop: isDesktop,
+        ),
+      );
     }
 
     return widgets;
@@ -1294,25 +1575,37 @@ class _HaventStartedSection extends StatelessWidget {
 }
 
 class _HaventStartedRow extends StatelessWidget {
-  const _HaventStartedRow({required this.show, required this.isDesktop});
+  const _HaventStartedRow({
+    required this.show,
+    required this.isStarting,
+    required this.onStart,
+    required this.isDesktop,
+  });
 
   final LibraryShow show;
+  final bool isStarting;
+  final VoidCallback onStart;
   final bool isDesktop;
 
   @override
   Widget build(BuildContext context) {
+    final bool canStart = show.firstAvailableEpisode != null;
     return Material(
       key: ValueKey<String>('shows-havent-started-${show.tmdbId}'),
       color: AppColors.surfaceHigh,
       borderRadius: AppRadius.borderLarge,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () {
-          context.pushNamed(
-            AppRoute.showDetails.name,
-            pathParameters: <String, String>{'showId': show.tmdbId.toString()},
-          );
-        },
+        onTap: isStarting
+            ? null
+            : () {
+                context.pushNamed(
+                  AppRoute.showDetails.name,
+                  pathParameters: <String, String>{
+                    'showId': show.tmdbId.toString(),
+                  },
+                );
+              },
         child: Padding(
           padding: AppSpacing.cardPadding,
           child: Row(
@@ -1322,9 +1615,22 @@ class _HaventStartedRow extends StatelessWidget {
               const SizedBox(width: AppSpacing.lg),
               Expanded(child: _HaventStartedInformation(show: show)),
               const SizedBox(width: AppSpacing.md),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textMuted,
+              FilledButton.tonalIcon(
+                key: ValueKey<String>(
+                  'shows-havent-started-start-${show.tmdbId}',
+                ),
+                onPressed: isStarting || !canStart ? null : onStart,
+                icon: isStarting
+                    ? const SizedBox(
+                        key: ValueKey<String>(
+                          'shows-havent-started-start-progress',
+                        ),
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.play_arrow_rounded),
+                label: Text(isStarting ? 'Starting…' : 'Start'),
               ),
             ],
           ),
@@ -1341,9 +1647,16 @@ class _HaventStartedInformation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<String> metadata = <String>[
+    final LibraryFirstEpisode? firstEpisode = show.firstAvailableEpisode;
+
+    final List<String> showMetadata = <String>[
       if (show.firstAirDate != null) show.firstAirDate!.year.toString(),
       if (show.voteAverage > 0) show.voteAverage.toStringAsFixed(1),
+    ];
+
+    final List<String> episodeMetadata = <String>[
+      if (firstEpisode != null) firstEpisode.code,
+      if (firstEpisode?.runtime != null) '${firstEpisode!.runtime} min',
     ];
 
     return Column(
@@ -1358,10 +1671,10 @@ class _HaventStartedInformation extends StatelessWidget {
             context,
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
-        if (metadata.isNotEmpty) ...<Widget>[
+        if (showMetadata.isNotEmpty) ...<Widget>[
           const SizedBox(height: AppSpacing.xs),
           Text(
-            metadata.join(' • '),
+            showMetadata.join(' • '),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(
@@ -1370,12 +1683,40 @@ class _HaventStartedInformation extends StatelessWidget {
           ),
         ],
         const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Not started yet',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-        ),
+        if (firstEpisode != null) ...<Widget>[
+          Text(
+            episodeMetadata.join(' • '),
+            key: ValueKey<String>(
+              'shows-havent-started-episode-code-${show.tmdbId}',
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            firstEpisode.title,
+            key: ValueKey<String>(
+              'shows-havent-started-episode-title-${show.tmdbId}',
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          ),
+        ] else
+          Text(
+            'No episode available yet',
+            key: ValueKey<String>(
+              'shows-havent-started-no-episode-${show.tmdbId}',
+            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          ),
       ],
     );
   }

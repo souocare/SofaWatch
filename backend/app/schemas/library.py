@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -42,6 +42,20 @@ class LibraryEntryResponse(BaseModel):
         return self
 
 
+class LibraryFirstEpisodeResponse(BaseModel):
+    """First aired regular Episode available for a Library Show."""
+
+    id: UUID
+    tmdb_id: int
+
+    season_number: int
+    episode_number: int
+
+    title: str
+
+    air_date: date | None
+    runtime: int | None
+
 class LibraryShowResponse(BaseModel):
     """TV series stored in the current user's library."""
 
@@ -59,6 +73,8 @@ class LibraryShowResponse(BaseModel):
     updated_at: datetime
 
     show: ShowSummaryResponse
+
+    first_available_episode: LibraryFirstEpisodeResponse | None = None
 
 
 class LibraryStatusUpdate(BaseModel):

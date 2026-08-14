@@ -14,6 +14,7 @@ import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_next_progress.dart';
 
 void main() {
   group('ShowsCubit', () {
@@ -657,6 +658,307 @@ void main() {
         await cubit.close();
       },
     );
+    test(
+      'marks a Watch Next Episode as watched and refreshes supplementary sections',
+      () async {
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          watchNext: <WatchNextShow>[_watchNextShow()],
+          staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
+        );
+
+        final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+        await cubit.load();
+
+        expect(repository.watchNextCalls, 1);
+        expect(repository.staleWatchingCalls, 1);
+
+        await cubit.markWatchNextEpisodeWatched(episodeId: 'episode-uuid');
+
+        expect(repository.markEpisodeWatchedCalls, 1);
+        expect(repository.markedEpisodeIds, <String>['episode-uuid']);
+
+        expect(
+          repository.watchNextCalls,
+          2,
+          reason: 'Watch Next must be refreshed after changing progress.',
+        );
+
+        expect(
+          repository.staleWatchingCalls,
+          2,
+          reason: 'Stale Watching may also change after watching an Episode.',
+        );
+
+        expect(cubit.state.updatingWatchNextEpisodeId, isNull);
+        expect(cubit.state.watchNextOperationError, isNull);
+
+        await cubit.close();
+      },
+    );
+    test(
+      'preserves Watch Next when marking an Episode as watched fails',
+      () async {
+        const AppException expectedError = AppException.connection();
+
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          watchNext: <WatchNextShow>[_watchNextShow()],
+          markEpisodeWatchedError: expectedError,
+        );
+
+        final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+        await cubit.load();
+
+        final List<WatchNextShow> watchNextBeforeOperation =
+            cubit.state.watchNext;
+
+        await cubit.markWatchNextEpisodeWatched(episodeId: 'episode-uuid');
+
+        expect(repository.markEpisodeWatchedCalls, 1);
+
+        expect(
+          repository.watchNextCalls,
+          1,
+          reason: 'A failed mutation must not trigger a Watch Next refresh.',
+        );
+
+        expect(
+          repository.staleWatchingCalls,
+          1,
+          reason: 'A failed mutation must not refresh stale Watching.',
+        );
+
+        expect(cubit.state.watchNext, watchNextBeforeOperation);
+        expect(cubit.state.updatingWatchNextEpisodeId, isNull);
+        expect(cubit.state.watchNextOperationError, expectedError);
+
+        await cubit.close();
+      },
+    );
+    test(
+      'maps unexpected Watch Next Episode operation errors to unknown',
+      () async {
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          watchNext: <WatchNextShow>[_watchNextShow()],
+          markEpisodeWatchedUnexpectedError: StateError('boom'),
+        );
+
+        final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+        await cubit.load();
+
+        await cubit.markWatchNextEpisodeWatched(episodeId: 'episode-uuid');
+
+        expect(repository.markEpisodeWatchedCalls, 1);
+        expect(
+          cubit.state.watchNextOperationError?.type,
+          AppExceptionType.unknown,
+        );
+        expect(cubit.state.updatingWatchNextEpisodeId, isNull);
+
+        await cubit.close();
+      },
+    );
+    test(
+      'updates Watch Next immediately after marking the current Episode as watched',
+      () async {
+        final _ChangingWatchNextRepository repository =
+            _ChangingWatchNextRepository();
+
+        final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+        await cubit.load();
+
+        expect(repository.watchNextCalls, 1);
+
+        expect(cubit.state.watchNext, hasLength(1));
+
+        expect(cubit.state.watchNext.single.nextEpisode.id, 'episode-uuid');
+
+        expect(cubit.state.watchNext.single.nextEpisode.code, 'S02E04');
+
+        expect(cubit.state.watchNext.single.progress.watchedEpisodes, 7);
+
+        await cubit.markWatchNextEpisodeWatched(episodeId: 'episode-uuid');
+
+        expect(repository.markEpisodeWatchedCalls, 1);
+
+        expect(repository.markedEpisodeIds, <String>['episode-uuid']);
+
+        expect(
+          repository.watchNextCalls,
+          2,
+          reason:
+              'Watch Next must be reloaded after marking an Episode watched.',
+        );
+
+        expect(cubit.state.watchNext, hasLength(1));
+
+        final WatchNextShow updated = cubit.state.watchNext.single;
+
+        expect(updated.nextEpisode.id, 'episode-next-uuid');
+
+        expect(updated.nextEpisode.code, 'S02E05');
+
+        expect(updated.nextEpisode.title, 'Trojan\'s Horse');
+
+        expect(updated.progress.watchedEpisodes, 8);
+
+        expect(updated.progress.airedEpisodes, 10);
+
+        expect(updated.progress.percentage, 80);
+
+        expect(cubit.state.updatingWatchNextEpisodeId, isNull);
+
+        expect(cubit.state.watchNextOperationError, isNull);
+
+        await cubit.close();
+      },
+    );
+    test(
+      'removes a Show from Watch Next when no Episode remains after marking watched',
+      () async {
+        final _CompletedWatchNextRepository repository =
+            _CompletedWatchNextRepository();
+
+        final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+        await cubit.load();
+
+        expect(cubit.state.watchNext, hasLength(1));
+        expect(cubit.state.watchNext.single.nextEpisode.id, 'episode-uuid');
+
+        await cubit.markWatchNextEpisodeWatched(episodeId: 'episode-uuid');
+
+        expect(repository.markEpisodeWatchedCalls, 1);
+
+        expect(
+          repository.watchNextCalls,
+          2,
+          reason: 'Watch Next must be refreshed after marking watched.',
+        );
+
+        expect(
+          cubit.state.watchNext,
+          isEmpty,
+          reason:
+              'A Show with no remaining aired unwatched Episode '
+              'must leave Watch Next.',
+        );
+
+        expect(cubit.state.updatingWatchNextEpisodeId, isNull);
+        expect(cubit.state.watchNextOperationError, isNull);
+
+        await cubit.close();
+      },
+    );
+
+    test(
+      'starts a Planning Show and refreshes Library and supplementary sections',
+      () async {
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          shows: <LibraryShow>[
+            _libraryShow(
+              tmdbId: 1396,
+              title: 'Breaking Bad',
+              status: LibraryStatus.planning,
+            ),
+          ],
+          watchNext: <WatchNextShow>[_watchNextShow()],
+          staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
+        );
+
+        final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+        await cubit.load();
+
+        expect(repository.libraryCalls, 1);
+        expect(repository.watchNextCalls, 1);
+        expect(repository.staleWatchingCalls, 1);
+
+        await cubit.startShow(showId: 'show-1396');
+
+        expect(repository.startShowCalls, 1);
+        expect(repository.startedShowIds, <String>['show-1396']);
+
+        expect(
+          repository.libraryCalls,
+          2,
+          reason: 'Library status must be refreshed after starting a Show.',
+        );
+
+        expect(
+          repository.watchNextCalls,
+          2,
+          reason: 'Starting a Show may create a new Watch Next item.',
+        );
+
+        expect(
+          repository.staleWatchingCalls,
+          2,
+          reason: 'Supplementary Watching state must remain server-driven.',
+        );
+
+        expect(cubit.state.startingShowId, isNull);
+        expect(cubit.state.startShowError, isNull);
+
+        await cubit.close();
+      },
+    );
+
+    test('preserves existing Shows when starting a Show fails', () async {
+      const AppException expectedError = AppException.connection();
+
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        shows: <LibraryShow>[
+          _libraryShow(
+            tmdbId: 1396,
+            title: 'Breaking Bad',
+            status: LibraryStatus.planning,
+          ),
+        ],
+        startShowError: expectedError,
+      );
+
+      final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+      await cubit.load();
+
+      final List<LibraryShow> libraryBeforeOperation = cubit.state.libraryShows;
+
+      await cubit.startShow(showId: 'show-1396');
+
+      expect(repository.startShowCalls, 1);
+
+      expect(
+        repository.libraryCalls,
+        1,
+        reason: 'A failed mutation must not refresh Library.',
+      );
+
+      expect(cubit.state.libraryShows, libraryBeforeOperation);
+      expect(cubit.state.startingShowId, isNull);
+      expect(cubit.state.startShowError, expectedError);
+
+      await cubit.close();
+    });
+
+    test('maps unexpected Start Show errors to unknown', () async {
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        startShowUnexpectedError: StateError('boom'),
+      );
+
+      final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+      await cubit.startShow(showId: 'show-1396');
+
+      expect(repository.startShowCalls, 1);
+      expect(cubit.state.startShowError?.type, AppExceptionType.unknown);
+      expect(cubit.state.startingShowId, isNull);
+
+      await cubit.close();
+    });
   });
 }
 
@@ -689,7 +991,7 @@ WatchNextShow _watchNextShow() {
     posterUrl: null,
     backdropUrl: null,
     nextEpisode: WatchNextEpisode(
-      id: 'episode-next-uuid',
+      id: 'episode-uuid',
       tmdbId: 1947648,
       seasonNumber: 2,
       episodeNumber: 4,
@@ -697,6 +999,11 @@ WatchNextShow _watchNextShow() {
       airDate: DateTime(2026, 8, 10),
       runtime: 52,
       stillUrl: null,
+    ),
+    progress: const WatchNextProgress(
+      watchedEpisodes: 7,
+      airedEpisodes: 10,
+      percentage: 70,
     ),
   );
 }
@@ -710,6 +1017,7 @@ WatchHistoryItem _watchHistoryItem({
     showId: 'show-95396',
     showTmdbId: 95396,
     showTitle: 'Severance',
+    eventId: 'watch-event-1',
     posterUrl: null,
     backdropUrl: null,
     episode: WatchHistoryEpisode(
@@ -717,6 +1025,7 @@ WatchHistoryItem _watchHistoryItem({
       tmdbId: 1900000 + episodeNumber,
       seasonNumber: 2,
       episodeNumber: episodeNumber,
+      watchCount: 1,
       title: title,
       watchedAt: DateTime.utc(2026, 8, 13, 20),
       airDate: DateTime.utc(2026, 8, 10),
@@ -773,6 +1082,10 @@ final class _FakeShowsRepository implements ShowsRepository {
     this.watchHistoryPages = const <WatchHistoryPage>[],
     this.watchHistoryErrors = const <AppException?>[],
     this.watchHistoryUnexpectedErrors = const <Object?>[],
+    this.markEpisodeWatchedError,
+    this.markEpisodeWatchedUnexpectedError,
+    this.startShowError,
+    this.startShowUnexpectedError,
   });
 
   final List<LibraryShow> shows;
@@ -791,6 +1104,11 @@ final class _FakeShowsRepository implements ShowsRepository {
   final List<WatchHistoryPage> watchHistoryPages;
   final List<AppException?> watchHistoryErrors;
   final List<Object?> watchHistoryUnexpectedErrors;
+  final AppException? markEpisodeWatchedError;
+  final Object? markEpisodeWatchedUnexpectedError;
+
+  int markEpisodeWatchedCalls = 0;
+  final List<String> markedEpisodeIds = <String>[];
 
   int watchHistoryCalls = 0;
 
@@ -799,6 +1117,12 @@ final class _FakeShowsRepository implements ShowsRepository {
   int libraryCalls = 0;
   int watchNextCalls = 0;
   int staleWatchingCalls = 0;
+
+  int startShowCalls = 0;
+  final List<String> startedShowIds = <String>[];
+
+  final AppException? startShowError;
+  final Object? startShowUnexpectedError;
 
   @override
   Future<List<LibraryShow>> getLibraryShows() async {
@@ -855,6 +1179,45 @@ final class _FakeShowsRepository implements ShowsRepository {
     }
 
     return staleWatching;
+  }
+
+  @override
+  Future<void> startShow({required String showId}) async {
+    startShowCalls++;
+    startedShowIds.add(showId);
+
+    final AppException? appError = startShowError;
+
+    if (appError != null) {
+      throw appError;
+    }
+
+    final Object? unknownError = startShowUnexpectedError;
+
+    if (unknownError != null) {
+      throw unknownError;
+    }
+  }
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {
+    markEpisodeWatchedCalls++;
+    markedEpisodeIds.add(episodeId);
+
+    final AppException? appError = markEpisodeWatchedError;
+
+    if (appError != null) {
+      throw appError;
+    }
+
+    final Object? unknownError = markEpisodeWatchedUnexpectedError;
+
+    if (unknownError != null) {
+      throw unknownError;
+    }
   }
 
   @override
@@ -925,6 +1288,15 @@ final class _PendingWatchHistoryRepository implements ShowsRepository {
   Future<List<WatchNextShow>> getWatchNext() async {
     return const <WatchNextShow>[];
   }
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
 }
 
 final class _PendingLoadMoreWatchHistoryRepository implements ShowsRepository {
@@ -976,4 +1348,154 @@ final class _PendingLoadMoreWatchHistoryRepository implements ShowsRepository {
   Future<List<WatchNextShow>> getWatchNext() async {
     return const <WatchNextShow>[];
   }
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+}
+
+final class _ChangingWatchNextRepository implements ShowsRepository {
+  int watchNextCalls = 0;
+  int staleWatchingCalls = 0;
+  int markEpisodeWatchedCalls = 0;
+
+  final List<String> markedEpisodeIds = <String>[];
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    return <LibraryShow>[
+      _libraryShow(
+        tmdbId: 95396,
+        title: 'Severance',
+        status: LibraryStatus.watching,
+      ),
+    ];
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    watchNextCalls++;
+
+    if (watchNextCalls == 1) {
+      return <WatchNextShow>[_watchNextShow()];
+    }
+
+    return <WatchNextShow>[
+      WatchNextShow(
+        libraryEntryId: 'library-95396',
+        libraryStatus: LibraryStatus.watching,
+        showId: 'show-95396',
+        showTmdbId: 95396,
+        showTitle: 'Severance',
+        posterUrl: null,
+        backdropUrl: null,
+        nextEpisode: WatchNextEpisode(
+          id: 'episode-next-uuid',
+          tmdbId: 1947649,
+          seasonNumber: 2,
+          episodeNumber: 5,
+          title: 'Trojan\'s Horse',
+          airDate: DateTime(2026, 8, 11),
+          runtime: 51,
+          stillUrl: null,
+        ),
+        progress: const WatchNextProgress(
+          watchedEpisodes: 8,
+          airedEpisodes: 10,
+          percentage: 80,
+        ),
+      ),
+    ];
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    staleWatchingCalls++;
+
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {
+    markEpisodeWatchedCalls++;
+    markedEpisodeIds.add(episodeId);
+  }
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+}
+
+final class _CompletedWatchNextRepository implements ShowsRepository {
+  int watchNextCalls = 0;
+  int markEpisodeWatchedCalls = 0;
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    return <LibraryShow>[
+      _libraryShow(
+        tmdbId: 95396,
+        title: 'Severance',
+        status: LibraryStatus.watching,
+      ),
+    ];
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    watchNextCalls++;
+
+    if (watchNextCalls == 1) {
+      return <WatchNextShow>[_watchNextShow()];
+    }
+
+    return const <WatchNextShow>[];
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {
+    markEpisodeWatchedCalls++;
+  }
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
 }

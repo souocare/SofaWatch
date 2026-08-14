@@ -32,6 +32,11 @@ void main() {
           'runtime': 52,
           'still_url': 'https://example.com/still.jpg',
         },
+        'progress': <String, dynamic>{
+          'watched_episodes': 7,
+          'aired_episodes': 10,
+          'percentage': 70.0,
+        },
       }).toDomain();
 
       expect(result.libraryEntryId, 'library-entry-uuid');
@@ -63,6 +68,9 @@ void main() {
       expect(result.nextEpisode.runtime, 52);
 
       expect(result.nextEpisode.stillUrl, 'https://example.com/still.jpg');
+      expect(result.progress.watchedEpisodes, 7);
+      expect(result.progress.airedEpisodes, 10);
+      expect(result.progress.percentage, 70.0);
     });
 
     test('supports optional Episode and image metadata', () {
@@ -85,6 +93,11 @@ void main() {
           'air_date': null,
           'runtime': null,
           'still_url': null,
+        },
+        'progress': <String, dynamic>{
+          'watched_episodes': 0,
+          'aired_episodes': 1,
+          'percentage': 0.0,
         },
       }).toDomain();
 

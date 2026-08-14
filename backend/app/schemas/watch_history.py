@@ -18,15 +18,29 @@ class WatchHistoryEpisodeResponse(BaseModel):
     title: str
 
     air_date: date | None = None
-    runtime: int | None = Field(default=None, ge=0)
+    runtime: int | None = Field(
+        default=None,
+        ge=0,
+    )
 
     still_url: str | None = None
 
     watched_at: datetime
 
+    # Total number of historical viewings recorded for this Episode.
+    watch_count: int = Field(
+        ge=1,
+    )
+
 
 class WatchHistoryItemResponse(BaseModel):
-    """One watched Episode in the user's Watch History."""
+    """One historical Episode viewing in the user's Watch History."""
+
+    # Identifies this specific viewing.
+    #
+    # This is deliberately different from episode.id because the same
+    # Episode may appear several times in Watch History after rewatches.
+    event_id: UUID
 
     show: ShowSummaryResponse
     episode: WatchHistoryEpisodeResponse

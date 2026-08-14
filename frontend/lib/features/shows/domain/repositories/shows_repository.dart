@@ -11,4 +11,10 @@ abstract interface class ShowsRepository {
   Future<List<StaleWatchingShow>> getStaleWatching();
 
   Future<WatchHistoryPage> getWatchHistory({int limit = 30, String? cursor});
+
+  Future<void> markEpisodeWatched({required String episodeId});
+
+  Future<void> startShow({required String showId});
+
+  Future<void> markEpisodeUnwatched({required String episodeId});
 }

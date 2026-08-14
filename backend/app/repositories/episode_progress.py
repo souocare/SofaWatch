@@ -598,3 +598,50 @@ class EpisodeProgressRepository:
             items=items,
             has_more=has_more,
         )
+
+
+    def get_watched_aired_counts_by_show_ids(
+        self,
+        *,
+        user_id: UUID,
+        show_ids: list[UUID],
+        as_of: date,
+    ) -> dict[UUID, int]:
+        """Return watched aired regular Episode counts grouped by Show."""
+
+        if not show_ids:
+            return {}
+
+        statement = (
+            select(
+                Season.show_id,
+                func.count(EpisodeProgress.id),
+            )
+            .select_from(EpisodeProgress)
+            .join(
+                Episode,
+                Episode.id == EpisodeProgress.episode_id,
+            )
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .where(
+                EpisodeProgress.user_id == user_id,
+                EpisodeProgress.is_watched.is_(True),
+                Season.show_id.in_(show_ids),
+                Season.season_number > 0,
+                Episode.air_date.is_not(None),
+                Episode.air_date <= as_of,
+            )
+            .group_by(
+                Season.show_id,
+            )
+        )
+
+        rows = self._session.execute(statement).all()
+
+        return {
+            show_id: int(watched_episodes or 0)
+            for show_id, watched_episodes in rows
+        }

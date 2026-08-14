@@ -1585,6 +1585,7 @@ final class _FakeShowDetailsSeasonsRepository
           id: 'progress-1-uuid',
           episodeId: 'episode-1-uuid',
           isWatched: true,
+          watchCount: 1,
           watchedAt: DateTime.utc(2026, 8, 10, 21, 30),
         ),
       ],
@@ -1601,6 +1602,7 @@ final class _FakeShowDetailsSeasonsRepository
       id: 'progress-$episodeId',
       episodeId: episodeId,
       isWatched: true,
+      watchCount: 1,
       watchedAt: watchedAt ?? DateTime.utc(2026, 8, 11),
     );
   }
@@ -1613,6 +1615,7 @@ final class _FakeShowDetailsSeasonsRepository
       id: 'progress-$episodeId',
       episodeId: episodeId,
       isWatched: false,
+      watchCount: 0,
     );
   }
 }
@@ -1777,6 +1780,7 @@ final class _ControlledShowDetailsSeasonsRepository
       id: 'progress-$episodeId',
       episodeId: episodeId,
       isWatched: true,
+      watchCount: 1,
       watchedAt: watchedAt ?? DateTime.utc(2026, 8, 11),
     );
   }
@@ -1789,6 +1793,7 @@ final class _ControlledShowDetailsSeasonsRepository
       id: 'progress-$episodeId',
       episodeId: episodeId,
       isWatched: false,
+      watchCount: 0,
     );
   }
 }
@@ -1885,6 +1890,7 @@ final class _ManySeasonsRepository implements ShowDetailsSeasonsRepository {
       id: 'progress-$episodeId',
       episodeId: episodeId,
       isWatched: true,
+      watchCount: 1,
       watchedAt: watchedAt ?? DateTime.utc(2026, 8, 11),
     );
   }
@@ -1897,6 +1903,7 @@ final class _ManySeasonsRepository implements ShowDetailsSeasonsRepository {
       id: 'progress-$episodeId',
       episodeId: episodeId,
       isWatched: false,
+      watchCount: 0,
     );
   }
 }
@@ -1912,6 +1919,7 @@ final class _ControlledEpisodeUpdateRepository
         id: 'progress-$episodeId',
         episodeId: episodeId,
         isWatched: true,
+        watchCount: 1,
         watchedAt: DateTime.utc(2026, 8, 11),
       ),
     );
@@ -1946,6 +1954,7 @@ final class _RetryEpisodeUpdateRepository
       id: 'progress-$episodeId',
       episodeId: episodeId,
       isWatched: true,
+      watchCount: 1,
       watchedAt: DateTime.utc(2026, 8, 11),
     );
   }
@@ -1964,6 +1973,7 @@ final class _RetryEpisodeUpdateRepository
       id: 'progress-$episodeId',
       episodeId: episodeId,
       isWatched: false,
+      watchCount: 0,
     );
   }
 }

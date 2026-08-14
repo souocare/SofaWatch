@@ -258,12 +258,15 @@ final class ApiShowDetailsSeasonsRepository
     final Object? id = json['id'];
     final Object? episodeId = json['episode_id'];
     final Object? isWatched = json['is_watched'];
+    final Object? watchCount = json['watch_count'];
 
     if (id is! String ||
         id.isEmpty ||
         episodeId is! String ||
         episodeId.isEmpty ||
-        isWatched is! bool) {
+        isWatched is! bool ||
+        watchCount is! int ||
+        watchCount < 0) {
       throw const FormatException('Invalid Episode progress data.');
     }
 
@@ -281,11 +284,18 @@ final class ApiShowDetailsSeasonsRepository
       );
     }
 
+    if (isWatched && watchCount == 0) {
+      throw const FormatException(
+        'Watched Episode progress must contain at least one watch event.',
+      );
+    }
+
     return ShowDetailsEpisodeProgress(
       id: id,
       episodeId: episodeId,
       isWatched: isWatched,
       watchedAt: watchedAt,
+      watchCount: watchCount,
     );
   }
 

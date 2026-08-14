@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -8,6 +8,11 @@ from app.models.library import LibraryEntry
 from app.repositories.library import LibraryRepository
 from app.repositories.movie import MovieRepository
 from app.repositories.show import ShowRepository
+from app.repositories.episode import EpisodeRepository
+from app.schemas.library import (
+    LibraryFirstEpisodeResponse,
+    LibraryShowResponse,
+)
 
 
 class LibraryService:
@@ -20,11 +25,13 @@ class LibraryService:
         library_repository: LibraryRepository,
         show_repository: ShowRepository,
         movie_repository: MovieRepository,
+        episode_repository: EpisodeRepository,
     ) -> None:
         self._session = session
         self._library_repository = library_repository
         self._show_repository = show_repository
         self._movie_repository = movie_repository
+        self._episode_repository = episode_repository
 
     def list_for_user(
         self,
@@ -44,13 +51,69 @@ class LibraryService:
         user_id: UUID,
         *,
         status: LibraryStatus | None = None,
-    ) -> list[LibraryEntry]:
+    ) -> list[LibraryShowResponse]:
         """Return TV series in a user's library."""
 
-        return self._library_repository.list_shows_by_user(
+        entries = self._library_repository.list_shows_by_user(
             user_id,
             status=status,
         )
+
+        planning_show_ids = [
+            entry.show_id
+            for entry in entries
+            if entry.status == LibraryStatus.PLANNING
+            and entry.show_id is not None
+        ]
+
+        first_episode_by_show = (
+            self._episode_repository.get_first_aired_regular_for_shows(
+                show_ids=planning_show_ids,
+                as_of=date.today(),
+            )
+        )
+
+        results: list[LibraryShowResponse] = []
+
+        for entry in entries:
+            if entry.show is None:
+                continue
+
+            first_available_episode = None
+
+            if entry.show_id is not None:
+                first_episode_result = first_episode_by_show.get(
+                    entry.show_id,
+                )
+
+                if first_episode_result is not None:
+                    episode, season_number = first_episode_result
+
+                    first_available_episode = LibraryFirstEpisodeResponse(
+                        id=episode.id,
+                        tmdb_id=episode.tmdb_id,
+                        season_number=season_number,
+                        episode_number=episode.episode_number,
+                        title=episode.title,
+                        air_date=episode.air_date,
+                        runtime=episode.runtime,
+                    )
+
+            results.append(
+                LibraryShowResponse(
+                    id=entry.id,
+                    status=entry.status,
+                    rating=entry.rating,
+                    started_at=entry.started_at,
+                    completed_at=entry.completed_at,
+                    created_at=entry.created_at,
+                    updated_at=entry.updated_at,
+                    show=entry.show,
+                    first_available_episode=first_available_episode,
+                )
+            )
+
+        return results
 
     def get_show_entry(
         self,

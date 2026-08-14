@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_next_progress.dart';
 
 final class WatchNextShow extends Equatable {
   const WatchNextShow({
@@ -10,6 +11,7 @@ final class WatchNextShow extends Equatable {
     required this.showTmdbId,
     required this.showTitle,
     required this.nextEpisode,
+    required this.progress,
     this.posterUrl,
     this.backdropUrl,
   });
@@ -25,6 +27,7 @@ final class WatchNextShow extends Equatable {
   final String? backdropUrl;
 
   final WatchNextEpisode nextEpisode;
+  final WatchNextProgress progress;
 
   @override
   List<Object?> get props => <Object?>[
@@ -36,5 +39,6 @@ final class WatchNextShow extends Equatable {
     posterUrl,
     backdropUrl,
     nextEpisode,
+    progress,
   ];
 }

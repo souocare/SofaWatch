@@ -11,7 +11,10 @@ from app.api.dependencies import (
     SeasonEpisodeSyncServiceDependency,
 )
 from app.schemas.episode import EpisodeResponse
-from app.schemas.episode_progress import EpisodeProgressResponse
+from app.schemas.episode_progress import (
+    EpisodeProgressResponse,
+    EpisodeProgressWithWatchCountResponse,
+)
 from app.schemas.progress import SeasonProgressResponse
 
 router = APIRouter(
@@ -116,11 +119,11 @@ def sync_season_episodes(
 
 @router.get(
     "/{season_id}/episodes/progress",
-    response_model=list[EpisodeProgressResponse],
+    response_model=list[EpisodeProgressWithWatchCountResponse],
     summary="Get episode progress for season",
     description=(
-        "Return the current user's viewing progress entries "
-        "for episodes belonging to a season."
+        "Return the current user's viewing progress and historical watch "
+        "counts for Episodes belonging to a Season."
     ),
 )
 def get_season_episode_progress(
@@ -132,8 +135,8 @@ def get_season_episode_progress(
     ],
     service: EpisodeProgressServiceDependency,
     current_user: CurrentUserDependency,
-) -> list[EpisodeProgressResponse]:
-    """Return episode-level viewing progress for a season."""
+) -> list[EpisodeProgressWithWatchCountResponse]:
+    """Return Episode-level viewing progress for a Season."""
 
     progress = service.get_episode_progress_for_season(
         user_id=current_user.id,

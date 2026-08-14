@@ -1004,3 +1004,163 @@ def test_get_counts_by_show_id_does_not_include_another_show(
     assert result == {
         first_season.id: (1, 1),
     }
+
+
+def test_get_aired_counts_by_show_ids_groups_counts_by_show(
+    db_session: Session,
+) -> None:
+    """Return aired regular Episode counts for multiple Shows in one query."""
+
+    first_show = persist_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    second_show = persist_show(
+        db_session,
+        tmdb_id=100088,
+        title="The Last of Us",
+    )
+
+    first_season = persist_season(
+        db_session,
+        show=first_show,
+        tmdb_id=1001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    second_season = persist_season(
+        db_session,
+        show=second_show,
+        tmdb_id=2001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    db_session.add_all(
+        [
+            make_episode(
+                season_id=first_season.id,
+                tmdb_id=3001,
+                episode_number=1,
+                air_date=date(2026, 7, 1),
+            ),
+            make_episode(
+                season_id=first_season.id,
+                tmdb_id=3002,
+                episode_number=2,
+                air_date=date(2026, 7, 8),
+            ),
+            make_episode(
+                season_id=second_season.id,
+                tmdb_id=4001,
+                episode_number=1,
+                air_date=date(2026, 7, 5),
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    repository = EpisodeRepository(db_session)
+
+    result = repository.get_aired_counts_by_show_ids(
+        show_ids=[
+            first_show.id,
+            second_show.id,
+        ],
+        as_of=date(2026, 8, 13),
+    )
+
+    assert result == {
+        first_show.id: 2,
+        second_show.id: 1,
+    }
+
+
+def test_get_aired_counts_by_show_ids_excludes_future_unknown_and_specials(
+    db_session: Session,
+) -> None:
+    """Count only aired regular Episodes for the requested Shows."""
+
+    show = persist_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    specials = persist_season(
+        db_session,
+        show=show,
+        tmdb_id=1000,
+        season_number=0,
+        title="Specials",
+    )
+
+    regular = persist_season(
+        db_session,
+        show=show,
+        tmdb_id=1001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    db_session.add_all(
+        [
+            make_episode(
+                season_id=specials.id,
+                tmdb_id=2001,
+                episode_number=1,
+                air_date=date(2026, 7, 1),
+            ),
+            make_episode(
+                season_id=regular.id,
+                tmdb_id=2101,
+                episode_number=1,
+                air_date=date(2026, 7, 1),
+            ),
+            make_episode(
+                season_id=regular.id,
+                tmdb_id=2102,
+                episode_number=2,
+                air_date=date(2026, 8, 20),
+            ),
+            make_episode(
+                season_id=regular.id,
+                tmdb_id=2103,
+                episode_number=3,
+                air_date=None,
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    repository = EpisodeRepository(db_session)
+
+    result = repository.get_aired_counts_by_show_ids(
+        show_ids=[show.id],
+        as_of=date(2026, 8, 13),
+    )
+
+    assert result == {
+        show.id: 1,
+    }
+
+
+def test_get_aired_counts_by_show_ids_returns_empty_for_empty_input(
+    db_session: Session,
+) -> None:
+    """Avoid querying Episode counts when no Shows are requested."""
+
+    repository = EpisodeRepository(db_session)
+
+    result = repository.get_aired_counts_by_show_ids(
+        show_ids=[],
+        as_of=date(2026, 8, 13),
+    )
+
+    assert result == {}
+

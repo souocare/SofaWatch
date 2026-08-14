@@ -15,7 +15,11 @@ from app.schemas.progress import (
     SeasonProgressResponse,
     ShowProgressResponse,
 )
-
+from app.models.episode_watch_event import EpisodeWatchEvent
+from app.repositories.episode_watch_event import EpisodeWatchEventRepository
+from app.schemas.episode_progress import (
+    EpisodeProgressWithWatchCountResponse,
+)
 
 class EpisodeProgressService:
     """Business logic for episode viewing progress."""
@@ -28,12 +32,14 @@ class EpisodeProgressService:
         episode_repository: EpisodeRepository,
         season_repository: SeasonRepository,
         show_repository: ShowRepository,
+        watch_event_repository: EpisodeWatchEventRepository,
     ) -> None:
         self._session = session
         self._progress_repository = progress_repository
         self._episode_repository = episode_repository
         self._season_repository = season_repository
         self._show_repository = show_repository
+        self._watch_event_repository = watch_event_repository
 
     def mark_watched(
         self,
@@ -42,7 +48,7 @@ class EpisodeProgressService:
         episode_id: UUID,
         watched_at: datetime | None = None,
     ) -> EpisodeProgress | None:
-        """Mark an episode as watched."""
+        """Record an Episode watch and update its current progress."""
 
         episode = self._episode_repository.get_by_id(
             episode_id,
@@ -51,17 +57,17 @@ class EpisodeProgressService:
         if episode is None:
             return None
 
-        progress = self._progress_repository.get_by_user_and_episode(
-            user_id=user_id,
-            episode_id=episode_id,
-        )
-
         if watched_at is not None and watched_at.tzinfo is None:
             watched_at = watched_at.replace(
                 tzinfo=UTC,
             )
 
         viewed_at = watched_at or datetime.now(UTC)
+
+        progress = self._progress_repository.get_by_user_and_episode(
+            user_id=user_id,
+            episode_id=episode_id,
+        )
 
         if progress is None:
             progress = EpisodeProgress(
@@ -77,6 +83,21 @@ class EpisodeProgressService:
             progress.is_watched = True
             progress.watched_at = viewed_at
 
+        watch_event = EpisodeWatchEvent(
+            user_id=user_id,
+            episode_id=episode_id,
+            watched_at=viewed_at,
+        )
+
+        self._watch_event_repository.add(
+            watch_event,
+        )
+
+        
+        # One transaction deliberately persists both:
+        # - the current Episode progress;
+        # - the historical watch event.
+        # We must never record one without the other.
         self._session.commit()
         self._session.refresh(progress)
 
@@ -184,11 +205,17 @@ class EpisodeProgressService:
         *,
         user_id: UUID,
         season_id: UUID,
-    ) -> list[EpisodeProgress] | None:
-        """Return episode viewing progress for a season.
+    ) -> list[EpisodeProgressWithWatchCountResponse] | None:
+        """Return Episode progress enriched with historical watch counts.
 
-        Returns None when the season does not exist.
-        Episodes without a progress entry are implicitly unwatched.
+        Returns None when the Season does not exist.
+
+        Episodes without a progress entry are implicitly unwatched and are not
+        included in this collection. The Episode list remains the source of
+        truth for all Episodes belonging to the Season.
+
+        Watch counts are fetched in one batch query to avoid one query per
+        Episode.
         """
 
         season = self._season_repository.get_by_id(
@@ -198,10 +225,39 @@ class EpisodeProgressService:
         if season is None:
             return None
 
-        return self._progress_repository.list_by_user_and_season(
+        progress_entries = self._progress_repository.list_by_user_and_season(
             user_id=user_id,
             season_id=season_id,
         )
+
+        if not progress_entries:
+            return []
+
+        episode_ids = [
+            progress.episode_id
+            for progress in progress_entries
+        ]
+
+        watch_counts = (
+            self._watch_event_repository.get_counts_by_user_and_episode_ids(
+                user_id=user_id,
+                episode_ids=episode_ids,
+            )
+        )
+
+        return [
+            EpisodeProgressWithWatchCountResponse(
+                id=progress.id,
+                episode_id=progress.episode_id,
+                is_watched=progress.is_watched,
+                watched_at=progress.watched_at,
+                watch_count=watch_counts.get(
+                    progress.episode_id,
+                    0,
+                ),
+            )
+            for progress in progress_entries
+        ]
 
     def get_show_seasons_progress(
         self,

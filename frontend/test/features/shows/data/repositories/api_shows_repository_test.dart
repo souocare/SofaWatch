@@ -35,6 +35,7 @@ void main() {
             'completed_at': null,
             'created_at': '2026-07-01T10:00:00Z',
             'updated_at': '2026-08-10T10:00:00Z',
+            'first_available_episode': null,
             'show': <String, dynamic>{
               'id': 'show-1',
               'tmdb_id': 95396,
@@ -57,6 +58,15 @@ void main() {
             'completed_at': null,
             'created_at': '2026-08-01T10:00:00Z',
             'updated_at': '2026-08-02T10:00:00Z',
+            'first_available_episode': <String, dynamic>{
+              'id': 'episode-1',
+              'tmdb_id': 62085,
+              'season_number': 1,
+              'episode_number': 1,
+              'title': 'Pilot',
+              'air_date': '2008-01-20',
+              'runtime': 58,
+            },
             'show': <String, dynamic>{
               'id': 'show-2',
               'tmdb_id': 1396,
@@ -93,6 +103,19 @@ void main() {
       expect(result[1].status, LibraryStatus.planning);
       expect(result[1].showStatus, 'Ended');
       expect(result[1].posterUrl, isNull);
+      expect(result[0].firstAvailableEpisode, isNull);
+
+      final firstEpisode = result[1].firstAvailableEpisode;
+
+      expect(firstEpisode, isNotNull);
+      expect(firstEpisode!.id, 'episode-1');
+      expect(firstEpisode.tmdbId, 62085);
+      expect(firstEpisode.seasonNumber, 1);
+      expect(firstEpisode.episodeNumber, 1);
+      expect(firstEpisode.code, 'S01E01');
+      expect(firstEpisode.title, 'Pilot');
+      expect(firstEpisode.airDate, DateTime(2008, 1, 20));
+      expect(firstEpisode.runtime, 58);
     });
 
     test('supports an empty Library', () async {
@@ -191,6 +214,11 @@ void main() {
               'runtime': 52,
               'still_url': 'https://example.com/still.jpg',
             },
+            'progress': <String, dynamic>{
+              'watched_episodes': 7,
+              'aired_episodes': 10,
+              'percentage': 70.0,
+            },
           },
         ]);
       });
@@ -220,6 +248,9 @@ void main() {
       expect(item.nextEpisode.airDate, DateTime(2026, 8, 10));
       expect(item.nextEpisode.runtime, 52);
       expect(item.nextEpisode.stillUrl, 'https://example.com/still.jpg');
+      expect(item.progress.watchedEpisodes, 7);
+      expect(item.progress.airedEpisodes, 10);
+      expect(item.progress.percentage, 70.0);
     });
 
     test('supports an empty Watch Next collection', () async {
@@ -249,6 +280,11 @@ void main() {
               'season_number': 0,
               'episode_number': 4,
               'title': "Woe's Hollow",
+            },
+            'progress': <String, dynamic>{
+              'watched_episodes': 7,
+              'aired_episodes': 10,
+              'percentage': 70.0,
             },
           },
         ]);
@@ -426,6 +462,7 @@ void main() {
           server.reply(200, <String, dynamic>{
             'items': <Map<String, dynamic>>[
               <String, dynamic>{
+                'event_id': '550e8400-e29b-41d4-a716-446655440001',
                 'show': <String, dynamic>{
                   'id': 'show-1',
                   'tmdb_id': 95396,
@@ -449,6 +486,7 @@ void main() {
                   'runtime': 52,
                   'still_url': 'https://example.com/still.jpg',
                   'watched_at': '2026-08-13T20:00:00Z',
+                  'watch_count': 2,
                 },
               },
             ],
@@ -467,6 +505,8 @@ void main() {
 
       final item = result.items.single;
 
+      expect(item.eventId, '550e8400-e29b-41d4-a716-446655440001');
+
       expect(item.showId, 'show-1');
       expect(item.showTmdbId, 95396);
       expect(item.showTitle, 'Severance');
@@ -479,8 +519,10 @@ void main() {
       expect(item.episode.code, 'S02E04');
       expect(item.episode.title, "Woe's Hollow");
       expect(item.episode.runtime, 52);
+      expect(item.episode.watchCount, 2);
       expect(item.episode.watchedAt, DateTime.parse('2026-08-13T20:00:00Z'));
     });
+
     test('forwards Watch History cursor and maps next page', () async {
       const String cursor = 'opaque-cursor';
 
@@ -490,6 +532,7 @@ void main() {
           server.reply(200, <String, dynamic>{
             'items': <Map<String, dynamic>>[
               <String, dynamic>{
+                'event_id': '550e8400-e29b-41d4-a716-446655440002',
                 'show': <String, dynamic>{
                   'id': 'show-2',
                   'tmdb_id': 100088,
@@ -513,6 +556,7 @@ void main() {
                   'runtime': 76,
                   'still_url': null,
                   'watched_at': '2026-07-01T21:00:00Z',
+                  'watch_count': 1,
                 },
               },
             ],
@@ -532,9 +576,15 @@ void main() {
       expect(result.hasMore, isTrue);
       expect(result.nextCursor, 'next-opaque-cursor');
 
-      expect(result.items.single.showTitle, 'The Last of Us');
-      expect(result.items.single.episode.code, 'S01E03');
+      final item = result.items.single;
+
+      expect(item.eventId, '550e8400-e29b-41d4-a716-446655440002');
+
+      expect(item.showTitle, 'The Last of Us');
+      expect(item.episode.code, 'S01E03');
+      expect(item.episode.watchCount, 1);
     });
+
     test('supports an empty Watch History page', () async {
       dioAdapter.onGet(
         '/library/shows/watch-history',
@@ -561,6 +611,7 @@ void main() {
           server.reply(200, <String, dynamic>{
             'items': <Map<String, dynamic>>[
               <String, dynamic>{
+                'event_id': '550e8400-e29b-41d4-a716-446655440003',
                 'show': <String, dynamic>{
                   'id': 'show-1',
                   'tmdb_id': 95396,
@@ -572,6 +623,7 @@ void main() {
                   'season_number': 2,
                   'episode_number': 4,
                   'title': "Woe's Hollow",
+                  'watch_count': 1,
 
                   // watched_at intentionally missing
                 },
@@ -617,6 +669,81 @@ void main() {
           ),
         ),
       );
+    });
+    test('maps malformed Watch Next progress to invalidData', () async {
+      dioAdapter.onGet('/library/shows/watch-next', (server) {
+        server.reply(200, <Map<String, dynamic>>[
+          <String, dynamic>{
+            'library_entry_id': 'library-entry-1',
+            'library_status': 'watching',
+            'show': <String, dynamic>{
+              'id': 'show-1',
+              'tmdb_id': 95396,
+              'title': 'Severance',
+            },
+            'next_episode': <String, dynamic>{
+              'id': 'episode-1',
+              'tmdb_id': 1947648,
+              'season_number': 2,
+              'episode_number': 4,
+              'title': "Woe's Hollow",
+            },
+            'progress': <String, dynamic>{
+              'watched_episodes': 7,
+              'aired_episodes': 10,
+              'percentage': 120.0,
+            },
+          },
+        ]);
+      });
+
+      expect(
+        repository.getWatchNext(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
+    test('marks an Episode as watched', () async {
+      dioAdapter.onPost('/episodes/episode-uuid/watched', (server) {
+        server.reply(200, <String, dynamic>{
+          'episode_id': 'episode-uuid',
+          'is_watched': true,
+          'watched_at': '2026-08-13T20:00:00Z',
+        });
+      }, data: <String, dynamic>{'watched_at': null});
+
+      await repository.markEpisodeWatched(episodeId: 'episode-uuid');
+    });
+
+    test('marks an Episode as unwatched', () async {
+      dioAdapter.onDelete('/episodes/episode-uuid/watched', (server) {
+        server.reply(200, <String, dynamic>{
+          'id': 'progress-uuid',
+          'episode_id': 'episode-uuid',
+          'is_watched': false,
+          'watched_at': null,
+        });
+      });
+
+      await repository.markEpisodeUnwatched(episodeId: 'episode-uuid');
+    });
+
+    test('starts a Show from the Library', () async {
+      dioAdapter.onPost('/library/shows/show-uuid/start', (server) {
+        server.reply(200, <String, dynamic>{
+          'library_entry_id': 'library-entry-uuid',
+          'library_status': 'watching',
+          'show_id': 'show-uuid',
+          'started_episode_id': 'episode-uuid',
+        });
+      });
+
+      await repository.startShow(showId: 'show-uuid');
     });
   });
 }

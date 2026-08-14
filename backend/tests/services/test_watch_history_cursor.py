@@ -21,12 +21,16 @@ def test_watch_history_cursor_round_trip() -> None:
             30,
             tzinfo=UTC,
         ),
-        progress_id=uuid4(),
+        event_id=uuid4(),
     )
 
-    encoded = WatchHistoryCursorCodec.encode(cursor)
+    encoded = WatchHistoryCursorCodec.encode(
+        cursor,
+    )
 
-    decoded = WatchHistoryCursorCodec.decode(encoded)
+    decoded = WatchHistoryCursorCodec.decode(
+        encoded,
+    )
 
     assert decoded == cursor
 
@@ -43,13 +47,15 @@ def test_watch_history_cursor_is_opaque() -> None:
             30,
             tzinfo=UTC,
         ),
-        progress_id=uuid4(),
+        event_id=uuid4(),
     )
 
-    encoded = WatchHistoryCursorCodec.encode(cursor)
+    encoded = WatchHistoryCursorCodec.encode(
+        cursor,
+    )
 
     assert "watched_at" not in encoded
-    assert "progress_id" not in encoded
+    assert "event_id" not in encoded
 
 
 @pytest.mark.parametrize(
@@ -69,4 +75,6 @@ def test_watch_history_cursor_rejects_invalid_values(
         ValueError,
         match="Invalid Watch History cursor",
     ):
-        WatchHistoryCursorCodec.decode(value)
+        WatchHistoryCursorCodec.decode(
+            value,
+        )

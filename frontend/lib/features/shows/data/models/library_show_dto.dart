@@ -1,5 +1,6 @@
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
+import 'package:sofawatch/features/shows/domain/models/library_first_episode.dart';
 
 final class LibraryShowDto {
   const LibraryShowDto({
@@ -19,6 +20,7 @@ final class LibraryShowDto {
     this.rating,
     this.startedAt,
     this.completedAt,
+    this.firstAvailableEpisode,
   });
 
   final String libraryEntryId;
@@ -45,9 +47,14 @@ final class LibraryShowDto {
 
   final DateTime createdAt;
   final DateTime updatedAt;
+  final LibraryFirstEpisode? firstAvailableEpisode;
 
   factory LibraryShowDto.fromJson(Map<String, dynamic> json) {
     final Map<String, dynamic> show = _requiredMap(json, 'show');
+
+    final Map<String, dynamic>? firstAvailableEpisodeJson = _optionalMap(
+      json['first_available_episode'],
+    );
 
     return LibraryShowDto(
       libraryEntryId: _requiredString(json, 'id'),
@@ -66,6 +73,25 @@ final class LibraryShowDto {
       completedAt: _optionalDateTime(json['completed_at']),
       createdAt: _requiredDateTime(json, 'created_at'),
       updatedAt: _requiredDateTime(json, 'updated_at'),
+      firstAvailableEpisode: firstAvailableEpisodeJson == null
+          ? null
+          : LibraryFirstEpisode(
+              id: _requiredString(firstAvailableEpisodeJson, 'id'),
+              tmdbId: _requiredInt(firstAvailableEpisodeJson, 'tmdb_id'),
+              seasonNumber: _requiredInt(
+                firstAvailableEpisodeJson,
+                'season_number',
+              ),
+              episodeNumber: _requiredInt(
+                firstAvailableEpisodeJson,
+                'episode_number',
+              ),
+              title: _requiredString(firstAvailableEpisodeJson, 'title'),
+              airDate: _optionalDate(firstAvailableEpisodeJson['air_date']),
+              runtime: _optionalPositiveInt(
+                firstAvailableEpisodeJson['runtime'],
+              ),
+            ),
     );
   }
 
@@ -87,6 +113,7 @@ final class LibraryShowDto {
       completedAt: completedAt,
       createdAt: createdAt,
       updatedAt: updatedAt,
+      firstAvailableEpisode: firstAvailableEpisode,
     );
   }
 }
@@ -210,4 +237,28 @@ LibraryStatus _parseLibraryStatus(String value) {
     'dropped' => LibraryStatus.dropped,
     _ => throw FormatException('Invalid Library status: $value.'),
   };
+}
+
+Map<String, dynamic>? _optionalMap(Object? value) {
+  if (value == null) {
+    return null;
+  }
+
+  if (value is! Map<String, dynamic>) {
+    throw const FormatException('Invalid optional map.');
+  }
+
+  return value;
+}
+
+int? _optionalPositiveInt(Object? value) {
+  if (value == null) {
+    return null;
+  }
+
+  if (value is! int || value <= 0) {
+    throw const FormatException('Invalid optional positive integer.');
+  }
+
+  return value;
 }

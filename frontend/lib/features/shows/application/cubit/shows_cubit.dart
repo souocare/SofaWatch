@@ -250,6 +250,226 @@ final class ShowsCubit extends Cubit<ShowsState> {
     }
   }
 
+  Future<void> markWatchNextEpisodeWatched({required String episodeId}) async {
+    if (state.updatingWatchNextEpisodeId != null) {
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        updatingWatchNextEpisodeId: episodeId,
+        clearWatchNextOperationError: true,
+      ),
+    );
+
+    try {
+      await repository.markEpisodeWatched(episodeId: episodeId);
+
+      if (isClosed) {
+        return;
+      }
+
+      /*
+     * The backend remains the source of truth for Watch Next.
+     *
+     * Marking an Episode as watched may change the next Episode,
+     * progress counters, or remove the Show from Watch Next entirely.
+     * Therefore these values must not be calculated optimistically here.
+     */
+      await _loadWatchNext();
+
+      if (isClosed) {
+        return;
+      }
+
+      await _loadStaleWatching();
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearUpdatingWatchNextEpisodeId: true,
+          clearWatchNextOperationError: true,
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearUpdatingWatchNextEpisodeId: true,
+          watchNextOperationError: error,
+        ),
+      );
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearUpdatingWatchNextEpisodeId: true,
+          watchNextOperationError: AppException.unknown(originalError: error),
+        ),
+      );
+    }
+  }
+
+  Future<void> markWatchHistoryEpisodeUnwatched({
+    required String episodeId,
+  }) async {
+    if (state.updatingWatchHistoryEpisodeId != null) {
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        updatingWatchHistoryEpisodeId: episodeId,
+        clearWatchHistoryOperationError: true,
+      ),
+    );
+
+    try {
+      await repository.markEpisodeUnwatched(episodeId: episodeId);
+
+      if (isClosed) {
+        return;
+      }
+
+      /*
+     * Episode progress affects several server-owned collections.
+     *
+     * Marking an Episode as unwatched may:
+     *
+     * - remove it from Watch History;
+     * - make it the next Episode in Watch Next;
+     * - change whether a Show belongs in stale Watching.
+     *
+     * Reload those collections from the backend instead of deriving
+     * them optimistically in the client.
+     */
+
+      await loadWatchHistory();
+
+      if (isClosed) {
+        return;
+      }
+
+      await _loadWatchNext();
+
+      if (isClosed) {
+        return;
+      }
+
+      await _loadStaleWatching();
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearUpdatingWatchHistoryEpisodeId: true,
+          clearWatchHistoryOperationError: true,
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearUpdatingWatchHistoryEpisodeId: true,
+          watchHistoryOperationError: error,
+        ),
+      );
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearUpdatingWatchHistoryEpisodeId: true,
+          watchHistoryOperationError: AppException.unknown(
+            originalError: error,
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> startShow({required String showId}) async {
+    if (state.startingShowId != null) {
+      return;
+    }
+
+    emit(state.copyWith(startingShowId: showId, clearStartShowError: true));
+
+    try {
+      await repository.startShow(showId: showId);
+
+      if (isClosed) {
+        return;
+      }
+
+      /*
+     * Starting a Show changes multiple server-owned collections:
+     *
+     * - Library status changes from Planning to Watching.
+     * - The first aired Episode becomes watched.
+     * - Watch Next may now contain the following Episode.
+     *
+     * Reload the backend state instead of reproducing these rules locally.
+     */
+      final List<LibraryShow> libraryShows = await repository.getLibraryShows();
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(state.copyWith(libraryShows: libraryShows));
+
+      await _loadWatchNext();
+
+      if (isClosed) {
+        return;
+      }
+
+      await _loadStaleWatching();
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(clearStartingShowId: true, clearStartShowError: true),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(state.copyWith(clearStartingShowId: true, startShowError: error));
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearStartingShowId: true,
+          startShowError: AppException.unknown(originalError: error),
+        ),
+      );
+    }
+  }
+
   Future<void> retry() {
     return load();
   }

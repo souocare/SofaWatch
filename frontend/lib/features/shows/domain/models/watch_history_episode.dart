@@ -8,6 +8,7 @@ final class WatchHistoryEpisode extends Equatable {
     required this.episodeNumber,
     required this.title,
     required this.watchedAt,
+    required this.watchCount,
     this.airDate,
     this.runtime,
     this.stillUrl,
@@ -21,7 +22,12 @@ final class WatchHistoryEpisode extends Equatable {
 
   final String title;
 
+  /// Date represented by this specific Watch History event.
   final DateTime watchedAt;
+
+  /// Total number of historical viewing events for this Episode.
+  final int watchCount;
+
   final DateTime? airDate;
 
   final int? runtime;
@@ -40,6 +46,7 @@ final class WatchHistoryEpisode extends Equatable {
     episodeNumber,
     title,
     watchedAt,
+    watchCount,
     airDate,
     runtime,
     stillUrl,

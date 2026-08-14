@@ -24,6 +24,17 @@ class WatchNextEpisodeResponse(BaseModel):
     still_url: str | None = None
 
 
+class WatchNextProgressResponse(BaseModel):
+    """Current viewing progress across aired regular Episodes."""
+
+    watched_episodes: int = Field(ge=0)
+    aired_episodes: int = Field(ge=0)
+
+    percentage: float = Field(
+        ge=0,
+        le=100,
+    )
+
 class WatchNextShowResponse(BaseModel):
     """Next Episode available to watch for a Library TV series."""
 
@@ -32,3 +43,4 @@ class WatchNextShowResponse(BaseModel):
 
     show: ShowSummaryResponse
     next_episode: WatchNextEpisodeResponse
+    progress: WatchNextProgressResponse

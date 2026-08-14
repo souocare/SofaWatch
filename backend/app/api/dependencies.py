@@ -50,6 +50,10 @@ from app.services.season_episode_sync import SeasonEpisodeSyncService
 from app.services.watch_next import WatchNextService
 from app.services.stale_watching import StaleWatchingService
 from app.services.watch_history import WatchHistoryService
+from app.services.start_show import StartShowService
+from app.repositories.episode_watch_event import EpisodeWatchEventRepository
+from app.repositories.episode_watch_event import EpisodeWatchEventRepository
+from app.services.episode_watch_event import EpisodeWatchEventService
 
 
 def get_genre_service(
@@ -367,12 +371,32 @@ def get_library_service(
         library_repository=LibraryRepository(session),
         show_repository=ShowRepository(session),
         movie_repository=MovieRepository(session),
+        episode_repository=EpisodeRepository(session),
     )
 
 
 LibraryServiceDependency = Annotated[
     LibraryService,
     Depends(get_library_service),
+]
+
+def get_start_show_service(
+    session: DatabaseSession,
+) -> StartShowService:
+    """Provide the service used to start a Library TV series."""
+
+    return StartShowService(
+        session=session,
+        library_repository=LibraryRepository(session),
+        episode_repository=EpisodeRepository(session),
+        progress_repository=EpisodeProgressRepository(session),
+        watch_event_repository=EpisodeWatchEventRepository(session),
+    )
+
+
+StartShowServiceDependency = Annotated[
+    StartShowService,
+    Depends(get_start_show_service),
 ]
 
 
@@ -387,6 +411,7 @@ def get_episode_progress_service(
         episode_repository=EpisodeRepository(session),
         season_repository=SeasonRepository(session),
         show_repository=ShowRepository(session),
+        watch_event_repository=EpisodeWatchEventRepository(session),
     )
 
 
@@ -395,6 +420,22 @@ EpisodeProgressServiceDependency = Annotated[
     Depends(get_episode_progress_service),
 ]
 
+def get_episode_watch_event_service(
+    session: DatabaseSession,
+) -> EpisodeWatchEventService:
+    """Provide historical Episode watch event operations."""
+
+    return EpisodeWatchEventService(
+        session=session,
+        watch_event_repository=EpisodeWatchEventRepository(session),
+        progress_repository=EpisodeProgressRepository(session),
+    )
+
+
+EpisodeWatchEventServiceDependency = Annotated[
+    EpisodeWatchEventService,
+    Depends(get_episode_watch_event_service),
+]
 
 def get_background_job_repository(
     session: DatabaseSession,
@@ -522,6 +563,7 @@ def get_watch_next_service(
 
     return WatchNextService(
         library_repository=LibraryRepository(session),
+        episode_repository=EpisodeRepository(session),
         progress_repository=EpisodeProgressRepository(session),
     )
 
@@ -553,7 +595,7 @@ def get_watch_history_service(
     """Provide the Watch History service for a single request."""
 
     return WatchHistoryService(
-        progress_repository=EpisodeProgressRepository(session),
+        watch_event_repository=EpisodeWatchEventRepository(session),
     )
 
 

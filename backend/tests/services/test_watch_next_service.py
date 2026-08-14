@@ -10,6 +10,7 @@ from app.repositories.episode_progress import (
 )
 from app.repositories.library import LibraryRepository
 from app.services.watch_next import WatchNextService
+from app.repositories.episode import EpisodeRepository
 
 
 def create_show(
@@ -73,10 +74,12 @@ def create_episode(
 def create_service(
     *,
     library_repository: Mock,
+    episode_repository: Mock,
     progress_repository: Mock,
 ) -> WatchNextService:
     return WatchNextService(
         library_repository=library_repository,
+        episode_repository=episode_repository,
         progress_repository=progress_repository,
     )
 
@@ -90,6 +93,9 @@ def test_lists_next_episode_for_watching_shows() -> None:
 
     progress_repository = Mock(
         spec=EpisodeProgressRepository,
+    )
+    episode_repository = Mock(
+        spec=EpisodeRepository,
     )
 
     show = create_show()
@@ -113,10 +119,18 @@ def test_lists_next_episode_for_watching_shows() -> None:
     progress_repository.list_next_unwatched_for_shows.return_value = {
         show.id: candidate,
     }
+    episode_repository.get_aired_counts_by_show_ids.return_value = {
+        show.id: 10,
+    }
+
+    progress_repository.get_watched_aired_counts_by_show_ids.return_value = {
+        show.id: 7,
+    }
 
     service = create_service(
         library_repository=library_repository,
         progress_repository=progress_repository,
+        episode_repository=episode_repository,
     )
 
     user_id = uuid4()
@@ -144,6 +158,10 @@ def test_lists_next_episode_for_watching_shows() -> None:
     assert item.next_episode.air_date == date(2026, 8, 10)
     assert item.next_episode.runtime == 52
 
+    assert item.progress.watched_episodes == 7
+    assert item.progress.aired_episodes == 10
+    assert item.progress.percentage == 70.0
+
     library_repository.list_shows_by_user.assert_called_once_with(
         user_id,
         status=LibraryStatus.WATCHING,
@@ -161,6 +179,28 @@ def test_lists_next_episode_for_watching_shows() -> None:
     assert call.kwargs["show_ids"] == [
         show.id,
     ]
+    episode_repository.get_aired_counts_by_show_ids.assert_called_once()
+
+    aired_call = episode_repository.get_aired_counts_by_show_ids.call_args
+
+    assert aired_call.kwargs["show_ids"] == [
+        show.id,
+    ]
+    assert aired_call.kwargs["as_of"] == date.today()
+
+    progress_repository.get_watched_aired_counts_by_show_ids.assert_called_once()
+
+    watched_call = (
+        progress_repository
+        .get_watched_aired_counts_by_show_ids
+        .call_args
+    )
+
+    assert watched_call.kwargs["user_id"] == user_id
+    assert watched_call.kwargs["show_ids"] == [
+        show.id,
+    ]
+    assert watched_call.kwargs["as_of"] == date.today()
 
 
 def test_excludes_show_without_available_next_episode() -> None:
@@ -172,6 +212,9 @@ def test_excludes_show_without_available_next_episode() -> None:
 
     progress_repository = Mock(
         spec=EpisodeProgressRepository,
+    )
+    episode_repository = Mock(
+        spec=EpisodeRepository,
     )
 
     show = create_show()
@@ -189,6 +232,7 @@ def test_excludes_show_without_available_next_episode() -> None:
     service = create_service(
         library_repository=library_repository,
         progress_repository=progress_repository,
+        episode_repository=episode_repository,
     )
 
     result = service.list_for_user(
@@ -208,12 +252,16 @@ def test_requests_only_watching_library_entries() -> None:
     progress_repository = Mock(
         spec=EpisodeProgressRepository,
     )
+    episode_repository = Mock(
+        spec=EpisodeRepository,
+    )
 
     library_repository.list_shows_by_user.return_value = []
 
     service = create_service(
         library_repository=library_repository,
         progress_repository=progress_repository,
+        episode_repository=episode_repository,
     )
 
     user_id = uuid4()
@@ -240,12 +288,16 @@ def test_empty_watch_list_does_not_query_episode_progress() -> None:
     progress_repository = Mock(
         spec=EpisodeProgressRepository,
     )
+    episode_repository = Mock(
+        spec=EpisodeRepository,
+    )
 
     library_repository.list_shows_by_user.return_value = []
 
     service = create_service(
         library_repository=library_repository,
         progress_repository=progress_repository,
+        episode_repository=episode_repository,
     )
 
     result = service.list_for_user(
@@ -255,6 +307,9 @@ def test_empty_watch_list_does_not_query_episode_progress() -> None:
     assert result == []
 
     progress_repository.list_next_unwatched_for_shows.assert_not_called()
+    episode_repository.get_aired_counts_by_show_ids.assert_not_called()
+
+    progress_repository.get_watched_aired_counts_by_show_ids.assert_not_called()
 
 
 def test_returns_multiple_watch_next_items() -> None:
@@ -266,6 +321,9 @@ def test_returns_multiple_watch_next_items() -> None:
 
     progress_repository = Mock(
         spec=EpisodeProgressRepository,
+    )
+    episode_repository = Mock(
+        spec=EpisodeRepository,
     )
 
     first_show = create_show(
@@ -315,10 +373,20 @@ def test_returns_multiple_watch_next_items() -> None:
             season_number=1,
         ),
     }
+    episode_repository.get_aired_counts_by_show_ids.return_value = {
+        first_show.id: 10,
+        second_show.id: 8,
+    }
+
+    progress_repository.get_watched_aired_counts_by_show_ids.return_value = {
+        first_show.id: 7,
+        second_show.id: 3,
+    }
 
     service = create_service(
         library_repository=library_repository,
         progress_repository=progress_repository,
+        episode_repository=episode_repository,
     )
 
     result = service.list_for_user(
@@ -335,4 +403,32 @@ def test_returns_multiple_watch_next_items() -> None:
     assert result[1].next_episode.season_number == 1
     assert result[1].next_episode.episode_number == 3
 
+    assert result[0].progress.watched_episodes == 7
+    assert result[0].progress.aired_episodes == 10
+    assert result[0].progress.percentage == 70.0
+
+    assert result[1].progress.watched_episodes == 3
+    assert result[1].progress.aired_episodes == 8
+    assert result[1].progress.percentage == 37.5
+
     progress_repository.list_next_unwatched_for_shows.assert_called_once()
+    episode_repository.get_aired_counts_by_show_ids.assert_called_once()
+
+    progress_repository.get_watched_aired_counts_by_show_ids.assert_called_once()
+    aired_call = episode_repository.get_aired_counts_by_show_ids.call_args
+
+    assert aired_call.kwargs["show_ids"] == [
+        first_show.id,
+        second_show.id,
+    ]
+
+    watched_call = (
+        progress_repository
+        .get_watched_aired_counts_by_show_ids
+        .call_args
+    )
+
+    assert watched_call.kwargs["show_ids"] == [
+        first_show.id,
+        second_show.id,
+    ]

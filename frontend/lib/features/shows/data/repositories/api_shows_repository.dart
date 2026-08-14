@@ -148,4 +148,22 @@ final class ApiShowsRepository implements ShowsRepository {
       throw AppException.invalidData(originalError: error);
     }
   }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {
+    await _apiClient.post<dynamic>(
+      '/episodes/$episodeId/watched',
+      data: <String, dynamic>{'watched_at': null},
+    );
+  }
+
+  @override
+  Future<void> startShow({required String showId}) async {
+    await _apiClient.post<dynamic>('/library/shows/$showId/start');
+  }
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {
+    await _apiClient.delete<dynamic>('/episodes/$episodeId/watched');
+  }
 }

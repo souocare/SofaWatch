@@ -2,6 +2,7 @@ from app.models.background_job import BackgroundJob
 from app.models.background_job_run import BackgroundJobRun
 from app.models.episode import Episode
 from app.models.episode_progress import EpisodeProgress
+from app.models.episode_watch_event import EpisodeWatchEvent
 from app.models.genre import Genre
 from app.models.genre_provider_mapping import GenreProviderMapping
 from app.models.library import LibraryEntry
@@ -22,6 +23,7 @@ __all__ = [
     "User",
     "LibraryEntry",
     "EpisodeProgress",
+    "EpisodeWatchEvent",
     "Network",
     "show_networks",
     "BackgroundJob",

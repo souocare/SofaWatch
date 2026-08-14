@@ -8,6 +8,7 @@ final class WatchHistoryEpisodeDto {
     required this.episodeNumber,
     required this.title,
     required this.watchedAt,
+    required this.watchCount,
     this.airDate,
     this.runtime,
     this.stillUrl,
@@ -22,6 +23,8 @@ final class WatchHistoryEpisodeDto {
   final String title;
 
   final DateTime watchedAt;
+  final int watchCount;
+
   final DateTime? airDate;
 
   final int? runtime;
@@ -35,6 +38,7 @@ final class WatchHistoryEpisodeDto {
       episodeNumber: _requiredNonNegativeInt(json, 'episode_number'),
       title: _requiredString(json, 'title'),
       watchedAt: _requiredDateTime(json, 'watched_at'),
+      watchCount: _requiredPositiveInt(json, 'watch_count'),
       airDate: _optionalDate(json['air_date']),
       runtime: _optionalNonNegativeInt(json['runtime'], fieldName: 'runtime'),
       stillUrl: _optionalString(json['still_url']),
@@ -49,6 +53,7 @@ final class WatchHistoryEpisodeDto {
       episodeNumber: episodeNumber,
       title: title,
       watchedAt: watchedAt,
+      watchCount: watchCount,
       airDate: airDate,
       runtime: runtime,
       stillUrl: stillUrl,
