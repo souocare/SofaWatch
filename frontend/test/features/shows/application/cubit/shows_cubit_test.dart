@@ -658,6 +658,103 @@ void main() {
         await cubit.close();
       },
     );
+
+    test(
+      'rewatches a Watch History Episode and refreshes affected collections',
+      () async {
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          watchHistoryPages: <WatchHistoryPage>[
+            WatchHistoryPage(
+              items: <WatchHistoryItem>[
+                _watchHistoryItem(
+                  eventId: 'watch-event-old',
+                  episodeId: 'episode-1',
+                  episodeNumber: 4,
+                  title: "Woe's Hollow",
+                ),
+              ],
+              nextCursor: null,
+              hasMore: false,
+            ),
+            WatchHistoryPage(
+              items: <WatchHistoryItem>[
+                _watchHistoryItem(
+                  eventId: 'watch-event-new',
+                  episodeId: 'episode-1',
+                  episodeNumber: 4,
+                  title: "Woe's Hollow",
+                ),
+                _watchHistoryItem(
+                  eventId: 'watch-event-old',
+                  episodeId: 'episode-1',
+                  episodeNumber: 4,
+                  title: "Woe's Hollow",
+                ),
+              ],
+              nextCursor: null,
+              hasMore: false,
+            ),
+          ],
+        );
+
+        final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+        await cubit.loadWatchHistory();
+
+        expect(repository.watchHistoryCalls, 1);
+        expect(cubit.state.watchHistory, hasLength(1));
+        expect(cubit.state.watchHistory.single.eventId, 'watch-event-old');
+
+        await cubit.rewatchWatchHistoryEpisode(
+          eventId: 'watch-event-old',
+          episodeId: 'episode-1',
+        );
+
+        expect(repository.markEpisodeWatchedCalls, 1);
+        expect(repository.markedEpisodeIds, <String>['episode-1']);
+
+        expect(
+          repository.watchHistoryCalls,
+          2,
+          reason: 'Rewatch must reload Watch History from the backend.',
+        );
+
+        expect(
+          repository.watchNextCalls,
+          1,
+          reason: 'Rewatch may affect Watch Next.',
+        );
+
+        expect(
+          repository.staleWatchingCalls,
+          1,
+          reason: 'Rewatch may affect stale Watching.',
+        );
+
+        expect(cubit.state.watchHistory, hasLength(2));
+
+        expect(
+          cubit.state.watchHistory
+              .map((WatchHistoryItem item) => item.eventId)
+              .toList(),
+          <String>['watch-event-new', 'watch-event-old'],
+        );
+
+        expect(
+          cubit.state.watchHistory
+              .map((WatchHistoryItem item) => item.episode.id)
+              .toSet(),
+          <String>{'episode-1'},
+          reason:
+              'A rewatch creates another viewing event for the same Episode.',
+        );
+
+        expect(cubit.state.updatingWatchHistoryEventId, isNull);
+        expect(cubit.state.watchHistoryOperationError, isNull);
+
+        await cubit.close();
+      },
+    );
     test(
       'marks a Watch Next Episode as watched and refreshes supplementary sections',
       () async {
@@ -1012,12 +1109,13 @@ WatchHistoryItem _watchHistoryItem({
   required String episodeId,
   required int episodeNumber,
   required String title,
+  String eventId = 'watch-event-1',
 }) {
   return WatchHistoryItem(
     showId: 'show-95396',
     showTmdbId: 95396,
     showTitle: 'Severance',
-    eventId: 'watch-event-1',
+    eventId: eventId,
     posterUrl: null,
     backdropUrl: null,
     episode: WatchHistoryEpisode(

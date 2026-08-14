@@ -93,7 +93,6 @@ class _ShowsPageState extends State<ShowsPage>
 
                   final AppException? watchHistoryError =
                       state.watchHistoryOperationError;
-
                   if (watchHistoryError != null) {
                     ScaffoldMessenger.of(context)
                       ..hideCurrentSnackBar()
@@ -101,12 +100,11 @@ class _ShowsPageState extends State<ShowsPage>
                         SnackBar(
                           content: Text(
                             watchHistoryError.isTimeout
-                                ? 'Updating the episode took too long.'
-                                : 'Could not mark the episode as unwatched.',
+                                ? 'Updating Watch History took too long.'
+                                : 'Could not update Watch History.',
                           ),
                         ),
                       );
-
                     return;
                   }
 
@@ -167,8 +165,8 @@ class _ShowsPageState extends State<ShowsPage>
                         updatingWatchNextEpisodeId:
                             state.updatingWatchNextEpisodeId,
                         startingShowId: state.startingShowId,
-                        updatingWatchHistoryEpisodeId:
-                            state.updatingWatchHistoryEpisodeId,
+                        updatingWatchHistoryEventId:
+                            state.updatingWatchHistoryEventId,
                       ),
                       const _UpcomingTab(),
                     ],
@@ -246,7 +244,7 @@ class _WatchListTab extends StatefulWidget {
     required this.watchHistoryError,
     required this.updatingWatchNextEpisodeId,
     required this.startingShowId,
-    required this.updatingWatchHistoryEpisodeId,
+    required this.updatingWatchHistoryEventId,
   });
 
   final List<WatchNextShow> watchNext;
@@ -265,7 +263,7 @@ class _WatchListTab extends StatefulWidget {
   final bool isLoadingMoreWatchHistory;
   final Object? watchHistoryError;
   final String? startingShowId;
-  final String? updatingWatchHistoryEpisodeId;
+  final String? updatingWatchHistoryEventId;
 
   @override
   State<_WatchListTab> createState() => _WatchListTabState();
@@ -386,12 +384,21 @@ class _WatchListTabState extends State<_WatchListTab> {
               isLoading: widget.isLoadingWatchHistory,
               isLoadingMore: widget.isLoadingMoreWatchHistory,
               hasError: widget.watchHistoryError != null,
-              updatingEpisodeId: widget.updatingWatchHistoryEpisodeId,
-              onMarkUnwatched: (String episodeId) {
-                context.read<ShowsCubit>().markWatchHistoryEpisodeUnwatched(
-                  episodeId: episodeId,
-                );
-              },
+              updatingEventId: widget.updatingWatchHistoryEventId,
+              onRewatch:
+                  ({required String eventId, required String episodeId}) {
+                    context.read<ShowsCubit>().rewatchWatchHistoryEpisode(
+                      eventId: eventId,
+                      episodeId: episodeId,
+                    );
+                  },
+              onMarkUnwatched:
+                  ({required String eventId, required String episodeId}) {
+                    context.read<ShowsCubit>().markWatchHistoryEpisodeUnwatched(
+                      eventId: eventId,
+                      episodeId: episodeId,
+                    );
+                  },
               onRetryInitial: context.read<ShowsCubit>().retryWatchHistory,
               onRetryMore: context.read<ShowsCubit>().loadMoreWatchHistory,
               isDesktop: isDesktop,
@@ -1014,6 +1021,9 @@ class _WatchNextFailure extends StatelessWidget {
   }
 }
 
+typedef _WatchHistoryEpisodeAction =
+    void Function({required String eventId, required String episodeId});
+
 class _WatchHistorySection extends StatelessWidget {
   const _WatchHistorySection({
     required this.items,
@@ -1025,12 +1035,12 @@ class _WatchHistorySection extends StatelessWidget {
     required this.onRetryInitial,
     required this.onRetryMore,
     required this.isDesktop,
-    required this.updatingEpisodeId,
+    required this.updatingEventId,
+    required this.onRewatch,
     required this.onMarkUnwatched,
   });
 
   final List<WatchHistoryItem> items;
-
   final bool hasLoaded;
   final bool hasMore;
   final bool isLoading;
@@ -1041,8 +1051,9 @@ class _WatchHistorySection extends StatelessWidget {
   final VoidCallback onRetryMore;
 
   final bool isDesktop;
-  final String? updatingEpisodeId;
-  final ValueChanged<String> onMarkUnwatched;
+  final String? updatingEventId;
+  final _WatchHistoryEpisodeAction onRewatch;
+  final _WatchHistoryEpisodeAction onMarkUnwatched;
 
   @override
   Widget build(BuildContext context) {
@@ -1100,8 +1111,13 @@ class _WatchHistorySection extends StatelessWidget {
       widgets.add(
         _WatchHistoryRow(
           item: item,
-          isUpdating: updatingEpisodeId == item.episode.id,
-          onMarkUnwatched: () => onMarkUnwatched(item.episode.id),
+          isUpdating: updatingEventId == item.eventId,
+          onRewatch: () {
+            onRewatch(eventId: item.eventId, episodeId: item.episode.id);
+          },
+          onMarkUnwatched: () {
+            onMarkUnwatched(eventId: item.eventId, episodeId: item.episode.id);
+          },
           isDesktop: isDesktop,
         ),
       );
@@ -1115,21 +1131,21 @@ class _WatchHistoryRow extends StatelessWidget {
   const _WatchHistoryRow({
     required this.item,
     required this.isUpdating,
+    required this.onRewatch,
     required this.onMarkUnwatched,
     required this.isDesktop,
   });
 
   final WatchHistoryItem item;
   final bool isUpdating;
+  final VoidCallback onRewatch;
   final VoidCallback onMarkUnwatched;
   final bool isDesktop;
 
   @override
   Widget build(BuildContext context) {
-    final episode = item.episode;
-
     return Material(
-      key: ValueKey<String>('shows-watch-history-${episode.id}'),
+      key: ValueKey<String>('shows-watch-history-${item.eventId}'),
       color: AppColors.surfaceHigh,
       borderRadius: AppRadius.borderLarge,
       clipBehavior: Clip.antiAlias,
@@ -1153,26 +1169,45 @@ class _WatchHistoryRow extends StatelessWidget {
               const SizedBox(width: AppSpacing.lg),
               Expanded(child: _WatchHistoryInformation(item: item)),
               const SizedBox(width: AppSpacing.md),
-              IconButton(
-                key: ValueKey<String>(
-                  'shows-watch-history-unwatched-${episode.id}',
+              if (isUpdating)
+                SizedBox(
+                  key: ValueKey<String>(
+                    'shows-watch-history-progress-${item.eventId}',
+                  ),
+                  width: 40,
+                  height: 40,
+                  child: const Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                )
+              else ...<Widget>[
+                IconButton(
+                  key: ValueKey<String>(
+                    'shows-watch-history-rewatch-${item.eventId}',
+                  ),
+                  tooltip: 'Watched again',
+                  onPressed: onRewatch,
+                  icon: const Icon(
+                    Icons.replay_rounded,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-                tooltip: 'Mark as unwatched',
-                onPressed: isUpdating ? null : onMarkUnwatched,
-                icon: isUpdating
-                    ? SizedBox(
-                        key: ValueKey<String>(
-                          'shows-watch-history-unwatched-progress-${episode.id}',
-                        ),
-                        width: 18,
-                        height: 18,
-                        child: const CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(
-                        Icons.visibility_off_outlined,
-                        color: AppColors.textSecondary,
-                      ),
-              ),
+                IconButton(
+                  key: ValueKey<String>(
+                    'shows-watch-history-unwatched-${item.eventId}',
+                  ),
+                  tooltip: 'Mark as unwatched',
+                  onPressed: onMarkUnwatched,
+                  icon: const Icon(
+                    Icons.visibility_off_outlined,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -1200,7 +1235,7 @@ class _WatchHistoryInformation extends StatelessWidget {
       children: <Widget>[
         Text(
           item.showTitle,
-          key: ValueKey<String>('shows-watch-history-title-${episode.id}'),
+          key: ValueKey<String>('shows-watch-history-title-${item.eventId}'),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(
@@ -1226,7 +1261,7 @@ class _WatchHistoryInformation extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(
           'Watched ${MaterialLocalizations.of(context).formatMediumDate(episode.watchedAt)}',
-          key: ValueKey<String>('shows-watch-history-date-${episode.id}'),
+          key: ValueKey<String>('shows-watch-history-date-${item.eventId}'),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(

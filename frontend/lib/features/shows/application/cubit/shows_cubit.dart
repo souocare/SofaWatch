@@ -320,15 +320,16 @@ final class ShowsCubit extends Cubit<ShowsState> {
   }
 
   Future<void> markWatchHistoryEpisodeUnwatched({
+    required String eventId,
     required String episodeId,
   }) async {
-    if (state.updatingWatchHistoryEpisodeId != null) {
+    if (state.updatingWatchHistoryEventId != null) {
       return;
     }
 
     emit(
       state.copyWith(
-        updatingWatchHistoryEpisodeId: episodeId,
+        updatingWatchHistoryEventId: eventId,
         clearWatchHistoryOperationError: true,
       ),
     );
@@ -373,7 +374,7 @@ final class ShowsCubit extends Cubit<ShowsState> {
 
       emit(
         state.copyWith(
-          clearUpdatingWatchHistoryEpisodeId: true,
+          clearUpdatingWatchHistoryEventId: true,
           clearWatchHistoryOperationError: true,
         ),
       );
@@ -384,7 +385,7 @@ final class ShowsCubit extends Cubit<ShowsState> {
 
       emit(
         state.copyWith(
-          clearUpdatingWatchHistoryEpisodeId: true,
+          clearUpdatingWatchHistoryEventId: true,
           watchHistoryOperationError: error,
         ),
       );
@@ -395,7 +396,94 @@ final class ShowsCubit extends Cubit<ShowsState> {
 
       emit(
         state.copyWith(
-          clearUpdatingWatchHistoryEpisodeId: true,
+          clearUpdatingWatchHistoryEventId: true,
+          watchHistoryOperationError: AppException.unknown(
+            originalError: error,
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> rewatchWatchHistoryEpisode({
+    required String eventId,
+    required String episodeId,
+  }) async {
+    if (state.updatingWatchHistoryEventId != null) {
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        updatingWatchHistoryEventId: eventId,
+        clearWatchHistoryOperationError: true,
+      ),
+    );
+
+    try {
+      await repository.markEpisodeWatched(episodeId: episodeId);
+
+      if (isClosed) {
+        return;
+      }
+
+      /*
+     * Rewatch creates a new server-owned viewing event.
+     *
+     * The backend remains the source of truth for:
+     *
+     * - Watch History;
+     * - Episode progress;
+     * - Watch Next;
+     * - stale Watching.
+     *
+     * Reload the affected collections instead of creating or updating
+     * viewing events optimistically in the client.
+     */
+
+      await loadWatchHistory();
+
+      if (isClosed) {
+        return;
+      }
+
+      await _loadWatchNext();
+
+      if (isClosed) {
+        return;
+      }
+
+      await _loadStaleWatching();
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearUpdatingWatchHistoryEventId: true,
+          clearWatchHistoryOperationError: true,
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearUpdatingWatchHistoryEventId: true,
+          watchHistoryOperationError: error,
+        ),
+      );
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearUpdatingWatchHistoryEventId: true,
           watchHistoryOperationError: AppException.unknown(
             originalError: error,
           ),

@@ -26,7 +26,7 @@ final class ShowsState extends Equatable {
     this.watchNextOperationError,
     this.startingShowId,
     this.startShowError,
-    this.updatingWatchHistoryEpisodeId,
+    this.updatingWatchHistoryEventId,
     this.watchHistoryOperationError,
   });
 
@@ -78,8 +78,8 @@ final class ShowsState extends Equatable {
   /// Fatal failure while loading the core Shows/Library data.
   final AppException? error;
 
-  /// Episode currently being changed from Watch History.
-  final String? updatingWatchHistoryEpisodeId;
+  /// Watch History event currently being changed.
+  final String? updatingWatchHistoryEventId;
 
   /// Failure while changing Episode progress from Watch History.
   ///
@@ -103,8 +103,8 @@ final class ShowsState extends Equatable {
     return updatingWatchNextEpisodeId == episodeId;
   }
 
-  bool isWatchHistoryEpisodeUpdating(String episodeId) {
-    return updatingWatchHistoryEpisodeId == episodeId;
+  bool isWatchHistoryEventUpdating(String eventId) {
+    return updatingWatchHistoryEventId == eventId;
   }
 
   List<LibraryShow> get haventStarted {
@@ -143,8 +143,8 @@ final class ShowsState extends Equatable {
     bool clearStartingShowId = false,
     AppException? startShowError,
     bool clearStartShowError = false,
-    String? updatingWatchHistoryEpisodeId,
-    bool clearUpdatingWatchHistoryEpisodeId = false,
+    String? updatingWatchHistoryEventId,
+    bool clearUpdatingWatchHistoryEventId = false,
     AppException? watchHistoryOperationError,
     bool clearWatchHistoryOperationError = false,
   }) {
@@ -167,9 +167,9 @@ final class ShowsState extends Equatable {
       updatingWatchNextEpisodeId: clearUpdatingWatchNextEpisodeId
           ? null
           : updatingWatchNextEpisodeId ?? this.updatingWatchNextEpisodeId,
-      updatingWatchHistoryEpisodeId: clearUpdatingWatchHistoryEpisodeId
+      updatingWatchHistoryEventId: clearUpdatingWatchHistoryEventId
           ? null
-          : updatingWatchHistoryEpisodeId ?? this.updatingWatchHistoryEpisodeId,
+          : updatingWatchHistoryEventId ?? this.updatingWatchHistoryEventId,
 
       watchHistoryOperationError: clearWatchHistoryOperationError
           ? null
@@ -215,7 +215,7 @@ final class ShowsState extends Equatable {
     staleWatchingError,
     watchHistoryError,
     startingShowId,
-    updatingWatchHistoryEpisodeId,
+    updatingWatchHistoryEventId,
     watchHistoryOperationError,
     startShowError,
     error,

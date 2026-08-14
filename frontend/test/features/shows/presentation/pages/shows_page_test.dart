@@ -1170,6 +1170,7 @@ void main() {
             firstPage: WatchHistoryPage(
               items: <WatchHistoryItem>[
                 _watchHistoryItem(
+                  eventId: 'watch-event-1',
                   episodeId: 'history-1',
                   episodeNumber: 4,
                   title: "Woe's Hollow",
@@ -1196,7 +1197,7 @@ void main() {
       expect(repository.watchHistoryCalls, 1);
 
       expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-history-1')),
+        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-1')),
         findsOneWidget,
       );
 
@@ -1224,7 +1225,7 @@ void main() {
       expect(repository.watchHistoryCalls, 1);
 
       expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-history-1')),
+        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-1')),
         findsOneWidget,
       );
 
@@ -1233,12 +1234,12 @@ void main() {
       expect(repository.watchHistoryCalls, 2);
 
       expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-history-1')),
+        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-1')),
         findsOneWidget,
       );
 
       expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-history-2')),
+        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-2')),
         findsOneWidget,
       );
 
@@ -1330,7 +1331,7 @@ void main() {
       );
 
       expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-history-1')),
+        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-1')),
         findsOneWidget,
       );
     });
@@ -1355,7 +1356,7 @@ void main() {
       expect(repository.watchHistoryCalls, 1);
 
       expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-history-1')),
+        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-1')),
         findsOneWidget,
       );
 
@@ -1364,7 +1365,7 @@ void main() {
       expect(repository.watchHistoryCalls, 2);
 
       expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-history-1')),
+        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-1')),
         findsOneWidget,
       );
 
@@ -1388,12 +1389,12 @@ void main() {
       expect(repository.watchHistoryCalls, 3);
 
       expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-history-1')),
+        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-1')),
         findsOneWidget,
       );
 
       expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-history-2')),
+        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-2')),
         findsOneWidget,
       );
 
@@ -1594,6 +1595,125 @@ void main() {
         expect(button.onPressed, isNull);
       },
     );
+    testWidgets('rewatches an Episode directly from Watch History', (
+      WidgetTester tester,
+    ) async {
+      final _RewatchWatchHistoryRepository repository =
+          _RewatchWatchHistoryRepository(shows: <LibraryShow>[_show]);
+
+      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      expect(
+        repository.watchHistoryCalls,
+        0,
+        reason: 'Watch History is loaded lazily.',
+      );
+
+      await _scrollWatchListNearBottom(tester);
+
+      expect(repository.watchHistoryCalls, 1);
+
+      final Finder rewatchButton = find.byKey(
+        const ValueKey<String>('shows-watch-history-rewatch-watch-event-old'),
+      );
+
+      expect(rewatchButton, findsOneWidget);
+
+      await tester.ensureVisible(rewatchButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(rewatchButton);
+      await tester.pumpAndSettle();
+
+      expect(repository.markEpisodeWatchedCalls, 1);
+      expect(repository.markedEpisodeIds, <String>['episode-1']);
+
+      expect(
+        repository.watchHistoryCalls,
+        2,
+        reason: 'Rewatch must refresh Watch History from the backend.',
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('shows-watch-history-watch-event-new'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('shows-watch-history-watch-event-old'),
+        ),
+        findsOneWidget,
+      );
+    });
+    testWidgets('preserves Watch History when rewatch fails', (
+      WidgetTester tester,
+    ) async {
+      final _RewatchWatchHistoryFailureRepository repository =
+          _RewatchWatchHistoryFailureRepository(shows: <LibraryShow>[_show]);
+
+      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      await _scrollWatchListNearBottom(tester);
+
+      expect(repository.watchHistoryCalls, 1);
+
+      final Finder historyRow = find.byKey(
+        const ValueKey<String>('shows-watch-history-watch-event-old'),
+      );
+
+      final Finder rewatchButton = find.byKey(
+        const ValueKey<String>('shows-watch-history-rewatch-watch-event-old'),
+      );
+
+      expect(historyRow, findsOneWidget);
+      expect(rewatchButton, findsOneWidget);
+
+      await tester.ensureVisible(rewatchButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(rewatchButton);
+      await tester.pumpAndSettle();
+
+      expect(repository.markEpisodeWatchedCalls, 1);
+
+      expect(
+        repository.watchHistoryCalls,
+        1,
+        reason:
+            'Watch History must not be replaced or reloaded after the mutation itself fails.',
+      );
+
+      expect(
+        historyRow,
+        findsOneWidget,
+        reason: 'A failed rewatch must preserve the existing History row.',
+      );
+
+      expect(find.text('Could not update Watch History.'), findsOneWidget);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('shows-watch-history-rewatch-watch-event-old'),
+        ),
+        findsOneWidget,
+        reason: 'The Rewatch action must become available again after failure.',
+      );
+    });
   });
 }
 
@@ -1692,10 +1812,11 @@ WatchHistoryItem _watchHistoryItem({
   required String episodeId,
   required int episodeNumber,
   required String title,
+  String eventId = 'watch-event-1',
 }) {
   return WatchHistoryItem(
     showId: 'show-uuid',
-    eventId: 'watch-event-1',
+    eventId: eventId,
     showTmdbId: 95396,
     showTitle: 'Severance',
     posterUrl: null,
@@ -2106,6 +2227,7 @@ final class _PaginatedWatchHistoryRepository implements ShowsRepository {
       return WatchHistoryPage(
         items: <WatchHistoryItem>[
           _watchHistoryItem(
+            eventId: 'watch-event-1',
             episodeId: 'history-1',
             episodeNumber: 4,
             title: "Woe's Hollow",
@@ -2121,6 +2243,7 @@ final class _PaginatedWatchHistoryRepository implements ShowsRepository {
     return WatchHistoryPage(
       items: <WatchHistoryItem>[
         _watchHistoryItem(
+          eventId: 'watch-event-2',
           episodeId: 'history-2',
           episodeNumber: 3,
           title: 'Who Is Alive?',
@@ -2172,6 +2295,7 @@ final class _RetryWatchHistoryRepository implements ShowsRepository {
     return WatchHistoryPage(
       items: <WatchHistoryItem>[
         _watchHistoryItem(
+          eventId: 'watch-event-1',
           episodeId: 'history-1',
           episodeNumber: 4,
           title: "Woe's Hollow",
@@ -2220,6 +2344,7 @@ final class _RetryWatchHistoryPaginationRepository implements ShowsRepository {
       return WatchHistoryPage(
         items: <WatchHistoryItem>[
           _watchHistoryItem(
+            eventId: 'watch-event-1',
             episodeId: 'history-1',
             episodeNumber: 4,
             title: "Woe's Hollow",
@@ -2237,6 +2362,7 @@ final class _RetryWatchHistoryPaginationRepository implements ShowsRepository {
     return WatchHistoryPage(
       items: <WatchHistoryItem>[
         _watchHistoryItem(
+          eventId: 'watch-event-2',
           episodeId: 'history-2',
           episodeNumber: 3,
           title: 'Who Is Alive?',
@@ -2249,6 +2375,144 @@ final class _RetryWatchHistoryPaginationRepository implements ShowsRepository {
 
   @override
   Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+}
+
+final class _RewatchWatchHistoryRepository implements ShowsRepository {
+  _RewatchWatchHistoryRepository({required this.shows});
+
+  final List<LibraryShow> shows;
+
+  int watchHistoryCalls = 0;
+  int markEpisodeWatchedCalls = 0;
+
+  final List<String> markedEpisodeIds = <String>[];
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    return shows;
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    return const <WatchNextShow>[];
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    watchHistoryCalls++;
+
+    if (watchHistoryCalls == 1) {
+      return WatchHistoryPage(
+        items: <WatchHistoryItem>[
+          _watchHistoryItem(
+            eventId: 'watch-event-old',
+            episodeId: 'episode-1',
+            episodeNumber: 4,
+            title: "Woe's Hollow",
+          ),
+        ],
+        nextCursor: null,
+        hasMore: false,
+      );
+    }
+
+    return WatchHistoryPage(
+      items: <WatchHistoryItem>[
+        _watchHistoryItem(
+          eventId: 'watch-event-new',
+          episodeId: 'episode-1',
+          episodeNumber: 4,
+          title: "Woe's Hollow",
+        ),
+        _watchHistoryItem(
+          eventId: 'watch-event-old',
+          episodeId: 'episode-1',
+          episodeNumber: 4,
+          title: "Woe's Hollow",
+        ),
+      ],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {
+    markEpisodeWatchedCalls++;
+    markedEpisodeIds.add(episodeId);
+  }
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+}
+
+final class _RewatchWatchHistoryFailureRepository implements ShowsRepository {
+  _RewatchWatchHistoryFailureRepository({required this.shows});
+
+  final List<LibraryShow> shows;
+
+  int watchHistoryCalls = 0;
+  int markEpisodeWatchedCalls = 0;
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    return shows;
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    return const <WatchNextShow>[];
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    watchHistoryCalls++;
+
+    return WatchHistoryPage(
+      items: <WatchHistoryItem>[
+        _watchHistoryItem(
+          eventId: 'watch-event-old',
+          episodeId: 'episode-1',
+          episodeNumber: 4,
+          title: "Woe's Hollow",
+        ),
+      ],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) {
+    markEpisodeWatchedCalls++;
+
+    throw const AppException.connection();
+  }
 
   @override
   Future<void> markEpisodeUnwatched({required String episodeId}) async {}
