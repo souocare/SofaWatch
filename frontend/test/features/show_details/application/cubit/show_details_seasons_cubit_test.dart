@@ -1345,6 +1345,123 @@ void main() {
         await cubit.close();
       },
     );
+    test(
+      'removes latest viewing and keeps Episode watched when history remains',
+      () async {
+        final _WatchEventRemovalRepository repository =
+            _WatchEventRemovalRepository();
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        await cubit.toggleSeason(1);
+
+        expect(
+          cubit.state[1]!.episodeProgressById['episode-1-uuid']!.watchCount,
+          2,
+        );
+
+        await cubit.removeLatestEpisodeViewing(
+          seasonNumber: 1,
+          episodeId: 'episode-1-uuid',
+        );
+
+        final ShowDetailsEpisodeProgress progress =
+            cubit.state[1]!.episodeProgressById['episode-1-uuid']!;
+
+        expect(repository.deleteLatestCalls, 1);
+        expect(repository.events, hasLength(1));
+
+        expect(progress.isWatched, isTrue);
+        expect(progress.watchCount, 1);
+        expect(progress.watchedAt, DateTime.utc(2026, 7, 20, 20));
+
+        expect(
+          cubit.state[1]!.operationForEpisode('episode-1-uuid').status,
+          ShowDetailsEpisodeOperationStatus.idle,
+        );
+
+        await cubit.close();
+      },
+    );
+    test('removes all viewings and marks Episode unwatched', () async {
+      final _WatchEventRemovalRepository repository =
+          _WatchEventRemovalRepository();
+
+      final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      await cubit.toggleSeason(1);
+
+      await cubit.removeAllEpisodeViewings(
+        seasonNumber: 1,
+        episodeId: 'episode-1-uuid',
+      );
+
+      final ShowDetailsEpisodeProgress progress =
+          cubit.state[1]!.episodeProgressById['episode-1-uuid']!;
+
+      expect(repository.deleteAllCalls, 1);
+      expect(repository.events, isEmpty);
+
+      expect(progress.isWatched, isFalse);
+      expect(progress.watchCount, 0);
+      expect(progress.watchedAt, isNull);
+
+      expect(
+        cubit.state[1]!.operationForEpisode('episode-1-uuid').status,
+        ShowDetailsEpisodeOperationStatus.idle,
+      );
+
+      await cubit.close();
+    });
+    test('retries latest viewing removal using the same event', () async {
+      final _WatchEventRemovalRepository repository =
+          _WatchEventRemovalRepository(failDeleteLatestOnce: true);
+
+      final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      await cubit.toggleSeason(1);
+
+      await cubit.removeLatestEpisodeViewing(
+        seasonNumber: 1,
+        episodeId: 'episode-1-uuid',
+      );
+
+      final ShowDetailsEpisodeOperation failedOperation = cubit.state[1]!
+          .operationForEpisode('episode-1-uuid');
+
+      expect(failedOperation.hasFailed, isTrue);
+      expect(
+        failedOperation.intent,
+        ShowDetailsEpisodeOperationIntent.removeLatestViewing,
+      );
+      expect(failedOperation.eventId, 'watch-event-latest');
+      expect(repository.deleteLatestCalls, 1);
+
+      await cubit.retryEpisodeUpdate(
+        seasonNumber: 1,
+        episodeId: 'episode-1-uuid',
+      );
+
+      expect(repository.deleteLatestCalls, 2);
+      expect(repository.events, hasLength(1));
+      expect(repository.events.single.id, 'watch-event-previous');
+
+      expect(
+        cubit.state[1]!.operationForEpisode('episode-1-uuid').status,
+        ShowDetailsEpisodeOperationStatus.idle,
+      );
+
+      await cubit.close();
+    });
   });
 }
 
@@ -1632,6 +1749,9 @@ final class _FakeShowDetailsSeasonsRepository
     required String episodeId,
     required String eventId,
   }) async {}
+
+  @override
+  Future<void> deleteAllEpisodeWatchEvents({required String episodeId}) async {}
 }
 
 final class _ControlledShowDetailsSeasonsRepository
@@ -1823,6 +1943,9 @@ final class _ControlledShowDetailsSeasonsRepository
       watchCount: 0,
     );
   }
+
+  @override
+  Future<void> deleteAllEpisodeWatchEvents({required String episodeId}) async {}
 }
 
 final class _ManySeasonsRepository implements ShowDetailsSeasonsRepository {
@@ -1865,6 +1988,9 @@ final class _ManySeasonsRepository implements ShowDetailsSeasonsRepository {
     required String episodeId,
     required String eventId,
   }) async {}
+
+  @override
+  Future<void> deleteAllEpisodeWatchEvents({required String episodeId}) async {}
 
   @override
   Future<List<ShowDetailsEpisode>> getEpisodes({
@@ -2014,6 +2140,160 @@ final class _RetryEpisodeUpdateRepository
       episodeId: episodeId,
       isWatched: false,
       watchCount: 0,
+    );
+  }
+}
+
+final class _WatchEventRemovalRepository
+    implements ShowDetailsSeasonsRepository {
+  _WatchEventRemovalRepository({this.failDeleteLatestOnce = false});
+
+  bool failDeleteLatestOnce;
+
+  int deleteLatestCalls = 0;
+  int deleteAllCalls = 0;
+
+  final List<ShowDetailsEpisodeWatchEvent> events =
+      <ShowDetailsEpisodeWatchEvent>[
+        ShowDetailsEpisodeWatchEvent(
+          id: 'watch-event-latest',
+          episodeId: 'episode-1-uuid',
+          watchedAt: DateTime.utc(2026, 8, 14, 21, 30),
+        ),
+        ShowDetailsEpisodeWatchEvent(
+          id: 'watch-event-previous',
+          episodeId: 'episode-1-uuid',
+          watchedAt: DateTime.utc(2026, 7, 20, 20),
+        ),
+      ];
+
+  @override
+  Future<ShowDetailsSeasonsBootstrap> resolveLocalSeasons({
+    required int showTmdbId,
+  }) async {
+    return const ShowDetailsSeasonsBootstrap(
+      showId: 'show-uuid',
+      seasons: <ShowDetailsLocalSeason>[
+        ShowDetailsLocalSeason(
+          id: 'season-1-uuid',
+          tmdbId: 134792,
+          seasonNumber: 1,
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<List<ShowDetailsSeasonProgress>> getSeasonsProgress({
+    required String showId,
+  }) async {
+    return <ShowDetailsSeasonProgress>[_seasonProgress()];
+  }
+
+  @override
+  Future<List<ShowDetailsEpisode>> getEpisodes({
+    required String seasonId,
+  }) async {
+    return const <ShowDetailsEpisode>[_episodeOne];
+  }
+
+  @override
+  Future<List<ShowDetailsEpisode>> syncEpisodes({
+    required String seasonId,
+  }) async {
+    return const <ShowDetailsEpisode>[_episodeOne];
+  }
+
+  @override
+  Future<ShowDetailsSeasonProgress> getSeasonProgress({
+    required String seasonId,
+  }) async {
+    return _seasonProgress();
+  }
+
+  @override
+  Future<List<ShowDetailsEpisodeProgress>> getEpisodeProgress({
+    required String seasonId,
+  }) async {
+    if (events.isEmpty) {
+      return <ShowDetailsEpisodeProgress>[
+        const ShowDetailsEpisodeProgress(
+          id: 'progress-1-uuid',
+          episodeId: 'episode-1-uuid',
+          isWatched: false,
+          watchCount: 0,
+        ),
+      ];
+    }
+
+    return <ShowDetailsEpisodeProgress>[
+      ShowDetailsEpisodeProgress(
+        id: 'progress-1-uuid',
+        episodeId: 'episode-1-uuid',
+        isWatched: true,
+        watchCount: events.length,
+        watchedAt: events.first.watchedAt,
+      ),
+    ];
+  }
+
+  @override
+  Future<ShowDetailsEpisodeProgress> markEpisodeWatched({
+    required String episodeId,
+    DateTime? watchedAt,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<ShowDetailsEpisodeProgress> markEpisodeUnwatched({
+    required String episodeId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<ShowDetailsEpisodeWatchEvent>> getEpisodeWatchEvents({
+    required String episodeId,
+  }) async {
+    return List<ShowDetailsEpisodeWatchEvent>.unmodifiable(events);
+  }
+
+  @override
+  Future<void> deleteEpisodeWatchEvent({
+    required String episodeId,
+    required String eventId,
+  }) async {
+    deleteLatestCalls++;
+
+    if (failDeleteLatestOnce) {
+      failDeleteLatestOnce = false;
+      throw const AppException.connection();
+    }
+
+    events.removeWhere(
+      (ShowDetailsEpisodeWatchEvent event) => event.id == eventId,
+    );
+  }
+
+  @override
+  Future<void> deleteAllEpisodeWatchEvents({required String episodeId}) async {
+    deleteAllCalls++;
+    events.clear();
+  }
+
+  ShowDetailsSeasonProgress _seasonProgress() {
+    final int watched = events.isEmpty ? 0 : 1;
+
+    return ShowDetailsSeasonProgress(
+      seasonId: 'season-1-uuid',
+      watchedEpisodes: watched,
+      totalEpisodes: 1,
+      progressPercentage: watched * 100,
+      airedEpisodes: 1,
+      watchedAiredEpisodes: watched,
+      airedProgressPercentage: watched * 100,
+      caughtUp: watched == 1,
     );
   }
 }

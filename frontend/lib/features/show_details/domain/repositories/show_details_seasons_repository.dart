@@ -42,4 +42,6 @@ abstract interface class ShowDetailsSeasonsRepository {
     required String episodeId,
     required String eventId,
   });
+
+  Future<void> deleteAllEpisodeWatchEvents({required String episodeId});
 }

@@ -424,6 +424,11 @@ final class ApiShowDetailsSeasonsRepository
     );
   }
 
+  @override
+  Future<void> deleteAllEpisodeWatchEvents({required String episodeId}) async {
+    await _apiClient.delete<dynamic>('/episodes/$episodeId/watch-events');
+  }
+
   ShowDetailsEpisode _episodeFromJson(Map<String, dynamic> json) {
     final Object? id = json['id'];
     final Object? tmdbId = json['tmdb_id'];

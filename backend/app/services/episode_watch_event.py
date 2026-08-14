@@ -89,3 +89,38 @@ class EpisodeWatchEventService:
         self._session.commit()
 
         return True
+
+
+    def delete_all(
+        self,
+        *,
+        user_id: UUID,
+        episode_id: UUID,
+    ) -> int:
+        """Delete every watch event and clear current Episode progress.
+
+        The operation is idempotent. Calling it when no historical viewings
+        remain still guarantees that the Episode is marked as unwatched.
+
+        Returns the number of deleted watch events.
+        """
+
+        deleted_count = (
+            self._watch_event_repository.delete_all_for_user_and_episode(
+                user_id=user_id,
+                episode_id=episode_id,
+            )
+        )
+
+        progress = self._progress_repository.get_by_user_and_episode(
+            user_id=user_id,
+            episode_id=episode_id,
+        )
+
+        if progress is not None:
+            progress.is_watched = False
+            progress.watched_at = None
+
+        self._session.commit()
+
+        return deleted_count

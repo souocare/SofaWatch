@@ -3,7 +3,12 @@ import 'package:sofawatch/core/errors/app_exception.dart';
 
 enum ShowDetailsEpisodeOperationStatus { idle, updating, failure }
 
-enum ShowDetailsEpisodeOperationIntent { setWatchedState, rewatch }
+enum ShowDetailsEpisodeOperationIntent {
+  setWatchedState,
+  rewatch,
+  removeLatestViewing,
+  removeAllViewings,
+}
 
 final class ShowDetailsEpisodeOperation extends Equatable {
   const ShowDetailsEpisodeOperation._({
@@ -11,31 +16,34 @@ final class ShowDetailsEpisodeOperation extends Equatable {
     this.error,
     this.targetWatched,
     this.intent,
+    this.eventId,
   });
 
   const ShowDetailsEpisodeOperation.idle()
     : this._(status: ShowDetailsEpisodeOperationStatus.idle);
 
   const ShowDetailsEpisodeOperation.updating({
-    required bool targetWatched,
-    ShowDetailsEpisodeOperationIntent intent =
-        ShowDetailsEpisodeOperationIntent.setWatchedState,
+    bool? targetWatched,
+    required ShowDetailsEpisodeOperationIntent intent,
+    String? eventId,
   }) : this._(
          status: ShowDetailsEpisodeOperationStatus.updating,
          targetWatched: targetWatched,
          intent: intent,
+         eventId: eventId,
        );
 
   const ShowDetailsEpisodeOperation.failure(
     AppException error, {
-    required bool targetWatched,
-    ShowDetailsEpisodeOperationIntent intent =
-        ShowDetailsEpisodeOperationIntent.setWatchedState,
+    bool? targetWatched,
+    required ShowDetailsEpisodeOperationIntent intent,
+    String? eventId,
   }) : this._(
          status: ShowDetailsEpisodeOperationStatus.failure,
          error: error,
          targetWatched: targetWatched,
          intent: intent,
+         eventId: eventId,
        );
 
   final ShowDetailsEpisodeOperationStatus status;
@@ -44,6 +52,9 @@ final class ShowDetailsEpisodeOperation extends Equatable {
   final bool? targetWatched;
 
   final ShowDetailsEpisodeOperationIntent? intent;
+
+  /// Historical viewing targeted by an operation when applicable.
+  final String? eventId;
 
   bool get isUpdating {
     return status == ShowDetailsEpisodeOperationStatus.updating;
@@ -58,5 +69,11 @@ final class ShowDetailsEpisodeOperation extends Equatable {
   }
 
   @override
-  List<Object?> get props => <Object?>[status, error, targetWatched, intent];
+  List<Object?> get props => <Object?>[
+    status,
+    error,
+    targetWatched,
+    intent,
+    eventId,
+  ];
 }

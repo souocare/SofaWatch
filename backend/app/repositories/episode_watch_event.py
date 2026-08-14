@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import delete as sqlalchemy_delete, func, select
 from sqlalchemy.orm import Session
 
 from app.models.episode import Episode
@@ -298,6 +298,26 @@ class EpisodeWatchEventRepository:
             episode_id: int(watch_count or 0)
             for episode_id, watch_count in rows
         }
+
+    def delete_all_for_user_and_episode(
+        self,
+        *,
+        user_id: UUID,
+        episode_id: UUID,
+    ) -> int:
+        """Delete every watch event for a user's Episode.
+
+        Return the number of deleted viewing events.
+        """
+
+        result = self._session.execute(
+            sqlalchemy_delete(EpisodeWatchEvent).where(
+                EpisodeWatchEvent.user_id == user_id,
+                EpisodeWatchEvent.episode_id == episode_id,
+            )
+        )
+
+        return int(result.rowcount or 0)
 
     def delete(
         self,

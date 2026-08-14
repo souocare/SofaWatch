@@ -148,6 +148,32 @@ def list_episode_watch_events(
     )
 
 @router.delete(
+    "/{episode_id}/watch-events",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete all Episode watch events",
+    description=(
+        "Delete every historical viewing of an Episode for the current user "
+        "and mark the Episode as not watched."
+    ),
+)
+def delete_all_episode_watch_events(
+    episode_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV episode identifier.",
+        ),
+    ],
+    service: EpisodeWatchEventServiceDependency,
+    current_user: CurrentUserDependency,
+) -> None:
+    """Delete every historical viewing for an Episode."""
+
+    service.delete_all(
+        user_id=current_user.id,
+        episode_id=episode_id,
+    )
+
+@router.delete(
     "/{episode_id}/watch-events/{event_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete Episode watch event",

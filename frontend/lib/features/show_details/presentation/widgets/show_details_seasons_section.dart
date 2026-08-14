@@ -696,9 +696,11 @@ class _EpisodeStatusButton extends StatelessWidget {
                   'show-details-episode-watched-${episode.id}',
                 ),
                 onPressed: () {
-                  context.read<ShowDetailsSeasonsCubit>().markEpisodeUnwatched(
+                  _handleEpisodeUnwatch(
+                    context,
                     seasonNumber: seasonNumber,
-                    episodeId: episode.id,
+                    episode: episode,
+                    watchCount: progress!.watchCount,
                   );
                 },
                 tooltip: 'Mark as not watched',
@@ -769,6 +771,147 @@ class _EpisodeStatusButton extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+enum _EpisodeUnwatchChoice { removeLatest, removeAll }
+
+Future<void> _handleEpisodeUnwatch(
+  BuildContext context, {
+  required int seasonNumber,
+  required ShowDetailsEpisode episode,
+  required int watchCount,
+}) async {
+  final ShowDetailsSeasonsCubit cubit = context.read<ShowDetailsSeasonsCubit>();
+
+  if (watchCount <= 1) {
+    await cubit.removeAllEpisodeViewings(
+      seasonNumber: seasonNumber,
+      episodeId: episode.id,
+    );
+
+    return;
+  }
+
+  final _EpisodeUnwatchChoice? choice = await _showEpisodeUnwatchChoice(
+    context,
+    watchCount: watchCount,
+  );
+
+  if (choice == null) {
+    return;
+  }
+
+  switch (choice) {
+    case _EpisodeUnwatchChoice.removeLatest:
+      await cubit.removeLatestEpisodeViewing(
+        seasonNumber: seasonNumber,
+        episodeId: episode.id,
+      );
+
+    case _EpisodeUnwatchChoice.removeAll:
+      await cubit.removeAllEpisodeViewings(
+        seasonNumber: seasonNumber,
+        episodeId: episode.id,
+      );
+  }
+}
+
+Future<_EpisodeUnwatchChoice?> _showEpisodeUnwatchChoice(
+  BuildContext context, {
+  required int watchCount,
+}) async {
+  final bool useBottomSheet =
+      MediaQuery.sizeOf(context).width < AppBreakpoints.tablet;
+
+  if (useBottomSheet) {
+    return showModalBottomSheet<_EpisodeUnwatchChoice>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return _EpisodeUnwatchOptions(watchCount: watchCount);
+      },
+    );
+  }
+
+  return showDialog<_EpisodeUnwatchChoice>(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: _EpisodeUnwatchOptions(watchCount: watchCount),
+        ),
+      );
+    },
+  );
+}
+
+class _EpisodeUnwatchOptions extends StatelessWidget {
+  const _EpisodeUnwatchOptions({required this.watchCount});
+
+  final int watchCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: AppSpacing.cardPadding,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'Mark as not watched?',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'This episode has been watched $watchCount times. '
+              'Choose which viewing history you want to remove.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            ListTile(
+              key: const ValueKey<String>('show-details-unwatch-remove-latest'),
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.history_rounded),
+              title: const Text('Remove latest viewing'),
+              subtitle: const Text('Keep the previous viewing history.'),
+              onTap: () {
+                Navigator.of(context).pop(_EpisodeUnwatchChoice.removeLatest);
+              },
+            ),
+            ListTile(
+              key: const ValueKey<String>('show-details-unwatch-remove-all'),
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.delete_outline_rounded),
+              title: const Text('Remove all viewings'),
+              subtitle: const Text(
+                'Mark this episode as completely unwatched.',
+              ),
+              onTap: () {
+                Navigator.of(context).pop(_EpisodeUnwatchChoice.removeAll);
+              },
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                key: const ValueKey<String>('show-details-unwatch-cancel'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Cancel'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

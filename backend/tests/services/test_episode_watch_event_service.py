@@ -455,3 +455,122 @@ def test_delete_event_succeeds_when_progress_entry_is_missing(
     )
 
     session.commit.assert_called_once_with()
+
+
+def test_delete_all_removes_every_viewing_and_clears_progress(
+    service: EpisodeWatchEventService,
+    session: Mock,
+    watch_event_repository: Mock,
+    progress_repository: Mock,
+) -> None:
+    """Removing all viewings must leave the Episode completely unwatched."""
+
+    user_id = uuid4()
+    episode_id = uuid4()
+
+    progress = SimpleNamespace(
+        user_id=user_id,
+        episode_id=episode_id,
+        is_watched=True,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    watch_event_repository.delete_all_for_user_and_episode.return_value = 3
+
+    progress_repository.get_by_user_and_episode.return_value = progress
+
+    deleted_count = service.delete_all(
+        user_id=user_id,
+        episode_id=episode_id,
+    )
+
+    assert deleted_count == 3
+
+    watch_event_repository.delete_all_for_user_and_episode.assert_called_once_with(
+        user_id=user_id,
+        episode_id=episode_id,
+    )
+
+    progress_repository.get_by_user_and_episode.assert_called_once_with(
+        user_id=user_id,
+        episode_id=episode_id,
+    )
+
+    assert progress.is_watched is False
+    assert progress.watched_at is None
+
+    session.commit.assert_called_once_with()
+
+def test_delete_all_is_idempotent_when_no_viewings_remain(
+    service: EpisodeWatchEventService,
+    session: Mock,
+    watch_event_repository: Mock,
+    progress_repository: Mock,
+) -> None:
+    """Deleting all viewings twice must still leave consistent progress."""
+
+    user_id = uuid4()
+    episode_id = uuid4()
+
+    progress = SimpleNamespace(
+        user_id=user_id,
+        episode_id=episode_id,
+        is_watched=False,
+        watched_at=None,
+    )
+
+    watch_event_repository.delete_all_for_user_and_episode.return_value = 0
+    progress_repository.get_by_user_and_episode.return_value = progress
+
+    deleted_count = service.delete_all(
+        user_id=user_id,
+        episode_id=episode_id,
+    )
+
+    assert deleted_count == 0
+
+    assert progress.is_watched is False
+    assert progress.watched_at is None
+
+    session.commit.assert_called_once_with()
+
+
+def test_delete_all_succeeds_when_progress_entry_is_missing(
+    service: EpisodeWatchEventService,
+    session: Mock,
+    watch_event_repository: Mock,
+    progress_repository: Mock,
+) -> None:
+    """Historical cleanup must succeed even without current progress."""
+
+    user_id = uuid4()
+    episode_id = uuid4()
+
+    watch_event_repository.delete_all_for_user_and_episode.return_value = 2
+    progress_repository.get_by_user_and_episode.return_value = None
+
+    deleted_count = service.delete_all(
+        user_id=user_id,
+        episode_id=episode_id,
+    )
+
+    assert deleted_count == 2
+
+    watch_event_repository.delete_all_for_user_and_episode.assert_called_once_with(
+        user_id=user_id,
+        episode_id=episode_id,
+    )
+
+    progress_repository.get_by_user_and_episode.assert_called_once_with(
+        user_id=user_id,
+        episode_id=episode_id,
+    )
+
+    session.commit.assert_called_once_with()

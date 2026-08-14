@@ -959,3 +959,200 @@ def test_delete_watch_event_returns_404_for_event_from_another_episode(
     )
 
     assert persisted_event is not None
+
+def test_delete_all_watch_events_clears_history_and_progress(
+    client: TestClient,
+    db_session: Session,
+    local_user: User,
+) -> None:
+    """Delete every viewing event and clear the Episode watched state."""
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    watched_at_values = [
+        datetime(2026, 6, 1, 20, 0, tzinfo=UTC),
+        datetime(2026, 7, 1, 20, 0, tzinfo=UTC),
+        datetime(2026, 8, 14, 21, 30, tzinfo=UTC),
+    ]
+
+    for watched_at in watched_at_values:
+        create_watch_event(
+            db_session,
+            user=local_user,
+            episode=episode,
+            watched_at=watched_at,
+        )
+
+    progress = create_watched_progress(
+        db_session,
+        user=local_user,
+        episode=episode,
+        watched_at=watched_at_values[-1],
+    )
+
+    response = client.delete(
+        f"/api/v1/episodes/{episode.id}/watch-events",
+    )
+
+    assert response.status_code == 204
+    assert response.content == b""
+
+    remaining_events = list(
+        db_session.scalars(
+            select(EpisodeWatchEvent).where(
+                EpisodeWatchEvent.user_id == local_user.id,
+                EpisodeWatchEvent.episode_id == episode.id,
+            )
+        ).all()
+    )
+
+    assert remaining_events == []
+
+    db_session.refresh(progress)
+
+    assert progress.is_watched is False
+    assert progress.watched_at is None
+
+def test_delete_all_watch_events_is_idempotent(
+    client: TestClient,
+    db_session: Session,
+    local_user: User,
+) -> None:
+    """Deleting all viewings repeatedly must continue to succeed."""
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    response = client.delete(
+        f"/api/v1/episodes/{episode.id}/watch-events",
+    )
+
+    assert response.status_code == 204
+
+    second_response = client.delete(
+        f"/api/v1/episodes/{episode.id}/watch-events",
+    )
+
+    assert second_response.status_code == 204
+
+
+def test_delete_all_watch_events_preserves_other_episode_history(
+    client: TestClient,
+    db_session: Session,
+    local_user: User,
+) -> None:
+    """Deleting all viewings for one Episode must not affect another Episode."""
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    first_episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    second_episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2102,
+        episode_number=2,
+        title="Half Loop",
+    )
+
+    first_event = create_watch_event(
+        db_session,
+        user=local_user,
+        episode=first_episode,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    second_event = create_watch_event(
+        db_session,
+        user=local_user,
+        episode=second_episode,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watched_progress(
+        db_session,
+        user=local_user,
+        episode=first_episode,
+        watched_at=first_event.watched_at,
+    )
+
+    response = client.delete(
+        f"/api/v1/episodes/{first_episode.id}/watch-events",
+    )
+
+    assert response.status_code == 204
+
+    assert db_session.get(EpisodeWatchEvent, first_event.id) is None
+    assert db_session.get(EpisodeWatchEvent, second_event.id) is not None
+

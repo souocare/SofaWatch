@@ -919,22 +919,6 @@ void main() {
         ),
       );
 
-      debugPrint(
-        'WATCH COUNT BUTTON AFTER DELETE: ${watchCountButton.evaluate().length}',
-      );
-
-      if (watchCountButton.evaluate().isNotEmpty) {
-        final Finder textFinder = find.descendant(
-          of: watchCountButton,
-          matching: find.byType(Text),
-        );
-
-        for (final Element element in textFinder.evaluate()) {
-          final Text text = element.widget as Text;
-          debugPrint('WATCH COUNT TEXT AFTER DELETE: "${text.data}"');
-        }
-      }
-
       expect(find.text('2×'), findsNothing);
 
       expect(
@@ -947,6 +931,289 @@ void main() {
       );
 
       await cubit.close();
+    });
+    testWidgets('shows Unwatch choices when Episode has multiple viewings', (
+      WidgetTester tester,
+    ) async {
+      final _WatchHistoryShowDetailsSeasonsRepository repository =
+          _WatchHistoryShowDetailsSeasonsRepository();
+
+      final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      addTearDown(cubit.close);
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          cubit: cubit,
+          seasons: const <ShowDetailsSeason>[_seasonOne],
+        ),
+      );
+
+      await tester.tap(find.text('Season 1'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2×'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>('show-details-episode-watched-episode-1-uuid'),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mark as not watched?'), findsOneWidget);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('show-details-unwatch-remove-latest'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('show-details-unwatch-remove-all')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('show-details-unwatch-cancel')),
+        findsOneWidget,
+      );
+
+      expect(repository.deleteWatchEventCalls, 0);
+      expect(repository.deleteAllWatchEventsCalls, 0);
+    });
+    testWidgets(
+      'cancelling multiple-viewing Unwatch preserves Episode history',
+      (WidgetTester tester) async {
+        final _WatchHistoryShowDetailsSeasonsRepository repository =
+            _WatchHistoryShowDetailsSeasonsRepository();
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        addTearDown(cubit.close);
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            cubit: cubit,
+            seasons: const <ShowDetailsSeason>[_seasonOne],
+          ),
+        );
+
+        await tester.tap(find.text('Season 1'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>(
+              'show-details-episode-watched-episode-1-uuid',
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('show-details-unwatch-cancel')),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(repository.events, hasLength(2));
+        expect(repository.deleteWatchEventCalls, 0);
+        expect(repository.deleteAllWatchEventsCalls, 0);
+
+        expect(find.text('2×'), findsOneWidget);
+      },
+    );
+    testWidgets(
+      'removes latest viewing from Unwatch choices and keeps Episode watched',
+      (WidgetTester tester) async {
+        final _WatchHistoryShowDetailsSeasonsRepository repository =
+            _WatchHistoryShowDetailsSeasonsRepository();
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        addTearDown(cubit.close);
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            cubit: cubit,
+            seasons: const <ShowDetailsSeason>[_seasonOne],
+          ),
+        );
+
+        await tester.tap(find.text('Season 1'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('2×'), findsOneWidget);
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>(
+              'show-details-episode-watched-episode-1-uuid',
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('show-details-unwatch-remove-latest'),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(repository.deleteWatchEventCalls, 1);
+        expect(repository.deleteAllWatchEventsCalls, 0);
+
+        expect(repository.deletedEpisodeId, 'episode-1-uuid');
+        expect(repository.deletedEventId, 'watch-event-2');
+
+        expect(repository.events, hasLength(1));
+        expect(repository.events.single.id, 'watch-event-1');
+
+        final ShowDetailsEpisodeProgress progress =
+            cubit.state[1]!.episodeProgressById['episode-1-uuid']!;
+
+        expect(progress.isWatched, isTrue);
+        expect(progress.watchCount, 1);
+        expect(progress.watchedAt, DateTime.utc(2026, 8, 10, 20));
+
+        expect(find.text('2×'), findsNothing);
+
+        expect(
+          find.byKey(
+            const ValueKey<String>(
+              'show-details-episode-watched-episode-1-uuid',
+            ),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+    testWidgets('removes all Episode viewings from Unwatch choices', (
+      WidgetTester tester,
+    ) async {
+      final _WatchHistoryShowDetailsSeasonsRepository repository =
+          _WatchHistoryShowDetailsSeasonsRepository();
+
+      final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      addTearDown(cubit.close);
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          cubit: cubit,
+          seasons: const <ShowDetailsSeason>[_seasonOne],
+        ),
+      );
+
+      await tester.tap(find.text('Season 1'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>('show-details-episode-watched-episode-1-uuid'),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('show-details-unwatch-remove-all')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(repository.deleteAllWatchEventsCalls, 1);
+      expect(repository.deleteWatchEventCalls, 0);
+      expect(repository.events, isEmpty);
+
+      final ShowDetailsEpisodeProgress? progress =
+          cubit.state[1]!.episodeProgressById['episode-1-uuid'];
+
+      if (progress != null) {
+        expect(progress.isWatched, isFalse);
+        expect(progress.watchCount, 0);
+        expect(progress.watchedAt, isNull);
+      }
+
+      expect(find.text('2×'), findsNothing);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('show-details-episode-rewatch-episode-1-uuid'),
+        ),
+        findsNothing,
+      );
+    });
+    testWidgets('Unwatch removes the only viewing without showing choices', (
+      WidgetTester tester,
+    ) async {
+      final _WatchHistoryShowDetailsSeasonsRepository repository =
+          _WatchHistoryShowDetailsSeasonsRepository(
+            events: <ShowDetailsEpisodeWatchEvent>[
+              ShowDetailsEpisodeWatchEvent(
+                id: 'watch-event-1',
+                episodeId: 'episode-1-uuid',
+                watchedAt: DateTime.utc(2026, 8, 10, 20),
+              ),
+            ],
+          );
+
+      final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      addTearDown(cubit.close);
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          cubit: cubit,
+          seasons: const <ShowDetailsSeason>[_seasonOne],
+        ),
+      );
+
+      await tester.tap(find.text('Season 1'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>('show-details-episode-watched-episode-1-uuid'),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mark as not watched?'), findsNothing);
+
+      expect(repository.deleteAllWatchEventsCalls, 1);
+      expect(repository.deleteWatchEventCalls, 0);
+      expect(repository.events, isEmpty);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('show-details-episode-rewatch-episode-1-uuid'),
+        ),
+        findsNothing,
+      );
     });
     testWidgets('shows Watch History error without breaking Season contents', (
       WidgetTester tester,
@@ -1264,6 +1531,9 @@ final class _FakeShowDetailsSeasonsRepository
       caughtUp: false,
     );
   }
+
+  @override
+  Future<void> deleteAllEpisodeWatchEvents({required String episodeId}) async {}
 }
 
 final class _WatchHistoryShowDetailsSeasonsRepository
@@ -1293,6 +1563,7 @@ final class _WatchHistoryShowDetailsSeasonsRepository
 
   int getWatchEventsCalls = 0;
   int deleteWatchEventCalls = 0;
+  int deleteAllWatchEventsCalls = 0;
 
   String? deletedEpisodeId;
   String? deletedEventId;
@@ -1366,6 +1637,15 @@ final class _WatchHistoryShowDetailsSeasonsRepository
     events.removeWhere(
       (ShowDetailsEpisodeWatchEvent event) =>
           event.id == eventId && event.episodeId == episodeId,
+    );
+  }
+
+  @override
+  Future<void> deleteAllEpisodeWatchEvents({required String episodeId}) async {
+    deleteAllWatchEventsCalls++;
+
+    events.removeWhere(
+      (ShowDetailsEpisodeWatchEvent event) => event.episodeId == episodeId,
     );
   }
 

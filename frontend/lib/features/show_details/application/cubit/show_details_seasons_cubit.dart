@@ -113,6 +113,209 @@ final class ShowDetailsSeasonsCubit
     );
   }
 
+  Future<void> removeLatestEpisodeViewing({
+    required int seasonNumber,
+    required String episodeId,
+  }) {
+    return _removeLatestEpisodeViewing(
+      seasonNumber: seasonNumber,
+      episodeId: episodeId,
+    );
+  }
+
+  Future<void> _removeLatestEpisodeViewing({
+    required int seasonNumber,
+    required String episodeId,
+    String? eventId,
+  }) async {
+    final ShowDetailsSeasonState current =
+        state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+    if (current.operationForEpisode(episodeId).isUpdating) {
+      return;
+    }
+
+    _setSeasonState(
+      seasonNumber,
+      current.copyWith(
+        episodeOperationsById: <String, ShowDetailsEpisodeOperation>{
+          ...current.episodeOperationsById,
+          episodeId: ShowDetailsEpisodeOperation.updating(
+            intent: ShowDetailsEpisodeOperationIntent.removeLatestViewing,
+            eventId: eventId,
+          ),
+        },
+      ),
+    );
+
+    String? targetEventId = eventId;
+
+    try {
+      if (targetEventId == null) {
+        final List<ShowDetailsEpisodeWatchEvent> events = await _repository
+            .getEpisodeWatchEvents(episodeId: episodeId);
+
+        if (events.isEmpty) {
+          throw const AppException.invalidData();
+        }
+
+        /*
+       * Episode watch events are returned newest first by the backend,
+       * therefore the first item is the latest historical viewing.
+       */
+        targetEventId = events.first.id;
+      }
+
+      await _repository.deleteEpisodeWatchEvent(
+        episodeId: episodeId,
+        eventId: targetEventId,
+      );
+
+      await _refreshEpisodeProgressAfterWatchEventChange(
+        seasonNumber: seasonNumber,
+        episodeId: episodeId,
+      );
+
+      if (isClosed) {
+        return;
+      }
+
+      final ShowDetailsSeasonState latest =
+          state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+      _setSeasonState(
+        seasonNumber,
+        latest.copyWith(
+          episodeOperationsById: <String, ShowDetailsEpisodeOperation>{
+            ...latest.episodeOperationsById,
+            episodeId: const ShowDetailsEpisodeOperation.idle(),
+          },
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      _setViewingRemovalFailure(
+        seasonNumber: seasonNumber,
+        episodeId: episodeId,
+        error: error,
+        intent: ShowDetailsEpisodeOperationIntent.removeLatestViewing,
+        eventId: targetEventId,
+      );
+    } catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      _setViewingRemovalFailure(
+        seasonNumber: seasonNumber,
+        episodeId: episodeId,
+        error: AppException.unknown(originalError: error),
+        intent: ShowDetailsEpisodeOperationIntent.removeLatestViewing,
+        eventId: targetEventId,
+      );
+    }
+  }
+
+  Future<void> removeAllEpisodeViewings({
+    required int seasonNumber,
+    required String episodeId,
+  }) async {
+    final ShowDetailsSeasonState current =
+        state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+    if (current.operationForEpisode(episodeId).isUpdating) {
+      return;
+    }
+
+    _setSeasonState(
+      seasonNumber,
+      current.copyWith(
+        episodeOperationsById: <String, ShowDetailsEpisodeOperation>{
+          ...current.episodeOperationsById,
+          episodeId: const ShowDetailsEpisodeOperation.updating(
+            intent: ShowDetailsEpisodeOperationIntent.removeAllViewings,
+          ),
+        },
+      ),
+    );
+
+    try {
+      await _repository.deleteAllEpisodeWatchEvents(episodeId: episodeId);
+
+      await _refreshEpisodeProgressAfterWatchEventChange(
+        seasonNumber: seasonNumber,
+        episodeId: episodeId,
+      );
+
+      if (isClosed) {
+        return;
+      }
+
+      final ShowDetailsSeasonState latest =
+          state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+      _setSeasonState(
+        seasonNumber,
+        latest.copyWith(
+          episodeOperationsById: <String, ShowDetailsEpisodeOperation>{
+            ...latest.episodeOperationsById,
+            episodeId: const ShowDetailsEpisodeOperation.idle(),
+          },
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      _setViewingRemovalFailure(
+        seasonNumber: seasonNumber,
+        episodeId: episodeId,
+        error: error,
+        intent: ShowDetailsEpisodeOperationIntent.removeAllViewings,
+      );
+    } catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      _setViewingRemovalFailure(
+        seasonNumber: seasonNumber,
+        episodeId: episodeId,
+        error: AppException.unknown(originalError: error),
+        intent: ShowDetailsEpisodeOperationIntent.removeAllViewings,
+      );
+    }
+  }
+
+  void _setViewingRemovalFailure({
+    required int seasonNumber,
+    required String episodeId,
+    required AppException error,
+    required ShowDetailsEpisodeOperationIntent intent,
+    String? eventId,
+  }) {
+    final ShowDetailsSeasonState latest =
+        state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+    _setSeasonState(
+      seasonNumber,
+      latest.copyWith(
+        episodeOperationsById: <String, ShowDetailsEpisodeOperation>{
+          ...latest.episodeOperationsById,
+          episodeId: ShowDetailsEpisodeOperation.failure(
+            error,
+            intent: intent,
+            eventId: eventId,
+          ),
+        },
+      ),
+    );
+  }
+
   Future<void> _updateEpisodeWatchedState({
     required int seasonNumber,
     required String episodeId,
@@ -143,13 +346,21 @@ final class ShowDetailsSeasonsCubit
 
       case ShowDetailsEpisodeOperationIntent.rewatch:
         /*
-       * Rewatch only makes sense for an Episode that is already watched.
-       *
-       * The backend keeps it watched and updates watched_at.
-       */
+     * Rewatch only makes sense for an Episode that is already watched.
+     *
+     * The backend keeps it watched and records another viewing event.
+     */
         if (!currentlyWatched) {
           return;
         }
+
+      case ShowDetailsEpisodeOperationIntent.removeLatestViewing:
+      case ShowDetailsEpisodeOperationIntent.removeAllViewings:
+        /*
+     * Viewing removal has its own operation flow and must never be
+     * handled as a watched-state update.
+     */
+        return;
     }
 
     final Map<String, ShowDetailsEpisodeOperation> updatingOperations =
@@ -266,19 +477,48 @@ final class ShowDetailsSeasonsCubit
       episodeId,
     );
 
-    final bool? targetWatched = operation.targetWatched;
     final ShowDetailsEpisodeOperationIntent? intent = operation.intent;
 
-    if (!operation.hasFailed || targetWatched == null || intent == null) {
+    if (!operation.hasFailed || intent == null) {
       return;
     }
 
-    await _updateEpisodeWatchedState(
-      seasonNumber: seasonNumber,
-      episodeId: episodeId,
-      watched: targetWatched,
-      intent: intent,
-    );
+    switch (intent) {
+      case ShowDetailsEpisodeOperationIntent.setWatchedState:
+        final bool? targetWatched = operation.targetWatched;
+
+        if (targetWatched == null) {
+          return;
+        }
+
+        await _updateEpisodeWatchedState(
+          seasonNumber: seasonNumber,
+          episodeId: episodeId,
+          watched: targetWatched,
+          intent: intent,
+        );
+
+      case ShowDetailsEpisodeOperationIntent.rewatch:
+        await _updateEpisodeWatchedState(
+          seasonNumber: seasonNumber,
+          episodeId: episodeId,
+          watched: true,
+          intent: intent,
+        );
+
+      case ShowDetailsEpisodeOperationIntent.removeLatestViewing:
+        await _removeLatestEpisodeViewing(
+          seasonNumber: seasonNumber,
+          episodeId: episodeId,
+          eventId: operation.eventId,
+        );
+
+      case ShowDetailsEpisodeOperationIntent.removeAllViewings:
+        await removeAllEpisodeViewings(
+          seasonNumber: seasonNumber,
+          episodeId: episodeId,
+        );
+    }
   }
 
   Future<void> toggleSeason(int seasonNumber) async {
@@ -428,6 +668,28 @@ final class ShowDetailsSeasonsCubit
       eventId: eventId,
     );
 
+    await _refreshEpisodeProgressAfterWatchEventChange(
+      seasonNumber: seasonNumber,
+      episodeId: episodeId,
+    );
+  }
+
+  Future<void> deleteAllEpisodeWatchEvents({
+    required int seasonNumber,
+    required String episodeId,
+  }) async {
+    await _repository.deleteAllEpisodeWatchEvents(episodeId: episodeId);
+
+    await _refreshEpisodeProgressAfterWatchEventChange(
+      seasonNumber: seasonNumber,
+      episodeId: episodeId,
+    );
+  }
+
+  Future<void> _refreshEpisodeProgressAfterWatchEventChange({
+    required int seasonNumber,
+    required String episodeId,
+  }) async {
     final ShowDetailsLocalSeason? localSeason = _findSeason(
       _bootstrap?.seasons ?? const <ShowDetailsLocalSeason>[],
       seasonNumber,
@@ -438,14 +700,15 @@ final class ShowDetailsSeasonsCubit
     }
 
     /*
-   * Deleting an historical viewing can change:
+   * Historical viewing changes can affect:
    *
    * - watch_count;
    * - watched_at;
-   * - is_watched.
+   * - is_watched;
+   * - Season progress.
    *
-   * Re-read the backend state instead of trying to reconstruct
-   * those rules in Flutter.
+   * Re-read the backend state instead of reproducing those rules
+   * in Flutter.
    */
     final List<ShowDetailsEpisodeProgress> episodeProgress = await _repository
         .getEpisodeProgress(seasonId: localSeason.id);
