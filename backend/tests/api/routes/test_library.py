@@ -2616,3 +2616,75 @@ def test_list_library_shows_returns_null_first_episode_when_none_has_aired(
 
     assert len(body) == 1
     assert body[0]["first_available_episode"] is None
+
+def test_list_havent_started_returns_planning_show_with_first_episode(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return Planning Shows with their first aired regular Episode."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.PLANNING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    first_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947647,
+        episode_number=1,
+        title="Good News About Hell",
+        air_date=date(2022, 2, 18),
+    )
+
+    create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947648,
+        episode_number=2,
+        title="Half Loop",
+        air_date=date(2022, 2, 25),
+    )
+
+    response = client.get(
+        "/api/v1/library/shows/havent-started",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+
+    item = body[0]
+
+    assert item["library_status"] == "planning"
+
+    assert item["show"]["id"] == str(show.id)
+    assert item["show"]["tmdb_id"] == 95396
+    assert item["show"]["title"] == "Severance"
+
+    assert item["first_episode"]["id"] == str(first_episode.id)
+    assert item["first_episode"]["tmdb_id"] == 1947647
+    assert item["first_episode"]["season_number"] == 1
+    assert item["first_episode"]["episode_number"] == 1
+    assert item["first_episode"]["title"] == "Good News About Hell"
+    assert item["first_episode"]["air_date"] == "2022-02-18"

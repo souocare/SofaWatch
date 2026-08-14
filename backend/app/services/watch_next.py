@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import UTC, date, datetime
+from app.services.watch_list_rules import belongs_to_stale_watching
 from uuid import UUID
 
 from app.models.enums import LibraryStatus
@@ -57,13 +58,21 @@ class WatchNextService:
             if entry.show_id is not None
         ]
 
-        today = date.today()
+        now = datetime.now(UTC)
+        today = now.date()
 
         next_by_show = (
             self._progress_repository.list_next_unwatched_for_shows(
                 user_id=user_id,
                 show_ids=show_ids,
                 as_of=today,
+            )
+        )
+
+        last_watched_by_show = (
+            self._progress_repository.list_last_watched_for_shows(
+                user_id=user_id,
+                show_ids=show_ids,
             )
         )
 
@@ -94,6 +103,18 @@ class WatchNextService:
             )
 
             if candidate is None:
+                continue
+
+            last_watched = last_watched_by_show.get(show_id)
+
+            if (
+                last_watched is not None
+                and belongs_to_stale_watching(
+                    watched_at=last_watched.watched_at,
+                    next_episode_air_date=candidate.episode.air_date,
+                    now=now,
+                )
+            ):
                 continue
 
             episode = candidate.episode
@@ -136,5 +157,12 @@ class WatchNextService:
                     ),
                 )
             )
+
+        results.sort(
+            key=lambda item: (
+                item.next_episode.air_date or date.max,
+                item.show.title.casefold(),
+            )
+        )
 
         return results

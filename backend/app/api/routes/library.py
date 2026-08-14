@@ -1,6 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
+from app.schemas.havent_started import HaventStartedShowResponse
 from fastapi import (
     APIRouter,
     Path,
@@ -16,6 +17,7 @@ from app.api.dependencies import (
     WatchNextServiceDependency,
     StaleWatchingServiceDependency,
     StartShowServiceDependency,
+    HaventStartedServiceDependency,
 )
 from app.schemas.start_show import StartShowResponse
 from app.schemas.watch_next import WatchNextShowResponse
@@ -61,6 +63,24 @@ def list_library_shows(
         status=library_status,
     )
 
+@router.get(
+    "/shows/havent-started",
+    response_model=list[HaventStartedShowResponse],
+    summary="List Haven't Started TV series",
+    description=(
+        "Return Planning TV series with their first aired regular Episode "
+        "available to start."
+    ),
+)
+def list_havent_started_shows(
+    current_user: CurrentUserDependency,
+    service: HaventStartedServiceDependency,
+) -> list[HaventStartedShowResponse]:
+    """Return the current user's Haven't Started collection."""
+
+    return service.list_for_user(
+        user_id=current_user.id,
+    )
 
 @router.get(
     "/shows/watch-next",

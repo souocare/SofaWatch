@@ -1,5 +1,10 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
+from app.services.watch_list_rules import (
+    as_utc,
+    belongs_to_stale_watching,
+    is_stale_watching,
+)
 
 from app.models.enums import LibraryStatus
 from app.repositories.episode_progress import (
@@ -17,8 +22,6 @@ from app.schemas.stale_watching import (
 
 class StaleWatchingService:
     """Build the Haven't Watched in a While collection."""
-
-    INACTIVITY_THRESHOLD_DAYS = 60
 
     def __init__(
         self,
@@ -67,14 +70,15 @@ class StaleWatchingService:
         if not last_watched_by_show:
             return []
 
-        threshold = datetime.now(UTC) - timedelta(
-            days=self.INACTIVITY_THRESHOLD_DAYS,
-        )
+        now = datetime.now(UTC)
 
         stale_show_ids = [
             show_id
             for show_id, candidate in last_watched_by_show.items()
-            if self._as_utc(candidate.watched_at) <= threshold
+            if is_stale_watching(
+                candidate.watched_at,
+                now=now,
+            )
         ]
 
         if not stale_show_ids:
@@ -84,7 +88,7 @@ class StaleWatchingService:
             self._progress_repository.list_next_unwatched_for_shows(
                 user_id=user_id,
                 show_ids=stale_show_ids,
-                as_of=datetime.now(UTC).date(),
+                as_of=now.date(),
             )
         )
 
@@ -108,7 +112,11 @@ class StaleWatchingService:
             if last_watched is None or next_episode is None:
                 continue
 
-            if self._as_utc(last_watched.watched_at) > threshold:
+            if not belongs_to_stale_watching(
+                watched_at=last_watched.watched_at,
+                next_episode_air_date=next_episode.episode.air_date,
+                now=now,
+            ):
                 continue
 
             last_episode = last_watched.episode
@@ -128,7 +136,7 @@ class StaleWatchingService:
                         air_date=last_episode.air_date,
                         runtime=last_episode.runtime,
                         still_url=last_episode.still_url,
-                        watched_at=self._as_utc(
+                        watched_at=as_utc(
                             last_watched.watched_at,
                         ),
                     ),
@@ -150,10 +158,3 @@ class StaleWatchingService:
         )
 
         return results
-
-    @staticmethod
-    def _as_utc(value: datetime) -> datetime:
-        if value.tzinfo is None:
-            return value.replace(tzinfo=UTC)
-
-        return value.astimezone(UTC)

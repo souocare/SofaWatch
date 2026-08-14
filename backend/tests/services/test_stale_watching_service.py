@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, date
 from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import UUID, uuid4
@@ -55,6 +55,7 @@ def create_episode(
     tmdb_id: int,
     episode_number: int,
     title: str,
+    air_date: date | None = None,
 ) -> SimpleNamespace:
     """Create Episode-like data required by StaleWatchingService."""
 
@@ -63,7 +64,7 @@ def create_episode(
         tmdb_id=tmdb_id,
         episode_number=episode_number,
         title=title,
-        air_date=None,
+        air_date=air_date,
         runtime=50,
         still_url=None,
     )
@@ -80,7 +81,7 @@ def create_service(
     )
 
 
-def test_includes_show_when_last_watched_more_than_60_days_ago() -> None:
+def test_includes_show_when_activity_and_pending_episode_are_stale() -> None:
     """Include a Watching Show inactive for more than 60 days."""
 
     library_repository = Mock(spec=LibraryRepository)
@@ -99,6 +100,7 @@ def test_includes_show_when_last_watched_more_than_60_days_ago() -> None:
         tmdb_id=1002,
         episode_number=4,
         title="Next Episode",
+        air_date=date(2026, 5, 1),
     )
 
     last_watched_at = datetime.now(UTC) - timedelta(days=61)
@@ -143,6 +145,57 @@ def test_includes_show_when_last_watched_more_than_60_days_ago() -> None:
 
     assert item.next_episode.episode_number == 4
 
+def test_excludes_show_when_pending_episode_is_recent() -> None:
+    """Keep newly available content out of stale Watching."""
+
+    library_repository = Mock(spec=LibraryRepository)
+    progress_repository = Mock(spec=EpisodeProgressRepository)
+
+    show = create_show()
+    entry = create_library_entry(show=show)
+
+    last_episode = create_episode(
+        tmdb_id=1001,
+        episode_number=8,
+        title="Previous Finale",
+    )
+
+    next_episode = create_episode(
+        tmdb_id=1002,
+        episode_number=1,
+        title="New Season Premiere",
+        air_date=datetime.now(UTC).date(),
+    )
+
+    library_repository.list_shows_by_user.return_value = [entry]
+
+    progress_repository.list_last_watched_for_shows.return_value = {
+        show.id: LastWatchedEpisode(
+            show_id=show.id,
+            episode=last_episode,
+            season_number=1,
+            watched_at=datetime.now(UTC) - timedelta(days=100),
+        )
+    }
+
+    progress_repository.list_next_unwatched_for_shows.return_value = {
+        show.id: NextUnwatchedEpisode(
+            show_id=show.id,
+            episode=next_episode,
+            season_number=2,
+        )
+    }
+
+    service = create_service(
+        library_repository=library_repository,
+        progress_repository=progress_repository,
+    )
+
+    result = service.list_for_user(
+        user_id=uuid4(),
+    )
+
+    assert result == []
 
 def test_excludes_show_when_last_watched_less_than_60_days_ago() -> None:
     """Exclude a Watching Show that was viewed recently."""
@@ -291,12 +344,14 @@ def test_orders_oldest_activity_first() -> None:
         tmdb_id=1002,
         episode_number=3,
         title="Older Next",
+        air_date=date(2026, 5, 1),
     )
 
     newer_next_episode = create_episode(
         tmdb_id=2002,
         episode_number=6,
         title="Newer Next",
+        air_date=date(2026, 5, 15),
     )
 
     older_watched_at = datetime.now(UTC) - timedelta(days=120)
@@ -373,3 +428,30 @@ def test_empty_watching_library_does_not_query_progress() -> None:
 
     progress_repository.list_last_watched_for_shows.assert_not_called()
     progress_repository.list_next_unwatched_for_shows.assert_not_called()
+
+
+def test_requests_only_watching_library_entries() -> None:
+    """Stale Watching must read only Shows currently marked as Watching."""
+
+    library_repository = Mock(spec=LibraryRepository)
+    progress_repository = Mock(spec=EpisodeProgressRepository)
+
+    library_repository.list_shows_by_user.return_value = []
+
+    service = create_service(
+        library_repository=library_repository,
+        progress_repository=progress_repository,
+    )
+
+    user_id = uuid4()
+
+    result = service.list_for_user(
+        user_id=user_id,
+    )
+
+    assert result == []
+
+    library_repository.list_shows_by_user.assert_called_once_with(
+        user_id,
+        status=LibraryStatus.WATCHING,
+    )
