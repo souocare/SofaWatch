@@ -7,6 +7,7 @@ import 'package:sofawatch/features/show_details/domain/repositories/show_details
 import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_seasons_bootstrap.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_episode_watch_event.dart';
 
 final class ApiShowDetailsSeasonsRepository
     implements ShowDetailsSeasonsRepository {
@@ -380,6 +381,49 @@ final class ApiShowDetailsSeasonsRepository
         .toList(growable: false);
   }
 
+  @override
+  Future<List<ShowDetailsEpisodeWatchEvent>> getEpisodeWatchEvents({
+    required String episodeId,
+  }) async {
+    try {
+      final Response<dynamic> eventsResponse = await _apiClient.get<dynamic>(
+        '/episodes/$episodeId/watch-events',
+      );
+
+      final Object? response = eventsResponse.data;
+
+      if (response is! List<dynamic>) {
+        throw const FormatException('Invalid Episode watch events response.');
+      }
+
+      return response
+          .map((dynamic rawEvent) {
+            if (rawEvent is! Map<String, dynamic>) {
+              throw const FormatException(
+                'Invalid Episode watch event response.',
+              );
+            }
+
+            return _episodeWatchEventFromJson(rawEvent);
+          })
+          .toList(growable: false);
+    } on AppException {
+      rethrow;
+    } catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  @override
+  Future<void> deleteEpisodeWatchEvent({
+    required String episodeId,
+    required String eventId,
+  }) async {
+    await _apiClient.delete<dynamic>(
+      '/episodes/$episodeId/watch-events/$eventId',
+    );
+  }
+
   ShowDetailsEpisode _episodeFromJson(Map<String, dynamic> json) {
     final Object? id = json['id'];
     final Object? tmdbId = json['tmdb_id'];
@@ -456,5 +500,34 @@ final class ApiShowDetailsSeasonsRepository
     }
 
     throw const FormatException('Invalid nullable non-negative integer.');
+  }
+
+  ShowDetailsEpisodeWatchEvent _episodeWatchEventFromJson(
+    Map<String, dynamic> json,
+  ) {
+    final Object? id = json['id'];
+    final Object? episodeId = json['episode_id'];
+    final Object? watchedAt = json['watched_at'];
+
+    if (id is! String ||
+        id.isEmpty ||
+        episodeId is! String ||
+        episodeId.isEmpty ||
+        watchedAt is! String ||
+        watchedAt.isEmpty) {
+      throw const FormatException('Invalid Episode watch event data.');
+    }
+
+    final DateTime? parsedWatchedAt = DateTime.tryParse(watchedAt);
+
+    if (parsedWatchedAt == null) {
+      throw const FormatException('Invalid Episode watch event datetime.');
+    }
+
+    return ShowDetailsEpisodeWatchEvent(
+      id: id,
+      episodeId: episodeId,
+      watchedAt: parsedWatchedAt,
+    );
   }
 }

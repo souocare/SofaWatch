@@ -11,6 +11,7 @@ import 'package:sofawatch/features/show_details/domain/models/show_details_seaso
 import 'package:sofawatch/features/show_details/domain/repositories/show_details_seasons_repository.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_episode_operation.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_episode_watch_event.dart';
 
 void main() {
   group('ShowDetailsSeasonsCubit', () {
@@ -1618,6 +1619,19 @@ final class _FakeShowDetailsSeasonsRepository
       watchCount: 0,
     );
   }
+
+  @override
+  Future<List<ShowDetailsEpisodeWatchEvent>> getEpisodeWatchEvents({
+    required String episodeId,
+  }) async {
+    return const <ShowDetailsEpisodeWatchEvent>[];
+  }
+
+  @override
+  Future<void> deleteEpisodeWatchEvent({
+    required String episodeId,
+    required String eventId,
+  }) async {}
 }
 
 final class _ControlledShowDetailsSeasonsRepository
@@ -1727,6 +1741,19 @@ final class _ControlledShowDetailsSeasonsRepository
   }
 
   @override
+  Future<List<ShowDetailsEpisodeWatchEvent>> getEpisodeWatchEvents({
+    required String episodeId,
+  }) async {
+    return const <ShowDetailsEpisodeWatchEvent>[];
+  }
+
+  @override
+  Future<void> deleteEpisodeWatchEvent({
+    required String episodeId,
+    required String eventId,
+  }) async {}
+
+  @override
   Future<ShowDetailsSeasonProgress> getSeasonProgress({
     required String seasonId,
   }) async {
@@ -1825,6 +1852,19 @@ final class _ManySeasonsRepository implements ShowDetailsSeasonsRepository {
   }) async {
     return progressItems;
   }
+
+  @override
+  Future<List<ShowDetailsEpisodeWatchEvent>> getEpisodeWatchEvents({
+    required String episodeId,
+  }) async {
+    return const <ShowDetailsEpisodeWatchEvent>[];
+  }
+
+  @override
+  Future<void> deleteEpisodeWatchEvent({
+    required String episodeId,
+    required String eventId,
+  }) async {}
 
   @override
   Future<List<ShowDetailsEpisode>> getEpisodes({

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_season_state.dart';
@@ -8,6 +9,7 @@ import 'package:sofawatch/features/show_details/domain/models/show_details_seaso
 import 'package:sofawatch/features/show_details/domain/repositories/show_details_seasons_repository.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_episode_operation.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_episode_watch_event.dart';
 
 final class ShowDetailsSeasonsCubit
     extends Cubit<Map<int, ShowDetailsSeasonState>> {
@@ -408,6 +410,81 @@ final class ShowDetailsSeasonsCubit
         ),
       );
     }
+  }
+
+  Future<List<ShowDetailsEpisodeWatchEvent>> getEpisodeWatchEvents({
+    required String episodeId,
+  }) {
+    return _repository.getEpisodeWatchEvents(episodeId: episodeId);
+  }
+
+  Future<void> deleteEpisodeWatchEvent({
+    required int seasonNumber,
+    required String episodeId,
+    required String eventId,
+  }) async {
+    await _repository.deleteEpisodeWatchEvent(
+      episodeId: episodeId,
+      eventId: eventId,
+    );
+
+    final ShowDetailsLocalSeason? localSeason = _findSeason(
+      _bootstrap?.seasons ?? const <ShowDetailsLocalSeason>[],
+      seasonNumber,
+    );
+
+    if (localSeason == null) {
+      throw const AppException.invalidData();
+    }
+
+    /*
+   * Deleting an historical viewing can change:
+   *
+   * - watch_count;
+   * - watched_at;
+   * - is_watched.
+   *
+   * Re-read the backend state instead of trying to reconstruct
+   * those rules in Flutter.
+   */
+    final List<ShowDetailsEpisodeProgress> episodeProgress = await _repository
+        .getEpisodeProgress(seasonId: localSeason.id);
+
+    final ShowDetailsSeasonProgress seasonProgress = await _repository
+        .getSeasonProgress(seasonId: localSeason.id);
+
+    if (isClosed) {
+      return;
+    }
+
+    final ShowDetailsSeasonState current =
+        state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+    final Map<String, ShowDetailsEpisodeProgress> nextProgressById =
+        <String, ShowDetailsEpisodeProgress>{...current.episodeProgressById};
+
+    ShowDetailsEpisodeProgress? updatedEpisodeProgress;
+
+    for (final ShowDetailsEpisodeProgress progress in episodeProgress) {
+      if (progress.episodeId == episodeId) {
+        updatedEpisodeProgress = progress;
+        break;
+      }
+    }
+
+    if (updatedEpisodeProgress == null) {
+      nextProgressById.remove(episodeId);
+    } else {
+      nextProgressById[episodeId] = updatedEpisodeProgress;
+    }
+
+    _setSeasonState(
+      seasonNumber,
+      current.copyWith(
+        episodeProgressById: nextProgressById,
+        progress: seasonProgress,
+      ),
+    );
   }
 
   ShowDetailsLocalSeason? _findSeason(

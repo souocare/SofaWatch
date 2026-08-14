@@ -10,6 +10,9 @@ import 'package:sofawatch/features/show_details/domain/models/show_details_seaso
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_episode_operation.dart';
 import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
+import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_episode_watch_event.dart';
+import 'package:sofawatch/core/errors/app_exception.dart';
 
 class ShowDetailsSeasonsSection extends StatelessWidget {
   const ShowDetailsSeasonsSection({required this.seasons, super.key});
@@ -684,6 +687,7 @@ class _EpisodeStatusButton extends StatelessWidget {
         else if (isWatched)
           Wrap(
             alignment: WrapAlignment.end,
+            crossAxisAlignment: WrapCrossAlignment.center,
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: <Widget>[
@@ -700,6 +704,7 @@ class _EpisodeStatusButton extends StatelessWidget {
                 tooltip: 'Mark as not watched',
                 icon: const Icon(Icons.check_circle_rounded),
               ),
+
               IconButton(
                 key: ValueKey<String>(
                   'show-details-episode-rewatch-${episode.id}',
@@ -713,6 +718,13 @@ class _EpisodeStatusButton extends StatelessWidget {
                 tooltip: 'Watched again',
                 icon: const Icon(Icons.replay_rounded),
               ),
+
+              if ((progress?.watchCount ?? 0) > 0)
+                _EpisodeWatchCountButton(
+                  seasonNumber: seasonNumber,
+                  episode: episode,
+                  watchCount: progress!.watchCount,
+                ),
             ],
           )
         else
@@ -729,18 +741,480 @@ class _EpisodeStatusButton extends StatelessWidget {
           ),
 
         if (isWatched && progress?.watchedAt != null)
-          Text(
-            MaterialLocalizations.of(
-              context,
-            ).formatMediumDate(progress!.watchedAt!.toLocal()),
+          InkWell(
             key: ValueKey<String>(
               'show-details-episode-watched-date-${episode.id}',
             ),
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+            borderRadius: AppRadius.borderSmall,
+            onTap: () {
+              _showEpisodeWatchHistory(
+                context,
+                seasonNumber: seasonNumber,
+                episode: episode,
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+                vertical: 2,
+              ),
+              child: Text(
+                MaterialLocalizations.of(
+                  context,
+                ).formatMediumDate(progress!.watchedAt!.toLocal()),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+              ),
+            ),
           ),
       ],
+    );
+  }
+}
+
+class _EpisodeWatchCountButton extends StatelessWidget {
+  const _EpisodeWatchCountButton({
+    required this.seasonNumber,
+    required this.episode,
+    required this.watchCount,
+  });
+
+  final int seasonNumber;
+  final ShowDetailsEpisode episode;
+  final int watchCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: watchCount == 1
+          ? 'View watch history'
+          : 'View watch history ($watchCount viewings)',
+      child: InkWell(
+        key: ValueKey<String>(
+          'show-details-episode-watch-history-${episode.id}',
+        ),
+        borderRadius: AppRadius.borderMedium,
+        onTap: () {
+          _showEpisodeWatchHistory(
+            context,
+            seasonNumber: seasonNumber,
+            episode: episode,
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Icon(Icons.history_rounded, size: 20),
+              if (watchCount > 1) ...<Widget>[
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  '$watchCount×',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _showEpisodeWatchHistory(
+  BuildContext context, {
+  required int seasonNumber,
+  required ShowDetailsEpisode episode,
+}) async {
+  final ShowDetailsSeasonsCubit cubit = context.read<ShowDetailsSeasonsCubit>();
+
+  final bool useBottomSheet =
+      MediaQuery.sizeOf(context).width < AppBreakpoints.tablet;
+
+  final Widget content = BlocProvider<ShowDetailsSeasonsCubit>.value(
+    value: cubit,
+    child: _EpisodeWatchHistoryContent(
+      seasonNumber: seasonNumber,
+      episode: episode,
+    ),
+  );
+
+  if (useBottomSheet) {
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return content;
+      },
+    );
+
+    return;
+  }
+
+  await showDialog<void>(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520, maxHeight: 640),
+          child: content,
+        ),
+      );
+    },
+  );
+}
+
+class _EpisodeWatchHistoryContent extends StatefulWidget {
+  const _EpisodeWatchHistoryContent({
+    required this.seasonNumber,
+    required this.episode,
+  });
+
+  final int seasonNumber;
+  final ShowDetailsEpisode episode;
+
+  @override
+  State<_EpisodeWatchHistoryContent> createState() =>
+      _EpisodeWatchHistoryContentState();
+}
+
+class _EpisodeWatchHistoryContentState
+    extends State<_EpisodeWatchHistoryContent> {
+  List<ShowDetailsEpisodeWatchEvent>? _events;
+
+  AppException? _error;
+
+  String? _deletingEventId;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _events = null;
+      _error = null;
+    });
+
+    try {
+      final List<ShowDetailsEpisodeWatchEvent> events = await context
+          .read<ShowDetailsSeasonsCubit>()
+          .getEpisodeWatchEvents(episodeId: widget.episode.id);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _events = events;
+      });
+    } on AppException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _error = error;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _error = AppException.unknown(originalError: error);
+      });
+    }
+  }
+
+  Future<void> _delete(ShowDetailsEpisodeWatchEvent event) async {
+    if (_deletingEventId != null) {
+      return;
+    }
+
+    setState(() {
+      _deletingEventId = event.id;
+      _error = null;
+    });
+
+    try {
+      final ShowDetailsSeasonsCubit cubit = context
+          .read<ShowDetailsSeasonsCubit>();
+
+      await cubit.deleteEpisodeWatchEvent(
+        seasonNumber: widget.seasonNumber,
+        episodeId: widget.episode.id,
+        eventId: event.id,
+      );
+
+      final List<ShowDetailsEpisodeWatchEvent> events = await cubit
+          .getEpisodeWatchEvents(episodeId: widget.episode.id);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _events = events;
+        _deletingEventId = null;
+      });
+    } on AppException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _error = error;
+        _deletingEventId = null;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _error = AppException.unknown(originalError: error);
+
+        _deletingEventId = null;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final List<ShowDetailsEpisodeWatchEvent>? events = _events;
+
+    return Padding(
+      padding: AppSpacing.cardPadding,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Watch history',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.xs),
+
+                    Text(
+                      widget.episode.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              IconButton(
+                tooltip: 'Close',
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          if (_error != null) ...<Widget>[
+            _EpisodeWatchHistoryError(onRetry: _load),
+          ] else if (events == null) ...<Widget>[
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(AppSpacing.xl),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          ] else if (events.isEmpty) ...<Widget>[
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+              child: Center(
+                child: Text(
+                  'No viewing history.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ] else ...<Widget>[
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: events.length,
+                separatorBuilder: (BuildContext context, int index) {
+                  return const Divider(height: 1);
+                },
+                itemBuilder: (BuildContext context, int index) {
+                  final ShowDetailsEpisodeWatchEvent event = events[index];
+
+                  return _EpisodeWatchHistoryRow(
+                    event: event,
+                    isDeleting: _deletingEventId == event.id,
+                    onDelete: () {
+                      _delete(event);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _EpisodeWatchHistoryRow extends StatelessWidget {
+  const _EpisodeWatchHistoryRow({
+    required this.event,
+    required this.isDeleting,
+    required this.onDelete,
+  });
+
+  final ShowDetailsEpisodeWatchEvent event;
+  final bool isDeleting;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final DateTime localDate = event.watchedAt.toLocal();
+
+    final String date = MaterialLocalizations.of(
+      context,
+    ).formatMediumDate(localDate);
+
+    final String time = MaterialLocalizations.of(
+      context,
+    ).formatTimeOfDay(TimeOfDay.fromDateTime(localDate));
+
+    return ListTile(
+      key: ValueKey<String>('episode-watch-event-${event.id}'),
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.play_circle_outline_rounded),
+      title: Text(
+        date,
+        style: Theme.of(
+          context,
+        ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        time,
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+      ),
+      trailing: isDeleting
+          ? const SizedBox(
+              width: 40,
+              height: 40,
+              child: Padding(
+                padding: EdgeInsets.all(10),
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          : IconButton(
+              key: ValueKey<String>('delete-episode-watch-event-${event.id}'),
+              tooltip: 'Delete viewing',
+              onPressed: () async {
+                final bool confirmed = await _confirmEpisodeWatchEventDeletion(
+                  context,
+                );
+
+                if (!confirmed) {
+                  return;
+                }
+
+                onDelete();
+              },
+              icon: const Icon(Icons.delete_outline_rounded),
+            ),
+    );
+  }
+}
+
+Future<bool> _confirmEpisodeWatchEventDeletion(BuildContext context) async {
+  final bool? confirmed = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        title: const Text('Delete viewing?'),
+        content: const Text(
+          'This viewing will be removed from the episode history.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            key: const ValueKey<String>('cancel-delete-episode-watch-event'),
+            onPressed: () {
+              Navigator.of(dialogContext).pop(false);
+            },
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const ValueKey<String>('confirm-delete-episode-watch-event'),
+            onPressed: () {
+              Navigator.of(dialogContext).pop(true);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      );
+    },
+  );
+
+  return confirmed ?? false;
+}
+
+class _EpisodeWatchHistoryError extends StatelessWidget {
+  const _EpisodeWatchHistoryError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+      child: Column(
+        children: <Widget>[
+          Text(
+            'Could not load viewing history.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          OutlinedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Retry'),
+          ),
+        ],
+      ),
     );
   }
 }
