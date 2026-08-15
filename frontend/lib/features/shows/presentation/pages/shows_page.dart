@@ -424,6 +424,7 @@ class _WatchListTab extends StatefulWidget {
 
 class _WatchListTabState extends State<_WatchListTab> {
   static const double _loadMoreThreshold = 240;
+  static const double _desktopContentMaxWidth = 1040;
 
   late final ScrollController _scrollController;
 
@@ -498,69 +499,102 @@ class _WatchListTabState extends State<_WatchListTab> {
             AppSpacing.section,
           ),
           children: <Widget>[
-            _WatchNextSection(
-              items: visibleWatchNext,
-              hasError: widget.watchNextError != null,
-              updatingEpisodeId: widget.updatingWatchNextEpisodeId,
-              onRetry: context.read<ShowsCubit>().retryWatchNext,
-              onMarkWatched: (String episodeId) {
-                context.read<ShowsCubit>().markWatchNextEpisodeWatched(
-                  episodeId: episodeId,
-                );
-              },
-              isDesktop: isDesktop,
-            ),
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                key: const ValueKey<String>('shows-watch-list-content'),
+                constraints: const BoxConstraints(
+                  maxWidth: _desktopContentMaxWidth,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    _WatchNextSection(
+                      items: visibleWatchNext,
+                      hasError: widget.watchNextError != null,
+                      updatingEpisodeId: widget.updatingWatchNextEpisodeId,
+                      onRetry: context.read<ShowsCubit>().retryWatchNext,
+                      onMarkWatched: (String episodeId) {
+                        context.read<ShowsCubit>().markWatchNextEpisodeWatched(
+                          episodeId: episodeId,
+                        );
+                      },
+                      isDesktop: isDesktop,
+                    ),
 
-            const SizedBox(height: AppSpacing.section),
+                    const SizedBox(height: AppSpacing.section),
 
-            if (widget.upToDate.isNotEmpty) ...<Widget>[
-              _UpToDateSection(items: widget.upToDate, isDesktop: isDesktop),
-              const SizedBox(height: AppSpacing.section),
-            ],
+                    if (widget.upToDate.isNotEmpty) ...<Widget>[
+                      _UpToDateSection(
+                        items: widget.upToDate,
+                        isDesktop: isDesktop,
+                      ),
+                      const SizedBox(height: AppSpacing.section),
+                    ],
 
-            _HaventStartedSection(
-              items: widget.haventStarted,
-              startingShowId: widget.startingShowId,
-              onStart: (String showId) {
-                context.read<ShowsCubit>().startShow(showId: showId);
-              },
-              isDesktop: isDesktop,
-            ),
-            const SizedBox(height: AppSpacing.section),
+                    _HaventStartedSection(
+                      items: widget.haventStarted,
+                      startingShowId: widget.startingShowId,
+                      onStart: (String showId) {
+                        context.read<ShowsCubit>().startShow(showId: showId);
+                      },
+                      isDesktop: isDesktop,
+                    ),
 
-            _StaleWatchingSection(
-              items: widget.staleWatching,
-              hasError: widget.staleWatchingError != null,
-              onRetry: context.read<ShowsCubit>().retryStaleWatching,
-              isDesktop: isDesktop,
-            ),
-            const SizedBox(height: AppSpacing.section),
+                    const SizedBox(height: AppSpacing.section),
 
-            _WatchHistorySection(
-              items: widget.watchHistory,
-              hasLoaded: widget.hasLoadedWatchHistory,
-              hasMore: widget.hasMoreWatchHistory,
-              isLoading: widget.isLoadingWatchHistory,
-              isLoadingMore: widget.isLoadingMoreWatchHistory,
-              hasError: widget.watchHistoryError != null,
-              updatingEventId: widget.updatingWatchHistoryEventId,
-              onRewatch:
-                  ({required String eventId, required String episodeId}) {
-                    context.read<ShowsCubit>().rewatchWatchHistoryEpisode(
-                      eventId: eventId,
-                      episodeId: episodeId,
-                    );
-                  },
-              onMarkUnwatched:
-                  ({required String eventId, required String episodeId}) {
-                    context.read<ShowsCubit>().markWatchHistoryEpisodeUnwatched(
-                      eventId: eventId,
-                      episodeId: episodeId,
-                    );
-                  },
-              onRetryInitial: context.read<ShowsCubit>().retryWatchHistory,
-              onRetryMore: context.read<ShowsCubit>().loadMoreWatchHistory,
-              isDesktop: isDesktop,
+                    _StaleWatchingSection(
+                      items: widget.staleWatching,
+                      hasError: widget.staleWatchingError != null,
+                      onRetry: context.read<ShowsCubit>().retryStaleWatching,
+                      isDesktop: isDesktop,
+                    ),
+
+                    const SizedBox(height: AppSpacing.section),
+
+                    _WatchHistorySection(
+                      items: widget.watchHistory,
+                      hasLoaded: widget.hasLoadedWatchHistory,
+                      hasMore: widget.hasMoreWatchHistory,
+                      isLoading: widget.isLoadingWatchHistory,
+                      isLoadingMore: widget.isLoadingMoreWatchHistory,
+                      hasError: widget.watchHistoryError != null,
+                      updatingEventId: widget.updatingWatchHistoryEventId,
+                      onRewatch:
+                          ({
+                            required String eventId,
+                            required String episodeId,
+                          }) {
+                            context
+                                .read<ShowsCubit>()
+                                .rewatchWatchHistoryEpisode(
+                                  eventId: eventId,
+                                  episodeId: episodeId,
+                                );
+                          },
+                      onMarkUnwatched:
+                          ({
+                            required String eventId,
+                            required String episodeId,
+                          }) {
+                            context
+                                .read<ShowsCubit>()
+                                .markWatchHistoryEpisodeUnwatched(
+                                  eventId: eventId,
+                                  episodeId: episodeId,
+                                );
+                          },
+                      onRetryInitial: context
+                          .read<ShowsCubit>()
+                          .retryWatchHistory,
+                      onRetryMore: context
+                          .read<ShowsCubit>()
+                          .loadMoreWatchHistory,
+                      isDesktop: isDesktop,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         );
@@ -1883,30 +1917,35 @@ class _UpcomingTimelineState extends State<_UpcomingTimeline> {
        * This sliver exists before Today and therefore grows towards
        * negative scroll offsets.
        */
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.xl,
-            AppSpacing.lg,
-            AppSpacing.sm,
-          ),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate(<Widget>[
-              if (showEarlierStatus) ...<Widget>[
-                _UpcomingEarlierStatus(
-                  isLoading: widget.isLoadingEarlier,
-                  error: widget.earlierError,
-                  onRetry: widget.onRetryEarlier,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-              ],
-              ..._buildUpcomingEntryWidgets(
-                entries: pastEntries,
-                today: today,
-                updatingEpisodeId: widget.updatingEpisodeId,
-                onMarkWatched: widget.onMarkWatched,
+        SliverToBoxAdapter(
+          child: _UpcomingContentWidth(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.xl,
+                AppSpacing.lg,
+                AppSpacing.sm,
               ),
-            ]),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  if (showEarlierStatus) ...<Widget>[
+                    _UpcomingEarlierStatus(
+                      isLoading: widget.isLoadingEarlier,
+                      error: widget.earlierError,
+                      onRetry: widget.onRetryEarlier,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                  ..._buildUpcomingEntryWidgets(
+                    entries: pastEntries,
+                    today: today,
+                    updatingEpisodeId: widget.updatingEpisodeId,
+                    onMarkWatched: widget.onMarkWatched,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
 
@@ -1918,18 +1957,21 @@ class _UpcomingTimelineState extends State<_UpcomingTimeline> {
        */
         SliverToBoxAdapter(
           key: _todayCenterKey,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.sm,
-              AppSpacing.lg,
-              AppSpacing.sm,
-            ),
-            child: _UpcomingTodaySection(
-              items: todayItems,
-              today: today,
-              updatingEpisodeId: widget.updatingEpisodeId,
-              onMarkWatched: widget.onMarkWatched,
+          child: _UpcomingContentWidth(
+            contentKey: const ValueKey<String>('shows-upcoming-today-content'),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.sm,
+                AppSpacing.lg,
+                AppSpacing.sm,
+              ),
+              child: _UpcomingTodaySection(
+                items: todayItems,
+                today: today,
+                updatingEpisodeId: widget.updatingEpisodeId,
+                onMarkWatched: widget.onMarkWatched,
+              ),
             ),
           ),
         ),
@@ -1937,20 +1979,23 @@ class _UpcomingTimelineState extends State<_UpcomingTimeline> {
         /*
        * Tomorrow, the following seven days and Later.
        */
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.sm,
-            AppSpacing.lg,
-            AppSpacing.xl,
-          ),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate(
-              _buildUpcomingEntryWidgets(
-                entries: futureEntries,
-                today: today,
-                updatingEpisodeId: widget.updatingEpisodeId,
-                onMarkWatched: widget.onMarkWatched,
+        SliverToBoxAdapter(
+          child: _UpcomingContentWidth(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.sm,
+                AppSpacing.lg,
+                AppSpacing.xl,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: _buildUpcomingEntryWidgets(
+                  entries: futureEntries,
+                  today: today,
+                  updatingEpisodeId: widget.updatingEpisodeId,
+                  onMarkWatched: widget.onMarkWatched,
+                ),
               ),
             ),
           ),
@@ -2056,6 +2101,34 @@ final class _UpcomingEpisodeEntry extends _UpcomingTimelineEntry {
 }
 
 enum _UpcomingDateHeaderKind { past, today, tomorrow, future, later }
+
+class _UpcomingContentWidth extends StatelessWidget {
+  const _UpcomingContentWidth({required this.child, this.contentKey});
+
+  static const double maxWidth = 1040;
+
+  final Widget child;
+  final Key? contentKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDesktop =
+        MediaQuery.sizeOf(context).width >= AppBreakpoints.desktop;
+
+    if (!isDesktop) {
+      return child;
+    }
+
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        key: contentKey,
+        constraints: const BoxConstraints(maxWidth: maxWidth),
+        child: SizedBox(width: double.infinity, child: child),
+      ),
+    );
+  }
+}
 
 List<_UpcomingTimelineEntry> _buildUpcomingTimelineEntries({
   required List<UpcomingItem> items,

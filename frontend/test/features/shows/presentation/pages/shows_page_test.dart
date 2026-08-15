@@ -3521,6 +3521,100 @@ void main() {
 
       expect(tester.takeException(), isNull);
     });
+    testWidgets('constrains and centers Watch List on wide Desktop', (
+      WidgetTester tester,
+    ) async {
+      _setTestViewport(tester, size: const Size(1920, 1080));
+
+      final ShowsCubit cubit = ShowsCubit(
+        repository: _FakeShowsRepository(
+          shows: <LibraryShow>[_show],
+          watchNext: <WatchNextShow>[_watchNextShow],
+        ),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      final Finder content = find.byKey(
+        const ValueKey<String>('shows-watch-list-content'),
+      );
+
+      expect(content, findsOneWidget);
+
+      final Size contentSize = tester.getSize(content);
+
+      expect(
+        contentSize.width,
+        closeTo(1040, 0.5),
+        reason:
+            'Watch List should use the available Desktop width only up to its '
+            'maximum readable width.',
+      );
+
+      final Offset topLeft = tester.getTopLeft(content);
+
+      expect(
+        topLeft.dx,
+        closeTo((1920 - 1040) / 2, 1),
+        reason: 'Wide Desktop content should remain horizontally centered.',
+      );
+
+      expect(tester.takeException(), isNull);
+    });
+    testWidgets('constrains and centers Upcoming on wide Desktop', (
+      WidgetTester tester,
+    ) async {
+      _setTestViewport(tester, size: const Size(1920, 1080));
+
+      final ShowsCubit cubit = ShowsCubit(
+        repository: _FakeShowsRepository(
+          shows: <LibraryShow>[_show],
+          upcoming: <UpcomingItem>[
+            _makeUpcomingItem(
+              id: 'desktop-upcoming',
+              episodeNumber: 1,
+              airDate: DateTime(2026, 8, 15),
+            ),
+          ],
+        ),
+        now: () => DateTime(2026, 8, 15, 12),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder content = find.byKey(
+        const ValueKey<String>('shows-upcoming-today-content'),
+      );
+
+      expect(content, findsOneWidget);
+
+      expect(tester.getSize(content).width, closeTo(1040, 0.5));
+
+      expect(tester.getTopLeft(content).dx, closeTo((1920 - 1040) / 2, 1));
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-upcoming-desktop-upcoming')),
+        findsOneWidget,
+      );
+
+      expect(tester.takeException(), isNull);
+    });
   });
 }
 
