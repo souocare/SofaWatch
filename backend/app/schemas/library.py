@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator, Field
 
 from app.models.enums import LibraryStatus
 from app.schemas.show import ShowSummaryResponse
@@ -56,6 +56,20 @@ class LibraryFirstEpisodeResponse(BaseModel):
     air_date: date | None
     runtime: int | None
 
+
+class LibraryShowProgressResponse(BaseModel):
+    """Viewing progress across aired regular Episodes for a Library Show."""
+
+    watched_episodes: int = Field(ge=0)
+    aired_episodes: int = Field(ge=0)
+
+    percentage: float = Field(
+        ge=0,
+        le=100,
+    )
+
+    caught_up: bool
+
 class LibraryShowResponse(BaseModel):
     """TV series stored in the current user's library."""
 
@@ -75,6 +89,8 @@ class LibraryShowResponse(BaseModel):
     show: ShowSummaryResponse
 
     first_available_episode: LibraryFirstEpisodeResponse | None = None
+
+    progress: LibraryShowProgressResponse
 
 
 class LibraryStatusUpdate(BaseModel):

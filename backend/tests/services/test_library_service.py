@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 from datetime import UTC, datetime
 
 import pytest
+from app.repositories.episode_progress import EpisodeProgressRepository
 from sqlalchemy.orm import Session
 
 from app.models.enums import LibraryStatus
@@ -40,8 +41,12 @@ def library_service(
     show_repository: Mock,
     movie_repository: Mock,
     episode_repository: Mock,
+    episode_progress_repository: Mock,
 ) -> LibraryService:
     """Provide a library service using mocked repositories."""
+
+    episode_repository.get_aired_counts_by_show_ids.return_value = {}
+    episode_progress_repository.get_watched_aired_counts_by_show_ids.return_value = {}
 
     return LibraryService(
         session=db_session,
@@ -49,6 +54,7 @@ def library_service(
         show_repository=show_repository,
         movie_repository=movie_repository,
         episode_repository=episode_repository,
+        episode_progress_repository=episode_progress_repository,
     )
 
 @pytest.fixture
@@ -64,6 +70,12 @@ def episode_repository() -> Mock:
     """Provide a mocked Episode repository."""
 
     return Mock(spec=EpisodeRepository)
+
+@pytest.fixture
+def episode_progress_repository() -> Mock:
+    """Provide a mocked Episode progress repository."""
+
+    return Mock(spec=EpisodeProgressRepository)
 
 def make_show(
     *,
@@ -591,6 +603,7 @@ def test_add_movie_creates_library_entry(
     show_repository: Mock,
     movie_repository: Mock,
     episode_repository: Mock,
+    episode_progress_repository: Mock,
 ) -> None:
     """Create a new library entry for a locally stored Movie."""
 
@@ -635,6 +648,7 @@ def test_add_movie_creates_library_entry(
         show_repository=show_repository,
         movie_repository=movie_repository,
         episode_repository=episode_repository,
+        episode_progress_repository=episode_progress_repository,
     )
 
     result = service.add_movie(
@@ -656,6 +670,7 @@ def test_remove_movie_deletes_existing_entry(
     show_repository: Mock,
     movie_repository: Mock,
     episode_repository: Mock,
+    episode_progress_repository: Mock,
 ) -> None:
     """Remove a Movie library entry."""
 
@@ -676,6 +691,7 @@ def test_remove_movie_deletes_existing_entry(
         show_repository=show_repository,
         movie_repository=movie_repository,
         episode_repository=episode_repository,
+        episode_progress_repository=episode_progress_repository,
     )
 
     removed = service.remove_movie(
@@ -719,6 +735,7 @@ def test_update_movie_status_to_completed_sets_completed_at(
     show_repository: Mock,
     movie_repository: Mock,
     episode_repository: Mock,
+    episode_progress_repository: Mock,
 ) -> None:
     """Mark a Movie as completed and store when it was watched."""
 
@@ -769,6 +786,7 @@ def test_update_movie_status_to_completed_sets_completed_at(
         show_repository=show_repository,
         movie_repository=movie_repository,
         episode_repository=episode_repository,
+        episode_progress_repository=episode_progress_repository,
     )
 
     result = service.update_movie_status(
@@ -787,6 +805,7 @@ def test_update_movie_status_to_planning_clears_completed_at(
     show_repository: Mock,
     movie_repository: Mock,
     episode_repository: Mock,
+    episode_progress_repository: Mock,
 ) -> None:
     """Mark a completed Movie as not watched and clear completed_at."""
 
@@ -838,6 +857,7 @@ def test_update_movie_status_to_planning_clears_completed_at(
         show_repository=show_repository,
         movie_repository=movie_repository,
         episode_repository=episode_repository,
+        episode_progress_repository=episode_progress_repository,
     )
 
     result = service.update_movie_status(
@@ -856,6 +876,7 @@ def test_update_movie_status_keeps_existing_completed_at(
     show_repository: Mock,
     movie_repository: Mock,
     episode_repository: Mock,
+    episode_progress_repository: Mock,
 ) -> None:
     """Preserve the original completion date when Movie is already completed."""
 
@@ -907,6 +928,7 @@ def test_update_movie_status_keeps_existing_completed_at(
         show_repository=show_repository,
         movie_repository=movie_repository,
         episode_repository=episode_repository,
+        episode_progress_repository=episode_progress_repository,
     )
 
     result = service.update_movie_status(

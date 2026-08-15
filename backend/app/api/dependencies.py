@@ -373,6 +373,7 @@ def get_library_service(
         show_repository=ShowRepository(session),
         movie_repository=MovieRepository(session),
         episode_repository=EpisodeRepository(session),
+        episode_progress_repository=EpisodeProgressRepository(session),
     )
 
 

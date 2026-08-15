@@ -1,6 +1,8 @@
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/library_first_episode.dart';
+import 'package:sofawatch/features/shows/data/models/library_show_progress_dto.dart';
+import 'package:sofawatch/features/shows/domain/models/library_show_progress.dart';
 
 final class LibraryShowDto {
   const LibraryShowDto({
@@ -21,6 +23,7 @@ final class LibraryShowDto {
     this.startedAt,
     this.completedAt,
     this.firstAvailableEpisode,
+    required this.progress,
   });
 
   final String libraryEntryId;
@@ -48,6 +51,7 @@ final class LibraryShowDto {
   final DateTime createdAt;
   final DateTime updatedAt;
   final LibraryFirstEpisode? firstAvailableEpisode;
+  final LibraryShowProgress progress;
 
   factory LibraryShowDto.fromJson(Map<String, dynamic> json) {
     final Map<String, dynamic> show = _requiredMap(json, 'show');
@@ -56,6 +60,11 @@ final class LibraryShowDto {
       json['first_available_episode'],
     );
 
+    final Map<String, dynamic> progressJson = _requiredMap(json, 'progress');
+
+    final LibraryShowProgress progress = LibraryShowProgressDto.fromJson(
+      progressJson,
+    ).toDomain();
     return LibraryShowDto(
       libraryEntryId: _requiredString(json, 'id'),
       showId: _requiredString(show, 'id'),
@@ -73,6 +82,7 @@ final class LibraryShowDto {
       completedAt: _optionalDateTime(json['completed_at']),
       createdAt: _requiredDateTime(json, 'created_at'),
       updatedAt: _requiredDateTime(json, 'updated_at'),
+      progress: progress,
       firstAvailableEpisode: firstAvailableEpisodeJson == null
           ? null
           : LibraryFirstEpisode(
@@ -114,6 +124,7 @@ final class LibraryShowDto {
       createdAt: createdAt,
       updatedAt: updatedAt,
       firstAvailableEpisode: firstAvailableEpisode,
+      progress: progress,
     );
   }
 }

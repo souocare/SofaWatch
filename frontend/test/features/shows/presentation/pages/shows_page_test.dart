@@ -9,6 +9,7 @@ import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
+import 'package:sofawatch/features/shows/domain/models/library_show_progress.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
@@ -729,6 +730,7 @@ void main() {
         showId: 'show-planning',
         tmdbId: 1396,
         title: 'Breaking Bad',
+        progress: _emptyLibraryShowProgress,
         originalTitle: 'Breaking Bad',
         firstAirDate: DateTime(2008, 1, 20),
         posterUrl: null,
@@ -815,6 +817,7 @@ void main() {
           tmdbId: 1396,
           title: 'Breaking Bad',
           originalTitle: 'Breaking Bad',
+          progress: _emptyLibraryShowProgress,
           status: LibraryStatus.planning,
           showStatus: 'Ended',
           voteAverage: 8.9,
@@ -892,6 +895,7 @@ void main() {
         tmdbId: 1396,
         title: 'Breaking Bad',
         originalTitle: 'Breaking Bad',
+        progress: _emptyLibraryShowProgress,
         status: LibraryStatus.planning,
         showStatus: 'Ended',
         voteAverage: 8.9,
@@ -958,6 +962,7 @@ void main() {
         tmdbId: 1396,
         title: 'Breaking Bad',
         originalTitle: 'Breaking Bad',
+        progress: _emptyLibraryShowProgress,
         status: LibraryStatus.planning,
         showStatus: 'Ended',
         voteAverage: 8.9,
@@ -1050,6 +1055,7 @@ void main() {
         tmdbId: 1396,
         title: 'Breaking Bad',
         originalTitle: 'Breaking Bad',
+        progress: _emptyLibraryShowProgress,
         status: LibraryStatus.planning,
         showStatus: 'Ended',
         voteAverage: 8.9,
@@ -1063,6 +1069,7 @@ void main() {
         tmdbId: 66732,
         title: 'Stranger Things',
         originalTitle: 'Stranger Things',
+        progress: _emptyLibraryShowProgress,
         status: LibraryStatus.completed,
         showStatus: 'Ended',
         voteAverage: 8.6,
@@ -1116,6 +1123,7 @@ void main() {
         showId: 'show-planning',
         tmdbId: 1396,
         title: 'Breaking Bad',
+        progress: _emptyLibraryShowProgress,
         originalTitle: 'Breaking Bad',
         firstAirDate: DateTime(2008, 1, 20),
         posterUrl: null,
@@ -1560,6 +1568,7 @@ void main() {
           tmdbId: 1396,
           title: 'Breaking Bad',
           originalTitle: 'Breaking Bad',
+          progress: _emptyLibraryShowProgress,
           status: LibraryStatus.planning,
           showStatus: 'Ended',
           voteAverage: 8.9,
@@ -2583,6 +2592,75 @@ void main() {
         );
       },
     );
+
+    testWidgets('shows caught up Watching Show in Up to Date section', (
+      WidgetTester tester,
+    ) async {
+      final ShowsCubit cubit = ShowsCubit(
+        repository: _FakeShowsRepository(shows: <LibraryShow>[_upToDateShow]),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-up-to-date-section')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-up-to-date-66732')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-up-to-date-title-66732')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Stranger Things'), findsOneWidget);
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-up-to-date-label-66732')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-library-progress-66732')),
+        findsOneWidget,
+      );
+
+      final LinearProgressIndicator progress = tester
+          .widget<LinearProgressIndicator>(
+            find.byKey(const ValueKey<String>('shows-library-progress-66732')),
+          );
+
+      expect(progress.value, 1.0);
+    });
+    testWidgets('hides Up to Date section when no Show is caught up', (
+      WidgetTester tester,
+    ) async {
+      final ShowsCubit cubit = ShowsCubit(
+        repository: _FakeShowsRepository(shows: <LibraryShow>[_show]),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-up-to-date-section')),
+        findsNothing,
+      );
+    });
+
     testWidgets(
       'preserves Upcoming timeline and shows feedback when marking watched fails',
       (WidgetTester tester) async {
@@ -2717,6 +2795,7 @@ final LibraryShow _show = LibraryShow(
   libraryEntryId: 'library-entry-uuid',
   showId: 'show-uuid',
   tmdbId: 95396,
+  progress: _emptyLibraryShowProgress,
   title: 'Severance',
   originalTitle: 'Severance',
   firstAirDate: DateTime(2022, 2, 18),
@@ -2781,6 +2860,25 @@ WatchHistoryItem _watchHistoryItem({
     ),
   );
 }
+
+final LibraryShow _upToDateShow = LibraryShow(
+  libraryEntryId: 'library-up-to-date',
+  showId: 'show-up-to-date',
+  tmdbId: 66732,
+  title: 'Stranger Things',
+  originalTitle: 'Stranger Things',
+  status: LibraryStatus.watching,
+  showStatus: 'Returning Series',
+  voteAverage: 8.6,
+  createdAt: DateTime.utc(2026, 8, 1),
+  updatedAt: DateTime.utc(2026, 8, 15),
+  progress: const LibraryShowProgress(
+    watchedEpisodes: 34,
+    airedEpisodes: 34,
+    percentage: 100,
+    caughtUp: true,
+  ),
+);
 
 final StaleWatchingShow _staleWatchingShow = StaleWatchingShow(
   libraryEntryId: 'library-entry-stale',
@@ -2858,6 +2956,13 @@ UpcomingItem _makeUpcomingItem({
     ),
   );
 }
+
+const LibraryShowProgress _emptyLibraryShowProgress = LibraryShowProgress(
+  watchedEpisodes: 0,
+  airedEpisodes: 0,
+  percentage: 0,
+  caughtUp: false,
+);
 
 List<UpcomingItem> _currentUpcomingItems() {
   return List<UpcomingItem>.generate(40, (int index) {
@@ -3895,6 +4000,7 @@ final class _SuccessfulStartShowRepository implements ShowsRepository {
         showId: planningShow.showId,
         tmdbId: planningShow.tmdbId,
         title: planningShow.title,
+        progress: _emptyLibraryShowProgress,
         originalTitle: planningShow.originalTitle,
         firstAirDate: planningShow.firstAirDate,
         posterUrl: planningShow.posterUrl,

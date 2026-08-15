@@ -175,6 +175,17 @@ final class ShowsState extends Equatable {
 
   bool get isHaventStartedEmpty => haventStarted.isEmpty;
 
+  List<LibraryShow> get upToDate {
+    return libraryShows
+        .where(
+          (LibraryShow show) =>
+              show.status == LibraryStatus.watching && show.progress.caughtUp,
+        )
+        .toList(growable: false);
+  }
+
+  bool get isUpToDateEmpty => upToDate.isEmpty;
+
   ShowsState copyWith({
     List<LibraryShow>? libraryShows,
     List<WatchNextShow>? watchNext,

@@ -177,6 +177,7 @@ class _ShowsPageState extends State<ShowsPage>
                       _WatchListTab(
                         watchNext: state.watchNext,
                         watchNextError: state.watchNextError,
+                        upToDate: state.upToDate,
                         staleWatching: state.staleWatching,
                         staleWatchingError: state.staleWatchingError,
                         haventStarted: state.haventStarted,
@@ -264,6 +265,7 @@ class _WatchListTab extends StatefulWidget {
     required this.watchHistory,
     required this.hasLoadedWatchHistory,
     required this.hasMoreWatchHistory,
+    required this.upToDate,
     required this.isLoadingWatchHistory,
     required this.isLoadingMoreWatchHistory,
     required this.watchHistoryError,
@@ -280,6 +282,7 @@ class _WatchListTab extends StatefulWidget {
   final Object? staleWatchingError;
 
   final List<LibraryShow> haventStarted;
+  final List<LibraryShow> upToDate;
 
   final List<WatchHistoryItem> watchHistory;
   final bool hasLoadedWatchHistory;
@@ -382,7 +385,13 @@ class _WatchListTabState extends State<_WatchListTab> {
               },
               isDesktop: isDesktop,
             ),
+
             const SizedBox(height: AppSpacing.section),
+
+            if (widget.upToDate.isNotEmpty) ...<Widget>[
+              _UpToDateSection(items: widget.upToDate, isDesktop: isDesktop),
+              const SizedBox(height: AppSpacing.section),
+            ],
 
             _HaventStartedSection(
               items: widget.haventStarted,
@@ -2640,6 +2649,137 @@ class _HaventStartedEmpty extends StatelessWidget {
         style: Theme.of(
           context,
         ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+      ),
+    );
+  }
+}
+
+class _UpToDateSection extends StatelessWidget {
+  const _UpToDateSection({required this.items, required this.isDesktop});
+
+  final List<LibraryShow> items;
+  final bool isDesktop;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('shows-up-to-date-section'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'Up to Date',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'Shows where you have watched every episode released so far.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        ..._buildItems(),
+      ],
+    );
+  }
+
+  List<Widget> _buildItems() {
+    final List<Widget> widgets = <Widget>[];
+
+    for (int index = 0; index < items.length; index++) {
+      if (index > 0) {
+        widgets.add(const SizedBox(height: AppSpacing.md));
+      }
+
+      widgets.add(_UpToDateRow(show: items[index], isDesktop: isDesktop));
+    }
+
+    return widgets;
+  }
+}
+
+class _UpToDateRow extends StatelessWidget {
+  const _UpToDateRow({required this.show, required this.isDesktop});
+
+  final LibraryShow show;
+  final bool isDesktop;
+
+  @override
+  Widget build(BuildContext context) {
+    final double progressValue = show.progress.airedEpisodes > 0
+        ? show.progress.percentage / 100
+        : 0;
+
+    return Material(
+      key: ValueKey<String>('shows-up-to-date-${show.tmdbId}'),
+      color: AppColors.surfaceHigh,
+      borderRadius: AppRadius.borderLarge,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          context.pushNamed(
+            AppRoute.showDetails.name,
+            pathParameters: <String, String>{'showId': show.tmdbId.toString()},
+          );
+        },
+        child: Padding(
+          padding: AppSpacing.cardPadding,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              _WatchNextPoster(url: show.posterUrl, width: isDesktop ? 72 : 56),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      show.title,
+                      key: ValueKey<String>(
+                        'shows-up-to-date-title-${show.tmdbId}',
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Up to Date',
+                      key: ValueKey<String>(
+                        'shows-up-to-date-label-${show.tmdbId}',
+                      ),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    ClipRRect(
+                      borderRadius: AppRadius.borderSmall,
+                      child: LinearProgressIndicator(
+                        key: ValueKey<String>(
+                          'shows-library-progress-${show.tmdbId}',
+                        ),
+                        value: progressValue,
+                        minHeight: 4,
+                        backgroundColor: AppColors.surfaceLow,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textMuted,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -6,6 +6,7 @@ import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_state.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
+import 'package:sofawatch/features/shows/domain/models/library_show_progress.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_episode.dart';
@@ -1593,6 +1594,102 @@ void main() {
         await cubit.close();
       },
     );
+    test('upToDate returns only Watching Shows that are caught up', () {
+      final ShowsState state = ShowsState(
+        libraryShows: <LibraryShow>[
+          LibraryShow(
+            libraryEntryId: 'library-1',
+            showId: 'show-1',
+            tmdbId: 1,
+            title: 'Caught Up',
+            originalTitle: 'Caught Up',
+            status: LibraryStatus.watching,
+            showStatus: 'Returning Series',
+            voteAverage: 8,
+            createdAt: DateTime.utc(2026, 8, 1),
+            updatedAt: DateTime.utc(2026, 8, 10),
+            progress: const LibraryShowProgress(
+              watchedEpisodes: 10,
+              airedEpisodes: 10,
+              percentage: 100,
+              caughtUp: true,
+            ),
+          ),
+          LibraryShow(
+            libraryEntryId: 'library-2',
+            showId: 'show-2',
+            tmdbId: 2,
+            title: 'Behind',
+            originalTitle: 'Behind',
+            status: LibraryStatus.watching,
+            showStatus: 'Returning Series',
+            voteAverage: 8,
+            createdAt: DateTime.utc(2026, 8, 1),
+            updatedAt: DateTime.utc(2026, 8, 10),
+            progress: const LibraryShowProgress(
+              watchedEpisodes: 8,
+              airedEpisodes: 10,
+              percentage: 80,
+              caughtUp: false,
+            ),
+          ),
+          LibraryShow(
+            libraryEntryId: 'library-3',
+            showId: 'show-3',
+            tmdbId: 3,
+            title: 'Planning',
+            originalTitle: 'Planning',
+            status: LibraryStatus.planning,
+            showStatus: 'Returning Series',
+            voteAverage: 8,
+            createdAt: DateTime.utc(2026, 8, 1),
+            updatedAt: DateTime.utc(2026, 8, 10),
+            progress: const LibraryShowProgress(
+              watchedEpisodes: 10,
+              airedEpisodes: 10,
+              percentage: 100,
+              caughtUp: true,
+            ),
+          ),
+          LibraryShow(
+            libraryEntryId: 'library-4',
+            showId: 'show-4',
+            tmdbId: 4,
+            title: 'Completed',
+            originalTitle: 'Completed',
+            status: LibraryStatus.completed,
+            showStatus: 'Ended',
+            voteAverage: 8,
+            createdAt: DateTime.utc(2026, 8, 1),
+            updatedAt: DateTime.utc(2026, 8, 10),
+            progress: const LibraryShowProgress(
+              watchedEpisodes: 10,
+              airedEpisodes: 10,
+              percentage: 100,
+              caughtUp: true,
+            ),
+          ),
+        ],
+      );
+
+      expect(state.upToDate, hasLength(1));
+      expect(state.upToDate.single.title, 'Caught Up');
+      expect(state.isUpToDateEmpty, isFalse);
+    });
+    test('upToDate is empty when no Watching Show is caught up', () {
+      final ShowsState state = ShowsState(
+        libraryShows: <LibraryShow>[
+          _libraryShow(
+            tmdbId: 95396,
+            title: 'Severance',
+            status: LibraryStatus.watching,
+          ),
+        ],
+      );
+
+      expect(state.upToDate, isEmpty);
+      expect(state.isUpToDateEmpty, isTrue);
+    });
   });
 }
 
@@ -1605,6 +1702,12 @@ LibraryShow _libraryShow({
     libraryEntryId: 'library-$tmdbId',
     showId: 'show-$tmdbId',
     tmdbId: tmdbId,
+    progress: const LibraryShowProgress(
+      watchedEpisodes: 0,
+      airedEpisodes: 0,
+      percentage: 0,
+      caughtUp: false,
+    ),
     title: title,
     originalTitle: title,
     status: status,

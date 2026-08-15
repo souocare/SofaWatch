@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/domain/models/library_first_episode.dart';
+import 'package:sofawatch/features/shows/domain/models/library_show_progress.dart';
 
 final class LibraryShow extends Equatable {
   const LibraryShow({
@@ -21,6 +22,7 @@ final class LibraryShow extends Equatable {
     this.startedAt,
     this.completedAt,
     this.firstAvailableEpisode,
+    required this.progress,
   });
 
   final String libraryEntryId;
@@ -53,6 +55,7 @@ final class LibraryShow extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
   final LibraryFirstEpisode? firstAvailableEpisode;
+  final LibraryShowProgress progress;
 
   @override
   List<Object?> get props => <Object?>[
@@ -73,5 +76,6 @@ final class LibraryShow extends Equatable {
     createdAt,
     updatedAt,
     firstAvailableEpisode,
+    progress,
   ];
 }
