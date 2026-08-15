@@ -356,7 +356,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(
-        find.byKey(const ValueKey<String>('shows-watch-next-95396')),
+        find.byKey(const ValueKey<String>('shows-watch-next-title-95396')),
       );
 
       await tester.pumpAndSettle();
@@ -596,14 +596,14 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      final Finder staleCard = find.byKey(
-        const ValueKey<String>('shows-stale-watching-100088'),
+      final Finder staleTitle = find.byKey(
+        const ValueKey<String>('shows-stale-watching-title-100088'),
       );
 
-      await tester.ensureVisible(staleCard);
+      await tester.ensureVisible(staleTitle);
       await tester.pumpAndSettle();
 
-      await tester.tap(staleCard);
+      await tester.tap(staleTitle);
       await tester.pumpAndSettle();
 
       expect(
@@ -613,6 +613,51 @@ void main() {
 
       expect(find.text('Show 100088'), findsOneWidget);
     });
+    testWidgets(
+      'opens Episode Details from Watch Next without triggering Show Details',
+      (WidgetTester tester) async {
+        final ShowsCubit cubit = ShowsCubit(
+          repository: _FakeShowsRepository(
+            shows: <LibraryShow>[_show],
+            watchNext: <WatchNextShow>[_watchNextShow],
+          ),
+        );
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        final GoRouter router = _buildRouter(cubit: cubit);
+
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>(
+              'shows-watch-next-episode-details-episode-uuid',
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('fake-episode-details')),
+          findsOneWidget,
+        );
+
+        expect(find.text('Episode episode-uuid'), findsOneWidget);
+
+        expect(
+          find.byKey(const ValueKey<String>('fake-show-details')),
+          findsNothing,
+        );
+      },
+    );
     testWidgets('shows stale Watching failure without breaking Watch Next', (
       WidgetTester tester,
     ) async {
@@ -2978,6 +3023,315 @@ void main() {
         reason: 'Refresh must preserve the currently selected Shows tab.',
       );
     });
+    testWidgets(
+      'opens Episode Details from Watch Next without changing card navigation',
+      (WidgetTester tester) async {
+        final ShowsCubit cubit = ShowsCubit(
+          repository: _FakeShowsRepository(
+            shows: <LibraryShow>[_show],
+            watchNext: <WatchNextShow>[_watchNextShow],
+          ),
+        );
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        final GoRouter router = _buildRouter(cubit: cubit);
+
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>(
+              'shows-watch-next-episode-details-episode-uuid',
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('fake-episode-details')),
+          findsOneWidget,
+        );
+
+        expect(find.text('Episode episode-uuid'), findsOneWidget);
+
+        expect(
+          find.byKey(const ValueKey<String>('fake-show-details')),
+          findsNothing,
+          reason:
+              'Tapping the Episode target must not trigger the parent Show navigation.',
+        );
+      },
+    );
+    testWidgets(
+      'preserves Watch List scroll position and context after returning from Show Details',
+      (WidgetTester tester) async {
+        _setTestViewport(tester, size: const Size(800, 500));
+
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          shows: <LibraryShow>[_show],
+          watchNext: <WatchNextShow>[_watchNextShow],
+          staleWatching: <StaleWatchingShow>[_staleWatchingShow],
+        );
+
+        final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        final GoRouter router = _buildRouter(cubit: cubit);
+
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+
+        await tester.pumpAndSettle();
+
+        final Finder watchListFinder = find.byKey(
+          const ValueKey<String>('shows-watch-list'),
+        );
+
+        expect(watchListFinder, findsOneWidget);
+
+        final ListView watchList = tester.widget<ListView>(watchListFinder);
+
+        final ScrollController scrollController = watchList.controller!;
+
+        /*
+     * Move away from the initial Watch List position.
+     */
+        await tester.drag(watchListFinder, const Offset(0, -400));
+
+        await tester.pumpAndSettle();
+
+        final double offsetBeforeNavigation = scrollController.offset;
+
+        expect(
+          offsetBeforeNavigation,
+          greaterThan(0),
+          reason: 'The test must establish a non-zero Watch List position.',
+        );
+
+        /*
+     * Navigation itself is already tested separately.
+     *
+     * Here the purpose is specifically proving that pushing a Details
+     * route does not destroy the state of ShowsPage underneath it.
+     */
+        router.pushNamed(
+          AppRoute.showDetails.name,
+          pathParameters: <String, String>{'showId': _show.tmdbId.toString()},
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('fake-show-details')),
+          findsOneWidget,
+        );
+
+        router.pop();
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('shows-watch-list')),
+          findsOneWidget,
+        );
+
+        final ListView returnedWatchList = tester.widget<ListView>(
+          find.byKey(const ValueKey<String>('shows-watch-list')),
+        );
+
+        final ScrollController returnedScrollController =
+            returnedWatchList.controller!;
+
+        /*
+     * The StatefulWidget remained mounted, therefore its controller and
+     * scroll offset must still be the same.
+     */
+        expect(
+          returnedScrollController,
+          same(scrollController),
+          reason:
+              'Returning from Show Details must not recreate the Watch List '
+              'ScrollController.',
+        );
+
+        expect(
+          returnedScrollController.offset,
+          closeTo(offsetBeforeNavigation, 0.5),
+          reason:
+              'Returning from Show Details must preserve the Watch List '
+              'scroll position.',
+        );
+
+        final TabBar tabBar = tester.widget<TabBar>(
+          find.byKey(const ValueKey<String>('shows-tabs')),
+        );
+
+        expect(
+          tabBar.controller?.index,
+          0,
+          reason:
+              'Returning from Show Details must preserve the Watch List tab.',
+        );
+
+        /*
+     * Navigating away and back must not silently reload the page.
+     */
+      },
+    );
+    testWidgets(
+      'preserves Upcoming scroll position and context after returning from Episode Details',
+      (WidgetTester tester) async {
+        _setTestViewport(tester, size: const Size(800, 500));
+
+        final List<UpcomingItem> upcoming = List<UpcomingItem>.generate(18, (
+          int index,
+        ) {
+          return _makeUpcomingItem(
+            id: 'navigation-upcoming-$index',
+            episodeNumber: index + 1,
+            airDate: DateTime(2026, 8, 15).add(Duration(days: index)),
+          );
+        });
+
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          shows: <LibraryShow>[_show],
+          upcoming: upcoming,
+        );
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        final GoRouter router = _buildRouter(cubit: cubit);
+
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+        );
+
+        await tester.pumpAndSettle();
+
+        TabBar tabBar = tester.widget<TabBar>(
+          find.byKey(const ValueKey<String>('shows-tabs')),
+        );
+
+        expect(tabBar.controller?.index, 1);
+
+        final Finder timelineFinder = find.byKey(
+          const ValueKey<String>('shows-upcoming-timeline'),
+        );
+
+        expect(timelineFinder, findsOneWidget);
+
+        final CustomScrollView timeline = tester.widget<CustomScrollView>(
+          timelineFinder,
+        );
+
+        final ScrollController scrollController = timeline.controller!;
+
+        /*
+     * Scroll into the future so that position preservation can actually
+     * be observed.
+     */
+        await tester.drag(timelineFinder, const Offset(0, -450));
+
+        await tester.pumpAndSettle();
+
+        final double offsetBeforeNavigation = scrollController.offset;
+
+        expect(
+          offsetBeforeNavigation,
+          greaterThan(0),
+          reason:
+              'The test must establish a non-zero Upcoming timeline position.',
+        );
+
+        final UpcomingItem episode = upcoming.first;
+
+        router.pushNamed(
+          AppRoute.episodeDetails.name,
+          pathParameters: <String, String>{'episodeId': episode.episode.id},
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('fake-episode-details')),
+          findsOneWidget,
+        );
+
+        router.pop();
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('shows-upcoming-timeline')),
+          findsOneWidget,
+        );
+
+        tabBar = tester.widget<TabBar>(
+          find.byKey(const ValueKey<String>('shows-tabs')),
+        );
+
+        expect(
+          tabBar.controller?.index,
+          1,
+          reason:
+              'Returning from Episode Details must preserve the Upcoming tab.',
+        );
+
+        final CustomScrollView returnedTimeline = tester
+            .widget<CustomScrollView>(
+              find.byKey(const ValueKey<String>('shows-upcoming-timeline')),
+            );
+
+        final ScrollController returnedScrollController =
+            returnedTimeline.controller!;
+
+        expect(
+          returnedScrollController,
+          same(scrollController),
+          reason:
+              'Returning from Episode Details must not recreate the '
+              'Upcoming ScrollController.',
+        );
+
+        expect(
+          returnedScrollController.offset,
+          closeTo(offsetBeforeNavigation, 0.5),
+          reason:
+              'Returning from Episode Details must preserve the Upcoming '
+              'timeline position.',
+        );
+
+        /*
+     * Existing loaded Upcoming context also remains untouched.
+     */
+        expect(cubit.state.upcoming, upcoming);
+      },
+    );
   });
 }
 
@@ -3034,6 +3388,18 @@ GoRouter _buildRouter({required ShowsCubit cubit}) {
           return Scaffold(
             key: const ValueKey<String>('fake-show-details'),
             body: Center(child: Text('Show $showId')),
+          );
+        },
+      ),
+      GoRoute(
+        name: AppRoute.episodeDetails.name,
+        path: '/episodes/:episodeId',
+        builder: (BuildContext context, GoRouterState state) {
+          final String episodeId = state.pathParameters['episodeId']!;
+
+          return Scaffold(
+            key: const ValueKey<String>('fake-episode-details'),
+            body: Center(child: Text('Episode $episodeId')),
           );
         },
       ),

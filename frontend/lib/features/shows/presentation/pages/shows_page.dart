@@ -699,44 +699,85 @@ class _StaleWatchingInformation extends StatelessWidget {
             context,
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
+
         const SizedBox(height: AppSpacing.xs),
-        Text(
-          '${lastWatched.code} • ${_lastWatchedLabel(lastWatched.watchedAt)}',
-          key: ValueKey<String>('shows-stale-watching-last-${item.showTmdbId}'),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          lastWatched.title,
-          key: ValueKey<String>(
-            'shows-stale-watching-last-title-${lastWatched.id}',
+
+        /*
+       * Last watched episode.
+       */
+        _EpisodeDetailsLink(
+          episodeId: lastWatched.id,
+          linkKey: ValueKey<String>(
+            'shows-stale-watching-last-episode-details-${lastWatched.id}',
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodyMedium,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  '${lastWatched.code} • '
+                  '${_lastWatchedLabel(lastWatched.watchedAt)}',
+                  key: ValueKey<String>(
+                    'shows-stale-watching-last-${item.showTmdbId}',
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  lastWatched.title,
+                  key: ValueKey<String>(
+                    'shows-stale-watching-last-title-${lastWatched.id}',
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
         ),
+
         const SizedBox(height: AppSpacing.sm),
-        Text(
-          'Continue with ${nextEpisodeMetadata.join(' • ')}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          nextEpisode.title,
-          key: ValueKey<String>(
-            'shows-stale-watching-next-title-${nextEpisode.id}',
+
+        /*
+       * Next episode.
+       */
+        _EpisodeDetailsLink(
+          episodeId: nextEpisode.id,
+          linkKey: ValueKey<String>(
+            'shows-stale-watching-next-episode-details-${nextEpisode.id}',
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'Continue with ${nextEpisodeMetadata.join(' • ')}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  nextEpisode.title,
+                  key: ValueKey<String>(
+                    'shows-stale-watching-next-title-${nextEpisode.id}',
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );
@@ -1030,21 +1071,37 @@ class _WatchNextInformation extends StatelessWidget {
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: AppSpacing.xs),
-        Text(
-          episode.title,
-          key: ValueKey<String>('shows-watch-next-episode-title-${episode.id}'),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          metadata.join(' • '),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        _EpisodeDetailsLink(
+          episodeId: episode.id,
+          linkKey: ValueKey<String>(
+            'shows-watch-next-episode-details-${episode.id}',
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  episode.title,
+                  key: ValueKey<String>(
+                    'shows-watch-next-episode-title-${episode.id}',
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  metadata.join(' • '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Row(
@@ -1402,20 +1459,34 @@ class _WatchHistoryInformation extends StatelessWidget {
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: AppSpacing.xs),
-        Text(
-          episode.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          metadata.join(' • '),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        _EpisodeDetailsLink(
+          episodeId: episode.id,
+          linkKey: ValueKey<String>(
+            'shows-watch-history-episode-details-${episode.id}',
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  episode.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  metadata.join(' • '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
@@ -2247,29 +2318,40 @@ class _UpcomingEpisodeRow extends StatelessWidget {
     return Card(
       key: ValueKey<String>('shows-upcoming-${item.episode.id}'),
       margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            _WatchNextPoster(url: item.posterUrl, width: isDesktop ? 64 : 52),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: _UpcomingEpisodeInformation(
-                item: item,
-                today: today,
-                airDate: airDate,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          context.pushNamed(
+            AppRoute.showDetails.name,
+            pathParameters: <String, String>{
+              'showId': item.showTmdbId.toString(),
+            },
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              _WatchNextPoster(url: item.posterUrl, width: isDesktop ? 64 : 52),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: _UpcomingEpisodeInformation(
+                  item: item,
+                  today: today,
+                  airDate: airDate,
+                ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
+              const SizedBox(width: AppSpacing.sm),
 
-            _UpcomingMarkWatchedButton(
-              episodeId: item.episode.id,
-              canMarkWatched: canMarkWatched,
-              isUpdating: isUpdating,
-              onMarkWatched: onMarkWatched,
-            ),
-          ],
+              _UpcomingMarkWatchedButton(
+                episodeId: item.episode.id,
+                canMarkWatched: canMarkWatched,
+                isUpdating: isUpdating,
+                onMarkWatched: onMarkWatched,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2348,11 +2430,20 @@ class _UpcomingEpisodeInformation extends StatelessWidget {
           ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: AppSpacing.xs),
-        Text(
-          '${item.episode.code} · ${item.episode.title}',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodyMedium,
+        _EpisodeDetailsLink(
+          episodeId: item.episode.id,
+          linkKey: ValueKey<String>(
+            'shows-upcoming-episode-details-${item.episode.id}',
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            child: Text(
+              '${item.episode.code} · ${item.episode.title}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
@@ -2722,31 +2813,45 @@ class _HaventStartedInformation extends StatelessWidget {
           ),
         ],
         const SizedBox(height: AppSpacing.xs),
-        if (firstEpisode != null) ...<Widget>[
-          Text(
-            episodeMetadata.join(' • '),
-            key: ValueKey<String>(
-              'shows-havent-started-episode-code-${show.tmdbId}',
+        if (firstEpisode != null)
+          _EpisodeDetailsLink(
+            episodeId: firstEpisode.id,
+            linkKey: ValueKey<String>(
+              'shows-havent-started-episode-details-${firstEpisode.id}',
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            firstEpisode.title,
-            key: ValueKey<String>(
-              'shows-havent-started-episode-title-${show.tmdbId}',
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    episodeMetadata.join(' • '),
+                    key: ValueKey<String>(
+                      'shows-havent-started-episode-code-${show.tmdbId}',
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    firstEpisode.title,
+                    key: ValueKey<String>(
+                      'shows-havent-started-episode-title-${show.tmdbId}',
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-          ),
-        ] else
+          )
+        else
           Text(
             'No episode available yet',
             key: ValueKey<String>(
@@ -2905,6 +3010,37 @@ class _UpToDateRow extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _EpisodeDetailsLink extends StatelessWidget {
+  const _EpisodeDetailsLink({
+    required this.episodeId,
+    required this.linkKey,
+    required this.child,
+  });
+
+  final String episodeId;
+  final Key linkKey;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Open episode details',
+      child: InkWell(
+        key: linkKey,
+        borderRadius: AppRadius.borderSmall,
+        onTap: () {
+          context.pushNamed(
+            AppRoute.episodeDetails.name,
+            pathParameters: <String, String>{'episodeId': episodeId},
+          );
+        },
+        child: child,
       ),
     );
   }
