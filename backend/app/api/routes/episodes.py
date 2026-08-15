@@ -16,6 +16,7 @@ from app.schemas.episode_progress import (
     EpisodeProgressResponse,
     EpisodeWatchedRequest,
 )
+from app.services.episode_progress import EpisodeNotWatchableError
 
 router = APIRouter(
     prefix="/episodes",
@@ -73,11 +74,18 @@ def mark_episode_watched(
 ) -> EpisodeProgressResponse:
     """Mark an episode as watched for the current user."""
 
-    progress = service.mark_watched(
-        user_id=current_user.id,
-        episode_id=episode_id,
-        watched_at=payload.watched_at,
-    )
+    try:
+        progress = service.mark_watched(
+            user_id=current_user.id,
+            episode_id=episode_id,
+            watched_at=payload.watched_at,
+        )
+    except EpisodeNotWatchableError as error:
+        raise APIError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="episode_cannot_be_watched",
+            message="TV episode cannot be marked as watched yet.",
+        ) from error
 
     if progress is None:
         raise APIError(

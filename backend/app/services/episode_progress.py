@@ -1,25 +1,30 @@
-from datetime import UTC, datetime, date
+from collections.abc import Callable
+from datetime import UTC, date, datetime
 from uuid import UUID
-
 
 from sqlalchemy.orm import Session
 
 from app.models.episode_progress import EpisodeProgress
+from app.models.episode_watch_event import EpisodeWatchEvent
 from app.repositories.episode import EpisodeRepository
 from app.repositories.episode_progress import EpisodeProgressRepository
+from app.repositories.episode_watch_event import EpisodeWatchEventRepository
 from app.repositories.season import SeasonRepository
 from app.repositories.show import ShowRepository
+from app.schemas.episode_progress import (
+    EpisodeProgressWithWatchCountResponse,
+)
 from app.schemas.progress import (
     NextEpisodeResponse,
     NextUpcomingEpisodeResponse,
     SeasonProgressResponse,
     ShowProgressResponse,
 )
-from app.models.episode_watch_event import EpisodeWatchEvent
-from app.repositories.episode_watch_event import EpisodeWatchEventRepository
-from app.schemas.episode_progress import (
-    EpisodeProgressWithWatchCountResponse,
-)
+
+
+class EpisodeNotWatchableError(Exception):
+    """Raised when an Episode cannot yet be marked as watched."""
+
 
 class EpisodeProgressService:
     """Business logic for episode viewing progress."""
@@ -33,6 +38,7 @@ class EpisodeProgressService:
         season_repository: SeasonRepository,
         show_repository: ShowRepository,
         watch_event_repository: EpisodeWatchEventRepository,
+        today: Callable[[], date] | None = None,
     ) -> None:
         self._session = session
         self._progress_repository = progress_repository
@@ -40,6 +46,7 @@ class EpisodeProgressService:
         self._season_repository = season_repository
         self._show_repository = show_repository
         self._watch_event_repository = watch_event_repository
+        self._today = today or date.today
 
     def mark_watched(
         self,
@@ -48,7 +55,14 @@ class EpisodeProgressService:
         episode_id: UUID,
         watched_at: datetime | None = None,
     ) -> EpisodeProgress | None:
-        """Record an Episode watch and update its current progress."""
+        """Record an Episode watch and update its current progress.
+
+        An Episode can only be marked as watched when its air date is known
+        and is not later than Today.
+
+        Because the current provider data does not include a reliable air time,
+        an Episode dated Today is considered available to watch.
+        """
 
         episode = self._episode_repository.get_by_id(
             episode_id,
@@ -56,6 +70,13 @@ class EpisodeProgressService:
 
         if episode is None:
             return None
+
+        air_date = episode.air_date
+
+        if air_date is None or air_date > self._today():
+            raise EpisodeNotWatchableError(
+                "Episode has not aired yet.",
+            )
 
         if watched_at is not None and watched_at.tzinfo is None:
             watched_at = watched_at.replace(
@@ -77,8 +98,9 @@ class EpisodeProgressService:
                 watched_at=viewed_at,
             )
 
-            self._progress_repository.add(progress)
-
+            self._progress_repository.add(
+                progress,
+            )
         else:
             progress.is_watched = True
             progress.watched_at = viewed_at
@@ -93,7 +115,6 @@ class EpisodeProgressService:
             watch_event,
         )
 
-        
         # One transaction deliberately persists both:
         # - the current Episode progress;
         # - the historical watch event.
@@ -134,7 +155,9 @@ class EpisodeProgressService:
                 watched_at=None,
             )
 
-            self._progress_repository.add(progress)
+            self._progress_repository.add(
+                progress,
+            )
         else:
             progress.is_watched = False
             progress.watched_at = None
@@ -159,7 +182,7 @@ class EpisodeProgressService:
         if season is None:
             return None
 
-        today = date.today()
+        today = self._today()
 
         total_episodes = self._episode_repository.count_by_season_id(
             season_id,
@@ -175,19 +198,30 @@ class EpisodeProgressService:
             as_of=today,
         )
 
-        watched_aired_episodes = self._progress_repository.count_watched_aired_for_season(
-            user_id=user_id,
-            season_id=season_id,
-            as_of=today,
+        watched_aired_episodes = (
+            self._progress_repository.count_watched_aired_for_season(
+                user_id=user_id,
+                season_id=season_id,
+                as_of=today,
+            )
         )
 
-        progress_percentage = watched_episodes / total_episodes * 100 if total_episodes > 0 else 0.0
+        progress_percentage = (
+            watched_episodes / total_episodes * 100
+            if total_episodes > 0
+            else 0.0
+        )
 
         aired_progress_percentage = (
-            watched_aired_episodes / aired_episodes * 100 if aired_episodes > 0 else 0.0
+            watched_aired_episodes / aired_episodes * 100
+            if aired_episodes > 0
+            else 0.0
         )
 
-        caught_up = aired_episodes > 0 and watched_aired_episodes == aired_episodes
+        caught_up = (
+            aired_episodes > 0
+            and watched_aired_episodes == aired_episodes
+        )
 
         return SeasonProgressResponse(
             season_id=season_id,
@@ -284,17 +318,19 @@ class EpisodeProgressService:
         if not seasons:
             return []
 
-        today = date.today()
+        today = self._today()
 
         episode_counts = self._episode_repository.get_counts_by_show_id(
             show_id,
             as_of=today,
         )
 
-        watched_counts = self._progress_repository.get_watched_counts_by_show_id(
-            user_id=user_id,
-            show_id=show_id,
-            as_of=today,
+        watched_counts = (
+            self._progress_repository.get_watched_counts_by_show_id(
+                user_id=user_id,
+                show_id=show_id,
+                as_of=today,
+            )
         )
 
         results: list[SeasonProgressResponse] = []
@@ -357,7 +393,7 @@ class EpisodeProgressService:
         if show is None:
             return None
 
-        today = date.today()
+        today = self._today()
 
         total_episodes = self._episode_repository.count_regular_by_show_id(
             show_id,
@@ -373,19 +409,30 @@ class EpisodeProgressService:
             as_of=today,
         )
 
-        watched_aired_episodes = self._progress_repository.count_watched_aired_for_show(
-            user_id=user_id,
-            show_id=show_id,
-            as_of=today,
+        watched_aired_episodes = (
+            self._progress_repository.count_watched_aired_for_show(
+                user_id=user_id,
+                show_id=show_id,
+                as_of=today,
+            )
         )
 
-        progress_percentage = watched_episodes / total_episodes * 100 if total_episodes > 0 else 0.0
+        progress_percentage = (
+            watched_episodes / total_episodes * 100
+            if total_episodes > 0
+            else 0.0
+        )
 
         aired_progress_percentage = (
-            watched_aired_episodes / aired_episodes * 100 if aired_episodes > 0 else 0.0
+            watched_aired_episodes / aired_episodes * 100
+            if aired_episodes > 0
+            else 0.0
         )
 
-        caught_up = aired_episodes > 0 and watched_aired_episodes == aired_episodes
+        caught_up = (
+            aired_episodes > 0
+            and watched_aired_episodes == aired_episodes
+        )
 
         return ShowProgressResponse(
             show_id=show_id,
@@ -419,7 +466,7 @@ class EpisodeProgressService:
         episode = self._progress_repository.get_next_unwatched_for_show(
             user_id=user_id,
             show_id=show_id,
-            as_of=date.today(),
+            as_of=self._today(),
         )
 
         return NextEpisodeResponse(
@@ -443,7 +490,7 @@ class EpisodeProgressService:
 
         episode = self._progress_repository.get_next_upcoming_for_show(
             show_id=show_id,
-            after=date.today(),
+            after=self._today(),
         )
 
         return NextUpcomingEpisodeResponse(

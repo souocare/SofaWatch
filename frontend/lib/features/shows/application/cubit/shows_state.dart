@@ -38,6 +38,8 @@ final class ShowsState extends Equatable {
     this.upcomingError,
     this.earlierUpcomingError,
     this.upcomingReferenceDate,
+    this.updatingUpcomingEpisodeId,
+    this.upcomingOperationError,
   });
 
   final List<LibraryShow> libraryShows;
@@ -66,6 +68,14 @@ final class ShowsState extends Equatable {
   /// Episode currently being marked as watched from the Watch Next section.
   final String? updatingWatchNextEpisodeId;
   final AppException? earlierUpcomingError;
+
+  /// Episode currently being marked as watched from Upcoming.
+  final String? updatingUpcomingEpisodeId;
+
+  /// Failure while changing Episode progress from Upcoming.
+  ///
+  /// Existing Upcoming data must remain visible when the operation fails.
+  final AppException? upcomingOperationError;
 
   /// Failure while changing Episode progress from Watch Next.
   ///
@@ -130,6 +140,10 @@ final class ShowsState extends Equatable {
         upcomingFromDate != null &&
         !isLoadingUpcoming &&
         !isLoadingEarlierUpcoming;
+  }
+
+  bool isUpcomingEpisodeUpdating(String episodeId) {
+    return updatingUpcomingEpisodeId == episodeId;
   }
 
   bool get hasFatalError => error != null;
@@ -207,6 +221,10 @@ final class ShowsState extends Equatable {
     bool clearUpcomingError = false,
     AppException? earlierUpcomingError,
     bool clearEarlierUpcomingError = false,
+    String? updatingUpcomingEpisodeId,
+    bool clearUpdatingUpcomingEpisodeId = false,
+    AppException? upcomingOperationError,
+    bool clearUpcomingOperationError = false,
 
     DateTime? upcomingReferenceDate,
     bool clearUpcomingReferenceDate = false,
@@ -246,6 +264,14 @@ final class ShowsState extends Equatable {
       upcomingToDate: clearUpcomingToDate
           ? null
           : upcomingToDate ?? this.upcomingToDate,
+
+      updatingUpcomingEpisodeId: clearUpdatingUpcomingEpisodeId
+          ? null
+          : updatingUpcomingEpisodeId ?? this.updatingUpcomingEpisodeId,
+
+      upcomingOperationError: clearUpcomingOperationError
+          ? null
+          : upcomingOperationError ?? this.upcomingOperationError,
 
       isLoadingUpcoming: isLoadingUpcoming ?? this.isLoadingUpcoming,
 
@@ -337,5 +363,7 @@ final class ShowsState extends Equatable {
     upcomingError,
     earlierUpcomingError,
     upcomingReferenceDate,
+    updatingUpcomingEpisodeId,
+    upcomingOperationError,
   ];
 }

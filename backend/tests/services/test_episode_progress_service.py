@@ -17,9 +17,10 @@ from app.repositories.episode import EpisodeRepository
 from app.repositories.episode_progress import EpisodeProgressRepository
 from app.repositories.season import SeasonRepository
 from app.repositories.show import ShowRepository
-from app.services.episode_progress import EpisodeProgressService
+from app.services.episode_progress import EpisodeNotWatchableError, EpisodeProgressService
 from app.models.episode_watch_event import EpisodeWatchEvent
 
+FIXED_TODAY = date(2026, 8, 15)
 
 def as_utc(
     value: datetime,
@@ -148,6 +149,7 @@ def progress_service(
         season_repository=season_repository,
         show_repository=show_repository,
         watch_event_repository=watch_event_repository,
+        today=lambda: date(2026, 8, 15),
     )
 
 @pytest.fixture
@@ -200,6 +202,9 @@ def test_mark_watched_creates_progress(
         season=season,
     )
 
+    episode.air_date = date(2026, 8, 1)
+    db_session.flush()
+
     episode_repository.get_by_id.return_value = episode
     progress_repository.get_by_user_and_episode.return_value = None
 
@@ -245,6 +250,9 @@ def test_mark_watched_uses_explicit_watched_at(
         db_session,
         season=season,
     )
+
+    episode.air_date = date(2026, 8, 1)
+    db_session.flush()
 
     episode_repository.get_by_id.return_value = episode
     progress_repository.get_by_user_and_episode.return_value = None
@@ -295,6 +303,9 @@ def test_mark_watched_normalizes_naive_watched_at_to_utc(
         db_session,
         season=season,
     )
+
+    episode.air_date = date(2026, 8, 1)
+    db_session.flush()
 
     episode_repository.get_by_id.return_value = episode
     progress_repository.get_by_user_and_episode.return_value = None
@@ -353,6 +364,9 @@ def test_mark_watched_updates_existing_unwatched_progress(
         season=season,
     )
 
+    episode.air_date = date(2026, 8, 1)
+    db_session.flush()
+
     episode_repository.get_by_id.return_value = episode
 
     progress = EpisodeProgress(
@@ -400,6 +414,9 @@ def test_mark_watched_updates_existing_watched_at(
         db_session,
         season=season,
     )
+
+    episode.air_date = date(2026, 8, 1)
+    db_session.flush()
 
     episode_repository.get_by_id.return_value = episode
 
@@ -1532,6 +1549,9 @@ def test_mark_watched_records_every_watch_event_for_rewatch(
         season=season,
     )
 
+    episode.air_date = date(2026, 8, 1)
+    db_session.flush()
+
     episode_repository.get_by_id.return_value = episode
     progress_repository.get_by_user_and_episode.return_value = None
 
@@ -1623,3 +1643,134 @@ def test_mark_watched_records_every_watch_event_for_rewatch(
     assert events[1].user_id == user.id
     assert events[1].episode_id == episode.id
     assert as_utc(events[1].watched_at) == second_watched_at
+
+def test_mark_watched_rejects_future_episode(
+    db_session: Session,
+    progress_service: EpisodeProgressService,
+    progress_repository: Mock,
+    episode_repository: Mock,
+    watch_event_repository: Mock,
+) -> None:
+    """Do not allow an Episode to be watched before its air date."""
+
+    show = persist_show(db_session)
+
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+
+    episode.air_date = date(2026, 8, 16)
+
+    episode_repository.get_by_id.return_value = episode
+
+    with pytest.raises(
+        EpisodeNotWatchableError,
+        match="Episode has not aired yet",
+    ):
+        progress_service.mark_watched(
+            user_id=uuid4(),
+            episode_id=episode.id,
+        )
+
+    progress_repository.get_by_user_and_episode.assert_not_called()
+    progress_repository.add.assert_not_called()
+    watch_event_repository.add.assert_not_called()
+
+def test_mark_watched_rejects_episode_without_air_date(
+    db_session: Session,
+    progress_service: EpisodeProgressService,
+    progress_repository: Mock,
+    episode_repository: Mock,
+    watch_event_repository: Mock,
+) -> None:
+    """Do not infer that an Episode has aired when its air date is unknown."""
+
+    show = persist_show(db_session)
+
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+
+    episode.air_date = None
+
+    episode_repository.get_by_id.return_value = episode
+
+    with pytest.raises(
+        EpisodeNotWatchableError,
+        match="Episode has not aired yet",
+    ):
+        progress_service.mark_watched(
+            user_id=uuid4(),
+            episode_id=episode.id,
+        )
+
+    progress_repository.get_by_user_and_episode.assert_not_called()
+    progress_repository.add.assert_not_called()
+    watch_event_repository.add.assert_not_called()
+
+def test_mark_watched_allows_episode_airing_today(
+    db_session: Session,
+    progress_service: EpisodeProgressService,
+    progress_repository: Mock,
+    episode_repository: Mock,
+    watch_event_repository: Mock,
+) -> None:
+    """Allow an Episode dated Today because no air time is known."""
+
+    user = persist_user(db_session)
+
+    show = persist_show(db_session)
+
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+
+    episode.air_date = date(2026, 8, 15)
+
+    episode_repository.get_by_id.return_value = episode
+    progress_repository.get_by_user_and_episode.return_value = None
+
+    def add_progress(progress: EpisodeProgress) -> EpisodeProgress:
+        db_session.add(progress)
+
+        return progress
+
+    def add_watch_event(
+        event: EpisodeWatchEvent,
+    ) -> EpisodeWatchEvent:
+        db_session.add(event)
+
+        return event
+
+    progress_repository.add.side_effect = add_progress
+    watch_event_repository.add.side_effect = add_watch_event
+
+    result = progress_service.mark_watched(
+        user_id=user.id,
+        episode_id=episode.id,
+    )
+
+    assert result is not None
+    assert result.is_watched is True
+
+    progress_repository.add.assert_called_once()
+    watch_event_repository.add.assert_called_once()
+

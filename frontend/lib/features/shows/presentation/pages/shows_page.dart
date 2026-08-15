@@ -69,11 +69,35 @@ class _ShowsPageState extends State<ShowsPage>
                       previous.startShowError != current.startShowError &&
                       current.startShowError != null;
 
+                  final bool upcomingFailed =
+                      previous.upcomingOperationError !=
+                          current.upcomingOperationError &&
+                      current.upcomingOperationError != null;
+
                   return watchNextFailed ||
                       watchHistoryFailed ||
-                      startShowFailed;
+                      startShowFailed ||
+                      upcomingFailed;
                 },
                 listener: (BuildContext context, ShowsState state) {
+                  final AppException? upcomingOperationError =
+                      state.upcomingOperationError;
+
+                  if (upcomingOperationError != null) {
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            upcomingOperationError.isTimeout
+                                ? 'Marking the episode as watched took too long.'
+                                : 'Could not mark this episode as watched.',
+                          ),
+                        ),
+                      );
+
+                    return;
+                  }
                   final AppException? startShowError = state.startShowError;
 
                   if (startShowError != null) {
@@ -1447,7 +1471,10 @@ class _UpcomingTab extends StatelessWidget {
             previous.isLoadingEarlierUpcoming !=
                 current.isLoadingEarlierUpcoming ||
             previous.upcomingError != current.upcomingError ||
-            previous.earlierUpcomingError != current.earlierUpcomingError;
+            previous.earlierUpcomingError != current.earlierUpcomingError ||
+            previous.updatingUpcomingEpisodeId !=
+                current.updatingUpcomingEpisodeId ||
+            previous.upcomingOperationError != current.upcomingOperationError;
       },
       builder: (BuildContext context, ShowsState state) {
         if (state.isLoadingUpcoming && state.upcoming.isEmpty) {
@@ -1503,8 +1530,10 @@ class _UpcomingTab extends StatelessWidget {
           today: referenceDate,
           isLoadingEarlier: state.isLoadingEarlierUpcoming,
           earlierError: state.earlierUpcomingError,
+          updatingEpisodeId: state.updatingUpcomingEpisodeId,
           onLoadEarlier: context.read<ShowsCubit>().loadEarlierUpcoming,
           onRetryEarlier: context.read<ShowsCubit>().retryEarlierUpcoming,
+          onMarkWatched: context.read<ShowsCubit>().markUpcomingEpisodeWatched,
         );
       },
     );
@@ -1517,8 +1546,10 @@ class _UpcomingTimeline extends StatefulWidget {
     required this.today,
     required this.isLoadingEarlier,
     required this.earlierError,
+    required this.updatingEpisodeId,
     required this.onLoadEarlier,
     required this.onRetryEarlier,
+    required this.onMarkWatched,
   });
 
   final List<UpcomingItem> items;
@@ -1529,6 +1560,10 @@ class _UpcomingTimeline extends StatefulWidget {
 
   final Future<void> Function() onLoadEarlier;
   final Future<void> Function() onRetryEarlier;
+
+  final String? updatingEpisodeId;
+
+  final Future<void> Function({required String episodeId}) onMarkWatched;
 
   @override
   State<_UpcomingTimeline> createState() {
@@ -1660,7 +1695,12 @@ class _UpcomingTimelineState extends State<_UpcomingTimeline> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
               ],
-              ..._buildUpcomingEntryWidgets(entries: pastEntries, today: today),
+              ..._buildUpcomingEntryWidgets(
+                entries: pastEntries,
+                today: today,
+                updatingEpisodeId: widget.updatingEpisodeId,
+                onMarkWatched: widget.onMarkWatched,
+              ),
             ]),
           ),
         ),
@@ -1680,7 +1720,12 @@ class _UpcomingTimelineState extends State<_UpcomingTimeline> {
               AppSpacing.lg,
               AppSpacing.sm,
             ),
-            child: _UpcomingTodaySection(items: todayItems, today: today),
+            child: _UpcomingTodaySection(
+              items: todayItems,
+              today: today,
+              updatingEpisodeId: widget.updatingEpisodeId,
+              onMarkWatched: widget.onMarkWatched,
+            ),
           ),
         ),
 
@@ -1696,7 +1741,12 @@ class _UpcomingTimelineState extends State<_UpcomingTimeline> {
           ),
           sliver: SliverList(
             delegate: SliverChildListDelegate(
-              _buildUpcomingEntryWidgets(entries: futureEntries, today: today),
+              _buildUpcomingEntryWidgets(
+                entries: futureEntries,
+                today: today,
+                updatingEpisodeId: widget.updatingEpisodeId,
+                onMarkWatched: widget.onMarkWatched,
+              ),
             ),
           ),
         ),
@@ -1707,6 +1757,8 @@ class _UpcomingTimelineState extends State<_UpcomingTimeline> {
   List<Widget> _buildUpcomingEntryWidgets({
     required List<_UpcomingTimelineEntry> entries,
     required DateTime today,
+    required String? updatingEpisodeId,
+    required Future<void> Function({required String episodeId}) onMarkWatched,
   }) {
     final List<Widget> widgets = <Widget>[];
 
@@ -1723,6 +1775,8 @@ class _UpcomingTimelineState extends State<_UpcomingTimeline> {
         _UpcomingEpisodeEntry(:final item) => _UpcomingEpisodeRow(
           item: item,
           today: today,
+          isUpdating: updatingEpisodeId == item.episode.id,
+          onMarkWatched: onMarkWatched,
         ),
       });
     }
@@ -1736,10 +1790,18 @@ sealed class _UpcomingTimelineEntry {
 }
 
 class _UpcomingTodaySection extends StatelessWidget {
-  const _UpcomingTodaySection({required this.items, required this.today});
+  const _UpcomingTodaySection({
+    required this.items,
+    required this.today,
+    required this.updatingEpisodeId,
+    required this.onMarkWatched,
+  });
 
   final List<UpcomingItem> items;
   final DateTime today;
+  final String? updatingEpisodeId;
+
+  final Future<void> Function({required String episodeId}) onMarkWatched;
 
   @override
   Widget build(BuildContext context) {
@@ -1763,7 +1825,12 @@ class _UpcomingTodaySection extends StatelessWidget {
         ] else
           for (final UpcomingItem item in items) ...<Widget>[
             const SizedBox(height: AppSpacing.sm),
-            _UpcomingEpisodeRow(item: item, today: today),
+            _UpcomingEpisodeRow(
+              item: item,
+              today: today,
+              isUpdating: updatingEpisodeId == item.episode.id,
+              onMarkWatched: onMarkWatched,
+            ),
           ],
       ],
     );
@@ -2021,10 +2088,18 @@ class _UpcomingDateHeader extends StatelessWidget {
 }
 
 class _UpcomingEpisodeRow extends StatelessWidget {
-  const _UpcomingEpisodeRow({required this.item, required this.today});
+  const _UpcomingEpisodeRow({
+    required this.item,
+    required this.today,
+    required this.isUpdating,
+    required this.onMarkWatched,
+  });
 
   final UpcomingItem item;
   final DateTime today;
+  final bool isUpdating;
+
+  final Future<void> Function({required String episodeId}) onMarkWatched;
 
   @override
   Widget build(BuildContext context) {
@@ -2032,6 +2107,8 @@ class _UpcomingEpisodeRow extends StatelessWidget {
         MediaQuery.sizeOf(context).width >= AppBreakpoints.desktop;
 
     final DateTime airDate = _dateOnly(item.episode.airDate);
+
+    final bool canMarkWatched = !airDate.isAfter(today);
 
     return Card(
       key: ValueKey<String>('shows-upcoming-${item.episode.id}'),
@@ -2050,8 +2127,58 @@ class _UpcomingEpisodeRow extends StatelessWidget {
                 airDate: airDate,
               ),
             ),
+            const SizedBox(width: AppSpacing.sm),
+
+            _UpcomingMarkWatchedButton(
+              episodeId: item.episode.id,
+              canMarkWatched: canMarkWatched,
+              isUpdating: isUpdating,
+              onMarkWatched: onMarkWatched,
+            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _UpcomingMarkWatchedButton extends StatelessWidget {
+  const _UpcomingMarkWatchedButton({
+    required this.episodeId,
+    required this.canMarkWatched,
+    required this.isUpdating,
+    required this.onMarkWatched,
+  });
+
+  final String episodeId;
+  final bool canMarkWatched;
+  final bool isUpdating;
+
+  final Future<void> Function({required String episodeId}) onMarkWatched;
+
+  @override
+  Widget build(BuildContext context) {
+    final String tooltip = canMarkWatched
+        ? 'Mark episode as watched'
+        : 'This episode has not aired yet';
+
+    return Tooltip(
+      message: tooltip,
+      child: IconButton(
+        key: ValueKey<String>('shows-upcoming-mark-watched-$episodeId'),
+        tooltip: tooltip,
+        onPressed: !canMarkWatched || isUpdating
+            ? null
+            : () {
+                onMarkWatched(episodeId: episodeId);
+              },
+        icon: isUpdating
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.check_circle_outline_rounded),
       ),
     );
   }

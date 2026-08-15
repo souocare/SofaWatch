@@ -1398,6 +1398,201 @@ void main() {
 
       await cubit.close();
     });
+    test(
+      'marks an Upcoming Episode as watched and refreshes affected collections',
+      () async {
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          upcoming: <UpcomingItem>[
+            _upcomingItem(
+              episodeId: 'upcoming-past',
+              airDate: DateTime(2026, 8, 14),
+            ),
+          ],
+          watchNext: <WatchNextShow>[_watchNextShow()],
+          staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
+        );
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        await cubit.load();
+
+        expect(repository.upcomingCalls, 1);
+        expect(repository.watchNextCalls, 1);
+        expect(repository.staleWatchingCalls, 1);
+
+        await cubit.markUpcomingEpisodeWatched(episodeId: 'upcoming-past');
+
+        expect(repository.markEpisodeWatchedCalls, 1);
+        expect(repository.markedEpisodeIds, <String>['upcoming-past']);
+
+        expect(
+          repository.watchNextCalls,
+          2,
+          reason: 'Watch Next may change after watching an Upcoming Episode.',
+        );
+
+        expect(
+          repository.staleWatchingCalls,
+          2,
+          reason: 'stale Watching may change after watching an Episode.',
+        );
+
+        expect(
+          repository.upcomingCalls,
+          2,
+          reason: 'Upcoming must be reloaded from the backend after watching.',
+        );
+
+        expect(cubit.state.updatingUpcomingEpisodeId, isNull);
+        expect(cubit.state.upcomingOperationError, isNull);
+
+        await cubit.close();
+      },
+    );
+
+    test(
+      'preserves Upcoming data when marking an Episode as watched fails',
+      () async {
+        const AppException expectedError = AppException.connection();
+
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          upcoming: <UpcomingItem>[
+            _upcomingItem(
+              episodeId: 'upcoming-past',
+              airDate: DateTime(2026, 8, 14),
+            ),
+          ],
+          markEpisodeWatchedError: expectedError,
+        );
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        await cubit.load();
+
+        final List<UpcomingItem> before = cubit.state.upcoming;
+
+        await cubit.markUpcomingEpisodeWatched(episodeId: 'upcoming-past');
+
+        expect(repository.markEpisodeWatchedCalls, 1);
+
+        expect(
+          repository.upcomingCalls,
+          1,
+          reason: 'A failed mutation must not refresh Upcoming.',
+        );
+
+        expect(
+          repository.watchNextCalls,
+          1,
+          reason: 'A failed mutation must not refresh Watch Next.',
+        );
+
+        expect(
+          repository.staleWatchingCalls,
+          1,
+          reason: 'A failed mutation must not refresh stale Watching.',
+        );
+
+        expect(cubit.state.upcoming, before);
+        expect(cubit.state.updatingUpcomingEpisodeId, isNull);
+        expect(cubit.state.upcomingOperationError, expectedError);
+
+        await cubit.close();
+      },
+    );
+
+    test(
+      'maps unexpected Upcoming watch operation errors to unknown',
+      () async {
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          upcoming: <UpcomingItem>[
+            _upcomingItem(
+              episodeId: 'upcoming-past',
+              airDate: DateTime(2026, 8, 14),
+            ),
+          ],
+          markEpisodeWatchedUnexpectedError: StateError('boom'),
+        );
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        await cubit.load();
+
+        await cubit.markUpcomingEpisodeWatched(episodeId: 'upcoming-past');
+
+        expect(repository.markEpisodeWatchedCalls, 1);
+        expect(
+          cubit.state.upcomingOperationError?.type,
+          AppExceptionType.unknown,
+        );
+        expect(cubit.state.updatingUpcomingEpisodeId, isNull);
+
+        await cubit.close();
+      },
+    );
+
+    test(
+      'refreshes Watch History after Upcoming watch when History was already loaded',
+      () async {
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          upcoming: <UpcomingItem>[
+            _upcomingItem(
+              episodeId: 'upcoming-past',
+              airDate: DateTime(2026, 8, 14),
+            ),
+          ],
+          watchHistoryPages: <WatchHistoryPage>[
+            const WatchHistoryPage(
+              items: <WatchHistoryItem>[],
+              nextCursor: null,
+              hasMore: false,
+            ),
+            WatchHistoryPage(
+              items: <WatchHistoryItem>[
+                _watchHistoryItem(
+                  episodeId: 'upcoming-past',
+                  episodeNumber: 1,
+                  title: 'Upcoming Episode',
+                ),
+              ],
+              nextCursor: null,
+              hasMore: false,
+            ),
+          ],
+        );
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        await cubit.load();
+        await cubit.loadWatchHistory();
+
+        expect(cubit.state.hasLoadedWatchHistory, isTrue);
+        expect(repository.watchHistoryCalls, 1);
+
+        await cubit.markUpcomingEpisodeWatched(episodeId: 'upcoming-past');
+
+        expect(
+          repository.watchHistoryCalls,
+          2,
+          reason:
+              'Already loaded Watch History must refresh after watching from Upcoming.',
+        );
+
+        await cubit.close();
+      },
+    );
   });
 }
 

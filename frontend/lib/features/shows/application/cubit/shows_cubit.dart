@@ -486,6 +486,100 @@ final class ShowsCubit extends Cubit<ShowsState> {
     }
   }
 
+  Future<void> markUpcomingEpisodeWatched({required String episodeId}) async {
+    if (state.updatingUpcomingEpisodeId != null) {
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        updatingUpcomingEpisodeId: episodeId,
+        clearUpcomingOperationError: true,
+      ),
+    );
+
+    try {
+      await repository.markEpisodeWatched(episodeId: episodeId);
+
+      if (isClosed) {
+        return;
+      }
+
+      /*
+     * Episode progress is owned by the backend.
+     *
+     * Watching an Episode from Upcoming may affect:
+     *
+     * - Upcoming itself;
+     * - Watch Next;
+     * - stale Watching;
+     * - Watch History, when it has already been loaded.
+     *
+     * Reload those collections instead of deriving their new state
+     * optimistically in the client.
+     */
+
+      await _loadWatchNext();
+
+      if (isClosed) {
+        return;
+      }
+
+      await _loadStaleWatching();
+
+      if (isClosed) {
+        return;
+      }
+
+      if (state.hasLoadedWatchHistory) {
+        await loadWatchHistory();
+
+        if (isClosed) {
+          return;
+        }
+      }
+
+      await _loadUpcoming(
+        fromDate: state.upcomingFromDate ?? _initialUpcomingFromDate(),
+        toDate: state.upcomingToDate,
+        referenceDate: state.upcomingReferenceDate ?? _today(),
+      );
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearUpdatingUpcomingEpisodeId: true,
+          clearUpcomingOperationError: true,
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearUpdatingUpcomingEpisodeId: true,
+          upcomingOperationError: error,
+        ),
+      );
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearUpdatingUpcomingEpisodeId: true,
+          upcomingOperationError: AppException.unknown(originalError: error),
+        ),
+      );
+    }
+  }
+
   Future<void> markWatchNextEpisodeWatched({required String episodeId}) async {
     if (state.updatingWatchNextEpisodeId != null) {
       return;

@@ -2344,6 +2344,322 @@ void main() {
 
       expect(find.text('Aired Aug 14'), findsOneWidget);
     });
+    testWidgets(
+      'enables Mark Watched for a previously aired Upcoming Episode',
+      (WidgetTester tester) async {
+        final ShowsCubit cubit = ShowsCubit(
+          repository: _FakeShowsRepository(
+            shows: <LibraryShow>[_show],
+            upcoming: <UpcomingItem>[
+              _makeUpcomingItem(
+                id: 'past-episode',
+                episodeNumber: 1,
+                airDate: DateTime(2026, 8, 14),
+              ),
+            ],
+          ),
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubit));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+        );
+
+        await tester.pumpAndSettle();
+
+        final Finder timelineFinder = find.byKey(
+          const ValueKey<String>('shows-upcoming-timeline'),
+        );
+
+        expect(timelineFinder, findsOneWidget);
+
+        final CustomScrollView scrollView = tester.widget<CustomScrollView>(
+          timelineFinder,
+        );
+
+        final ScrollController controller = scrollView.controller!;
+
+        expect(
+          controller.position.minScrollExtent,
+          lessThan(0),
+          reason: 'The previously aired Episode must exist before Today.',
+        );
+
+        /*
+     * Past Upcoming content lives before the CustomScrollView center,
+     * so it is intentionally not mounted while the timeline is opened
+     * at Today.
+     */
+        controller.jumpTo(controller.position.minScrollExtent);
+
+        await tester.pumpAndSettle();
+
+        final Finder buttonFinder = find.byKey(
+          const ValueKey<String>('shows-upcoming-mark-watched-past-episode'),
+        );
+
+        expect(buttonFinder, findsOneWidget);
+
+        final IconButton button = tester.widget<IconButton>(buttonFinder);
+
+        expect(
+          button.onPressed,
+          isNotNull,
+          reason: 'Previously aired Episodes must be markable as watched.',
+        );
+      },
+    );
+
+    testWidgets('enables Mark Watched for an Upcoming Episode airing Today', (
+      WidgetTester tester,
+    ) async {
+      final ShowsCubit cubit = ShowsCubit(
+        repository: _FakeShowsRepository(
+          shows: <LibraryShow>[_show],
+          upcoming: <UpcomingItem>[
+            _makeUpcomingItem(
+              id: 'today-episode',
+              episodeNumber: 2,
+              airDate: DateTime(2026, 8, 15),
+            ),
+          ],
+        ),
+        now: () => DateTime(2026, 8, 15, 12),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder buttonFinder = find.byKey(
+        const ValueKey<String>('shows-upcoming-mark-watched-today-episode'),
+      );
+
+      expect(buttonFinder, findsOneWidget);
+
+      final IconButton button = tester.widget<IconButton>(buttonFinder);
+
+      expect(
+        button.onPressed,
+        isNotNull,
+        reason:
+            'Episodes dated Today must be markable because no reliable '
+            'air time is currently available.',
+      );
+    });
+
+    testWidgets('disables Mark Watched for a future Upcoming Episode', (
+      WidgetTester tester,
+    ) async {
+      final ShowsCubit cubit = ShowsCubit(
+        repository: _FakeShowsRepository(
+          shows: <LibraryShow>[_show],
+          upcoming: <UpcomingItem>[
+            _makeUpcomingItem(
+              id: 'future-episode',
+              episodeNumber: 3,
+              airDate: DateTime(2026, 8, 16),
+            ),
+          ],
+        ),
+        now: () => DateTime(2026, 8, 15, 12),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder buttonFinder = find.byKey(
+        const ValueKey<String>('shows-upcoming-mark-watched-future-episode'),
+      );
+
+      expect(buttonFinder, findsOneWidget);
+
+      final IconButton button = tester.widget<IconButton>(buttonFinder);
+
+      expect(
+        button.onPressed,
+        isNull,
+        reason: 'Future Episodes must not be markable as watched.',
+      );
+    });
+    testWidgets(
+      'shows per-Episode progress while marking Upcoming Episode watched',
+      (WidgetTester tester) async {
+        final _PendingUpcomingWatchRepository repository =
+            _PendingUpcomingWatchRepository();
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubit));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+        );
+
+        await tester.pumpAndSettle();
+
+        final Finder buttonFinder = find.byKey(
+          const ValueKey<String>('shows-upcoming-mark-watched-today-episode'),
+        );
+
+        expect(buttonFinder, findsOneWidget);
+
+        await tester.tap(buttonFinder);
+        await tester.pump();
+
+        expect(repository.markEpisodeWatchedCalls, 1);
+
+        expect(repository.markedEpisodeIds, <String>['today-episode']);
+
+        expect(cubit.state.updatingUpcomingEpisodeId, 'today-episode');
+
+        expect(
+          find.descendant(
+            of: buttonFinder,
+            matching: find.byType(CircularProgressIndicator),
+          ),
+          findsOneWidget,
+          reason:
+              'Only the Episode currently being marked watched '
+              'must show operation progress.',
+        );
+
+        repository.completeMarkWatched();
+
+        await tester.pumpAndSettle();
+
+        expect(cubit.state.updatingUpcomingEpisodeId, isNull);
+
+        expect(
+          repository.watchNextCalls,
+          2,
+          reason: 'Watch Next must refresh after marking from Upcoming.',
+        );
+
+        expect(
+          repository.staleWatchingCalls,
+          2,
+          reason: 'stale Watching must refresh after marking from Upcoming.',
+        );
+
+        expect(
+          repository.upcomingCalls,
+          2,
+          reason: 'Upcoming must refresh after the successful mutation.',
+        );
+      },
+    );
+    testWidgets(
+      'preserves Upcoming timeline and shows feedback when marking watched fails',
+      (WidgetTester tester) async {
+        final _FailingUpcomingWatchRepository repository =
+            _FailingUpcomingWatchRepository();
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubit));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+        );
+
+        await tester.pumpAndSettle();
+
+        final Finder episodeRow = find.byKey(
+          const ValueKey<String>('shows-upcoming-today-episode'),
+        );
+
+        final Finder buttonFinder = find.byKey(
+          const ValueKey<String>('shows-upcoming-mark-watched-today-episode'),
+        );
+
+        expect(episodeRow, findsOneWidget);
+        expect(buttonFinder, findsOneWidget);
+
+        await tester.tap(buttonFinder);
+        await tester.pumpAndSettle();
+
+        expect(repository.markEpisodeWatchedCalls, 1);
+
+        expect(
+          repository.upcomingCalls,
+          1,
+          reason:
+              'A failed mutation must not replace or reload '
+              'the existing Upcoming timeline.',
+        );
+
+        expect(
+          episodeRow,
+          findsOneWidget,
+          reason:
+              'A failed mutation must preserve the existing Upcoming Episode.',
+        );
+
+        expect(cubit.state.upcomingOperationError, isNotNull);
+
+        expect(
+          find.text('Could not mark this episode as watched.'),
+          findsOneWidget,
+        );
+
+        final IconButton button = tester.widget<IconButton>(
+          find.byKey(
+            const ValueKey<String>('shows-upcoming-mark-watched-today-episode'),
+          ),
+        );
+
+        expect(
+          button.onPressed,
+          isNotNull,
+          reason:
+              'The Mark Watched action must become available again '
+              'after failure.',
+        );
+      },
+    );
   });
 }
 
@@ -3872,6 +4188,145 @@ final class _FailingEarlierUpcomingPageRepository implements ShowsRepository {
 
   @override
   Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+}
+
+final class _PendingUpcomingWatchRepository implements ShowsRepository {
+  _PendingUpcomingWatchRepository();
+
+  final Completer<void> _markWatchedCompleter = Completer<void>();
+
+  int markEpisodeWatchedCalls = 0;
+  int upcomingCalls = 0;
+  int watchNextCalls = 0;
+  int staleWatchingCalls = 0;
+
+  final List<String> markedEpisodeIds = <String>[];
+
+  void completeMarkWatched() {
+    _markWatchedCompleter.complete();
+  }
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    return <LibraryShow>[_show];
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    watchNextCalls++;
+
+    return const <WatchNextShow>[];
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    staleWatchingCalls++;
+
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    upcomingCalls++;
+
+    return <UpcomingItem>[
+      _makeUpcomingItem(
+        id: 'today-episode',
+        episodeNumber: 1,
+        airDate: DateTime(2026, 8, 15),
+      ),
+    ];
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) {
+    markEpisodeWatchedCalls++;
+    markedEpisodeIds.add(episodeId);
+
+    return _markWatchedCompleter.future;
+  }
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+}
+
+final class _FailingUpcomingWatchRepository implements ShowsRepository {
+  int markEpisodeWatchedCalls = 0;
+  int upcomingCalls = 0;
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    return <LibraryShow>[_show];
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    return const <WatchNextShow>[];
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    upcomingCalls++;
+
+    return <UpcomingItem>[
+      _makeUpcomingItem(
+        id: 'today-episode',
+        episodeNumber: 1,
+        airDate: DateTime(2026, 8, 15),
+      ),
+    ];
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) {
+    markEpisodeWatchedCalls++;
+
+    throw const AppException.connection();
+  }
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
 
   @override
   Future<void> startShow({required String showId}) async {}

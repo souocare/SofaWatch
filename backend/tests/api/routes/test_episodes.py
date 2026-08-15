@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -362,6 +362,7 @@ def test_mark_episode_watched_creates_watch_event(
         tmdb_id=2101,
         episode_number=1,
         title="Good News About Hell",
+        air_date=date(2026, 8, 1),
     )
 
     watched_at = datetime(
@@ -429,6 +430,7 @@ def test_mark_episode_watched_again_creates_second_watch_event(
         tmdb_id=2101,
         episode_number=1,
         title="Good News About Hell",
+        air_date=date(2026, 8, 1),
     )
 
     first_watched_at = datetime(
@@ -1156,3 +1158,48 @@ def test_delete_all_watch_events_preserves_other_episode_history(
     assert db_session.get(EpisodeWatchEvent, first_event.id) is None
     assert db_session.get(EpisodeWatchEvent, second_event.id) is not None
 
+def test_mark_future_episode_watched_returns_conflict(
+    client: TestClient,
+    db_session: Session,
+    local_user: User,
+) -> None:
+    """Reject watching an Episode whose air date is still in the future."""
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=300001,
+        episode_number=10,
+        title="Future Episode",
+        air_date=date.today() + timedelta(days=1),
+    )
+
+    response = client.post(
+        f"/api/v1/episodes/{episode.id}/watched",
+        json={
+            "watched_at": None,
+        },
+    )
+
+    assert response.status_code == 409
+
+    assert response.json() == {
+        "error": {
+            "code": "episode_cannot_be_watched",
+            "message": "TV episode cannot be marked as watched yet.",
+        }
+    }
