@@ -105,6 +105,110 @@ final class ShowsCubit extends Cubit<ShowsState> {
     );
   }
 
+  Future<void> refresh() async {
+    if (state.isRefreshing) {
+      return;
+    }
+
+    /*
+   * Refresh is deliberately different from the initial load.
+   *
+   * Existing collections remain visible and all navigation/scroll context
+   * stays intact while fresh server-owned data is requested.
+   */
+    emit(state.copyWith(isRefreshing: true, clearRefreshError: true));
+
+    /*
+   * Library is the core source for:
+   *
+   * - Library Shows;
+   * - viewing progress;
+   * - Up to Date.
+   *
+   * Unlike the initial load, a refresh failure must not replace already
+   * loaded content with a full-screen failure.
+   */
+    try {
+      final List<LibraryShow> libraryShows = await repository.getLibraryShows();
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(state.copyWith(libraryShows: libraryShows, clearError: true));
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(state.copyWith(refreshError: error));
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          refreshError: AppException.unknown(originalError: error),
+        ),
+      );
+    }
+
+    if (isClosed) {
+      return;
+    }
+
+    /*
+   * Supplementary collections own their own partial-error state.
+   *
+   * A failure in one section must not prevent the remaining sections
+   * from being refreshed.
+   */
+    await _loadWatchNext();
+
+    if (isClosed) {
+      return;
+    }
+
+    await _loadStaleWatching();
+
+    if (isClosed) {
+      return;
+    }
+
+    /*
+   * Watch History is lazy-loaded.
+   *
+   * Refresh it only when the user had already loaded it. An explicit
+   * page refresh must not unexpectedly fetch History for the first time.
+   */
+    if (state.hasLoadedWatchHistory) {
+      await loadWatchHistory();
+
+      if (isClosed) {
+        return;
+      }
+    }
+
+    /*
+   * Refresh exactly the Upcoming range already explored by the user.
+   *
+   * This preserves historical navigation instead of collapsing the
+   * timeline back to the initial seven-day historical window.
+   */
+    await _loadUpcoming(
+      fromDate: state.upcomingFromDate ?? _initialUpcomingFromDate(),
+      toDate: state.upcomingToDate,
+      referenceDate: state.upcomingReferenceDate ?? _today(),
+    );
+
+    if (isClosed) {
+      return;
+    }
+
+    _finishRefresh();
+  }
+
   Future<void> _loadWatchNext() async {
     try {
       final List<WatchNextShow> watchNext = await repository.getWatchNext();
@@ -914,5 +1018,13 @@ final class ShowsCubit extends Cubit<ShowsState> {
 
   Future<void> retryWatchHistory() async {
     await loadWatchHistory();
+  }
+
+  void _finishRefresh() {
+    if (isClosed) {
+      return;
+    }
+
+    emit(state.copyWith(isRefreshing: false));
   }
 }

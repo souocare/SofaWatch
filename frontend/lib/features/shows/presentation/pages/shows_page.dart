@@ -51,7 +51,18 @@ class _ShowsPageState extends State<ShowsPage>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            _ShowsHeader(tabController: _tabController),
+            BlocBuilder<ShowsCubit, ShowsState>(
+              buildWhen: (ShowsState previous, ShowsState current) {
+                return previous.isRefreshing != current.isRefreshing;
+              },
+              builder: (BuildContext context, ShowsState state) {
+                return _ShowsHeader(
+                  tabController: _tabController,
+                  isRefreshing: state.isRefreshing,
+                  onRefresh: context.read<ShowsCubit>().refresh,
+                );
+              },
+            ),
             Expanded(
               child: BlocConsumer<ShowsCubit, ShowsState>(
                 listenWhen: (ShowsState previous, ShowsState current) {
@@ -74,12 +85,34 @@ class _ShowsPageState extends State<ShowsPage>
                           current.upcomingOperationError &&
                       current.upcomingOperationError != null;
 
-                  return watchNextFailed ||
+                  final bool refreshFailed =
+                      previous.refreshError != current.refreshError &&
+                      current.refreshError != null;
+
+                  return refreshFailed ||
+                      watchNextFailed ||
                       watchHistoryFailed ||
                       startShowFailed ||
                       upcomingFailed;
                 },
                 listener: (BuildContext context, ShowsState state) {
+                  final AppException? refreshError = state.refreshError;
+
+                  if (refreshError != null) {
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            refreshError.isTimeout
+                                ? 'Refreshing your shows took too long.'
+                                : 'Could not refresh all show data.',
+                          ),
+                        ),
+                      );
+
+                    return;
+                  }
                   final AppException? upcomingOperationError =
                       state.upcomingOperationError;
 
@@ -208,12 +241,21 @@ class _ShowsPageState extends State<ShowsPage>
 }
 
 class _ShowsHeader extends StatelessWidget {
-  const _ShowsHeader({required this.tabController});
+  const _ShowsHeader({
+    required this.tabController,
+    required this.isRefreshing,
+    required this.onRefresh,
+  });
 
   final TabController tabController;
+  final bool isRefreshing;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
+    final bool isDesktop =
+        MediaQuery.sizeOf(context).width >= AppBreakpoints.desktop;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.xl,
@@ -224,12 +266,29 @@ class _ShowsHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            'Shows',
-            key: const ValueKey<String>('shows-page-title'),
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  'Shows',
+                  key: const ValueKey<String>('shows-page-title'),
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              if (isDesktop)
+                _DesktopRefreshButton(
+                  isRefreshing: isRefreshing,
+                  onRefresh: onRefresh,
+                )
+              else
+                _MobileRefreshButton(
+                  isRefreshing: isRefreshing,
+                  onRefresh: onRefresh,
+                ),
+            ],
           ),
           const SizedBox(height: AppSpacing.lg),
           TabBar(
@@ -251,6 +310,72 @@ class _ShowsHeader extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _DesktopRefreshButton extends StatelessWidget {
+  const _DesktopRefreshButton({
+    required this.isRefreshing,
+    required this.onRefresh,
+  });
+
+  final bool isRefreshing;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.tonalIcon(
+      key: const ValueKey<String>('shows-refresh-desktop'),
+      onPressed: isRefreshing
+          ? null
+          : () {
+              onRefresh();
+            },
+      icon: isRefreshing
+          ? const SizedBox(
+              key: ValueKey<String>('shows-refresh-progress'),
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.refresh_rounded),
+      label: Text(isRefreshing ? 'Refreshing…' : 'Refresh'),
+    );
+  }
+}
+
+class _MobileRefreshButton extends StatelessWidget {
+  const _MobileRefreshButton({
+    required this.isRefreshing,
+    required this.onRefresh,
+  });
+
+  final bool isRefreshing;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 40,
+      height: 40,
+      child: isRefreshing
+          ? const Center(
+              key: ValueKey<String>('shows-refresh-mobile-progress'),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          : IconButton(
+              key: const ValueKey<String>('shows-refresh-mobile'),
+              tooltip: 'Refresh',
+              onPressed: () {
+                onRefresh();
+              },
+              icon: const Icon(Icons.refresh_rounded),
+            ),
     );
   }
 }

@@ -23,6 +23,7 @@ import 'package:sofawatch/features/shows/domain/models/watch_history_episode.dar
 import 'package:sofawatch/features/shows/domain/models/library_first_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
+import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 
 void main() {
   group('ShowsPage', () {
@@ -627,13 +628,29 @@ void main() {
       await cubit.load();
 
       await tester.pumpWidget(_buildTestApp(cubit: cubit));
-
       await tester.pumpAndSettle();
 
       expect(
         find.byKey(const ValueKey<String>('shows-watch-next-95396')),
         findsOneWidget,
       );
+
+      final Finder watchList = find.byKey(
+        const ValueKey<String>('shows-watch-list'),
+      );
+
+      final Finder watchListScrollable = find.descendant(
+        of: watchList,
+        matching: find.byType(Scrollable),
+      );
+
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey<String>('shows-stale-watching-failure')),
+        300,
+        scrollable: watchListScrollable,
+      );
+
+      await tester.pumpAndSettle();
 
       expect(
         find.byKey(const ValueKey<String>('shows-stale-watching-failure')),
@@ -658,24 +675,40 @@ void main() {
       await cubit.load();
 
       await tester.pumpWidget(_buildTestApp(cubit: cubit));
-
       await tester.pumpAndSettle();
 
       expect(repository.libraryCalls, 1);
       expect(repository.watchNextCalls, 1);
       expect(repository.staleWatchingCalls, 1);
 
-      expect(
-        find.byKey(const ValueKey<String>('shows-stale-watching-failure')),
-        findsOneWidget,
+      final Finder watchList = find.byKey(
+        const ValueKey<String>('shows-watch-list'),
       );
+
+      final Finder watchListScrollable = find.descendant(
+        of: watchList,
+        matching: find.byType(Scrollable),
+      );
+
+      final Finder failure = find.byKey(
+        const ValueKey<String>('shows-stale-watching-failure'),
+      );
+
+      await tester.scrollUntilVisible(
+        failure,
+        300,
+        scrollable: watchListScrollable,
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(failure, findsOneWidget);
 
       final Finder retryButton = find.byKey(
         const ValueKey<String>('shows-stale-watching-retry'),
       );
 
-      await tester.ensureVisible(retryButton);
-      await tester.pumpAndSettle();
+      expect(retryButton, findsOneWidget);
 
       await tester.tap(retryButton);
       await tester.pumpAndSettle();
@@ -2738,6 +2771,213 @@ void main() {
         );
       },
     );
+    testWidgets('shows compact Refresh action on Mobile', (
+      WidgetTester tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+
+      addTearDown(() async {
+        await tester.binding.setSurfaceSize(null);
+      });
+
+      final ShowsCubit cubit = ShowsCubit(
+        repository: _FakeShowsRepository(shows: <LibraryShow>[_show]),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-refresh-mobile')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-refresh-desktop')),
+        findsNothing,
+      );
+    });
+    testWidgets('shows labelled Refresh action on Desktop', (
+      WidgetTester tester,
+    ) async {
+      _setTestViewport(
+        tester,
+        size: const Size(AppBreakpoints.desktop + 100, 1000),
+      );
+
+      final ShowsCubit cubit = ShowsCubit(
+        repository: _FakeShowsRepository(shows: <LibraryShow>[_show]),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-refresh-desktop')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-refresh-mobile')),
+        findsNothing,
+      );
+
+      expect(find.text('Refresh'), findsOneWidget);
+    });
+    testWidgets('shows progress and disables Refresh while refreshing', (
+      WidgetTester tester,
+    ) async {
+      _setTestViewport(
+        tester,
+        size: const Size(AppBreakpoints.desktop + 100, 1000),
+      );
+
+      final _PendingRefreshShowsRepository repository =
+          _PendingRefreshShowsRepository();
+
+      final ShowsCubit cubit = ShowsCubit(
+        repository: repository,
+        now: () => DateTime(2026, 8, 15, 12),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+
+      await tester.pumpAndSettle();
+
+      final Finder refreshButton = find.byKey(
+        const ValueKey<String>('shows-refresh-desktop'),
+      );
+
+      expect(refreshButton, findsOneWidget);
+
+      await tester.tap(refreshButton);
+      await tester.pump();
+
+      expect(cubit.state.isRefreshing, isTrue);
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-refresh-progress')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Refreshing…'), findsOneWidget);
+
+      final FilledButton button = tester.widget<FilledButton>(refreshButton);
+
+      expect(
+        button.onPressed,
+        isNull,
+        reason: 'Refresh must not be triggerable twice while already running.',
+      );
+
+      /*
+   * Existing page content stays mounted during refresh.
+   */
+      expect(
+        find.byKey(const ValueKey<String>('shows-watch-list')),
+        findsOneWidget,
+      );
+
+      repository.completeRefresh();
+
+      await tester.pumpAndSettle();
+
+      expect(cubit.state.isRefreshing, isFalse);
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-refresh-progress')),
+        findsNothing,
+      );
+
+      expect(find.text('Refresh'), findsOneWidget);
+    });
+    testWidgets('preserves selected Shows tab during Refresh', (
+      WidgetTester tester,
+    ) async {
+      _setTestViewport(
+        tester,
+        size: const Size(AppBreakpoints.desktop + 100, 1000),
+      );
+
+      final _PendingRefreshShowsRepository repository =
+          _PendingRefreshShowsRepository();
+
+      final ShowsCubit cubit = ShowsCubit(
+        repository: repository,
+        now: () => DateTime(2026, 8, 15, 12),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+      );
+
+      await tester.pumpAndSettle();
+
+      TabBar tabBar = tester.widget<TabBar>(
+        find.byKey(const ValueKey<String>('shows-tabs')),
+      );
+
+      expect(tabBar.controller?.index, 1);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('shows-refresh-desktop')),
+      );
+
+      await tester.pump();
+
+      expect(cubit.state.isRefreshing, isTrue);
+
+      /*
+   * Refresh must not recreate the TabController or send the user
+   * back to Watch List.
+   */
+      tabBar = tester.widget<TabBar>(
+        find.byKey(const ValueKey<String>('shows-tabs')),
+      );
+
+      expect(tabBar.controller?.index, 1);
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-upcoming-timeline')),
+        findsOneWidget,
+      );
+
+      repository.completeRefresh();
+
+      await tester.pumpAndSettle();
+
+      tabBar = tester.widget<TabBar>(
+        find.byKey(const ValueKey<String>('shows-tabs')),
+      );
+
+      expect(
+        tabBar.controller?.index,
+        1,
+        reason: 'Refresh must preserve the currently selected Shows tab.',
+      );
+    });
   });
 }
 
@@ -2751,6 +2991,16 @@ Future<void> _scrollWatchListNearBottom(WidgetTester tester) async {
   await tester.drag(watchList, const Offset(0, -1000));
 
   await tester.pumpAndSettle();
+}
+
+void _setTestViewport(WidgetTester tester, {required Size size}) {
+  tester.view.devicePixelRatio = 1.0;
+  tester.view.physicalSize = size;
+
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
 }
 
 Widget _buildTestApp({required ShowsCubit cubit}) {
@@ -4433,6 +4683,95 @@ final class _FailingUpcomingWatchRepository implements ShowsRepository {
       hasMore: false,
     );
   }
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+}
+
+final class _PendingRefreshShowsRepository implements ShowsRepository {
+  int libraryCalls = 0;
+  int watchNextCalls = 0;
+  int staleWatchingCalls = 0;
+  int upcomingCalls = 0;
+
+  Completer<List<LibraryShow>>? _refreshLibraryCompleter;
+
+  void completeRefresh() {
+    final Completer<List<LibraryShow>>? completer = _refreshLibraryCompleter;
+
+    if (completer == null || completer.isCompleted) {
+      return;
+    }
+
+    completer.complete(<LibraryShow>[_show]);
+  }
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() {
+    libraryCalls++;
+
+    /*
+     * First request is the initial page load.
+     *
+     * The second request is the explicit Refresh and remains pending
+     * until the test completes it.
+     */
+    if (libraryCalls == 1) {
+      return Future<List<LibraryShow>>.value(<LibraryShow>[_show]);
+    }
+
+    _refreshLibraryCompleter ??= Completer<List<LibraryShow>>();
+
+    return _refreshLibraryCompleter!.future;
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    watchNextCalls++;
+
+    return <WatchNextShow>[_watchNextShow];
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    staleWatchingCalls++;
+
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    upcomingCalls++;
+
+    return <UpcomingItem>[
+      _makeUpcomingItem(
+        id: 'refresh-upcoming',
+        episodeNumber: 1,
+        airDate: DateTime(2026, 8, 15),
+      ),
+    ];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
 
   @override
   Future<void> startShow({required String showId}) async {}

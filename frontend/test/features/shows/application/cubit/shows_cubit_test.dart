@@ -1690,6 +1690,302 @@ void main() {
       expect(state.upToDate, isEmpty);
       expect(state.isUpToDateEmpty, isTrue);
     });
+    test(
+      'refresh keeps existing data visible while Library refresh is pending',
+      () async {
+        final _PendingRefreshRepository repository =
+            _PendingRefreshRepository();
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        await cubit.load();
+
+        final List<LibraryShow> libraryBefore = cubit.state.libraryShows;
+        final List<WatchNextShow> watchNextBefore = cubit.state.watchNext;
+        final List<StaleWatchingShow> staleBefore = cubit.state.staleWatching;
+        final List<UpcomingItem> upcomingBefore = cubit.state.upcoming;
+
+        final Future<void> refreshFuture = cubit.refresh();
+
+        await Future<void>.delayed(Duration.zero);
+
+        expect(cubit.state.isRefreshing, isTrue);
+
+        expect(cubit.state.libraryShows, libraryBefore);
+        expect(cubit.state.watchNext, watchNextBefore);
+        expect(cubit.state.staleWatching, staleBefore);
+        expect(cubit.state.upcoming, upcomingBefore);
+
+        repository.completeLibraryRefresh();
+
+        await refreshFuture;
+
+        expect(cubit.state.isRefreshing, isFalse);
+
+        await cubit.close();
+      },
+    );
+
+    test('refresh updates Library and supplementary collections', () async {
+      final _ChangingRefreshRepository repository =
+          _ChangingRefreshRepository();
+
+      final ShowsCubit cubit = ShowsCubit(
+        repository: repository,
+        now: () => DateTime(2026, 8, 15, 12),
+      );
+
+      await cubit.load();
+
+      expect(cubit.state.libraryShows.single.title, 'Before Refresh');
+      expect(cubit.state.watchNext.single.nextEpisode.title, 'Before Episode');
+      expect(cubit.state.staleWatching.single.showTitle, 'Before Refresh');
+      expect(cubit.state.upcoming.single.episode.title, 'Before Upcoming');
+
+      await cubit.refresh();
+
+      expect(repository.libraryCalls, 2);
+      expect(repository.watchNextCalls, 2);
+      expect(repository.staleWatchingCalls, 2);
+      expect(repository.upcomingCalls, 2);
+
+      expect(cubit.state.libraryShows.single.title, 'After Refresh');
+      expect(cubit.state.watchNext.single.nextEpisode.title, 'After Episode');
+      expect(cubit.state.staleWatching.single.showTitle, 'After Refresh');
+      expect(cubit.state.upcoming.single.episode.title, 'After Upcoming');
+
+      expect(cubit.state.isRefreshing, isFalse);
+
+      await cubit.close();
+    });
+
+    test(
+      'refresh does not load Watch History when it was never loaded',
+      () async {
+        final _FakeShowsRepository repository = _FakeShowsRepository();
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        await cubit.load();
+
+        expect(cubit.state.hasLoadedWatchHistory, isFalse);
+        expect(repository.watchHistoryCalls, 0);
+
+        await cubit.refresh();
+
+        expect(
+          repository.watchHistoryCalls,
+          0,
+          reason:
+              'Explicit refresh must preserve lazy Watch History semantics.',
+        );
+
+        await cubit.close();
+      },
+    );
+
+    test('refresh reloads Watch History when it was already loaded', () async {
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        watchHistoryPages: <WatchHistoryPage>[
+          WatchHistoryPage(
+            items: <WatchHistoryItem>[
+              _watchHistoryItem(
+                episodeId: 'history-before',
+                episodeNumber: 1,
+                title: 'Before History',
+              ),
+            ],
+            nextCursor: null,
+            hasMore: false,
+          ),
+          WatchHistoryPage(
+            items: <WatchHistoryItem>[
+              _watchHistoryItem(
+                episodeId: 'history-after',
+                episodeNumber: 2,
+                title: 'After History',
+              ),
+            ],
+            nextCursor: null,
+            hasMore: false,
+          ),
+        ],
+      );
+
+      final ShowsCubit cubit = ShowsCubit(
+        repository: repository,
+        now: () => DateTime(2026, 8, 15, 12),
+      );
+
+      await cubit.load();
+      await cubit.loadWatchHistory();
+
+      expect(repository.watchHistoryCalls, 1);
+      expect(cubit.state.watchHistory.single.episode.title, 'Before History');
+
+      await cubit.refresh();
+
+      expect(repository.watchHistoryCalls, 2);
+
+      expect(cubit.state.watchHistory.single.episode.title, 'After History');
+
+      await cubit.close();
+    });
+
+    test('refresh preserves previously explored Upcoming range', () async {
+      final _EarlierUpcomingRepository repository =
+          _EarlierUpcomingRepository();
+
+      final ShowsCubit cubit = ShowsCubit(
+        repository: repository,
+        now: () => DateTime(2026, 8, 15, 12),
+      );
+
+      await cubit.load();
+
+      await cubit.loadEarlierUpcoming();
+
+      final DateTime? fromBefore = cubit.state.upcomingFromDate;
+      final DateTime? toBefore = cubit.state.upcomingToDate;
+      final DateTime? referenceBefore = cubit.state.upcomingReferenceDate;
+
+      expect(fromBefore, DateTime(2026, 7, 25));
+
+      await cubit.refresh();
+
+      expect(cubit.state.upcomingFromDate, fromBefore);
+      expect(cubit.state.upcomingToDate, toBefore);
+      expect(cubit.state.upcomingReferenceDate, referenceBefore);
+
+      expect(
+        repository.fromDates.last,
+        fromBefore,
+        reason:
+            'Refresh must request the full historical range already explored.',
+      );
+
+      expect(repository.toDates.last, toBefore);
+
+      await cubit.close();
+    });
+
+    test('ignores a second refresh while one is already running', () async {
+      final _PendingRefreshRepository repository = _PendingRefreshRepository();
+
+      final ShowsCubit cubit = ShowsCubit(
+        repository: repository,
+        now: () => DateTime(2026, 8, 15, 12),
+      );
+
+      await cubit.load();
+
+      final Future<void> firstRefresh = cubit.refresh();
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.isRefreshing, isTrue);
+
+      await cubit.refresh();
+
+      expect(
+        repository.libraryCalls,
+        2,
+        reason:
+            'Initial load plus one refresh only; concurrent refresh must be ignored.',
+      );
+
+      repository.completeLibraryRefresh();
+
+      await firstRefresh;
+
+      expect(cubit.state.isRefreshing, isFalse);
+
+      await cubit.close();
+    });
+
+    test(
+      'Library refresh failure preserves existing data and is non-fatal',
+      () async {
+        final _FailingLibraryRefreshRepository repository =
+            _FailingLibraryRefreshRepository();
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        await cubit.load();
+
+        final List<LibraryShow> libraryBefore = cubit.state.libraryShows;
+
+        await cubit.refresh();
+
+        expect(cubit.state.libraryShows, libraryBefore);
+
+        expect(cubit.state.refreshError, isNotNull);
+
+        expect(
+          cubit.state.error,
+          isNull,
+          reason:
+              'Refresh failure must not turn an already usable page into a fatal failure.',
+        );
+
+        expect(cubit.state.isRefreshing, isFalse);
+
+        /*
+     * A failed Library refresh must not prevent supplementary collections
+     * from attempting their own refresh.
+     */
+        expect(repository.watchNextCalls, 2);
+        expect(repository.staleWatchingCalls, 2);
+        expect(repository.upcomingCalls, 2);
+
+        await cubit.close();
+      },
+    );
+
+    test(
+      'supplementary refresh failure does not prevent remaining collections',
+      () async {
+        final _PartialRefreshFailureRepository repository =
+            _PartialRefreshFailureRepository();
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        await cubit.load();
+
+        await cubit.refresh();
+
+        expect(repository.libraryCalls, 2);
+        expect(repository.watchNextCalls, 2);
+        expect(repository.staleWatchingCalls, 2);
+
+        expect(
+          repository.upcomingCalls,
+          2,
+          reason:
+              'Upcoming must still refresh after a supplementary Watch Next failure.',
+        );
+
+        expect(cubit.state.watchNextError, isNotNull);
+
+        expect(cubit.state.upcoming.single.episode.title, 'Refreshed Upcoming');
+
+        expect(cubit.state.isRefreshing, isFalse);
+
+        await cubit.close();
+      },
+    );
   });
 }
 
@@ -2455,4 +2751,340 @@ class _FailingEarlierUpcomingRepository extends _FakeShowsRepository {
 
     throw const AppException.connection();
   }
+}
+
+final class _PendingRefreshRepository implements ShowsRepository {
+  int libraryCalls = 0;
+  int watchNextCalls = 0;
+  int staleWatchingCalls = 0;
+  int upcomingCalls = 0;
+
+  final Completer<List<LibraryShow>> _libraryRefreshCompleter =
+      Completer<List<LibraryShow>>();
+
+  void completeLibraryRefresh() {
+    _libraryRefreshCompleter.complete(<LibraryShow>[
+      _libraryShow(
+        tmdbId: 95396,
+        title: 'After Refresh',
+        status: LibraryStatus.watching,
+      ),
+    ]);
+  }
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() {
+    libraryCalls++;
+
+    if (libraryCalls == 1) {
+      return Future<List<LibraryShow>>.value(<LibraryShow>[
+        _libraryShow(
+          tmdbId: 95396,
+          title: 'Before Refresh',
+          status: LibraryStatus.watching,
+        ),
+      ]);
+    }
+
+    return _libraryRefreshCompleter.future;
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    watchNextCalls++;
+
+    return <WatchNextShow>[_watchNextShow()];
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    staleWatchingCalls++;
+
+    return <StaleWatchingShow>[_staleWatchingShow()];
+  }
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    upcomingCalls++;
+
+    return <UpcomingItem>[_upcomingItem()];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+}
+
+final class _ChangingRefreshRepository implements ShowsRepository {
+  int libraryCalls = 0;
+  int watchNextCalls = 0;
+  int staleWatchingCalls = 0;
+  int upcomingCalls = 0;
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    libraryCalls++;
+
+    return <LibraryShow>[
+      _libraryShow(
+        tmdbId: 95396,
+        title: libraryCalls == 1 ? 'Before Refresh' : 'After Refresh',
+        status: LibraryStatus.watching,
+      ),
+    ];
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    watchNextCalls++;
+
+    final WatchNextShow base = _watchNextShow();
+
+    return <WatchNextShow>[
+      WatchNextShow(
+        libraryEntryId: base.libraryEntryId,
+        libraryStatus: base.libraryStatus,
+        showId: base.showId,
+        showTmdbId: base.showTmdbId,
+        showTitle: watchNextCalls == 1 ? 'Before Refresh' : 'After Refresh',
+        posterUrl: base.posterUrl,
+        backdropUrl: base.backdropUrl,
+        nextEpisode: WatchNextEpisode(
+          id: base.nextEpisode.id,
+          tmdbId: base.nextEpisode.tmdbId,
+          seasonNumber: base.nextEpisode.seasonNumber,
+          episodeNumber: base.nextEpisode.episodeNumber,
+          title: watchNextCalls == 1 ? 'Before Episode' : 'After Episode',
+          airDate: base.nextEpisode.airDate,
+          runtime: base.nextEpisode.runtime,
+          stillUrl: base.nextEpisode.stillUrl,
+        ),
+        progress: base.progress,
+      ),
+    ];
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    staleWatchingCalls++;
+
+    final StaleWatchingShow base = _staleWatchingShow();
+
+    return <StaleWatchingShow>[
+      StaleWatchingShow(
+        libraryEntryId: base.libraryEntryId,
+        libraryStatus: base.libraryStatus,
+        showId: base.showId,
+        showTmdbId: base.showTmdbId,
+        showTitle: staleWatchingCalls == 1 ? 'Before Refresh' : 'After Refresh',
+        posterUrl: base.posterUrl,
+        backdropUrl: base.backdropUrl,
+        lastWatched: base.lastWatched,
+        nextEpisode: base.nextEpisode,
+      ),
+    ];
+  }
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    upcomingCalls++;
+
+    return <UpcomingItem>[
+      _upcomingItem(
+        episodeId: 'upcoming-refresh',
+        episodeTitle: upcomingCalls == 1 ? 'Before Upcoming' : 'After Upcoming',
+        airDate: DateTime(2026, 8, 20),
+      ),
+    ];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+}
+
+final class _FailingLibraryRefreshRepository implements ShowsRepository {
+  int libraryCalls = 0;
+  int watchNextCalls = 0;
+  int staleWatchingCalls = 0;
+  int upcomingCalls = 0;
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    libraryCalls++;
+
+    if (libraryCalls == 1) {
+      return <LibraryShow>[
+        _libraryShow(
+          tmdbId: 95396,
+          title: 'Existing Show',
+          status: LibraryStatus.watching,
+        ),
+      ];
+    }
+
+    throw const AppException.connection();
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    watchNextCalls++;
+
+    return <WatchNextShow>[_watchNextShow()];
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    staleWatchingCalls++;
+
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    upcomingCalls++;
+
+    return <UpcomingItem>[_upcomingItem()];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+}
+
+final class _PartialRefreshFailureRepository implements ShowsRepository {
+  int libraryCalls = 0;
+  int watchNextCalls = 0;
+  int staleWatchingCalls = 0;
+  int upcomingCalls = 0;
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    libraryCalls++;
+
+    return <LibraryShow>[
+      _libraryShow(
+        tmdbId: 95396,
+        title: 'Severance',
+        status: LibraryStatus.watching,
+      ),
+    ];
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    watchNextCalls++;
+
+    if (watchNextCalls == 2) {
+      throw const AppException.connection();
+    }
+
+    return <WatchNextShow>[_watchNextShow()];
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    staleWatchingCalls++;
+
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    upcomingCalls++;
+
+    return <UpcomingItem>[
+      _upcomingItem(
+        episodeId: 'refresh-upcoming',
+        episodeTitle: upcomingCalls == 1
+            ? 'Initial Upcoming'
+            : 'Refreshed Upcoming',
+        airDate: DateTime(2026, 8, 20),
+      ),
+    ];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
 }

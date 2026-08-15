@@ -40,6 +40,8 @@ final class ShowsState extends Equatable {
     this.upcomingReferenceDate,
     this.updatingUpcomingEpisodeId,
     this.upcomingOperationError,
+    this.isRefreshing = false,
+    this.refreshError,
   });
 
   final List<LibraryShow> libraryShows;
@@ -128,6 +130,16 @@ final class ShowsState extends Equatable {
 
   /// Loading an additional historical range above the current timeline.
   final bool isLoadingEarlierUpcoming;
+
+  /// Whether the Shows screen is being explicitly refreshed.
+  ///
+  /// Existing content remains visible while this is true.
+  final bool isRefreshing;
+
+  /// Failure while explicitly refreshing the core Shows data.
+  ///
+  /// A refresh failure must not replace already loaded content.
+  final AppException? refreshError;
 
   /// Failure while loading the Upcoming timeline.
   ///
@@ -218,6 +230,9 @@ final class ShowsState extends Equatable {
     bool clearUpdatingWatchHistoryEventId = false,
     AppException? watchHistoryOperationError,
     bool clearWatchHistoryOperationError = false,
+    bool? isRefreshing,
+    AppException? refreshError,
+    bool clearRefreshError = false,
 
     // Upcoming
     List<UpcomingItem>? upcoming,
@@ -265,6 +280,12 @@ final class ShowsState extends Equatable {
 
       // Upcoming
       upcoming: upcoming ?? this.upcoming,
+
+      isRefreshing: isRefreshing ?? this.isRefreshing,
+
+      refreshError: clearRefreshError
+          ? null
+          : refreshError ?? this.refreshError,
 
       hasLoadedUpcoming: hasLoadedUpcoming ?? this.hasLoadedUpcoming,
 
@@ -376,5 +397,8 @@ final class ShowsState extends Equatable {
     upcomingReferenceDate,
     updatingUpcomingEpisodeId,
     upcomingOperationError,
+
+    isRefreshing,
+    refreshError,
   ];
 }
