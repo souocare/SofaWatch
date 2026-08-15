@@ -73,4 +73,10 @@ class HaventStartedService:
                 )
             )
 
+        results.sort(
+            key=lambda item: (
+                item.first_episode.air_date or date.max,
+                item.show.title.casefold(),
+            )
+        )
         return results

@@ -154,7 +154,10 @@ class StaleWatchingService:
             )
 
         results.sort(
-            key=lambda item: item.last_watched.watched_at,
+            key=lambda item: (
+                item.last_watched.watched_at,
+                item.show.title.casefold(),
+            )
         )
 
         return results
