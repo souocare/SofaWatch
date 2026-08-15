@@ -1203,3 +1203,46 @@ def test_mark_future_episode_watched_returns_conflict(
             "message": "TV episode cannot be marked as watched yet.",
         }
     }
+def test_mark_episode_airing_today_watched_returns_success(
+    client: TestClient,
+    db_session: Session,
+    local_user: User,
+) -> None:
+    """Allow marking an Episode watched when it airs Today."""
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=300002,
+        episode_number=2,
+        title="Today Episode",
+        air_date=date.today(),
+    )
+
+    response = client.post(
+        f"/api/v1/episodes/{episode.id}/watched",
+        json={
+            "watched_at": None,
+        },
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["episode_id"] == str(episode.id)
+    assert body["is_watched"] is True

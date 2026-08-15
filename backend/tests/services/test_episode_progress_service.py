@@ -1774,3 +1774,45 @@ def test_mark_watched_allows_episode_airing_today(
     progress_repository.add.assert_called_once()
     watch_event_repository.add.assert_called_once()
 
+
+def test_mark_watched_allows_episode_airing_today(
+    db_session: Session,
+    progress_service: EpisodeProgressService,
+    progress_repository: Mock,
+    episode_repository: Mock,
+) -> None:
+    """Allow marking an Episode watched when its air date is Today."""
+
+    user = persist_user(db_session)
+    show = persist_show(db_session)
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+
+    episode.air_date = date.today()
+    db_session.flush()
+
+    episode_repository.get_by_id.return_value = episode
+    progress_repository.get_by_user_and_episode.return_value = None
+
+    def add_progress(
+        progress: EpisodeProgress,
+    ) -> EpisodeProgress:
+        db_session.add(progress)
+        return progress
+
+    progress_repository.add.side_effect = add_progress
+
+    result = progress_service.mark_watched(
+        user_id=user.id,
+        episode_id=episode.id,
+    )
+
+    assert result is not None
+    assert result.is_watched is True
