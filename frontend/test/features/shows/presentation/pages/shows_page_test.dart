@@ -3332,6 +3332,195 @@ void main() {
         expect(cubit.state.upcoming, upcoming);
       },
     );
+    testWidgets('renders Watch List compactly on Mobile', (
+      WidgetTester tester,
+    ) async {
+      _setTestViewport(tester, size: const Size(390, 844));
+
+      final ShowsCubit cubit = ShowsCubit(
+        repository: _FakeShowsRepository(
+          shows: <LibraryShow>[_show],
+          watchNext: <WatchNextShow>[_watchNextShow],
+          staleWatching: <StaleWatchingShow>[_staleWatchingShow],
+        ),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-watch-list')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-watch-next-95396')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-refresh-mobile')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-refresh-desktop')),
+        findsNothing,
+      );
+
+      expect(tester.takeException(), isNull);
+    });
+    testWidgets('renders Upcoming compactly on Mobile', (
+      WidgetTester tester,
+    ) async {
+      _setTestViewport(tester, size: const Size(390, 844));
+
+      final ShowsCubit cubit = ShowsCubit(
+        repository: _FakeShowsRepository(
+          shows: <LibraryShow>[_show],
+          upcoming: <UpcomingItem>[
+            _makeUpcomingItem(
+              id: 'mobile-upcoming',
+              episodeNumber: 1,
+              airDate: DateTime(2026, 8, 15),
+            ),
+          ],
+        ),
+        now: () => DateTime(2026, 8, 15, 12),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-upcoming-timeline')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-upcoming-mobile-upcoming')),
+        findsOneWidget,
+      );
+
+      expect(tester.takeException(), isNull);
+    });
+    testWidgets('keeps long Watch List content compact on Mobile', (
+      WidgetTester tester,
+    ) async {
+      _setTestViewport(tester, size: const Size(390, 844));
+
+      final WatchNextShow longContentShow = WatchNextShow(
+        libraryEntryId: 'library-mobile-long',
+        libraryStatus: LibraryStatus.watching,
+        showId: 'show-mobile-long',
+        showTmdbId: 999001,
+        showTitle:
+            'This Is an Extremely Long Television Series Title Used for Responsive Testing',
+        posterUrl: null,
+        backdropUrl: null,
+        nextEpisode: WatchNextEpisode(
+          id: 'episode-mobile-long',
+          tmdbId: 999002,
+          seasonNumber: 12,
+          episodeNumber: 24,
+          title:
+              'This Is Also an Extremely Long Episode Title That Must Not Overflow',
+          airDate: DateTime(2026, 8, 15),
+          runtime: 58,
+          stillUrl: null,
+        ),
+        progress: const WatchNextProgress(
+          watchedEpisodes: 23,
+          airedEpisodes: 24,
+          percentage: 95.8,
+        ),
+      );
+
+      final ShowsCubit cubit = ShowsCubit(
+        repository: _FakeShowsRepository(
+          shows: <LibraryShow>[_show],
+          watchNext: <WatchNextShow>[longContentShow],
+        ),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-watch-next-999001')),
+        findsOneWidget,
+      );
+
+      expect(tester.takeException(), isNull);
+    });
+    testWidgets('keeps Haven\'t Started actions usable on Mobile', (
+      WidgetTester tester,
+    ) async {
+      _setTestViewport(tester, size: const Size(390, 844));
+
+      final LibraryShow planningShow = LibraryShow(
+        libraryEntryId: 'library-planning-mobile',
+        showId: 'show-planning-mobile',
+        tmdbId: 777001,
+        title: 'A Very Long Show Title for Mobile Layout Validation',
+        originalTitle: 'A Very Long Show Title for Mobile Layout Validation',
+        status: LibraryStatus.planning,
+        showStatus: 'Returning Series',
+        voteAverage: 8.5,
+        createdAt: DateTime.utc(2026, 8, 1),
+        updatedAt: DateTime.utc(2026, 8, 15),
+        progress: _emptyLibraryShowProgress,
+        firstAvailableEpisode: LibraryFirstEpisode(
+          id: 'first-mobile-episode',
+          tmdbId: 777002,
+          seasonNumber: 1,
+          episodeNumber: 1,
+          title: 'A Very Long First Episode Title',
+          airDate: DateTime(2026, 8, 10),
+          runtime: 55,
+        ),
+      );
+
+      final ShowsCubit cubit = ShowsCubit(
+        repository: _FakeShowsRepository(shows: <LibraryShow>[planningShow]),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      final Finder startButton = find.byKey(
+        const ValueKey<String>('shows-havent-started-start-777001'),
+      );
+
+      await tester.ensureVisible(startButton);
+      await tester.pumpAndSettle();
+
+      expect(startButton, findsOneWidget);
+
+      expect(tester.takeException(), isNull);
+    });
   });
 }
 
