@@ -9,6 +9,7 @@ import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 
 void main() {
   group('ApiShowsRepository', () {
@@ -744,6 +745,140 @@ void main() {
       });
 
       await repository.startShow(showId: 'show-uuid');
+    });
+    test('loads and maps Upcoming Episodes', () async {
+      dioAdapter.onGet('/library/shows/upcoming', (server) {
+        server.reply(200, <Map<String, dynamic>>[
+          <String, dynamic>{
+            'library_entry_id': 'library-entry-1',
+            'library_status': 'watching',
+            'show': <String, dynamic>{
+              'id': 'show-1',
+              'tmdb_id': 95396,
+              'title': 'Severance',
+              'poster_url': 'https://example.com/poster.jpg',
+              'backdrop_url': 'https://example.com/backdrop.jpg',
+            },
+            'episode': <String, dynamic>{
+              'id': 'episode-1',
+              'tmdb_id': 1947648,
+              'season_number': 2,
+              'episode_number': 4,
+              'title': "Woe's Hollow",
+              'air_date': '2026-08-20',
+              'runtime': 52,
+              'still_url': 'https://example.com/still.jpg',
+            },
+          },
+        ]);
+      });
+
+      final List<UpcomingItem> result = await repository.getUpcoming();
+
+      expect(result, hasLength(1));
+
+      final UpcomingItem item = result.single;
+
+      expect(item.libraryEntryId, 'library-entry-1');
+      expect(item.libraryStatus, LibraryStatus.watching);
+
+      expect(item.showId, 'show-1');
+      expect(item.showTmdbId, 95396);
+      expect(item.showTitle, 'Severance');
+      expect(item.posterUrl, 'https://example.com/poster.jpg');
+      expect(item.backdropUrl, 'https://example.com/backdrop.jpg');
+
+      expect(item.episode.id, 'episode-1');
+      expect(item.episode.tmdbId, 1947648);
+      expect(item.episode.seasonNumber, 2);
+      expect(item.episode.episodeNumber, 4);
+      expect(item.episode.code, 'S02E04');
+      expect(item.episode.title, "Woe's Hollow");
+      expect(item.episode.airDate, DateTime(2026, 8, 20));
+      expect(item.episode.runtime, 52);
+      expect(item.episode.stillUrl, 'https://example.com/still.jpg');
+    });
+
+    test('supports an empty Upcoming collection', () async {
+      dioAdapter.onGet('/library/shows/upcoming', (server) {
+        server.reply(200, <Map<String, dynamic>>[]);
+      });
+
+      final List<UpcomingItem> result = await repository.getUpcoming();
+
+      expect(result, isEmpty);
+    });
+
+    test('maps malformed Upcoming data to invalidData', () async {
+      dioAdapter.onGet('/library/shows/upcoming', (server) {
+        server.reply(200, <Map<String, dynamic>>[
+          <String, dynamic>{
+            'library_entry_id': 'library-entry-1',
+            'library_status': 'watching',
+            'show': <String, dynamic>{
+              'id': 'show-1',
+              'tmdb_id': 95396,
+              'title': 'Severance',
+            },
+            'episode': <String, dynamic>{
+              'id': 'episode-1',
+              'tmdb_id': 1947648,
+              'season_number': 2,
+              'episode_number': 4,
+              'title': "Woe's Hollow",
+              // air_date intentionally missing
+            },
+          },
+        ]);
+      });
+
+      expect(
+        repository.getUpcoming(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
+
+    test('maps invalid Upcoming response items to invalidData', () async {
+      dioAdapter.onGet('/library/shows/upcoming', (server) {
+        server.reply(200, <dynamic>['not-a-map']);
+      });
+
+      expect(
+        repository.getUpcoming(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
+
+    test('propagates Upcoming API errors unchanged', () async {
+      dioAdapter.onGet('/library/shows/upcoming', (server) {
+        server.reply(500, <String, dynamic>{
+          'code': 'server_error',
+          'message': 'Something went wrong.',
+        });
+      });
+
+      expect(
+        repository.getUpcoming(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.server,
+          ),
+        ),
+      );
     });
   });
 }

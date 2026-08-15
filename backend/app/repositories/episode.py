@@ -3,10 +3,18 @@ from uuid import UUID
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 from datetime import date
+from dataclasses import dataclass
 
 from app.models.episode import Episode
 from app.models.season import Season
 
+@dataclass(frozen=True, slots=True)
+class TimelineEpisode:
+    """Regular TV Episode associated with its Show and Season number."""
+
+    show_id: UUID
+    episode: Episode
+    season_number: int
 
 class EpisodeRepository:
     """Persistence operations for locally stored TV episodes."""
@@ -377,3 +385,64 @@ class EpisodeRepository:
             show_id: int(aired_episodes or 0)
             for show_id, aired_episodes in rows
         }
+
+    def list_regular_for_shows_between(
+        self,
+        *,
+        show_ids: list[UUID],
+        from_date: date,
+        to_date: date | None = None,
+    ) -> list[TimelineEpisode]:
+        """Return dated regular Episodes within an inclusive date range.
+
+        When ``to_date`` is omitted, every known Episode on or after
+        ``from_date`` is returned.
+
+        Results are ordered chronologically and deterministically.
+        """
+
+        if not show_ids:
+            return []
+
+        statement = (
+            select(
+                Season.show_id,
+                Season.season_number,
+                Episode,
+            )
+            .select_from(Episode)
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .where(
+                Season.show_id.in_(show_ids),
+                Season.season_number > 0,
+                Episode.air_date.is_not(None),
+                Episode.air_date >= from_date,
+            )
+        )
+
+        if to_date is not None:
+            statement = statement.where(
+                Episode.air_date <= to_date,
+            )
+
+        statement = statement.order_by(
+            Episode.air_date.asc(),
+            Season.show_id.asc(),
+            Season.season_number.asc(),
+            Episode.episode_number.asc(),
+            Episode.id.asc(),
+        )
+
+        rows = self._session.execute(statement).all()
+
+        return [
+            TimelineEpisode(
+                show_id=show_id,
+                episode=episode,
+                season_number=int(season_number),
+            )
+            for show_id, season_number, episode in rows
+        ]

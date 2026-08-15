@@ -2688,3 +2688,270 @@ def test_list_havent_started_returns_planning_show_with_first_episode(
     assert item["first_episode"]["episode_number"] == 1
     assert item["first_episode"]["title"] == "Good News About Hell"
     assert item["first_episode"]["air_date"] == "2022-02-18"
+
+
+def test_list_upcoming_returns_future_episodes_for_watching_and_planning_shows(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return future regular Episodes for eligible Library Shows."""
+
+    local_user = create_local_user(db_session)
+
+    watching_show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    planning_show = create_show(
+        db_session,
+        tmdb_id=100088,
+        title="The Last of Us",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=watching_show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=planning_show,
+        status=LibraryStatus.PLANNING,
+    )
+
+    watching_season = create_season(
+        db_session,
+        show=watching_show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    planning_season = create_season(
+        db_session,
+        show=planning_show,
+        tmdb_id=200001,
+        season_number=3,
+        title="Season 3",
+    )
+
+    watching_episode = create_episode(
+        db_session,
+        season=watching_season,
+        tmdb_id=300001,
+        episode_number=3,
+        title="Severance Future Episode",
+        air_date=date(2026, 8, 20),
+    )
+
+    planning_episode = create_episode(
+        db_session,
+        season=planning_season,
+        tmdb_id=300002,
+        episode_number=1,
+        title="The Last of Us Future Episode",
+        air_date=date(2026, 8, 21),
+    )
+
+    response = client.get(
+        "/api/v1/library/shows/upcoming",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 2
+
+    assert body[0]["library_status"] == "watching"
+    assert body[0]["show"]["id"] == str(watching_show.id)
+    assert body[0]["show"]["title"] == "Severance"
+
+    assert body[0]["episode"]["id"] == str(watching_episode.id)
+    assert body[0]["episode"]["season_number"] == 2
+    assert body[0]["episode"]["episode_number"] == 3
+    assert body[0]["episode"]["title"] == "Severance Future Episode"
+    assert body[0]["episode"]["air_date"] == "2026-08-20"
+
+    assert body[1]["library_status"] == "planning"
+    assert body[1]["show"]["id"] == str(planning_show.id)
+    assert body[1]["show"]["title"] == "The Last of Us"
+
+    assert body[1]["episode"]["id"] == str(planning_episode.id)
+    assert body[1]["episode"]["season_number"] == 3
+    assert body[1]["episode"]["episode_number"] == 1
+    assert body[1]["episode"]["title"] == "The Last of Us Future Episode"
+    assert body[1]["episode"]["air_date"] == "2026-08-21"
+
+
+def test_list_upcoming_returns_multiple_future_episodes_for_same_show(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Upcoming is a timeline and may contain multiple Episodes per Show."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    first_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300001,
+        episode_number=1,
+        title="Episode One",
+        air_date=date(2026, 8, 20),
+    )
+
+    second_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300002,
+        episode_number=2,
+        title="Episode Two",
+        air_date=date(2026, 8, 27),
+    )
+
+    response = client.get(
+        "/api/v1/library/shows/upcoming",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert [item["episode"]["id"] for item in body] == [
+        str(first_episode.id),
+        str(second_episode.id),
+    ]
+
+def test_list_upcoming_excludes_completed_dropped_and_paused_shows(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Do not include future Episodes from ineligible Library statuses."""
+
+    local_user = create_local_user(db_session)
+
+    for index, library_status in enumerate(
+        (
+            LibraryStatus.COMPLETED,
+            LibraryStatus.DROPPED,
+            LibraryStatus.PAUSED,
+        )
+    ):
+        show = create_show(
+            db_session,
+            tmdb_id=110000 + index,
+            title=f"Excluded {library_status.value}",
+        )
+
+        create_library_entry(
+            db_session,
+            user=local_user,
+            show=show,
+            status=library_status,
+        )
+
+        season = create_season(
+            db_session,
+            show=show,
+            tmdb_id=120000 + index,
+            season_number=1,
+            title="Season 1",
+        )
+
+        create_episode(
+            db_session,
+            season=season,
+            tmdb_id=130000 + index,
+            episode_number=1,
+            title="Future Episode",
+            air_date=date(2026, 8, 20),
+        )
+
+    response = client.get(
+        "/api/v1/library/shows/upcoming",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_list_upcoming_excludes_unknown_dates_and_shows_without_future_episodes(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Unknown or absent future Episodes must not create timeline items."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300001,
+        episode_number=1,
+        title="Unknown Date",
+        air_date=None,
+    )
+
+    create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300002,
+        episode_number=2,
+        title="Already Aired",
+        air_date=date(2026, 8, 1),
+    )
+
+    response = client.get(
+        "/api/v1/library/shows/upcoming",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []

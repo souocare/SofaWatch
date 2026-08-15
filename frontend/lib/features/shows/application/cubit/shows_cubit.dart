@@ -7,6 +7,7 @@ import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 
 final class ShowsCubit extends Cubit<ShowsState> {
   ShowsCubit({required this.repository}) : super(const ShowsState());
@@ -20,6 +21,7 @@ final class ShowsCubit extends Cubit<ShowsState> {
         clearError: true,
         clearWatchNextError: true,
         clearStaleWatchingError: true,
+        clearUpcomingError: true,
       ),
     );
 
@@ -75,6 +77,11 @@ final class ShowsCubit extends Cubit<ShowsState> {
     }
 
     await _loadStaleWatching();
+    if (isClosed) {
+      return;
+    }
+
+    await _loadUpcoming();
   }
 
   Future<void> _loadWatchNext() async {
@@ -139,6 +146,47 @@ final class ShowsCubit extends Cubit<ShowsState> {
     }
   }
 
+  Future<void> _loadUpcoming() async {
+    if (state.isLoadingUpcoming) {
+      return;
+    }
+
+    emit(state.copyWith(isLoadingUpcoming: true, clearUpcomingError: true));
+
+    try {
+      final List<UpcomingItem> upcoming = await repository.getUpcoming();
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          upcoming: upcoming,
+          isLoadingUpcoming: false,
+          clearUpcomingError: true,
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(state.copyWith(isLoadingUpcoming: false, upcomingError: error));
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          isLoadingUpcoming: false,
+          upcomingError: AppException.unknown(originalError: error),
+        ),
+      );
+    }
+  }
+
   Future<void> loadWatchHistory() async {
     if (state.isLoadingWatchHistory) {
       return;
@@ -186,6 +234,10 @@ final class ShowsCubit extends Cubit<ShowsState> {
         ),
       );
     }
+  }
+
+  Future<void> retryUpcoming() {
+    return _loadUpcoming();
   }
 
   Future<void> loadMoreWatchHistory() async {
@@ -555,6 +607,11 @@ final class ShowsCubit extends Cubit<ShowsState> {
           startShowError: AppException.unknown(originalError: error),
         ),
       );
+    }
+    await _loadUpcoming();
+
+    if (isClosed) {
+      return;
     }
   }
 

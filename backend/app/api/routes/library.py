@@ -9,7 +9,7 @@ from fastapi import (
     status,
 )
 from app.core.exceptions import APIError
-
+from app.schemas.upcoming import UpcomingItemResponse
 from app.api.dependencies import (
     CurrentUserDependency,
     LibraryServiceDependency,
@@ -18,6 +18,7 @@ from app.api.dependencies import (
     StaleWatchingServiceDependency,
     StartShowServiceDependency,
     HaventStartedServiceDependency,
+    UpcomingServiceDependency,
 )
 from app.schemas.start_show import StartShowResponse
 from app.schemas.watch_next import WatchNextShowResponse
@@ -77,6 +78,26 @@ def list_havent_started_shows(
     service: HaventStartedServiceDependency,
 ) -> list[HaventStartedShowResponse]:
     """Return the current user's Haven't Started collection."""
+
+    return service.list_for_user(
+        user_id=current_user.id,
+    )
+
+
+@router.get(
+    "/shows/upcoming",
+    response_model=list[UpcomingItemResponse],
+    summary="List Upcoming TV episodes",
+    description=(
+        "Return known dated regular Episodes from eligible TV series "
+        "in the current user's Library, ordered chronologically."
+    ),
+)
+def list_upcoming_episodes(
+    current_user: CurrentUserDependency,
+    service: UpcomingServiceDependency,
+) -> list[UpcomingItemResponse]:
+    """Return the current user's Upcoming Episode timeline."""
 
     return service.list_for_user(
         user_id=current_user.id,

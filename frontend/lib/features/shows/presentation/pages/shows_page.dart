@@ -8,6 +8,7 @@ import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_state.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_episode.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
@@ -1439,10 +1440,83 @@ class _UpcomingTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _ShowsEmpty(
-      key: ValueKey<String>('shows-upcoming-empty'),
-      title: 'No upcoming episodes',
-      message: 'Upcoming episodes from your shows will appear here.',
+    return BlocBuilder<ShowsCubit, ShowsState>(
+      buildWhen: (ShowsState previous, ShowsState current) {
+        return previous.upcoming != current.upcoming ||
+            previous.isLoadingUpcoming != current.isLoadingUpcoming ||
+            previous.upcomingError != current.upcomingError;
+      },
+      builder: (BuildContext context, ShowsState state) {
+        if (state.isLoadingUpcoming && state.upcoming.isEmpty) {
+          return const Center(
+            key: ValueKey<String>('shows-upcoming-loading'),
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        final AppException? error = state.upcomingError;
+
+        if (error != null && state.upcoming.isEmpty) {
+          return Center(
+            key: const ValueKey<String>('shows-upcoming-failure'),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    'Could not load upcoming episodes.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  TextButton(
+                    key: const ValueKey<String>('shows-upcoming-retry'),
+                    onPressed: context.read<ShowsCubit>().retryUpcoming,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (state.upcoming.isEmpty) {
+          return const _ShowsEmpty(
+            key: ValueKey<String>('shows-upcoming-empty'),
+            title: 'No upcoming episodes',
+            message: 'Upcoming episodes from your shows will appear here.',
+          );
+        }
+
+        return _UpcomingTimeline(items: state.upcoming);
+      },
+    );
+  }
+}
+
+class _UpcomingTimeline extends StatelessWidget {
+  const _UpcomingTimeline({required this.items});
+
+  final List<UpcomingItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      key: const ValueKey<String>('shows-upcoming-timeline'),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      itemCount: items.length,
+      separatorBuilder: (BuildContext context, int index) {
+        return const SizedBox(height: AppSpacing.md);
+      },
+      itemBuilder: (BuildContext context, int index) {
+        final UpcomingItem item = items[index];
+
+        return Text(
+          '${item.showTitle} · ${item.episode.code} · ${item.episode.title}',
+          key: ValueKey<String>('shows-upcoming-${item.episode.id}'),
+        );
+      },
     );
   }
 }

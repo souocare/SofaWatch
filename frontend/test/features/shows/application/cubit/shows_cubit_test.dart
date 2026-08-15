@@ -15,6 +15,8 @@ import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_progress.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_episode.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 
 void main() {
   group('ShowsCubit', () {
@@ -26,7 +28,7 @@ void main() {
       cubit.close();
     });
 
-    test('loads Library, Watch Next and stale Watching', () async {
+    test('loads Library and supplementary Shows collections', () async {
       final _FakeShowsRepository repository = _FakeShowsRepository(
         shows: <LibraryShow>[
           _libraryShow(
@@ -37,6 +39,7 @@ void main() {
         ],
         watchNext: <WatchNextShow>[_watchNextShow()],
         staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
+        upcoming: <UpcomingItem>[_upcomingItem()],
       );
 
       final ShowsCubit cubit = ShowsCubit(repository: repository);
@@ -58,6 +61,13 @@ void main() {
       expect(cubit.state.watchNextError, isNull);
       expect(cubit.state.staleWatchingError, isNull);
 
+      expect(repository.upcomingCalls, 1);
+
+      expect(cubit.state.upcoming, repository.upcoming);
+
+      expect(cubit.state.upcomingError, isNull);
+      expect(cubit.state.isLoadingUpcoming, isFalse);
+
       await cubit.close();
     });
 
@@ -73,6 +83,9 @@ void main() {
       expect(cubit.state.isLibraryEmpty, isTrue);
       expect(cubit.state.isWatchNextEmpty, isTrue);
       expect(cubit.state.isStaleWatchingEmpty, isTrue);
+
+      expect(cubit.state.upcoming, isEmpty);
+      expect(cubit.state.isUpcomingEmpty, isTrue);
 
       await cubit.close();
     });
@@ -96,6 +109,7 @@ void main() {
 
         expect(cubit.state.error, expectedError);
         expect(cubit.state.hasFatalError, isTrue);
+        expect(repository.upcomingCalls, 0);
 
         await cubit.close();
       },
@@ -253,6 +267,7 @@ void main() {
         ],
         watchNext: <WatchNextShow>[_watchNextShow()],
         staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
+        upcoming: <UpcomingItem>[_upcomingItem()],
       );
 
       final ShowsCubit cubit = ShowsCubit(repository: repository);
@@ -262,12 +277,14 @@ void main() {
       expect(repository.libraryCalls, 1);
       expect(repository.watchNextCalls, 1);
       expect(repository.staleWatchingCalls, 1);
+      expect(repository.upcomingCalls, 1);
 
       await cubit.retry();
 
       expect(repository.libraryCalls, 2);
       expect(repository.watchNextCalls, 2);
       expect(repository.staleWatchingCalls, 2);
+      expect(repository.upcomingCalls, 2);
 
       await cubit.close();
     });
@@ -1056,6 +1073,96 @@ void main() {
 
       await cubit.close();
     });
+    test('preserves existing Shows data when Upcoming fails', () async {
+      const AppException expectedError = AppException.connection();
+
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        shows: <LibraryShow>[
+          _libraryShow(
+            tmdbId: 95396,
+            title: 'Severance',
+            status: LibraryStatus.watching,
+          ),
+        ],
+        watchNext: <WatchNextShow>[_watchNextShow()],
+        staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
+        upcomingError: expectedError,
+      );
+
+      final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+      await cubit.load();
+
+      expect(cubit.state.error, isNull);
+
+      expect(cubit.state.libraryShows, hasLength(1));
+      expect(cubit.state.watchNext, hasLength(1));
+      expect(cubit.state.staleWatching, hasLength(1));
+
+      expect(cubit.state.upcoming, isEmpty);
+      expect(cubit.state.upcomingError, expectedError);
+      expect(cubit.state.isLoadingUpcoming, isFalse);
+
+      await cubit.close();
+    });
+
+    test('maps unexpected Upcoming errors without failing the page', () async {
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        shows: <LibraryShow>[
+          _libraryShow(
+            tmdbId: 95396,
+            title: 'Severance',
+            status: LibraryStatus.watching,
+          ),
+        ],
+        upcomingUnexpectedError: StateError('boom'),
+      );
+
+      final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+      await cubit.load();
+
+      expect(cubit.state.error, isNull);
+
+      expect(cubit.state.upcomingError?.type, AppExceptionType.unknown);
+
+      expect(cubit.state.libraryShows, hasLength(1));
+      expect(cubit.state.isLoadingUpcoming, isFalse);
+
+      await cubit.close();
+    });
+    test('retryUpcoming reloads only Upcoming', () async {
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        shows: <LibraryShow>[
+          _libraryShow(
+            tmdbId: 95396,
+            title: 'Severance',
+            status: LibraryStatus.watching,
+          ),
+        ],
+        watchNext: <WatchNextShow>[_watchNextShow()],
+        staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
+        upcoming: <UpcomingItem>[_upcomingItem()],
+      );
+
+      final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+      await cubit.load();
+
+      expect(repository.libraryCalls, 1);
+      expect(repository.watchNextCalls, 1);
+      expect(repository.staleWatchingCalls, 1);
+      expect(repository.upcomingCalls, 1);
+
+      await cubit.retryUpcoming();
+
+      expect(repository.libraryCalls, 1);
+      expect(repository.watchNextCalls, 1);
+      expect(repository.staleWatchingCalls, 1);
+      expect(repository.upcomingCalls, 2);
+
+      await cubit.close();
+    });
   });
 }
 
@@ -1166,17 +1273,54 @@ StaleWatchingShow _staleWatchingShow() {
   );
 }
 
+UpcomingItem _upcomingItem({
+  String libraryEntryId = 'library-95396',
+  LibraryStatus libraryStatus = LibraryStatus.watching,
+  String showId = 'show-95396',
+  int showTmdbId = 95396,
+  String showTitle = 'Severance',
+  String episodeId = 'upcoming-episode-uuid',
+  int episodeTmdbId = 2000001,
+  int seasonNumber = 3,
+  int episodeNumber = 1,
+  String episodeTitle = 'Upcoming Episode',
+  DateTime? airDate,
+}) {
+  return UpcomingItem(
+    libraryEntryId: libraryEntryId,
+    libraryStatus: libraryStatus,
+    showId: showId,
+    showTmdbId: showTmdbId,
+    showTitle: showTitle,
+    posterUrl: null,
+    backdropUrl: null,
+    episode: UpcomingEpisode(
+      id: episodeId,
+      tmdbId: episodeTmdbId,
+      seasonNumber: seasonNumber,
+      episodeNumber: episodeNumber,
+      title: episodeTitle,
+      airDate: airDate ?? DateTime(2026, 8, 20),
+      runtime: 52,
+      stillUrl: null,
+    ),
+  );
+}
+
 final class _FakeShowsRepository implements ShowsRepository {
   _FakeShowsRepository({
     this.shows = const <LibraryShow>[],
     this.watchNext = const <WatchNextShow>[],
     this.staleWatching = const <StaleWatchingShow>[],
+    this.upcoming = const <UpcomingItem>[],
     this.libraryError,
     this.libraryUnexpectedError,
     this.watchNextError,
     this.watchNextUnexpectedError,
     this.staleWatchingError,
     this.staleWatchingUnexpectedError,
+    this.upcomingError,
+    this.upcomingUnexpectedError,
     this.watchHistoryPages = const <WatchHistoryPage>[],
     this.watchHistoryErrors = const <AppException?>[],
     this.watchHistoryUnexpectedErrors = const <Object?>[],
@@ -1204,6 +1348,12 @@ final class _FakeShowsRepository implements ShowsRepository {
   final List<Object?> watchHistoryUnexpectedErrors;
   final AppException? markEpisodeWatchedError;
   final Object? markEpisodeWatchedUnexpectedError;
+
+  final List<UpcomingItem> upcoming;
+  final AppException? upcomingError;
+  final Object? upcomingUnexpectedError;
+
+  int upcomingCalls = 0;
 
   int markEpisodeWatchedCalls = 0;
   final List<String> markedEpisodeIds = <String>[];
@@ -1319,6 +1469,25 @@ final class _FakeShowsRepository implements ShowsRepository {
   }
 
   @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    upcomingCalls++;
+
+    final AppException? appError = upcomingError;
+
+    if (appError != null) {
+      throw appError;
+    }
+
+    final Object? unknownError = upcomingUnexpectedError;
+
+    if (unknownError != null) {
+      throw unknownError;
+    }
+
+    return upcoming;
+  }
+
+  @override
   Future<WatchHistoryPage> getWatchHistory({
     int limit = 30,
     String? cursor,
@@ -1395,6 +1564,11 @@ final class _PendingWatchHistoryRepository implements ShowsRepository {
 
   @override
   Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _PendingLoadMoreWatchHistoryRepository implements ShowsRepository {
@@ -1455,6 +1629,11 @@ final class _PendingLoadMoreWatchHistoryRepository implements ShowsRepository {
 
   @override
   Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _ChangingWatchNextRepository implements ShowsRepository {
@@ -1541,6 +1720,11 @@ final class _ChangingWatchNextRepository implements ShowsRepository {
 
   @override
   Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _CompletedWatchNextRepository implements ShowsRepository {
@@ -1596,4 +1780,9 @@ final class _CompletedWatchNextRepository implements ShowsRepository {
 
   @override
   Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }

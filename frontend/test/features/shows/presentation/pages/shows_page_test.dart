@@ -20,6 +20,8 @@ import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/library_first_episode.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_episode.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 
 void main() {
   group('ShowsPage', () {
@@ -1867,16 +1869,38 @@ final StaleWatchingShow _staleWatchingShow = StaleWatchingShow(
   ),
 );
 
+final UpcomingItem _upcomingItem = UpcomingItem(
+  libraryEntryId: 'library-upcoming',
+  libraryStatus: LibraryStatus.watching,
+  showId: 'show-upcoming',
+  showTmdbId: 95396,
+  showTitle: 'Severance',
+  posterUrl: null,
+  backdropUrl: null,
+  episode: UpcomingEpisode(
+    id: 'episode-upcoming',
+    tmdbId: 3000001,
+    seasonNumber: 3,
+    episodeNumber: 1,
+    title: 'Sweet Vitriol',
+    airDate: DateTime(2026, 8, 16),
+    runtime: 52,
+    stillUrl: null,
+  ),
+);
+
 final class _FakeShowsRepository implements ShowsRepository {
   const _FakeShowsRepository({
     required this.shows,
     this.watchNext = const <WatchNextShow>[],
     this.staleWatching = const <StaleWatchingShow>[],
+    this.upcoming = const <UpcomingItem>[],
   });
 
   final List<LibraryShow> shows;
   final List<WatchNextShow> watchNext;
   final List<StaleWatchingShow> staleWatching;
+  final List<UpcomingItem> upcoming;
 
   @override
   Future<List<LibraryShow>> getLibraryShows() async {
@@ -1913,6 +1937,11 @@ final class _FakeShowsRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return upcoming;
+  }
 }
 
 final class _PendingShowsRepository implements ShowsRepository {
@@ -1958,6 +1987,11 @@ final class _PendingShowsRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _WatchNextFailureRepository implements ShowsRepository {
@@ -2000,6 +2034,11 @@ final class _WatchNextFailureRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _RetryWatchNextRepository implements ShowsRepository {
@@ -2053,6 +2092,11 @@ final class _RetryWatchNextRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _StaleWatchingFailureRepository implements ShowsRepository {
@@ -2099,6 +2143,11 @@ final class _StaleWatchingFailureRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _RetryStaleWatchingRepository implements ShowsRepository {
@@ -2156,6 +2205,11 @@ final class _RetryStaleWatchingRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _WatchHistoryTrackingRepository implements ShowsRepository {
@@ -2197,6 +2251,11 @@ final class _WatchHistoryTrackingRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _PaginatedWatchHistoryRepository implements ShowsRepository {
@@ -2262,6 +2321,11 @@ final class _PaginatedWatchHistoryRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _RetryWatchHistoryRepository implements ShowsRepository {
@@ -2314,6 +2378,11 @@ final class _RetryWatchHistoryRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _RetryWatchHistoryPaginationRepository implements ShowsRepository {
@@ -2381,6 +2450,11 @@ final class _RetryWatchHistoryPaginationRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _RewatchWatchHistoryRepository implements ShowsRepository {
@@ -2461,6 +2535,11 @@ final class _RewatchWatchHistoryRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _RewatchWatchHistoryFailureRepository implements ShowsRepository {
@@ -2519,6 +2598,11 @@ final class _RewatchWatchHistoryFailureRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _MarkWatchNextRepository implements ShowsRepository {
@@ -2575,6 +2659,11 @@ final class _MarkWatchNextRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _PendingMarkWatchNextRepository implements ShowsRepository {
@@ -2633,6 +2722,11 @@ final class _PendingMarkWatchNextRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _MarkWatchNextFailureRepository implements ShowsRepository {
@@ -2685,6 +2779,11 @@ final class _MarkWatchNextFailureRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _PendingStartShowRepository implements ShowsRepository {
@@ -2732,6 +2831,11 @@ final class _PendingStartShowRepository implements ShowsRepository {
 
   @override
   Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 
   @override
   Future<void> startShow({required String showId}) {
@@ -2814,6 +2918,11 @@ final class _SuccessfulStartShowRepository implements ShowsRepository {
 
   @override
   Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _FailingStartShowRepository implements ShowsRepository {
@@ -2862,4 +2971,9 @@ final class _FailingStartShowRepository implements ShowsRepository {
 
   @override
   Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    return const <UpcomingItem>[];
+  }
 }

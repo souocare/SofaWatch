@@ -10,6 +10,8 @@ import 'package:sofawatch/features/shows/data/models/stale_watching_show_dto.dar
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
 import 'package:sofawatch/features/shows/data/models/watch_history_page_dto.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
+import 'package:sofawatch/features/shows/data/models/upcoming_item_dto.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 
 final class ApiShowsRepository implements ShowsRepository {
   const ApiShowsRepository(this._apiClient);
@@ -69,6 +71,36 @@ final class ApiShowsRepository implements ShowsRepository {
             }
 
             return WatchNextShowDto.fromJson(item).toDomain();
+          })
+          .toList(growable: false);
+    } on AppException {
+      rethrow;
+    } on FormatException catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } on TypeError catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming() async {
+    try {
+      final Response<List<dynamic>> response = await _apiClient
+          .get<List<dynamic>>('/library/shows/upcoming');
+
+      final List<dynamic>? data = response.data;
+
+      if (data == null) {
+        throw const FormatException('The Upcoming response body is missing.');
+      }
+
+      return data
+          .map((dynamic item) {
+            if (item is! Map<String, dynamic>) {
+              throw const FormatException('Invalid Upcoming response item.');
+            }
+
+            return UpcomingItemDto.fromJson(item).toDomain();
           })
           .toList(growable: false);
     } on AppException {

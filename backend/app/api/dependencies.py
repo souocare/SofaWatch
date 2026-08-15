@@ -55,6 +55,7 @@ from app.repositories.episode_watch_event import EpisodeWatchEventRepository
 from app.repositories.episode_watch_event import EpisodeWatchEventRepository
 from app.services.episode_watch_event import EpisodeWatchEventService
 from app.services.havent_started import HaventStartedService
+from app.services.upcoming import UpcomingService
 
 def get_genre_service(
     session: DatabaseSession,
@@ -588,6 +589,22 @@ def get_havent_started_service(
 HaventStartedServiceDependency = Annotated[
     HaventStartedService,
     Depends(get_havent_started_service),
+]
+
+def get_upcoming_service(
+    session: DatabaseSession,
+) -> UpcomingService:
+    """Provide the Upcoming service for a single request."""
+
+    return UpcomingService(
+        library_repository=LibraryRepository(session),
+        episode_repository=EpisodeRepository(session),
+    )
+
+
+UpcomingServiceDependency = Annotated[
+    UpcomingService,
+    Depends(get_upcoming_service),
 ]
 
 

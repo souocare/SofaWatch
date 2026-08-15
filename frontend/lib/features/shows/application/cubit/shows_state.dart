@@ -5,6 +5,7 @@ import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 
 final class ShowsState extends Equatable {
   const ShowsState({
@@ -28,6 +29,9 @@ final class ShowsState extends Equatable {
     this.startShowError,
     this.updatingWatchHistoryEventId,
     this.watchHistoryOperationError,
+    this.upcoming = const <UpcomingItem>[],
+    this.isLoadingUpcoming = false,
+    this.upcomingError,
   });
 
   final List<LibraryShow> libraryShows;
@@ -85,6 +89,14 @@ final class ShowsState extends Equatable {
   ///
   /// Existing Watch History must remain available if the operation fails.
   final AppException? watchHistoryOperationError;
+  final List<UpcomingItem> upcoming;
+  final bool isLoadingUpcoming;
+
+  /// Failure while loading the Upcoming timeline.
+  ///
+  /// Upcoming is supplementary data and must not make the Watch List unusable.
+  final AppException? upcomingError;
+  bool get isUpcomingEmpty => upcoming.isEmpty;
 
   bool get hasFatalError => error != null;
 
@@ -147,6 +159,10 @@ final class ShowsState extends Equatable {
     bool clearUpdatingWatchHistoryEventId = false,
     AppException? watchHistoryOperationError,
     bool clearWatchHistoryOperationError = false,
+    List<UpcomingItem>? upcoming,
+    bool? isLoadingUpcoming,
+    AppException? upcomingError,
+    bool clearUpcomingError = false,
   }) {
     return ShowsState(
       libraryShows: libraryShows ?? this.libraryShows,
@@ -164,6 +180,11 @@ final class ShowsState extends Equatable {
       isLoading: isLoading ?? this.isLoading,
       hasLoadedWatchHistory:
           hasLoadedWatchHistory ?? this.hasLoadedWatchHistory,
+      upcoming: upcoming ?? this.upcoming,
+      isLoadingUpcoming: isLoadingUpcoming ?? this.isLoadingUpcoming,
+      upcomingError: clearUpcomingError
+          ? null
+          : upcomingError ?? this.upcomingError,
       updatingWatchNextEpisodeId: clearUpdatingWatchNextEpisodeId
           ? null
           : updatingWatchNextEpisodeId ?? this.updatingWatchNextEpisodeId,
@@ -219,5 +240,8 @@ final class ShowsState extends Equatable {
     watchHistoryOperationError,
     startShowError,
     error,
+    upcoming,
+    isLoadingUpcoming,
+    upcomingError,
   ];
 }

@@ -1164,3 +1164,340 @@ def test_get_aired_counts_by_show_ids_returns_empty_for_empty_input(
 
     assert result == {}
 
+def test_list_regular_for_shows_between_returns_inclusive_date_range(
+    db_session: Session,
+) -> None:
+    """Return regular Episodes whose air date falls inside the range."""
+
+    show = persist_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = persist_season(
+        db_session,
+        show=show,
+        tmdb_id=1001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    before = make_episode(
+        season_id=season.id,
+        tmdb_id=2101,
+        episode_number=1,
+        air_date=date(2026, 8, 9),
+    )
+
+    first = make_episode(
+        season_id=season.id,
+        tmdb_id=2102,
+        episode_number=2,
+        air_date=date(2026, 8, 10),
+    )
+
+    second = make_episode(
+        season_id=season.id,
+        tmdb_id=2103,
+        episode_number=3,
+        air_date=date(2026, 8, 15),
+    )
+
+    after = make_episode(
+        season_id=season.id,
+        tmdb_id=2104,
+        episode_number=4,
+        air_date=date(2026, 8, 16),
+    )
+
+    db_session.add_all([
+        before,
+        first,
+        second,
+        after,
+    ])
+    db_session.commit()
+
+    repository = EpisodeRepository(db_session)
+
+    result = repository.list_regular_for_shows_between(
+        show_ids=[show.id],
+        from_date=date(2026, 8, 10),
+        to_date=date(2026, 8, 15),
+    )
+
+    assert [item.episode.id for item in result] == [
+        first.id,
+        second.id,
+    ]
+
+    assert all(item.show_id == show.id for item in result)
+    assert all(item.season_number == 1 for item in result)
+
+
+def test_list_regular_for_shows_between_returns_all_known_future_episodes(
+    db_session: Session,
+) -> None:
+    """Omitting the end date returns every known Episode from the start date."""
+
+    show = persist_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = persist_season(
+        db_session,
+        show=show,
+        tmdb_id=1001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    first = make_episode(
+        season_id=season.id,
+        tmdb_id=2101,
+        episode_number=1,
+        air_date=date(2026, 8, 15),
+    )
+
+    second = make_episode(
+        season_id=season.id,
+        tmdb_id=2102,
+        episode_number=2,
+        air_date=date(2026, 8, 22),
+    )
+
+    db_session.add_all([
+        first,
+        second,
+    ])
+    db_session.commit()
+
+    repository = EpisodeRepository(db_session)
+
+    result = repository.list_regular_for_shows_between(
+        show_ids=[show.id],
+        from_date=date(2026, 8, 15),
+    )
+
+    assert [item.episode.id for item in result] == [
+        first.id,
+        second.id,
+    ]
+
+
+def test_list_regular_for_shows_between_excludes_specials_and_unknown_dates(
+    db_session: Session,
+) -> None:
+    """Exclude Specials and Episodes without a known air date."""
+
+    show = persist_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    specials = persist_season(
+        db_session,
+        show=show,
+        tmdb_id=1000,
+        season_number=0,
+        title="Specials",
+    )
+
+    regular = persist_season(
+        db_session,
+        show=show,
+        tmdb_id=1001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    special_episode = make_episode(
+        season_id=specials.id,
+        tmdb_id=2001,
+        episode_number=1,
+        air_date=date(2026, 8, 16),
+    )
+
+    unknown_date = make_episode(
+        season_id=regular.id,
+        tmdb_id=2101,
+        episode_number=1,
+        air_date=None,
+    )
+
+    valid_episode = make_episode(
+        season_id=regular.id,
+        tmdb_id=2102,
+        episode_number=2,
+        air_date=date(2026, 8, 17),
+    )
+
+    db_session.add_all([
+        special_episode,
+        unknown_date,
+        valid_episode,
+    ])
+    db_session.commit()
+
+    repository = EpisodeRepository(db_session)
+
+    result = repository.list_regular_for_shows_between(
+        show_ids=[show.id],
+        from_date=date(2026, 8, 15),
+    )
+
+    assert [item.episode.id for item in result] == [
+        valid_episode.id,
+    ]
+
+    assert result[0].season_number == 1
+
+def test_list_regular_for_shows_between_excludes_unrequested_shows(
+    db_session: Session,
+) -> None:
+    """Return Episodes only for the requested Shows."""
+
+    requested_show = persist_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    other_show = persist_show(
+        db_session,
+        tmdb_id=100088,
+        title="The Last of Us",
+    )
+
+    requested_season = persist_season(
+        db_session,
+        show=requested_show,
+        tmdb_id=1001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    other_season = persist_season(
+        db_session,
+        show=other_show,
+        tmdb_id=2001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    requested_episode = make_episode(
+        season_id=requested_season.id,
+        tmdb_id=2101,
+        episode_number=1,
+        air_date=date(2026, 8, 16),
+    )
+
+    other_episode = make_episode(
+        season_id=other_season.id,
+        tmdb_id=3101,
+        episode_number=1,
+        air_date=date(2026, 8, 16),
+    )
+
+    db_session.add_all([
+        requested_episode,
+        other_episode,
+    ])
+    db_session.commit()
+
+    repository = EpisodeRepository(db_session)
+
+    result = repository.list_regular_for_shows_between(
+        show_ids=[requested_show.id],
+        from_date=date(2026, 8, 15),
+    )
+
+    assert [item.episode.id for item in result] == [
+        requested_episode.id,
+    ]
+
+def test_list_regular_for_shows_between_orders_chronologically(
+    db_session: Session,
+) -> None:
+    """Order timeline Episodes by date, Show, Season and Episode number."""
+
+    first_show = persist_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    second_show = persist_show(
+        db_session,
+        tmdb_id=100088,
+        title="The Last of Us",
+    )
+
+    first_season = persist_season(
+        db_session,
+        show=first_show,
+        tmdb_id=1001,
+        season_number=2,
+        title="Season 2",
+    )
+
+    second_season = persist_season(
+        db_session,
+        show=second_show,
+        tmdb_id=2001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    later_episode = make_episode(
+        season_id=first_season.id,
+        tmdb_id=2102,
+        episode_number=2,
+        air_date=date(2026, 8, 20),
+    )
+
+    earlier_episode = make_episode(
+        season_id=second_season.id,
+        tmdb_id=3101,
+        episode_number=1,
+        air_date=date(2026, 8, 16),
+    )
+
+    db_session.add_all([
+        later_episode,
+        earlier_episode,
+    ])
+    db_session.commit()
+
+    repository = EpisodeRepository(db_session)
+
+    result = repository.list_regular_for_shows_between(
+        show_ids=[
+            first_show.id,
+            second_show.id,
+        ],
+        from_date=date(2026, 8, 15),
+    )
+
+    assert [item.episode.id for item in result] == [
+        earlier_episode.id,
+        later_episode.id,
+    ]
+
+def test_list_regular_for_shows_between_returns_empty_for_empty_input(
+    db_session: Session,
+) -> None:
+    """Return no timeline Episodes when no Shows are requested."""
+
+    repository = EpisodeRepository(db_session)
+
+    result = repository.list_regular_for_shows_between(
+        show_ids=[],
+        from_date=date(2026, 8, 15),
+    )
+
+    assert result == []
