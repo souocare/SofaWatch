@@ -9,7 +9,10 @@ abstract interface class ShowsRepository {
 
   Future<List<WatchNextShow>> getWatchNext();
 
-  Future<List<UpcomingItem>> getUpcoming();
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  });
 
   Future<List<StaleWatchingShow>> getStaleWatching();
 

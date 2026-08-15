@@ -2955,3 +2955,300 @@ def test_list_upcoming_excludes_unknown_dates_and_shows_without_future_episodes(
 
     assert response.status_code == 200
     assert response.json() == []
+
+def test_list_upcoming_supports_past_and_future_date_range(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return dated Episodes on both sides of Today when explicitly requested."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    previous_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300001,
+        episode_number=1,
+        title="Previous Episode",
+        air_date=date(2026, 8, 14),
+    )
+
+    today_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300002,
+        episode_number=2,
+        title="Today Episode",
+        air_date=date(2026, 8, 15),
+    )
+
+    future_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300003,
+        episode_number=3,
+        title="Future Episode",
+        air_date=date(2026, 8, 16),
+    )
+
+    response = client.get(
+        "/api/v1/library/shows/upcoming",
+        params={
+            "from_date": "2026-08-14",
+            "to_date": "2026-08-16",
+        },
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert [item["episode"]["id"] for item in body] == [
+        str(previous_episode.id),
+        str(today_episode.id),
+        str(future_episode.id),
+    ]
+
+
+def test_list_upcoming_date_range_is_inclusive(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Include Episodes airing exactly on both requested boundaries."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    first = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300001,
+        episode_number=1,
+        title="First Boundary",
+        air_date=date(2026, 8, 10),
+    )
+
+    create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300002,
+        episode_number=2,
+        title="Outside",
+        air_date=date(2026, 8, 11),
+    )
+
+    last = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300003,
+        episode_number=3,
+        title="Last Boundary",
+        air_date=date(2026, 8, 12),
+    )
+
+    response = client.get(
+        "/api/v1/library/shows/upcoming",
+        params={
+            "from_date": "2026-08-10",
+            "to_date": "2026-08-12",
+        },
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body[0]["episode"]["id"] == str(first.id)
+    assert body[-1]["episode"]["id"] == str(last.id)
+    assert len(body) == 3
+
+def test_list_upcoming_supports_past_only_range(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return previously aired Episodes when requesting a historical range."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    included = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300001,
+        episode_number=1,
+        title="Historical Episode",
+        air_date=date(2026, 8, 5),
+    )
+
+    create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300002,
+        episode_number=2,
+        title="Too New",
+        air_date=date(2026, 8, 12),
+    )
+
+    response = client.get(
+        "/api/v1/library/shows/upcoming",
+        params={
+            "from_date": "2026-08-01",
+            "to_date": "2026-08-10",
+        },
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+    assert body[0]["episode"]["id"] == str(included.id)
+
+
+def test_list_upcoming_rejects_invalid_date_range(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Reject an Upcoming range whose start is after its end."""
+
+    create_local_user(db_session)
+
+    response = client.get(
+        "/api/v1/library/shows/upcoming",
+        params={
+            "from_date": "2026-08-20",
+            "to_date": "2026-08-10",
+        },
+    )
+
+    assert response.status_code == 400
+
+    assert response.json() == {
+        "error": {
+            "code": "invalid_upcoming_date_range",
+            "message": "Upcoming date range is invalid.",
+        }
+    }
+
+def test_list_upcoming_uses_today_when_only_to_date_is_provided(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Keep Today as the lower boundary when only to_date is provided."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300001,
+        episode_number=1,
+        title="Past Episode",
+        air_date=date(2026, 8, 14),
+    )
+
+    today_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300002,
+        episode_number=2,
+        title="Today Episode",
+        air_date=date(2026, 8, 15),
+    )
+
+    response = client.get(
+        "/api/v1/library/shows/upcoming",
+        params={
+            "to_date": "2026-08-15",
+        },
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+    assert body[0]["episode"]["id"] == str(today_episode.id)
+

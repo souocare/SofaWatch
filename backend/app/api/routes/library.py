@@ -1,5 +1,6 @@
 from typing import Annotated
 from uuid import UUID
+from datetime import date
 
 from app.schemas.havent_started import HaventStartedShowResponse
 from fastapi import (
@@ -30,6 +31,8 @@ from app.schemas.library import (
     LibraryShowResponse,
     LibraryStatusUpdate,
 )
+from app.api.dependencies import UpcomingServiceDependency
+from app.schemas.upcoming import UpcomingItemResponse
 
 router = APIRouter(
     prefix="/library",
@@ -84,6 +87,27 @@ def list_havent_started_shows(
     )
 
 
+# @router.get(
+#     "/shows/upcoming",
+#     response_model=list[UpcomingItemResponse],
+#     summary="List Upcoming TV episodes",
+#     description=(
+#         "Return known dated regular Episodes from eligible TV series "
+#         "in the current user's Library, ordered chronologically."
+#     ),
+# )
+# def list_upcoming_episodes(
+#     current_user: CurrentUserDependency,
+#     service: UpcomingServiceDependency,
+# ) -> list[UpcomingItemResponse]:
+#     """Return the current user's Upcoming Episode timeline."""
+
+#     return service.list_for_user(
+#         user_id=current_user.id,
+#     )
+
+
+
 @router.get(
     "/shows/upcoming",
     response_model=list[UpcomingItemResponse],
@@ -96,11 +120,39 @@ def list_havent_started_shows(
 def list_upcoming_episodes(
     current_user: CurrentUserDependency,
     service: UpcomingServiceDependency,
+    from_date: Annotated[
+        date | None,
+        Query(
+            description=(
+                "Inclusive first air date to return. "
+                "Defaults to today when omitted."
+            ),
+        ),
+    ] = None,
+    to_date: Annotated[
+        date | None,
+        Query(
+            description="Inclusive last air date to return.",
+        ),
+    ] = None,
 ) -> list[UpcomingItemResponse]:
     """Return the current user's Upcoming Episode timeline."""
 
+    if (
+        from_date is not None
+        and to_date is not None
+        and from_date > to_date
+    ):
+        raise APIError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="invalid_upcoming_date_range",
+            message="Upcoming date range is invalid.",
+        )
+
     return service.list_for_user(
         user_id=current_user.id,
+        from_date=from_date,
+        to_date=to_date,
     )
 
 @router.get(

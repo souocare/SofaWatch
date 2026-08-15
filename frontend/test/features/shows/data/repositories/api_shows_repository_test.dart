@@ -880,5 +880,24 @@ void main() {
         ),
       );
     });
+    test('requests Upcoming with date range', () async {
+      dioAdapter.onGet(
+        '/library/shows/upcoming',
+        (server) {
+          server.reply(200, <Map<String, dynamic>>[]);
+        },
+        queryParameters: <String, dynamic>{
+          'from_date': '2026-08-08',
+          'to_date': '2026-08-22',
+        },
+      );
+
+      final List<UpcomingItem> result = await repository.getUpcoming(
+        fromDate: DateTime(2026, 8, 8),
+        toDate: DateTime(2026, 8, 22),
+      );
+
+      expect(result, isEmpty);
+    });
   });
 }

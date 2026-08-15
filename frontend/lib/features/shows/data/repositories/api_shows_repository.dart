@@ -83,10 +83,21 @@ final class ApiShowsRepository implements ShowsRepository {
   }
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     try {
+      final Map<String, dynamic> queryParameters = <String, dynamic>{
+        if (fromDate != null) 'from_date': _formatDate(fromDate),
+        if (toDate != null) 'to_date': _formatDate(toDate),
+      };
+
       final Response<List<dynamic>> response = await _apiClient
-          .get<List<dynamic>>('/library/shows/upcoming');
+          .get<List<dynamic>>(
+            '/library/shows/upcoming',
+            queryParameters: queryParameters,
+          );
 
       final List<dynamic>? data = response.data;
 
@@ -198,4 +209,14 @@ final class ApiShowsRepository implements ShowsRepository {
   Future<void> markEpisodeUnwatched({required String episodeId}) async {
     await _apiClient.delete<dynamic>('/episodes/$episodeId/watched');
   }
+}
+
+String _formatDate(DateTime value) {
+  final DateTime date = value.toLocal();
+
+  final String year = date.year.toString().padLeft(4, '0');
+  final String month = date.month.toString().padLeft(2, '0');
+  final String day = date.day.toString().padLeft(2, '0');
+
+  return '$year-$month-$day';
 }

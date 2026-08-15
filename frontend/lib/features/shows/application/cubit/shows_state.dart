@@ -30,8 +30,14 @@ final class ShowsState extends Equatable {
     this.updatingWatchHistoryEventId,
     this.watchHistoryOperationError,
     this.upcoming = const <UpcomingItem>[],
+    this.hasLoadedUpcoming = false,
+    this.upcomingFromDate,
+    this.upcomingToDate,
     this.isLoadingUpcoming = false,
+    this.isLoadingEarlierUpcoming = false,
     this.upcomingError,
+    this.earlierUpcomingError,
+    this.upcomingReferenceDate,
   });
 
   final List<LibraryShow> libraryShows;
@@ -51,6 +57,7 @@ final class ShowsState extends Equatable {
   final bool isLoadingWatchHistory;
 
   final bool isLoadingMoreWatchHistory;
+  final DateTime? upcomingReferenceDate;
 
   final bool isLoading;
   final String? startingShowId;
@@ -58,6 +65,7 @@ final class ShowsState extends Equatable {
 
   /// Episode currently being marked as watched from the Watch Next section.
   final String? updatingWatchNextEpisodeId;
+  final AppException? earlierUpcomingError;
 
   /// Failure while changing Episode progress from Watch Next.
   ///
@@ -90,13 +98,39 @@ final class ShowsState extends Equatable {
   /// Existing Watch History must remain available if the operation fails.
   final AppException? watchHistoryOperationError;
   final List<UpcomingItem> upcoming;
+
+  /// Whether the initial Upcoming timeline has been loaded successfully.
+  final bool hasLoadedUpcoming;
+
+  /// Inclusive oldest date currently covered by the Upcoming timeline.
+  ///
+  /// Null before the first ranged load has completed.
+  final DateTime? upcomingFromDate;
+
+  /// Inclusive newest date explicitly covered by the timeline.
+  ///
+  /// Null means that the loaded range has no upper date boundary and therefore
+  /// includes every known future Episode returned by the backend.
+  final DateTime? upcomingToDate;
+
+  /// Loading the initial or complete Upcoming timeline.
   final bool isLoadingUpcoming;
+
+  /// Loading an additional historical range above the current timeline.
+  final bool isLoadingEarlierUpcoming;
 
   /// Failure while loading the Upcoming timeline.
   ///
   /// Upcoming is supplementary data and must not make the Watch List unusable.
   final AppException? upcomingError;
   bool get isUpcomingEmpty => upcoming.isEmpty;
+
+  bool get canLoadEarlierUpcoming {
+    return hasLoadedUpcoming &&
+        upcomingFromDate != null &&
+        !isLoadingUpcoming &&
+        !isLoadingEarlierUpcoming;
+  }
 
   bool get hasFatalError => error != null;
 
@@ -159,35 +193,77 @@ final class ShowsState extends Equatable {
     bool clearUpdatingWatchHistoryEventId = false,
     AppException? watchHistoryOperationError,
     bool clearWatchHistoryOperationError = false,
+
+    // Upcoming
     List<UpcomingItem>? upcoming,
+    bool? hasLoadedUpcoming,
+    DateTime? upcomingFromDate,
+    bool clearUpcomingFromDate = false,
+    DateTime? upcomingToDate,
+    bool clearUpcomingToDate = false,
     bool? isLoadingUpcoming,
+    bool? isLoadingEarlierUpcoming,
     AppException? upcomingError,
     bool clearUpcomingError = false,
+    AppException? earlierUpcomingError,
+    bool clearEarlierUpcomingError = false,
+
+    DateTime? upcomingReferenceDate,
+    bool clearUpcomingReferenceDate = false,
   }) {
     return ShowsState(
       libraryShows: libraryShows ?? this.libraryShows,
       watchNext: watchNext ?? this.watchNext,
       staleWatching: staleWatching ?? this.staleWatching,
       watchHistory: watchHistory ?? this.watchHistory,
+
       watchHistoryNextCursor: clearWatchHistoryNextCursor
           ? null
           : watchHistoryNextCursor ?? this.watchHistoryNextCursor,
+
       hasMoreWatchHistory: hasMoreWatchHistory ?? this.hasMoreWatchHistory,
+
       isLoadingWatchHistory:
           isLoadingWatchHistory ?? this.isLoadingWatchHistory,
+
       isLoadingMoreWatchHistory:
           isLoadingMoreWatchHistory ?? this.isLoadingMoreWatchHistory,
+
       isLoading: isLoading ?? this.isLoading,
+
       hasLoadedWatchHistory:
           hasLoadedWatchHistory ?? this.hasLoadedWatchHistory,
+
+      // Upcoming
       upcoming: upcoming ?? this.upcoming,
+
+      hasLoadedUpcoming: hasLoadedUpcoming ?? this.hasLoadedUpcoming,
+
+      upcomingFromDate: clearUpcomingFromDate
+          ? null
+          : upcomingFromDate ?? this.upcomingFromDate,
+
+      upcomingToDate: clearUpcomingToDate
+          ? null
+          : upcomingToDate ?? this.upcomingToDate,
+
       isLoadingUpcoming: isLoadingUpcoming ?? this.isLoadingUpcoming,
+
+      isLoadingEarlierUpcoming:
+          isLoadingEarlierUpcoming ?? this.isLoadingEarlierUpcoming,
+
       upcomingError: clearUpcomingError
           ? null
           : upcomingError ?? this.upcomingError,
+
+      earlierUpcomingError: clearEarlierUpcomingError
+          ? null
+          : earlierUpcomingError ?? this.earlierUpcomingError,
+
       updatingWatchNextEpisodeId: clearUpdatingWatchNextEpisodeId
           ? null
           : updatingWatchNextEpisodeId ?? this.updatingWatchNextEpisodeId,
+
       updatingWatchHistoryEventId: clearUpdatingWatchHistoryEventId
           ? null
           : updatingWatchHistoryEventId ?? this.updatingWatchHistoryEventId,
@@ -195,18 +271,23 @@ final class ShowsState extends Equatable {
       watchHistoryOperationError: clearWatchHistoryOperationError
           ? null
           : watchHistoryOperationError ?? this.watchHistoryOperationError,
+
       watchNextOperationError: clearWatchNextOperationError
           ? null
           : watchNextOperationError ?? this.watchNextOperationError,
+
       watchNextError: clearWatchNextError
           ? null
           : watchNextError ?? this.watchNextError,
+
       staleWatchingError: clearStaleWatchingError
           ? null
           : staleWatchingError ?? this.staleWatchingError,
+
       watchHistoryError: clearWatchHistoryError
           ? null
           : watchHistoryError ?? this.watchHistoryError,
+
       startingShowId: clearStartingShowId
           ? null
           : startingShowId ?? this.startingShowId,
@@ -214,6 +295,11 @@ final class ShowsState extends Equatable {
       startShowError: clearStartShowError
           ? null
           : startShowError ?? this.startShowError,
+
+      upcomingReferenceDate: clearUpcomingReferenceDate
+          ? null
+          : upcomingReferenceDate ?? this.upcomingReferenceDate,
+
       error: clearError ? null : error ?? this.error,
     );
   }
@@ -240,8 +326,16 @@ final class ShowsState extends Equatable {
     watchHistoryOperationError,
     startShowError,
     error,
+
+    // Upcoming
     upcoming,
+    hasLoadedUpcoming,
+    upcomingFromDate,
+    upcomingToDate,
     isLoadingUpcoming,
+    isLoadingEarlierUpcoming,
     upcomingError,
+    earlierUpcomingError,
+    upcomingReferenceDate,
   ];
 }

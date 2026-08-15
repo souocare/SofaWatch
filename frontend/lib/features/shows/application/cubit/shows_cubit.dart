@@ -10,9 +10,25 @@ import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 
 final class ShowsCubit extends Cubit<ShowsState> {
-  ShowsCubit({required this.repository}) : super(const ShowsState());
+  ShowsCubit({required this.repository, DateTime Function()? now})
+    : _now = now ?? DateTime.now,
+      super(const ShowsState());
 
   final ShowsRepository repository;
+  final DateTime Function() _now;
+
+  static const int _initialUpcomingPastDays = 7;
+  static const int _earlierUpcomingChunkDays = 14;
+
+  DateTime _today() {
+    final DateTime now = _now();
+
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  DateTime _initialUpcomingFromDate() {
+    return _today().subtract(const Duration(days: _initialUpcomingPastDays));
+  }
 
   Future<void> load() async {
     emit(
@@ -77,11 +93,16 @@ final class ShowsCubit extends Cubit<ShowsState> {
     }
 
     await _loadStaleWatching();
+
     if (isClosed) {
       return;
     }
 
-    await _loadUpcoming();
+    await _loadUpcoming(
+      fromDate: state.upcomingFromDate ?? _initialUpcomingFromDate(),
+      toDate: state.upcomingToDate,
+      referenceDate: state.upcomingReferenceDate ?? _today(),
+    );
   }
 
   Future<void> _loadWatchNext() async {
@@ -146,7 +167,11 @@ final class ShowsCubit extends Cubit<ShowsState> {
     }
   }
 
-  Future<void> _loadUpcoming() async {
+  Future<void> _loadUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+    DateTime? referenceDate,
+  }) async {
     if (state.isLoadingUpcoming) {
       return;
     }
@@ -154,7 +179,10 @@ final class ShowsCubit extends Cubit<ShowsState> {
     emit(state.copyWith(isLoadingUpcoming: true, clearUpcomingError: true));
 
     try {
-      final List<UpcomingItem> upcoming = await repository.getUpcoming();
+      final List<UpcomingItem> upcoming = await repository.getUpcoming(
+        fromDate: fromDate,
+        toDate: toDate,
+      );
 
       if (isClosed) {
         return;
@@ -163,8 +191,16 @@ final class ShowsCubit extends Cubit<ShowsState> {
       emit(
         state.copyWith(
           upcoming: upcoming,
+          hasLoadedUpcoming: true,
+          upcomingReferenceDate:
+              referenceDate ?? state.upcomingReferenceDate ?? _today(),
+          upcomingFromDate: fromDate,
+          clearUpcomingFromDate: fromDate == null,
+          upcomingToDate: toDate,
+          clearUpcomingToDate: toDate == null,
           isLoadingUpcoming: false,
           clearUpcomingError: true,
+          clearEarlierUpcomingError: true,
         ),
       );
     } on AppException catch (error) {
@@ -185,6 +221,139 @@ final class ShowsCubit extends Cubit<ShowsState> {
         ),
       );
     }
+  }
+
+  Future<void> _refreshLoadedUpcomingRange() {
+    return _loadUpcoming(
+      fromDate: state.upcomingFromDate ?? _initialUpcomingFromDate(),
+      toDate: state.upcomingToDate,
+    );
+  }
+
+  Future<void> loadEarlierUpcoming() async {
+    if (!state.canLoadEarlierUpcoming) {
+      return;
+    }
+
+    final DateTime? currentFromDate = state.upcomingFromDate;
+
+    if (currentFromDate == null) {
+      return;
+    }
+
+    /*
+   * The current range already includes currentFromDate.
+   *
+   * Therefore the next historical range must end on the previous day
+   * to avoid requesting the same boundary twice.
+   */
+    final DateTime toDate = currentFromDate.subtract(const Duration(days: 1));
+
+    final DateTime fromDate = toDate.subtract(
+      const Duration(days: _earlierUpcomingChunkDays - 1),
+    );
+
+    emit(
+      state.copyWith(
+        isLoadingEarlierUpcoming: true,
+        clearEarlierUpcomingError: true,
+      ),
+    );
+
+    try {
+      final List<UpcomingItem> earlierItems = await repository.getUpcoming(
+        fromDate: fromDate,
+        toDate: toDate,
+      );
+
+      if (isClosed) {
+        return;
+      }
+
+      /*
+     * The backend orders each requested range chronologically.
+     *
+     * Still deduplicate by Episode ID because Upcoming can later evolve
+     * independently and overlapping ranges must never create duplicate rows.
+     */
+      final Set<String> existingEpisodeIds = state.upcoming
+          .map((UpcomingItem item) => item.episode.id)
+          .toSet();
+
+      final List<UpcomingItem> newItems = earlierItems
+          .where(
+            (UpcomingItem item) =>
+                !existingEpisodeIds.contains(item.episode.id),
+          )
+          .toList(growable: false);
+
+      final List<UpcomingItem> mergedItems =
+          <UpcomingItem>[...newItems, ...state.upcoming]
+            ..sort((UpcomingItem left, UpcomingItem right) {
+              final int dateComparison = left.episode.airDate.compareTo(
+                right.episode.airDate,
+              );
+
+              if (dateComparison != 0) {
+                return dateComparison;
+              }
+
+              final int showComparison = left.showTitle.toLowerCase().compareTo(
+                right.showTitle.toLowerCase(),
+              );
+
+              if (showComparison != 0) {
+                return showComparison;
+              }
+
+              final int seasonComparison = left.episode.seasonNumber.compareTo(
+                right.episode.seasonNumber,
+              );
+
+              if (seasonComparison != 0) {
+                return seasonComparison;
+              }
+
+              return left.episode.episodeNumber.compareTo(
+                right.episode.episodeNumber,
+              );
+            });
+
+      emit(
+        state.copyWith(
+          upcoming: mergedItems,
+          upcomingFromDate: fromDate,
+          isLoadingEarlierUpcoming: false,
+          clearEarlierUpcomingError: true,
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          isLoadingEarlierUpcoming: false,
+          earlierUpcomingError: error,
+        ),
+      );
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          isLoadingEarlierUpcoming: false,
+          earlierUpcomingError: AppException.unknown(originalError: error),
+        ),
+      );
+    }
+  }
+
+  Future<void> retryEarlierUpcoming() {
+    return loadEarlierUpcoming();
   }
 
   Future<void> loadWatchHistory() async {
@@ -237,7 +406,22 @@ final class ShowsCubit extends Cubit<ShowsState> {
   }
 
   Future<void> retryUpcoming() {
-    return _loadUpcoming();
+    if (!state.hasLoadedUpcoming) {
+      final DateTime today = _today();
+
+      return _loadUpcoming(
+        fromDate: today.subtract(
+          const Duration(days: _initialUpcomingPastDays),
+        ),
+        referenceDate: today,
+      );
+    }
+
+    return _loadUpcoming(
+      fromDate: state.upcomingFromDate,
+      toDate: state.upcomingToDate,
+      referenceDate: state.upcomingReferenceDate,
+    );
   }
 
   Future<void> loadMoreWatchHistory() async {
@@ -564,8 +748,10 @@ final class ShowsCubit extends Cubit<ShowsState> {
      * - Library status changes from Planning to Watching.
      * - The first aired Episode becomes watched.
      * - Watch Next may now contain the following Episode.
+     * - Upcoming may change because the Show is now eligible as Watching.
      *
-     * Reload the backend state instead of reproducing these rules locally.
+     * Reload backend-owned collections instead of reproducing
+     * those rules locally.
      */
       final List<LibraryShow> libraryShows = await repository.getLibraryShows();
 
@@ -582,6 +768,12 @@ final class ShowsCubit extends Cubit<ShowsState> {
       }
 
       await _loadStaleWatching();
+
+      if (isClosed) {
+        return;
+      }
+
+      await _refreshLoadedUpcomingRange();
 
       if (isClosed) {
         return;
@@ -607,11 +799,6 @@ final class ShowsCubit extends Cubit<ShowsState> {
           startShowError: AppException.unknown(originalError: error),
         ),
       );
-    }
-    await _loadUpcoming();
-
-    if (isClosed) {
-      return;
     }
   }
 

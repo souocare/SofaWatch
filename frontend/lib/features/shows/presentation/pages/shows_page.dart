@@ -1444,7 +1444,10 @@ class _UpcomingTab extends StatelessWidget {
       buildWhen: (ShowsState previous, ShowsState current) {
         return previous.upcoming != current.upcoming ||
             previous.isLoadingUpcoming != current.isLoadingUpcoming ||
-            previous.upcomingError != current.upcomingError;
+            previous.isLoadingEarlierUpcoming !=
+                current.isLoadingEarlierUpcoming ||
+            previous.upcomingError != current.upcomingError ||
+            previous.earlierUpcomingError != current.earlierUpcomingError;
       },
       builder: (BuildContext context, ShowsState state) {
         if (state.isLoadingUpcoming && state.upcoming.isEmpty) {
@@ -1489,34 +1492,700 @@ class _UpcomingTab extends StatelessWidget {
           );
         }
 
-        return _UpcomingTimeline(items: state.upcoming);
+        final DateTime? referenceDate = state.upcomingReferenceDate;
+
+        if (referenceDate == null) {
+          return const SizedBox.shrink();
+        }
+
+        return _UpcomingTimeline(
+          items: state.upcoming,
+          today: referenceDate,
+          isLoadingEarlier: state.isLoadingEarlierUpcoming,
+          earlierError: state.earlierUpcomingError,
+          onLoadEarlier: context.read<ShowsCubit>().loadEarlierUpcoming,
+          onRetryEarlier: context.read<ShowsCubit>().retryEarlierUpcoming,
+        );
       },
     );
   }
 }
 
-class _UpcomingTimeline extends StatelessWidget {
-  const _UpcomingTimeline({required this.items});
+class _UpcomingTimeline extends StatefulWidget {
+  const _UpcomingTimeline({
+    required this.items,
+    required this.today,
+    required this.isLoadingEarlier,
+    required this.earlierError,
+    required this.onLoadEarlier,
+    required this.onRetryEarlier,
+  });
 
   final List<UpcomingItem> items;
+  final DateTime today;
+
+  final bool isLoadingEarlier;
+  final AppException? earlierError;
+
+  final Future<void> Function() onLoadEarlier;
+  final Future<void> Function() onRetryEarlier;
+
+  @override
+  State<_UpcomingTimeline> createState() {
+    return _UpcomingTimelineState();
+  }
+}
+
+class _UpcomingTimelineState extends State<_UpcomingTimeline> {
+  static const double _loadEarlierThreshold = 120;
+  static const double _rearmThreshold = 280;
+
+  final ScrollController _scrollController = ScrollController();
+
+  final GlobalKey _todayCenterKey = GlobalKey();
+
+  bool _canTriggerLoadEarlier = true;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _scrollController.addListener(_handleScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
+
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+
+    final ScrollPosition position = _scrollController.position;
+
+    /*
+   * With Today used as the CustomScrollView center, historical content
+   * exists before the zero scroll offset.
+   *
+   * extentBefore tells us how much already-loaded historical content
+   * still exists above the current viewport.
+   */
+    final double distanceFromHistoricalStart = position.extentBefore;
+
+    /*
+   * Once the user has moved sufficiently away from the oldest loaded
+   * content, allow another historical request later.
+   */
+    if (distanceFromHistoricalStart >= _rearmThreshold) {
+      _canTriggerLoadEarlier = true;
+
+      return;
+    }
+
+    if (!_canTriggerLoadEarlier ||
+        distanceFromHistoricalStart > _loadEarlierThreshold ||
+        widget.isLoadingEarlier) {
+      return;
+    }
+
+    _canTriggerLoadEarlier = false;
+
+    widget.onLoadEarlier();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      key: const ValueKey<String>('shows-upcoming-timeline'),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      itemCount: items.length,
-      separatorBuilder: (BuildContext context, int index) {
-        return const SizedBox(height: AppSpacing.md);
-      },
-      itemBuilder: (BuildContext context, int index) {
-        final UpcomingItem item = items[index];
+    final DateTime today = _dateOnly(widget.today);
 
-        return Text(
-          '${item.showTitle} · ${item.episode.code} · ${item.episode.title}',
-          key: ValueKey<String>('shows-upcoming-${item.episode.id}'),
+    final List<UpcomingItem> pastItems = widget.items
+        .where(
+          (UpcomingItem item) =>
+              _dateOnly(item.episode.airDate).isBefore(today),
+        )
+        .toList(growable: false);
+
+    final List<UpcomingItem> todayItems = widget.items
+        .where(
+          (UpcomingItem item) =>
+              _isSameDate(_dateOnly(item.episode.airDate), today),
+        )
+        .toList(growable: false);
+
+    final List<UpcomingItem> futureItems = widget.items
+        .where(
+          (UpcomingItem item) => _dateOnly(item.episode.airDate).isAfter(today),
+        )
+        .toList(growable: false);
+
+    final List<_UpcomingTimelineEntry> pastEntries =
+        _buildUpcomingTimelineEntries(items: pastItems, today: today);
+
+    final List<_UpcomingTimelineEntry> futureEntries =
+        _buildUpcomingTimelineEntries(items: futureItems, today: today);
+
+    final bool showEarlierStatus =
+        widget.isLoadingEarlier || widget.earlierError != null;
+
+    return CustomScrollView(
+      key: const ValueKey<String>('shows-upcoming-timeline'),
+      controller: _scrollController,
+      center: _todayCenterKey,
+      slivers: <Widget>[
+        /*
+       * Historical timeline.
+       *
+       * This sliver exists before Today and therefore grows towards
+       * negative scroll offsets.
+       */
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.xl,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate(<Widget>[
+              if (showEarlierStatus) ...<Widget>[
+                _UpcomingEarlierStatus(
+                  isLoading: widget.isLoadingEarlier,
+                  error: widget.earlierError,
+                  onRetry: widget.onRetryEarlier,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+              ..._buildUpcomingEntryWidgets(entries: pastEntries, today: today),
+            ]),
+          ),
+        ),
+
+        /*
+       * Today is the scroll anchor.
+       *
+       * CustomScrollView assigns zero scroll offset to this sliver,
+       * so opening Upcoming naturally starts here.
+       */
+        SliverToBoxAdapter(
+          key: _todayCenterKey,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.sm,
+              AppSpacing.lg,
+              AppSpacing.sm,
+            ),
+            child: _UpcomingTodaySection(items: todayItems, today: today),
+          ),
+        ),
+
+        /*
+       * Tomorrow, the following seven days and Later.
+       */
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.sm,
+            AppSpacing.lg,
+            AppSpacing.xl,
+          ),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate(
+              _buildUpcomingEntryWidgets(entries: futureEntries, today: today),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _buildUpcomingEntryWidgets({
+    required List<_UpcomingTimelineEntry> entries,
+    required DateTime today,
+  }) {
+    final List<Widget> widgets = <Widget>[];
+
+    for (int index = 0; index < entries.length; index++) {
+      final _UpcomingTimelineEntry entry = entries[index];
+
+      if (index > 0) {
+        widgets.add(const SizedBox(height: AppSpacing.sm));
+      }
+
+      widgets.add(switch (entry) {
+        _UpcomingDateHeaderEntry(:final label, :final kind) =>
+          _UpcomingDateHeader(label: label, kind: kind),
+        _UpcomingEpisodeEntry(:final item) => _UpcomingEpisodeRow(
+          item: item,
+          today: today,
+        ),
+      });
+    }
+
+    return widgets;
+  }
+}
+
+sealed class _UpcomingTimelineEntry {
+  const _UpcomingTimelineEntry();
+}
+
+class _UpcomingTodaySection extends StatelessWidget {
+  const _UpcomingTodaySection({required this.items, required this.today});
+
+  final List<UpcomingItem> items;
+  final DateTime today;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('shows-upcoming-today-section'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        const _UpcomingDateHeader(
+          label: 'Today',
+          kind: _UpcomingDateHeaderKind.today,
+        ),
+        if (items.isEmpty) ...<Widget>[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'No episodes airing today.',
+            key: const ValueKey<String>('shows-upcoming-today-empty'),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+        ] else
+          for (final UpcomingItem item in items) ...<Widget>[
+            const SizedBox(height: AppSpacing.sm),
+            _UpcomingEpisodeRow(item: item, today: today),
+          ],
+      ],
+    );
+  }
+}
+
+final class _UpcomingDateHeaderEntry extends _UpcomingTimelineEntry {
+  const _UpcomingDateHeaderEntry({required this.label, required this.kind});
+
+  final String label;
+  final _UpcomingDateHeaderKind kind;
+}
+
+final class _UpcomingEpisodeEntry extends _UpcomingTimelineEntry {
+  const _UpcomingEpisodeEntry({required this.item});
+
+  final UpcomingItem item;
+}
+
+enum _UpcomingDateHeaderKind { past, today, tomorrow, future, later }
+
+List<_UpcomingTimelineEntry> _buildUpcomingTimelineEntries({
+  required List<UpcomingItem> items,
+  required DateTime today,
+}) {
+  if (items.isEmpty) {
+    return const <_UpcomingTimelineEntry>[];
+  }
+
+  final List<UpcomingItem> sortedItems = List<UpcomingItem>.of(items)
+    ..sort((UpcomingItem first, UpcomingItem second) {
+      final int dateComparison = first.episode.airDate.compareTo(
+        second.episode.airDate,
+      );
+
+      if (dateComparison != 0) {
+        return dateComparison;
+      }
+
+      final int showComparison = first.showTitle.toLowerCase().compareTo(
+        second.showTitle.toLowerCase(),
+      );
+
+      if (showComparison != 0) {
+        return showComparison;
+      }
+
+      final int seasonComparison = first.episode.seasonNumber.compareTo(
+        second.episode.seasonNumber,
+      );
+
+      if (seasonComparison != 0) {
+        return seasonComparison;
+      }
+
+      return first.episode.episodeNumber.compareTo(
+        second.episode.episodeNumber,
+      );
+    });
+
+  final DateTime tomorrow = today.add(const Duration(days: 1));
+  final DateTime finalDetailedFutureDate = today.add(const Duration(days: 7));
+
+  final List<_UpcomingTimelineEntry> entries = <_UpcomingTimelineEntry>[];
+
+  DateTime? currentDetailedDate;
+  bool hasCreatedLaterHeader = false;
+
+  for (final UpcomingItem item in sortedItems) {
+    final DateTime airDate = _dateOnly(item.episode.airDate);
+
+    final bool belongsToLater = airDate.isAfter(finalDetailedFutureDate);
+
+    if (belongsToLater) {
+      if (!hasCreatedLaterHeader) {
+        entries.add(
+          const _UpcomingDateHeaderEntry(
+            label: 'Later',
+            kind: _UpcomingDateHeaderKind.later,
+          ),
         );
-      },
+
+        hasCreatedLaterHeader = true;
+      }
+
+      entries.add(_UpcomingEpisodeEntry(item: item));
+
+      continue;
+    }
+
+    if (currentDetailedDate == null ||
+        !_isSameDate(currentDetailedDate, airDate)) {
+      entries.add(
+        _UpcomingDateHeaderEntry(
+          label: _upcomingDateHeaderLabel(
+            date: airDate,
+            today: today,
+            tomorrow: tomorrow,
+          ),
+          kind: _upcomingDateHeaderKind(
+            date: airDate,
+            today: today,
+            tomorrow: tomorrow,
+          ),
+        ),
+      );
+
+      currentDetailedDate = airDate;
+    }
+
+    entries.add(_UpcomingEpisodeEntry(item: item));
+  }
+
+  return entries;
+}
+
+DateTime _dateOnly(DateTime value) {
+  return DateTime(value.year, value.month, value.day);
+}
+
+bool _isSameDate(DateTime first, DateTime second) {
+  return first.year == second.year &&
+      first.month == second.month &&
+      first.day == second.day;
+}
+
+String _upcomingDateHeaderLabel({
+  required DateTime date,
+  required DateTime today,
+  required DateTime tomorrow,
+}) {
+  if (_isSameDate(date, today)) {
+    return 'Today';
+  }
+
+  if (_isSameDate(date, tomorrow)) {
+    return 'Tomorrow';
+  }
+
+  return _formatUpcomingDay(date);
+}
+
+_UpcomingDateHeaderKind _upcomingDateHeaderKind({
+  required DateTime date,
+  required DateTime today,
+  required DateTime tomorrow,
+}) {
+  if (date.isBefore(today)) {
+    return _UpcomingDateHeaderKind.past;
+  }
+
+  if (_isSameDate(date, today)) {
+    return _UpcomingDateHeaderKind.today;
+  }
+
+  if (_isSameDate(date, tomorrow)) {
+    return _UpcomingDateHeaderKind.tomorrow;
+  }
+
+  return _UpcomingDateHeaderKind.future;
+}
+
+String _formatUpcomingDay(DateTime date) {
+  const List<String> weekdays = <String>[
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+
+  const List<String> months = <String>[
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  final String weekday = weekdays[date.weekday - 1];
+  final String month = months[date.month - 1];
+
+  return '$weekday, $month ${date.day}';
+}
+
+String _formatUpcomingShortDate(DateTime date) {
+  const List<String> months = <String>[
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  return '${months[date.month - 1]} ${date.day}';
+}
+
+class _UpcomingDateHeader extends StatelessWidget {
+  const _UpcomingDateHeader({required this.label, required this.kind});
+
+  final String label;
+  final _UpcomingDateHeaderKind kind;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isPrimary =
+        kind == _UpcomingDateHeaderKind.today ||
+        kind == _UpcomingDateHeaderKind.tomorrow;
+
+    final bool isLater = kind == _UpcomingDateHeaderKind.later;
+
+    return Padding(
+      key: ValueKey<String>(
+        'shows-upcoming-date-${label.toLowerCase().replaceAll(' ', '-')}',
+      ),
+      padding: EdgeInsets.only(
+        top: isPrimary || isLater ? AppSpacing.lg : AppSpacing.md,
+        bottom: AppSpacing.xs,
+      ),
+      child: Row(
+        children: <Widget>[
+          Text(
+            label,
+            style: isPrimary
+                ? Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)
+                : Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: kind == _UpcomingDateHeaderKind.past
+                        ? AppColors.textSecondary
+                        : null,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UpcomingEpisodeRow extends StatelessWidget {
+  const _UpcomingEpisodeRow({required this.item, required this.today});
+
+  final UpcomingItem item;
+  final DateTime today;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDesktop =
+        MediaQuery.sizeOf(context).width >= AppBreakpoints.desktop;
+
+    final DateTime airDate = _dateOnly(item.episode.airDate);
+
+    return Card(
+      key: ValueKey<String>('shows-upcoming-${item.episode.id}'),
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            _WatchNextPoster(url: item.posterUrl, width: isDesktop ? 64 : 52),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: _UpcomingEpisodeInformation(
+                item: item,
+                today: today,
+                airDate: airDate,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UpcomingEpisodeInformation extends StatelessWidget {
+  const _UpcomingEpisodeInformation({
+    required this.item,
+    required this.today,
+    required this.airDate,
+  });
+
+  final UpcomingItem item;
+  final DateTime today;
+  final DateTime airDate;
+
+  @override
+  Widget build(BuildContext context) {
+    final String temporalLabel = _upcomingTemporalLabel(
+      airDate: airDate,
+      today: today,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          item.showTitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          '${item.episode.code} · ${item.episode.title}',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          temporalLabel,
+          key: ValueKey<String>('shows-upcoming-temporal-${item.episode.id}'),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        ),
+      ],
+    );
+  }
+}
+
+String _upcomingTemporalLabel({
+  required DateTime airDate,
+  required DateTime today,
+}) {
+  final int dayDifference = airDate.difference(today).inDays;
+
+  if (dayDifference < 0) {
+    return 'Aired ${_formatUpcomingShortDate(airDate)}';
+  }
+
+  if (dayDifference == 0) {
+    return 'Airs today';
+  }
+
+  if (dayDifference == 1) {
+    return 'Airs tomorrow';
+  }
+
+  if (dayDifference <= 7) {
+    return 'In $dayDifference days';
+  }
+
+  return _formatUpcomingShortDate(airDate);
+}
+
+class _UpcomingEarlierStatus extends StatelessWidget {
+  const _UpcomingEarlierStatus({
+    required this.isLoading,
+    required this.error,
+    required this.onRetry,
+  });
+
+  final bool isLoading;
+  final AppException? error;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Center(
+        key: ValueKey<String>('shows-upcoming-loading-earlier'),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    if (error == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Center(
+      key: const ValueKey<String>('shows-upcoming-earlier-failure'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Flexible(
+              child: Text(
+                'Could not load earlier episodes.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            TextButton(
+              key: const ValueKey<String>('shows-upcoming-earlier-retry'),
+              onPressed: onRetry,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

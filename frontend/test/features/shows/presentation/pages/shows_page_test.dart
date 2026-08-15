@@ -1716,6 +1716,634 @@ void main() {
         reason: 'The Rewatch action must become available again after failure.',
       );
     });
+    testWidgets(
+      'loads earlier Upcoming episodes when user scrolls back to the top',
+      (WidgetTester tester) async {
+        final _ScrollableUpcomingRepository repository =
+            _ScrollableUpcomingRepository();
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubit));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+        );
+
+        await tester.pumpAndSettle();
+
+        final Finder timeline = find.byKey(
+          const ValueKey<String>('shows-upcoming-timeline'),
+        );
+
+        expect(timeline, findsOneWidget);
+
+        expect(
+          repository.upcomingCalls,
+          1,
+          reason: 'Opening Upcoming at Today must not load more history.',
+        );
+
+        final CustomScrollView scrollView = tester.widget<CustomScrollView>(
+          timeline,
+        );
+
+        final ScrollController controller = scrollView.controller!;
+        final ScrollPosition position = controller.position;
+
+        expect(
+          position.minScrollExtent,
+          lessThan(0),
+          reason: 'Past Upcoming content must exist before Today.',
+        );
+
+        controller.jumpTo(position.minScrollExtent + 100);
+
+        await tester.pumpAndSettle();
+
+        expect(repository.upcomingCalls, 2);
+
+        expect(repository.fromDates.last, DateTime(2026, 7, 25));
+        expect(repository.toDates.last, DateTime(2026, 8, 7));
+
+        expect(
+          cubit.state.upcoming
+              .map((UpcomingItem item) => item.episode.id)
+              .contains('earlier-episode'),
+          isTrue,
+        );
+
+        expect(
+          cubit.state.upcoming
+              .map((UpcomingItem item) => item.episode.id)
+              .contains('current-0'),
+          isTrue,
+        );
+
+        expect(
+          cubit.state.upcoming.first.episode.id,
+          'earlier-episode',
+          reason: 'Earlier Episodes must be prepended to the timeline.',
+        );
+      },
+    );
+
+    testWidgets(
+      'keeps Upcoming timeline visible while loading earlier episodes',
+      (WidgetTester tester) async {
+        final _PendingEarlierUpcomingRepository repository =
+            _PendingEarlierUpcomingRepository();
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubit));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+        );
+
+        await tester.pumpAndSettle();
+
+        final Finder timeline = find.byKey(
+          const ValueKey<String>('shows-upcoming-timeline'),
+        );
+
+        final CustomScrollView scrollView = tester.widget<CustomScrollView>(
+          timeline,
+        );
+
+        final ScrollController controller = scrollView.controller!;
+        final ScrollPosition position = controller.position;
+
+        expect(position.minScrollExtent, lessThan(0));
+
+        controller.jumpTo(position.minScrollExtent + 100);
+
+        await tester.pump();
+
+        expect(repository.upcomingCalls, 2);
+
+        expect(cubit.state.isLoadingEarlierUpcoming, isTrue);
+
+        expect(
+          cubit.state.upcoming
+              .map((UpcomingItem item) => item.episode.id)
+              .contains('current-0'),
+          isTrue,
+          reason: 'Historical loading must not replace the existing timeline.',
+        );
+
+        /*
+     * Move to the beginning of the currently loaded historical range
+     * so the loading indicator is mounted in the viewport.
+     */
+        controller.jumpTo(controller.position.minScrollExtent);
+
+        await tester.pump();
+
+        expect(
+          repository.upcomingCalls,
+          2,
+          reason:
+              'Moving further into history while a request is pending '
+              'must not create a duplicate request.',
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('shows-upcoming-loading-earlier')),
+          findsOneWidget,
+        );
+
+        repository.completeEarlier(<UpcomingItem>[
+          _makeUpcomingItem(
+            id: 'earlier-episode',
+            episodeNumber: 1,
+            airDate: DateTime(2026, 8, 1),
+          ),
+        ]);
+
+        await tester.pumpAndSettle();
+
+        expect(cubit.state.isLoadingEarlierUpcoming, isFalse);
+
+        expect(
+          find.byKey(const ValueKey<String>('shows-upcoming-loading-earlier')),
+          findsNothing,
+        );
+
+        expect(
+          cubit.state.upcoming
+              .map((UpcomingItem item) => item.episode.id)
+              .contains('earlier-episode'),
+          isTrue,
+        );
+      },
+    );
+
+    testWidgets(
+      'shows Retry without removing Upcoming timeline when earlier loading fails',
+      (WidgetTester tester) async {
+        final _FailingEarlierUpcomingPageRepository repository =
+            _FailingEarlierUpcomingPageRepository();
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubit));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+        );
+
+        await tester.pumpAndSettle();
+
+        final Finder timeline = find.byKey(
+          const ValueKey<String>('shows-upcoming-timeline'),
+        );
+
+        final CustomScrollView scrollView = tester.widget<CustomScrollView>(
+          timeline,
+        );
+
+        final ScrollController controller = scrollView.controller!;
+        final ScrollPosition position = controller.position;
+
+        expect(position.minScrollExtent, lessThan(0));
+
+        controller.jumpTo(position.minScrollExtent + 100);
+
+        await tester.pumpAndSettle();
+
+        expect(repository.upcomingCalls, 2);
+
+        expect(cubit.state.earlierUpcomingError, isNotNull);
+
+        expect(
+          cubit.state.upcoming
+              .map((UpcomingItem item) => item.episode.id)
+              .contains('current-0'),
+          isTrue,
+          reason:
+              'A failed historical request must preserve the current timeline.',
+        );
+
+        /*
+     * The failure UI lives at the beginning of the historical sliver.
+     */
+        controller.jumpTo(controller.position.minScrollExtent);
+
+        await tester.pump();
+
+        expect(
+          find.byKey(const ValueKey<String>('shows-upcoming-earlier-failure')),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('shows-upcoming-earlier-retry')),
+          findsOneWidget,
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('shows-upcoming-earlier-retry')),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(repository.upcomingCalls, 3);
+
+        expect(cubit.state.earlierUpcomingError, isNull);
+
+        expect(
+          find.byKey(const ValueKey<String>('shows-upcoming-earlier-failure')),
+          findsNothing,
+        );
+
+        expect(
+          cubit.state.upcoming
+              .map((UpcomingItem item) => item.episode.id)
+              .contains('earlier-episode'),
+          isTrue,
+        );
+      },
+    );
+
+    testWidgets(
+      'preserves Upcoming scroll position after prepending earlier episodes',
+      (WidgetTester tester) async {
+        final _ScrollableUpcomingRepository repository =
+            _ScrollableUpcomingRepository();
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubit));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+        );
+
+        await tester.pumpAndSettle();
+
+        final Finder timelineFinder = find.byKey(
+          const ValueKey<String>('shows-upcoming-timeline'),
+        );
+
+        final CustomScrollView scrollView = tester.widget<CustomScrollView>(
+          timelineFinder,
+        );
+
+        final ScrollController controller = scrollView.controller!;
+        final ScrollPosition position = controller.position;
+
+        expect(position.minScrollExtent, lessThan(0));
+
+        controller.jumpTo(position.minScrollExtent + 100);
+
+        final double offsetBeforePrepend = controller.offset;
+
+        await tester.pumpAndSettle();
+
+        expect(repository.upcomingCalls, 2);
+
+        expect(cubit.state.upcoming.first.episode.id, 'earlier-episode');
+
+        expect(
+          cubit.state.upcoming
+              .map((UpcomingItem item) => item.episode.id)
+              .contains('current-0'),
+          isTrue,
+        );
+
+        /*
+     * Historical content is inserted before the Today center.
+     *
+     * CustomScrollView.center keeps the existing scroll coordinate
+     * stable instead of requiring manual offset compensation.
+     */
+        expect(
+          controller.offset,
+          closeTo(offsetBeforePrepend, 1),
+          reason:
+              'Prepending historical content before the Today center must '
+              'preserve the current scroll position.',
+        );
+      },
+    );
+    testWidgets(
+      'opens Upcoming anchored at Today even when no episode airs today',
+      (WidgetTester tester) async {
+        final ShowsCubit cubit = ShowsCubit(
+          repository: _FakeShowsRepository(
+            shows: <LibraryShow>[_show],
+            upcoming: <UpcomingItem>[
+              _makeUpcomingItem(
+                id: 'tomorrow-episode',
+                episodeNumber: 1,
+                airDate: DateTime(2026, 8, 16),
+              ),
+            ],
+          ),
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubit));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('shows-upcoming-today-section')),
+          findsOneWidget,
+        );
+
+        expect(find.text('Today'), findsOneWidget);
+
+        expect(
+          find.byKey(const ValueKey<String>('shows-upcoming-today-empty')),
+          findsOneWidget,
+        );
+
+        expect(find.text('No episodes airing today.'), findsOneWidget);
+
+        final CustomScrollView timeline = tester.widget<CustomScrollView>(
+          find.byKey(const ValueKey<String>('shows-upcoming-timeline')),
+        );
+
+        expect(
+          timeline.controller!.offset,
+          closeTo(0, 1),
+          reason: 'Upcoming must initially open at the Today center.',
+        );
+      },
+    );
+    testWidgets('groups Upcoming episodes into Today and Tomorrow', (
+      WidgetTester tester,
+    ) async {
+      final ShowsCubit cubit = ShowsCubit(
+        repository: _FakeShowsRepository(
+          shows: <LibraryShow>[_show],
+          upcoming: <UpcomingItem>[
+            _makeUpcomingItem(
+              id: 'today-episode',
+              episodeNumber: 1,
+              airDate: DateTime(2026, 8, 15),
+            ),
+            _makeUpcomingItem(
+              id: 'tomorrow-episode',
+              episodeNumber: 2,
+              airDate: DateTime(2026, 8, 16),
+            ),
+          ],
+        ),
+        now: () => DateTime(2026, 8, 15, 12),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Today'), findsOneWidget);
+      expect(find.text('Tomorrow'), findsOneWidget);
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-upcoming-today-episode')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-upcoming-tomorrow-episode')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('shows-upcoming-temporal-today-episode'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(find.text('Airs today'), findsOneWidget);
+      expect(find.text('Airs tomorrow'), findsOneWidget);
+    });
+    testWidgets(
+      'shows dated groups and countdown for episodes within seven days',
+      (WidgetTester tester) async {
+        final ShowsCubit cubit = ShowsCubit(
+          repository: _FakeShowsRepository(
+            shows: <LibraryShow>[_show],
+            upcoming: <UpcomingItem>[
+              _makeUpcomingItem(
+                id: 'future-two-days',
+                episodeNumber: 3,
+                airDate: DateTime(2026, 8, 17),
+              ),
+              _makeUpcomingItem(
+                id: 'future-seven-days',
+                episodeNumber: 4,
+                airDate: DateTime(2026, 8, 22),
+              ),
+            ],
+          ),
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubit));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(find.text('Monday, Aug 17'), findsOneWidget);
+
+        expect(find.text('Saturday, Aug 22'), findsOneWidget);
+
+        expect(find.text('In 2 days'), findsOneWidget);
+        expect(find.text('In 7 days'), findsOneWidget);
+
+        expect(
+          find.byKey(const ValueKey<String>('shows-upcoming-future-two-days')),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(
+            const ValueKey<String>('shows-upcoming-future-seven-days'),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+    testWidgets('groups episodes beyond seven days under Later', (
+      WidgetTester tester,
+    ) async {
+      final ShowsCubit cubit = ShowsCubit(
+        repository: _FakeShowsRepository(
+          shows: <LibraryShow>[_show],
+          upcoming: <UpcomingItem>[
+            _makeUpcomingItem(
+              id: 'later-first',
+              episodeNumber: 5,
+              airDate: DateTime(2026, 8, 23),
+            ),
+            _makeUpcomingItem(
+              id: 'later-second',
+              episodeNumber: 6,
+              airDate: DateTime(2026, 9, 5),
+            ),
+          ],
+        ),
+        now: () => DateTime(2026, 8, 15, 12),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Later'),
+        findsOneWidget,
+        reason:
+            'All Episodes after the seven-day detailed window '
+            'must share a single Later section.',
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-upcoming-later-first')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-upcoming-later-second')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Aug 23'), findsOneWidget);
+      expect(find.text('Sep 5'), findsOneWidget);
+    });
+    testWidgets('keeps previously aired Upcoming dates above Today', (
+      WidgetTester tester,
+    ) async {
+      final ShowsCubit cubit = ShowsCubit(
+        repository: _FakeShowsRepository(
+          shows: <LibraryShow>[_show],
+          upcoming: <UpcomingItem>[
+            _makeUpcomingItem(
+              id: 'past-episode',
+              episodeNumber: 1,
+              airDate: DateTime(2026, 8, 14),
+            ),
+            _makeUpcomingItem(
+              id: 'today-episode',
+              episodeNumber: 2,
+              airDate: DateTime(2026, 8, 15),
+            ),
+          ],
+        ),
+        now: () => DateTime(2026, 8, 15, 12),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder timelineFinder = find.byKey(
+        const ValueKey<String>('shows-upcoming-timeline'),
+      );
+
+      final CustomScrollView timeline = tester.widget<CustomScrollView>(
+        timelineFinder,
+      );
+
+      expect(timeline.controller!.position.minScrollExtent, lessThan(0));
+
+      timeline.controller!.jumpTo(
+        timeline.controller!.position.minScrollExtent,
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Friday, Aug 14'), findsOneWidget);
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-upcoming-past-episode')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Aired Aug 14'), findsOneWidget);
+    });
   });
 }
 
@@ -1889,6 +2517,42 @@ final UpcomingItem _upcomingItem = UpcomingItem(
   ),
 );
 
+UpcomingItem _makeUpcomingItem({
+  required String id,
+  required int episodeNumber,
+  required DateTime airDate,
+}) {
+  return UpcomingItem(
+    libraryEntryId: 'library-$id',
+    libraryStatus: LibraryStatus.watching,
+    showId: 'show-$id',
+    showTmdbId: 95396,
+    showTitle: 'Severance',
+    posterUrl: null,
+    backdropUrl: null,
+    episode: UpcomingEpisode(
+      id: id,
+      tmdbId: 4000000 + episodeNumber,
+      seasonNumber: 3,
+      episodeNumber: episodeNumber,
+      title: 'Episode $episodeNumber',
+      airDate: airDate,
+      runtime: 52,
+      stillUrl: null,
+    ),
+  );
+}
+
+List<UpcomingItem> _currentUpcomingItems() {
+  return List<UpcomingItem>.generate(40, (int index) {
+    return _makeUpcomingItem(
+      id: 'current-$index',
+      episodeNumber: index + 1,
+      airDate: DateTime(2026, 8, 15).add(Duration(days: index)),
+    );
+  });
+}
+
 final class _FakeShowsRepository implements ShowsRepository {
   const _FakeShowsRepository({
     required this.shows,
@@ -1939,7 +2603,10 @@ final class _FakeShowsRepository implements ShowsRepository {
   Future<void> startShow({required String showId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return upcoming;
   }
 }
@@ -1989,7 +2656,10 @@ final class _PendingShowsRepository implements ShowsRepository {
   Future<void> startShow({required String showId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -2036,7 +2706,10 @@ final class _WatchNextFailureRepository implements ShowsRepository {
   Future<void> startShow({required String showId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -2094,7 +2767,10 @@ final class _RetryWatchNextRepository implements ShowsRepository {
   Future<void> startShow({required String showId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -2145,7 +2821,10 @@ final class _StaleWatchingFailureRepository implements ShowsRepository {
   Future<void> startShow({required String showId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -2207,7 +2886,10 @@ final class _RetryStaleWatchingRepository implements ShowsRepository {
   Future<void> startShow({required String showId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -2253,7 +2935,10 @@ final class _WatchHistoryTrackingRepository implements ShowsRepository {
   Future<void> startShow({required String showId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -2323,7 +3008,10 @@ final class _PaginatedWatchHistoryRepository implements ShowsRepository {
   Future<void> startShow({required String showId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -2380,7 +3068,10 @@ final class _RetryWatchHistoryRepository implements ShowsRepository {
   Future<void> startShow({required String showId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -2452,7 +3143,10 @@ final class _RetryWatchHistoryPaginationRepository implements ShowsRepository {
   Future<void> startShow({required String showId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -2537,7 +3231,10 @@ final class _RewatchWatchHistoryRepository implements ShowsRepository {
   Future<void> startShow({required String showId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -2600,7 +3297,10 @@ final class _RewatchWatchHistoryFailureRepository implements ShowsRepository {
   Future<void> startShow({required String showId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -2661,7 +3361,10 @@ final class _MarkWatchNextRepository implements ShowsRepository {
   Future<void> startShow({required String showId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -2724,7 +3427,10 @@ final class _PendingMarkWatchNextRepository implements ShowsRepository {
   Future<void> startShow({required String showId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -2781,7 +3487,10 @@ final class _MarkWatchNextFailureRepository implements ShowsRepository {
   Future<void> startShow({required String showId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -2833,7 +3542,10 @@ final class _PendingStartShowRepository implements ShowsRepository {
   Future<void> markEpisodeUnwatched({required String episodeId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 
@@ -2920,7 +3632,10 @@ final class _SuccessfulStartShowRepository implements ShowsRepository {
   Future<void> markEpisodeUnwatched({required String episodeId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -2973,7 +3688,191 @@ final class _FailingStartShowRepository implements ShowsRepository {
   Future<void> markEpisodeUnwatched({required String episodeId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
+}
+
+final class _ScrollableUpcomingRepository implements ShowsRepository {
+  int upcomingCalls = 0;
+
+  final List<DateTime?> fromDates = <DateTime?>[];
+  final List<DateTime?> toDates = <DateTime?>[];
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    upcomingCalls++;
+
+    fromDates.add(fromDate);
+    toDates.add(toDate);
+
+    if (upcomingCalls == 1) {
+      return _currentUpcomingItems();
+    }
+
+    return <UpcomingItem>[
+      _makeUpcomingItem(
+        id: 'earlier-episode',
+        episodeNumber: 1,
+        airDate: DateTime(2026, 8, 1),
+      ),
+    ];
+  }
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    return <LibraryShow>[_show];
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    return const <WatchNextShow>[];
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+}
+
+final class _PendingEarlierUpcomingRepository implements ShowsRepository {
+  int upcomingCalls = 0;
+
+  final Completer<List<UpcomingItem>> _earlierCompleter =
+      Completer<List<UpcomingItem>>();
+
+  void completeEarlier(List<UpcomingItem> items) {
+    _earlierCompleter.complete(items);
+  }
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) {
+    upcomingCalls++;
+
+    if (upcomingCalls == 1) {
+      return Future<List<UpcomingItem>>.value(_currentUpcomingItems());
+    }
+
+    return _earlierCompleter.future;
+  }
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async => <LibraryShow>[_show];
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async => const <WatchNextShow>[];
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async =>
+      const <StaleWatchingShow>[];
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
+}
+
+final class _FailingEarlierUpcomingPageRepository implements ShowsRepository {
+  int upcomingCalls = 0;
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    upcomingCalls++;
+
+    if (upcomingCalls == 1) {
+      return _currentUpcomingItems();
+    }
+
+    if (upcomingCalls == 2) {
+      throw const AppException.connection();
+    }
+
+    return <UpcomingItem>[
+      _makeUpcomingItem(
+        id: 'earlier-episode',
+        episodeNumber: 1,
+        airDate: DateTime(2026, 8, 1),
+      ),
+    ];
+  }
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async => <LibraryShow>[_show];
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async => const <WatchNextShow>[];
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async =>
+      const <StaleWatchingShow>[];
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      nextCursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
 }

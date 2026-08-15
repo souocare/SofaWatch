@@ -24,6 +24,11 @@ void main() {
       final ShowsCubit cubit = ShowsCubit(repository: _FakeShowsRepository());
 
       expect(cubit.state, const ShowsState());
+      expect(cubit.state.hasLoadedUpcoming, isFalse);
+      expect(cubit.state.upcomingFromDate, isNull);
+      expect(cubit.state.upcomingToDate, isNull);
+      expect(cubit.state.isLoadingEarlierUpcoming, isFalse);
+      expect(cubit.state.earlierUpcomingError, isNull);
 
       cubit.close();
     });
@@ -42,7 +47,10 @@ void main() {
         upcoming: <UpcomingItem>[_upcomingItem()],
       );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = ShowsCubit(
+        repository: repository,
+        now: () => DateTime(2026, 8, 15, 12, 30),
+      );
 
       await cubit.load();
 
@@ -62,6 +70,14 @@ void main() {
       expect(cubit.state.staleWatchingError, isNull);
 
       expect(repository.upcomingCalls, 1);
+      expect(repository.upcomingFromDates, <DateTime?>[DateTime(2026, 8, 8)]);
+
+      expect(repository.upcomingToDates, <DateTime?>[null]);
+
+      expect(cubit.state.upcomingFromDate, DateTime(2026, 8, 8));
+
+      expect(cubit.state.upcomingToDate, isNull);
+      expect(cubit.state.hasLoadedUpcoming, isTrue);
 
       expect(cubit.state.upcoming, repository.upcoming);
 
@@ -992,6 +1008,11 @@ void main() {
         expect(repository.staleWatchingCalls, 1);
 
         await cubit.startShow(showId: 'show-1396');
+        expect(
+          repository.upcomingCalls,
+          2,
+          reason: 'Starting a Show may change the Upcoming timeline.',
+        );
 
         expect(repository.startShowCalls, 1);
         expect(repository.startedShowIds, <String>['show-1396']);
@@ -1163,6 +1184,220 @@ void main() {
 
       await cubit.close();
     });
+    test(
+      'loads Upcoming from seven days before Today without a future limit',
+      () async {
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          upcoming: <UpcomingItem>[_upcomingItem()],
+        );
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 23, 59, 45),
+        );
+
+        await cubit.load();
+
+        expect(repository.upcomingCalls, 1);
+
+        expect(repository.upcomingFromDates.single, DateTime(2026, 8, 8));
+
+        expect(repository.upcomingToDates.single, isNull);
+
+        expect(cubit.state.upcomingFromDate, DateTime(2026, 8, 8));
+
+        expect(cubit.state.upcomingToDate, isNull);
+        expect(cubit.state.hasLoadedUpcoming, isTrue);
+
+        await cubit.close();
+      },
+    );
+    test(
+      'retryUpcoming retries the initial seven-day window after failure',
+      () async {
+        final _RetryInitialUpcomingRepository repository =
+            _RetryInitialUpcomingRepository();
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        await cubit.load();
+
+        expect(repository.upcomingCalls, 1);
+        expect(cubit.state.hasLoadedUpcoming, isFalse);
+        expect(cubit.state.upcomingError, isNotNull);
+
+        await cubit.retryUpcoming();
+
+        expect(repository.upcomingCalls, 2);
+
+        expect(repository.fromDates, <DateTime?>[
+          DateTime(2026, 8, 8),
+          DateTime(2026, 8, 8),
+        ]);
+
+        expect(repository.toDates, <DateTime?>[null, null]);
+
+        expect(cubit.state.hasLoadedUpcoming, isTrue);
+        expect(cubit.state.upcomingError, isNull);
+        expect(cubit.state.upcomingFromDate, DateTime(2026, 8, 8));
+
+        await cubit.close();
+      },
+    );
+    test(
+      'loads earlier Upcoming items and prepends them chronologically',
+      () async {
+        final _EarlierUpcomingRepository repository =
+            _EarlierUpcomingRepository();
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        await cubit.load();
+
+        expect(cubit.state.upcomingFromDate, DateTime(2026, 8, 8));
+
+        expect(
+          cubit.state.upcoming.map((UpcomingItem item) => item.episode.id),
+          <String>['current-episode'],
+        );
+
+        await cubit.loadEarlierUpcoming();
+
+        expect(repository.upcomingCalls, 2);
+
+        expect(repository.fromDates, <DateTime?>[
+          DateTime(2026, 8, 8),
+          DateTime(2026, 7, 25),
+        ]);
+
+        expect(repository.toDates, <DateTime?>[null, DateTime(2026, 8, 7)]);
+
+        expect(
+          cubit.state.upcoming.map((UpcomingItem item) => item.episode.id),
+          <String>['earlier-episode', 'current-episode'],
+        );
+
+        expect(cubit.state.upcomingFromDate, DateTime(2026, 7, 25));
+
+        expect(cubit.state.upcomingToDate, isNull);
+        expect(cubit.state.isLoadingEarlierUpcoming, isFalse);
+        expect(cubit.state.earlierUpcomingError, isNull);
+
+        await cubit.close();
+      },
+    );
+    test(
+      'does not duplicate Upcoming Episodes when earlier range overlaps',
+      () async {
+        final _OverlappingEarlierUpcomingRepository repository =
+            _OverlappingEarlierUpcomingRepository();
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        await cubit.load();
+        await cubit.loadEarlierUpcoming();
+
+        expect(
+          cubit.state.upcoming
+              .map((UpcomingItem item) => item.episode.id)
+              .toList(),
+          <String>['earlier-episode', 'current-episode'],
+        );
+
+        await cubit.close();
+      },
+    );
+    test(
+      'preserves Upcoming timeline when loading earlier items fails',
+      () async {
+        const AppException expectedError = AppException.connection();
+
+        final _FailingEarlierUpcomingRepository repository =
+            _FailingEarlierUpcomingRepository();
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: repository,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        await cubit.load();
+
+        final List<UpcomingItem> before = cubit.state.upcoming;
+        final DateTime? fromDateBefore = cubit.state.upcomingFromDate;
+
+        await cubit.loadEarlierUpcoming();
+
+        expect(cubit.state.upcoming, before);
+
+        expect(
+          cubit.state.upcomingFromDate,
+          fromDateBefore,
+          reason:
+              'A failed historical request must not advance the loaded range.',
+        );
+
+        expect(cubit.state.earlierUpcomingError, expectedError);
+        expect(cubit.state.isLoadingEarlierUpcoming, isFalse);
+
+        await cubit.close();
+      },
+    );
+    test('preserves loaded Upcoming range when starting a Show', () async {
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        shows: <LibraryShow>[
+          _libraryShow(
+            tmdbId: 1396,
+            title: 'Breaking Bad',
+            status: LibraryStatus.planning,
+          ),
+        ],
+        upcoming: <UpcomingItem>[_upcomingItem()],
+      );
+
+      final ShowsCubit cubit = ShowsCubit(
+        repository: repository,
+        now: () => DateTime(2026, 8, 15, 12),
+      );
+
+      await cubit.load();
+
+      expect(cubit.state.upcomingFromDate, DateTime(2026, 8, 8));
+
+      await cubit.loadEarlierUpcoming();
+
+      expect(cubit.state.upcomingFromDate, DateTime(2026, 7, 25));
+
+      expect(repository.upcomingCalls, 2);
+
+      await cubit.startShow(showId: 'show-1396');
+
+      expect(repository.startShowCalls, 1);
+
+      expect(repository.upcomingCalls, 3);
+
+      expect(
+        repository.upcomingFromDates.last,
+        DateTime(2026, 7, 25),
+        reason:
+            'Refreshing Upcoming after starting a Show must preserve '
+            'the historical range already loaded.',
+      );
+
+      expect(repository.upcomingToDates.last, isNull);
+
+      expect(cubit.state.upcomingFromDate, DateTime(2026, 7, 25));
+
+      await cubit.close();
+    });
   });
 }
 
@@ -1307,7 +1542,7 @@ UpcomingItem _upcomingItem({
   );
 }
 
-final class _FakeShowsRepository implements ShowsRepository {
+class _FakeShowsRepository implements ShowsRepository {
   _FakeShowsRepository({
     this.shows = const <LibraryShow>[],
     this.watchNext = const <WatchNextShow>[],
@@ -1353,7 +1588,12 @@ final class _FakeShowsRepository implements ShowsRepository {
   final AppException? upcomingError;
   final Object? upcomingUnexpectedError;
 
-  int upcomingCalls = 0;
+  final List<DateTime?> upcomingFromDates = <DateTime?>[];
+  final List<DateTime?> upcomingToDates = <DateTime?>[];
+
+  int _upcomingCalls = 0;
+
+  int get upcomingCalls => _upcomingCalls;
 
   int markEpisodeWatchedCalls = 0;
   final List<String> markedEpisodeIds = <String>[];
@@ -1469,8 +1709,14 @@ final class _FakeShowsRepository implements ShowsRepository {
   }
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
-    upcomingCalls++;
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    _upcomingCalls++;
+
+    upcomingFromDates.add(fromDate);
+    upcomingToDates.add(toDate);
 
     final AppException? appError = upcomingError;
 
@@ -1566,7 +1812,10 @@ final class _PendingWatchHistoryRepository implements ShowsRepository {
   Future<void> markEpisodeWatched({required String episodeId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -1631,7 +1880,10 @@ final class _PendingLoadMoreWatchHistoryRepository implements ShowsRepository {
   Future<void> markEpisodeWatched({required String episodeId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -1722,7 +1974,10 @@ final class _ChangingWatchNextRepository implements ShowsRepository {
   Future<void> markEpisodeUnwatched({required String episodeId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
   }
 }
@@ -1782,7 +2037,124 @@ final class _CompletedWatchNextRepository implements ShowsRepository {
   Future<void> markEpisodeUnwatched({required String episodeId}) async {}
 
   @override
-  Future<List<UpcomingItem>> getUpcoming() async {
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     return const <UpcomingItem>[];
+  }
+}
+
+final class _RetryInitialUpcomingRepository extends _FakeShowsRepository {
+  int _requests = 0;
+
+  final List<DateTime?> fromDates = <DateTime?>[];
+  final List<DateTime?> toDates = <DateTime?>[];
+
+  @override
+  int get upcomingCalls => _requests;
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    _requests++;
+
+    fromDates.add(fromDate);
+    toDates.add(toDate);
+
+    if (_requests == 1) {
+      throw const AppException.connection();
+    }
+
+    return <UpcomingItem>[_upcomingItem()];
+  }
+}
+
+class _EarlierUpcomingRepository extends _FakeShowsRepository {
+  final List<DateTime?> fromDates = <DateTime?>[];
+  final List<DateTime?> toDates = <DateTime?>[];
+
+  @override
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    _upcomingCalls++;
+
+    fromDates.add(fromDate);
+    toDates.add(toDate);
+
+    if (_upcomingCalls == 1) {
+      return <UpcomingItem>[
+        _upcomingItem(
+          episodeId: 'current-episode',
+          episodeTitle: 'Current Episode',
+          airDate: DateTime(2026, 8, 20),
+        ),
+      ];
+    }
+
+    return <UpcomingItem>[
+      _upcomingItem(
+        episodeId: 'earlier-episode',
+        episodeTmdbId: 2000002,
+        episodeTitle: 'Earlier Episode',
+        airDate: DateTime(2026, 8, 1),
+      ),
+    ];
+  }
+}
+
+class _OverlappingEarlierUpcomingRepository extends _FakeShowsRepository {
+  @override
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    _upcomingCalls++;
+
+    final UpcomingItem current = _upcomingItem(
+      episodeId: 'current-episode',
+      episodeTitle: 'Current Episode',
+      airDate: DateTime(2026, 8, 20),
+    );
+
+    if (_upcomingCalls == 1) {
+      return <UpcomingItem>[current];
+    }
+
+    return <UpcomingItem>[
+      _upcomingItem(
+        episodeId: 'earlier-episode',
+        episodeTmdbId: 2000002,
+        episodeTitle: 'Earlier Episode',
+        airDate: DateTime(2026, 8, 1),
+      ),
+      current,
+    ];
+  }
+}
+
+class _FailingEarlierUpcomingRepository extends _FakeShowsRepository {
+  @override
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    _upcomingCalls++;
+
+    if (_upcomingCalls == 1) {
+      return <UpcomingItem>[
+        _upcomingItem(
+          episodeId: 'current-episode',
+          episodeTitle: 'Current Episode',
+          airDate: DateTime(2026, 8, 20),
+        ),
+      ];
+    }
+
+    throw const AppException.connection();
   }
 }
