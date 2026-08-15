@@ -56,6 +56,7 @@ from app.repositories.episode_watch_event import EpisodeWatchEventRepository
 from app.services.episode_watch_event import EpisodeWatchEventService
 from app.services.havent_started import HaventStartedService
 from app.services.upcoming import UpcomingService
+from app.services.episode_details import EpisodeDetailsService
 
 def get_genre_service(
     session: DatabaseSession,
@@ -262,6 +263,24 @@ EpisodeServiceDependency = Annotated[
     Depends(get_episode_service),
 ]
 
+def get_episode_details_service(
+    session: DatabaseSession,
+) -> EpisodeDetailsService:
+    """Provide the Episode Details service for a single request."""
+
+    return EpisodeDetailsService(
+        episode_repository=EpisodeRepository(session),
+        season_repository=SeasonRepository(session),
+        show_repository=ShowRepository(session),
+        progress_repository=EpisodeProgressRepository(session),
+        watch_event_repository=EpisodeWatchEventRepository(session),
+    )
+
+
+EpisodeDetailsServiceDependency = Annotated[
+    EpisodeDetailsService,
+    Depends(get_episode_details_service),
+]
 
 def get_movie_details_service(
     settings: Annotated[

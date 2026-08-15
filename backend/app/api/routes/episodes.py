@@ -9,6 +9,7 @@ from app.api.dependencies import (
     EpisodeProgressServiceDependency,
     EpisodeServiceDependency,
     EpisodeWatchEventServiceDependency,
+    EpisodeDetailsServiceDependency,
 )
 from app.schemas.episode import EpisodeResponse
 from app.schemas.episode_watch_event import EpisodeWatchEventResponse
@@ -17,6 +18,8 @@ from app.schemas.episode_progress import (
     EpisodeWatchedRequest,
 )
 from app.services.episode_progress import EpisodeNotWatchableError
+from app.schemas.episode_details import EpisodeDetailsResponse
+
 
 router = APIRouter(
     prefix="/episodes",
@@ -53,6 +56,43 @@ def get_episode(
         )
 
     return episode
+
+
+
+@router.get(
+    "/{episode_id}/details",
+    response_model=EpisodeDetailsResponse,
+    summary="Get Episode Details",
+    description=(
+        "Return the Episode, its Season and Show context, and the current "
+        "user's viewing state and historical watch summary."
+    ),
+)
+def get_episode_details(
+    episode_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV episode identifier.",
+        ),
+    ],
+    service: EpisodeDetailsServiceDependency,
+    current_user: CurrentUserDependency,
+) -> EpisodeDetailsResponse:
+    """Return aggregated information for the Episode Details screen."""
+
+    details = service.get_details(
+        user_id=current_user.id,
+        episode_id=episode_id,
+    )
+
+    if details is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="episode_not_found",
+            message="TV episode not found.",
+        )
+
+    return details
 
 
 @router.post(

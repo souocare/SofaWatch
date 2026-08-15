@@ -1246,3 +1246,254 @@ def test_mark_episode_airing_today_watched_returns_success(
 
     assert body["episode_id"] == str(episode.id)
     assert body["is_watched"] is True
+
+
+def test_get_episode_details_returns_episode_context_and_progress(
+    client: TestClient,
+    db_session: Session,
+    local_user: User,
+) -> None:
+    """Return the complete Episode Details aggregate."""
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947648,
+        episode_number=4,
+        title="Woe's Hollow",
+        overview="Mark and the team discover something unexpected.",
+        air_date=date(2025, 2, 7),
+        runtime=52,
+        vote_average=8.5,
+        vote_count=100,
+        tmdb_still_path="/woes-hollow.jpg",
+    )
+
+    first_watch = datetime(
+        2026,
+        8,
+        10,
+        20,
+        tzinfo=UTC,
+    )
+
+    latest_watch = datetime(
+        2026,
+        8,
+        14,
+        21,
+        30,
+        tzinfo=UTC,
+    )
+
+    create_watched_progress(
+        db_session,
+        user=local_user,
+        episode=episode,
+        watched_at=latest_watch,
+    )
+
+    create_watch_event(
+        db_session,
+        user=local_user,
+        episode=episode,
+        watched_at=first_watch,
+    )
+
+    create_watch_event(
+        db_session,
+        user=local_user,
+        episode=episode,
+        watched_at=latest_watch,
+    )
+
+    response = client.get(
+        f"/api/v1/episodes/{episode.id}/details",
+    )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+
+    assert payload["episode"]["id"] == str(episode.id)
+    assert payload["episode"]["tmdb_id"] == 1947648
+    assert payload["episode"]["episode_number"] == 4
+    assert payload["episode"]["title"] == "Woe's Hollow"
+
+    assert payload["season"]["id"] == str(season.id)
+    assert payload["season"]["season_number"] == 2
+
+    assert payload["show"]["id"] == str(show.id)
+    assert payload["show"]["tmdb_id"] == 95396
+    assert payload["show"]["title"] == "Severance"
+
+    assert payload["progress"]["is_watched"] is True
+    assert payload["progress"]["watch_count"] == 2
+
+    assert as_utc(
+        datetime.fromisoformat(
+            payload["progress"]["watched_at"],
+        )
+    ) == latest_watch
+
+    assert as_utc(
+        datetime.fromisoformat(
+            payload["progress"]["last_watched_at"],
+        )
+    ) == latest_watch
+
+def test_get_episode_details_returns_unwatched_state_without_history(
+    client: TestClient,
+    db_session: Session,
+    local_user: User,
+) -> None:
+    """Return an unwatched Episode when no viewing history exists."""
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+        air_date=date(2022, 2, 18),
+    )
+
+    response = client.get(
+        f"/api/v1/episodes/{episode.id}/details",
+    )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+
+    assert payload["episode"]["id"] == str(episode.id)
+
+    assert payload["progress"] == {
+        "is_watched": False,
+        "watched_at": None,
+        "watch_count": 0,
+        "last_watched_at": None,
+    }
+
+
+def test_get_episode_details_preserves_history_when_currently_unwatched(
+    client: TestClient,
+    db_session: Session,
+    local_user: User,
+) -> None:
+    """Keep historical watches separate from the current watched state."""
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+        air_date=date(2022, 2, 18),
+    )
+
+    previous_watch = datetime(
+        2026,
+        8,
+        10,
+        20,
+        tzinfo=UTC,
+    )
+
+    create_watch_event(
+        db_session,
+        user=local_user,
+        episode=episode,
+        watched_at=previous_watch,
+    )
+
+    progress = EpisodeProgress(
+        user_id=local_user.id,
+        episode_id=episode.id,
+        is_watched=False,
+        watched_at=None,
+    )
+
+    db_session.add(progress)
+    db_session.commit()
+
+    response = client.get(
+        f"/api/v1/episodes/{episode.id}/details",
+    )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+
+    assert payload["progress"]["is_watched"] is False
+    assert payload["progress"]["watched_at"] is None
+
+    assert payload["progress"]["watch_count"] == 1
+
+    assert as_utc(
+        datetime.fromisoformat(
+            payload["progress"]["last_watched_at"],
+        )
+    ) == previous_watch
+
+
+def test_get_episode_details_returns_404_when_episode_does_not_exist(
+    client: TestClient,
+    local_user: User,
+) -> None:
+    """Return HTTP 404 when Episode Details cannot find the Episode."""
+
+    response = client.get(
+        f"/api/v1/episodes/{uuid4()}/details",
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "error": {
+            "code": "episode_not_found",
+            "message": "TV episode not found.",
+        }
+    }
