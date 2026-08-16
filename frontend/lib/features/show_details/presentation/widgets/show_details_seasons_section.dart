@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
+import 'package:sofawatch/features/show_details/application/cubit/show_details_season_operation.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_season_state.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_seasons_cubit.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode.dart';
@@ -30,19 +31,28 @@ class ShowDetailsSeasonsSection extends StatelessWidget {
             Map<int, ShowDetailsSeasonState> previous,
             Map<int, ShowDetailsSeasonState> current,
           ) {
-            return _findNewEpisodeFailure(previous, current) != null;
+            return _findNewSeasonFailure(previous, current) != null ||
+                _findNewEpisodeFailure(previous, current) != null;
           },
       listener:
           (BuildContext context, Map<int, ShowDetailsSeasonState> current) {
-            final _EpisodeFailure? failure = _findCurrentEpisodeFailure(
+            final _SeasonFailureInfo? seasonFailure = _findCurrentSeasonFailure(
               current,
             );
 
-            if (failure == null) {
+            if (seasonFailure != null) {
+              _showSeasonOperationFailure(context, failure: seasonFailure);
+
               return;
             }
 
-            _showEpisodeFailure(context, failure: failure);
+            final _EpisodeFailure? episodeFailure = _findCurrentEpisodeFailure(
+              current,
+            );
+
+            if (episodeFailure != null) {
+              _showEpisodeFailure(context, failure: episodeFailure);
+            }
           },
       builder: (BuildContext context, Map<int, ShowDetailsSeasonState> state) {
         return Column(
@@ -80,6 +90,41 @@ class ShowDetailsSeasonsSection extends StatelessWidget {
         );
       },
     );
+  }
+
+  void _showSeasonOperationFailure(
+    BuildContext context, {
+    required _SeasonFailureInfo failure,
+  }) {
+    final AppException? error = failure.operation.error;
+
+    if (error == null) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: ValueKey<String>(
+            'show-details-season-mark-watched-failure-'
+            '${failure.seasonNumber}',
+          ),
+          content: const Text('Could not mark this season as watched.'),
+          action: error.canRetry
+              ? SnackBarAction(
+                  label: 'Retry',
+                  onPressed: () {
+                    context
+                        .read<ShowDetailsSeasonsCubit>()
+                        .retryMarkSeasonWatched(
+                          seasonNumber: failure.seasonNumber,
+                        );
+                  },
+                )
+              : null,
+        ),
+      );
   }
 
   void _showEpisodeFailure(
@@ -137,9 +182,15 @@ class _SeasonAccordion extends StatelessWidget {
               season: season,
               expanded: state.isExpanded,
               progress: state.progress,
+              operation: state.operation,
               onPressed: () {
                 context.read<ShowDetailsSeasonsCubit>().toggleSeason(
                   season.seasonNumber,
+                );
+              },
+              onMarkWatched: () {
+                context.read<ShowDetailsSeasonsCubit>().markSeasonWatched(
+                  seasonNumber: season.seasonNumber,
                 );
               },
             ),
@@ -157,24 +208,33 @@ class _SeasonHeader extends StatelessWidget {
     required this.season,
     required this.expanded,
     required this.progress,
+    required this.operation,
     required this.onPressed,
+    required this.onMarkWatched,
   });
 
   final ShowDetailsSeason season;
   final bool expanded;
   final ShowDetailsSeasonProgress? progress;
+  final ShowDetailsSeasonOperation operation;
+
   final VoidCallback onPressed;
+  final VoidCallback onMarkWatched;
 
   @override
   Widget build(BuildContext context) {
     final ShowDetailsSeasonProgress? currentProgress = progress;
 
-    final bool hasProgress =
+    final bool hasAiredEpisodes =
         currentProgress != null && currentProgress.hasAiredEpisodes;
 
     final bool isCaughtUp = currentProgress?.caughtUp ?? false;
+    final bool isUpdating = operation.isUpdating;
 
-    final String episodeLabel = hasProgress
+    final bool canMarkSeasonWatched =
+        hasAiredEpisodes && !isCaughtUp && !isUpdating;
+
+    final String episodeLabel = hasAiredEpisodes
         ? '${currentProgress.watchedAiredEpisodes} of '
               '${currentProgress.airedEpisodes} aired episodes'
         : '${season.episodeCount} '
@@ -182,83 +242,117 @@ class _SeasonHeader extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
-      child: InkWell(
-        key: ValueKey<String>(
-          'show-details-season-toggle-${season.seasonNumber}',
-        ),
-        onTap: onPressed,
-        child: Padding(
-          padding: AppSpacing.cardPadding,
-          child: Row(
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Flexible(
-                          child: Text(
-                            season.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700),
+      child: Padding(
+        padding: AppSpacing.cardPadding,
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: InkWell(
+                key: ValueKey<String>(
+                  'show-details-season-toggle-${season.seasonNumber}',
+                ),
+                borderRadius: AppRadius.borderMedium,
+                onTap: onPressed,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Flexible(
+                            child: Text(
+                              season.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
                           ),
+                          if (isCaughtUp) ...<Widget>[
+                            const SizedBox(width: AppSpacing.sm),
+                            Icon(
+                              Icons.check_circle_rounded,
+                              key: ValueKey<String>(
+                                'show-details-season-caught-up-'
+                                '${season.seasonNumber}',
+                              ),
+                              size: 18,
+                              color: AppColors.primary,
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        episodeLabel,
+                        key: ValueKey<String>(
+                          'show-details-season-progress-label-'
+                          '${season.seasonNumber}',
                         ),
-                        if (isCaughtUp) ...<Widget>[
-                          const SizedBox(width: AppSpacing.sm),
-                          Icon(
-                            Icons.check_circle_rounded,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      if (hasAiredEpisodes) ...<Widget>[
+                        const SizedBox(height: AppSpacing.md),
+                        ClipRRect(
+                          borderRadius: AppRadius.borderFull,
+                          child: LinearProgressIndicator(
                             key: ValueKey<String>(
-                              'show-details-season-caught-up-'
+                              'show-details-season-progress-'
                               '${season.seasonNumber}',
                             ),
-                            size: 18,
+                            value: currentProgress.airedProgressValue,
+                            minHeight: 4,
+                            backgroundColor: AppColors.surfaceLow,
                           ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      episodeLabel,
-                      key: ValueKey<String>(
-                        'show-details-season-progress-label-'
-                        '${season.seasonNumber}',
-                      ),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    if (hasProgress) ...<Widget>[
-                      const SizedBox(height: AppSpacing.md),
-                      ClipRRect(
-                        borderRadius: AppRadius.borderFull,
-                        child: LinearProgressIndicator(
-                          key: ValueKey<String>(
-                            'show-details-season-progress-'
-                            '${season.seasonNumber}',
-                          ),
-                          value: currentProgress.airedProgressValue,
-                          minHeight: 4,
-                          backgroundColor: AppColors.surfaceLow,
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
-              const SizedBox(width: AppSpacing.lg),
-              AnimatedRotation(
-                duration: const Duration(milliseconds: 180),
-                turns: expanded ? 0.5 : 0,
-                child: Icon(
+            ),
+            const SizedBox(width: AppSpacing.md),
+
+            if (hasAiredEpisodes && !isCaughtUp)
+              Tooltip(
+                message: 'Mark aired episodes as watched',
+                child: IconButton(
+                  key: ValueKey<String>(
+                    'show-details-season-mark-watched-${season.seasonNumber}',
+                  ),
+                  onPressed: canMarkSeasonWatched ? onMarkWatched : null,
+                  icon: isUpdating
+                      ? SizedBox(
+                          key: ValueKey<String>(
+                            'show-details-season-mark-watched-progress-'
+                            '${season.seasonNumber}',
+                          ),
+                          width: 20,
+                          height: 20,
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.library_add_check_outlined),
+                ),
+              ),
+
+            AnimatedRotation(
+              duration: const Duration(milliseconds: 180),
+              turns: expanded ? 0.5 : 0,
+              child: IconButton(
+                tooltip: expanded ? 'Collapse season' : 'Expand season',
+                onPressed: onPressed,
+                icon: const Icon(
                   Icons.keyboard_arrow_down_rounded,
                   color: AppColors.textSecondary,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1399,6 +1493,61 @@ _EpisodeFailure? _findNewEpisodeFailure(
   }
 
   return null;
+}
+
+_SeasonFailureInfo? _findNewSeasonFailure(
+  Map<int, ShowDetailsSeasonState> previous,
+  Map<int, ShowDetailsSeasonState> current,
+) {
+  for (final MapEntry<int, ShowDetailsSeasonState> entry in current.entries) {
+    final int seasonNumber = entry.key;
+    final ShowDetailsSeasonState currentSeason = entry.value;
+
+    if (!currentSeason.operation.hasFailed) {
+      continue;
+    }
+
+    final ShowDetailsSeasonState previousSeason =
+        previous[seasonNumber] ?? const ShowDetailsSeasonState();
+
+    if (previousSeason.operation == currentSeason.operation) {
+      continue;
+    }
+
+    return _SeasonFailureInfo(
+      seasonNumber: seasonNumber,
+      operation: currentSeason.operation,
+    );
+  }
+
+  return null;
+}
+
+_SeasonFailureInfo? _findCurrentSeasonFailure(
+  Map<int, ShowDetailsSeasonState> state,
+) {
+  for (final MapEntry<int, ShowDetailsSeasonState> entry in state.entries) {
+    if (!entry.value.operation.hasFailed) {
+      continue;
+    }
+
+    return _SeasonFailureInfo(
+      seasonNumber: entry.key,
+      operation: entry.value.operation,
+    );
+  }
+
+  return null;
+}
+
+final class _SeasonFailureInfo {
+  const _SeasonFailureInfo({
+    required this.seasonNumber,
+    required this.operation,
+  });
+
+  final int seasonNumber;
+  final ShowDetailsSeasonOperation operation;
 }
 
 _EpisodeFailure? _findCurrentEpisodeFailure(

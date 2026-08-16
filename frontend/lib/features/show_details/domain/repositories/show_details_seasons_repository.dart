@@ -21,6 +21,10 @@ abstract interface class ShowDetailsSeasonsRepository {
     required String seasonId,
   });
 
+  Future<ShowDetailsSeasonProgress> markSeasonWatched({
+    required String seasonId,
+  });
+
   Future<List<ShowDetailsEpisodeProgress>> getEpisodeProgress({
     required String seasonId,
   });

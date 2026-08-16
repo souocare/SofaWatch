@@ -4,6 +4,7 @@ import 'package:sofawatch/features/show_details/application/cubit/show_details_e
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
+import 'package:sofawatch/features/show_details/application/cubit/show_details_season_operation.dart';
 
 final class ShowDetailsSeasonState extends Equatable {
   const ShowDetailsSeasonState({
@@ -15,6 +16,7 @@ final class ShowDetailsSeasonState extends Equatable {
     this.episodeOperationsById = const <String, ShowDetailsEpisodeOperation>{},
     this.progress,
     this.error,
+    this.operation = const ShowDetailsSeasonOperation.idle(),
   });
 
   final bool isExpanded;
@@ -31,6 +33,8 @@ final class ShowDetailsSeasonState extends Equatable {
   final ShowDetailsSeasonProgress? progress;
 
   final AppException? error;
+
+  final ShowDetailsSeasonOperation operation;
 
   bool get isLoaded {
     return hasLoadedEpisodes && !isLoading && error == null;
@@ -53,6 +57,7 @@ final class ShowDetailsSeasonState extends Equatable {
     ShowDetailsSeasonProgress? progress,
     AppException? error,
     bool clearError = false,
+    ShowDetailsSeasonOperation? operation,
   }) {
     return ShowDetailsSeasonState(
       isExpanded: isExpanded ?? this.isExpanded,
@@ -64,6 +69,7 @@ final class ShowDetailsSeasonState extends Equatable {
           episodeOperationsById ?? this.episodeOperationsById,
       progress: progress ?? this.progress,
       error: clearError ? null : error ?? this.error,
+      operation: operation ?? this.operation,
     );
   }
 
@@ -77,5 +83,6 @@ final class ShowDetailsSeasonState extends Equatable {
     episodeOperationsById,
     progress,
     error,
+    operation,
   ];
 }

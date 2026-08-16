@@ -10,6 +10,7 @@ import 'package:sofawatch/features/show_details/domain/repositories/show_details
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_episode_operation.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_watch_event.dart';
+import 'package:sofawatch/features/show_details/application/cubit/show_details_season_operation.dart';
 
 final class ShowDetailsSeasonsCubit
     extends Cubit<Map<int, ShowDetailsSeasonState>> {
@@ -75,6 +76,128 @@ final class ShowDetailsSeasonsCubit
        * is expanded.
        */
     }
+  }
+
+  Future<void> markSeasonWatched({required int seasonNumber}) async {
+    final ShowDetailsSeasonState current =
+        state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+    final bool hasEpisodeOperationInProgress = current
+        .episodeOperationsById
+        .values
+        .any((ShowDetailsEpisodeOperation operation) => operation.isUpdating);
+
+    if (current.operation.isUpdating || hasEpisodeOperationInProgress) {
+      return;
+    }
+
+    if (current.progress?.caughtUp ?? false) {
+      return;
+    }
+
+    _setSeasonState(
+      seasonNumber,
+      current.copyWith(operation: const ShowDetailsSeasonOperation.updating()),
+    );
+
+    try {
+      final ShowDetailsSeasonsBootstrap bootstrap =
+          _bootstrap ??
+          await _repository.resolveLocalSeasons(showTmdbId: _showTmdbId);
+
+      _bootstrap = bootstrap;
+
+      final ShowDetailsLocalSeason? localSeason = _findSeason(
+        bootstrap.seasons,
+        seasonNumber,
+      );
+
+      if (localSeason == null) {
+        throw const AppException.invalidData();
+      }
+
+      final ShowDetailsSeasonProgress seasonProgress = await _repository
+          .markSeasonWatched(seasonId: localSeason.id);
+
+      /*
+     * If the Season is already expanded, its Episode rows are visible.
+     *
+     * Refresh their progress as well so every newly watched Episode
+     * immediately receives the correct watched state and watch count.
+     *
+     * A collapsed/unloaded Season only needs the aggregate Season progress.
+     */
+      List<ShowDetailsEpisodeProgress>? episodeProgress;
+
+      if (current.hasLoadedEpisodes) {
+        episodeProgress = await _repository.getEpisodeProgress(
+          seasonId: localSeason.id,
+        );
+      }
+
+      if (isClosed) {
+        return;
+      }
+
+      final ShowDetailsSeasonState latest =
+          state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+      final Map<String, ShowDetailsEpisodeProgress> nextProgressById =
+          episodeProgress == null
+          ? latest.episodeProgressById
+          : <String, ShowDetailsEpisodeProgress>{
+              for (final ShowDetailsEpisodeProgress progress in episodeProgress)
+                progress.episodeId: progress,
+            };
+
+      _setSeasonState(
+        seasonNumber,
+        latest.copyWith(
+          progress: seasonProgress,
+          episodeProgressById: nextProgressById,
+          operation: const ShowDetailsSeasonOperation.idle(),
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      final ShowDetailsSeasonState latest =
+          state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+      _setSeasonState(
+        seasonNumber,
+        latest.copyWith(operation: ShowDetailsSeasonOperation.failure(error)),
+      );
+    } catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      final ShowDetailsSeasonState latest =
+          state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+      _setSeasonState(
+        seasonNumber,
+        latest.copyWith(
+          operation: ShowDetailsSeasonOperation.failure(
+            AppException.unknown(originalError: error),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> retryMarkSeasonWatched({required int seasonNumber}) async {
+    final ShowDetailsSeasonState current =
+        state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+    if (!current.operation.hasFailed) {
+      return;
+    }
+
+    await markSeasonWatched(seasonNumber: seasonNumber);
   }
 
   Future<void> markEpisodeWatched({

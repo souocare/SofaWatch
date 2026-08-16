@@ -937,6 +937,169 @@ void main() {
         ),
       );
     });
+
+    test('marks a Season as watched and maps progress', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                expect(options.method, 'POST');
+
+                expect(options.path, '/seasons/season-1-uuid/watched');
+
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <String, dynamic>{
+                      'season_id': 'season-1-uuid',
+                      'watched_episodes': 8,
+                      'total_episodes': 10,
+                      'progress_percentage': 80.0,
+                      'aired_episodes': 8,
+                      'watched_aired_episodes': 8,
+                      'aired_progress_percentage': 100.0,
+                      'caught_up': true,
+                    },
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiShowDetailsSeasonsRepository repository =
+          ApiShowDetailsSeasonsRepository(
+            ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+          );
+
+      final ShowDetailsSeasonProgress progress = await repository
+          .markSeasonWatched(seasonId: 'season-1-uuid');
+
+      expect(progress.seasonId, 'season-1-uuid');
+
+      expect(progress.watchedEpisodes, 8);
+      expect(progress.totalEpisodes, 10);
+
+      expect(progress.progressPercentage, 80);
+
+      expect(progress.airedEpisodes, 8);
+      expect(progress.watchedAiredEpisodes, 8);
+
+      expect(progress.airedProgressPercentage, 100);
+      expect(progress.airedProgressValue, 1);
+
+      expect(progress.caughtUp, isTrue);
+    });
+
+    test('maps invalid mark Season watched response to invalidData', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                expect(options.method, 'POST');
+
+                expect(options.path, '/seasons/season-1-uuid/watched');
+
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <String, dynamic>{
+                      'season_id': 'season-1-uuid',
+                      'watched_episodes': 8,
+                      'total_episodes': 10,
+                      'progress_percentage': 80.0,
+                      'aired_episodes': 8,
+                      'watched_aired_episodes': 8,
+
+                      // Invalid according to the backend contract.
+                      'aired_progress_percentage': 150.0,
+
+                      'caught_up': true,
+                    },
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiShowDetailsSeasonsRepository repository =
+          ApiShowDetailsSeasonsRepository(
+            ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+          );
+
+      expect(
+        repository.markSeasonWatched(seasonId: 'season-1-uuid'),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
+
+    test(
+      'preserves AppException when marking Season as watched fails',
+      () async {
+        final Dio dio = Dio();
+
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onRequest:
+                (RequestOptions options, RequestInterceptorHandler handler) {
+                  expect(options.method, 'POST');
+
+                  expect(options.path, '/seasons/season-1-uuid/watched');
+
+                  handler.reject(
+                    DioException(
+                      requestOptions: options,
+                      response: Response<Map<String, dynamic>>(
+                        requestOptions: options,
+                        statusCode: 404,
+                        data: <String, dynamic>{
+                          'error': <String, dynamic>{
+                            'code': 'season_not_found',
+                            'message': 'TV season not found.',
+                          },
+                        },
+                      ),
+                      type: DioExceptionType.badResponse,
+                    ),
+                  );
+                },
+          ),
+        );
+
+        final ApiShowDetailsSeasonsRepository repository =
+            ApiShowDetailsSeasonsRepository(
+              ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+            );
+
+        expect(
+          repository.markSeasonWatched(seasonId: 'season-1-uuid'),
+          throwsA(
+            isA<AppException>()
+                .having(
+                  (AppException error) => error.type,
+                  'type',
+                  AppExceptionType.notFound,
+                )
+                .having(
+                  (AppException error) => error.code,
+                  'code',
+                  'season_not_found',
+                ),
+          ),
+        );
+      },
+    );
   });
   test('synchronizes and maps Season Episodes', () async {
     final Dio dio = Dio();

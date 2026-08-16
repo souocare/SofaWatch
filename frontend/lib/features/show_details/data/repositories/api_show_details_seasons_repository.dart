@@ -172,6 +172,29 @@ final class ApiShowDetailsSeasonsRepository
   }
 
   @override
+  Future<ShowDetailsSeasonProgress> markSeasonWatched({
+    required String seasonId,
+  }) async {
+    try {
+      final Response<dynamic> progressResponse = await _apiClient.post<dynamic>(
+        '/seasons/$seasonId/watched',
+      );
+
+      final Object? response = progressResponse.data;
+
+      if (response is! Map<String, dynamic>) {
+        throw const FormatException('Invalid Season progress response.');
+      }
+
+      return _seasonProgressFromJson(response);
+    } on AppException {
+      rethrow;
+    } catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  @override
   Future<List<ShowDetailsEpisodeProgress>> getEpisodeProgress({
     required String seasonId,
   }) async {
