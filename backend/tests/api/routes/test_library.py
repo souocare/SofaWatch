@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -3197,6 +3197,8 @@ def test_list_upcoming_uses_today_when_only_to_date_is_provided(
 ) -> None:
     """Keep Today as the lower boundary when only to_date is provided."""
 
+    today = date.today()
+
     local_user = create_local_user(db_session)
 
     show = create_show(
@@ -3226,7 +3228,7 @@ def test_list_upcoming_uses_today_when_only_to_date_is_provided(
         tmdb_id=300001,
         episode_number=1,
         title="Past Episode",
-        air_date=date(2026, 8, 14),
+        air_date=today - timedelta(days=1),
     )
 
     today_episode = create_episode(
@@ -3235,13 +3237,13 @@ def test_list_upcoming_uses_today_when_only_to_date_is_provided(
         tmdb_id=300002,
         episode_number=2,
         title="Today Episode",
-        air_date=date(2026, 8, 15),
+        air_date=today,
     )
 
     response = client.get(
         "/api/v1/library/shows/upcoming",
         params={
-            "to_date": "2026-08-15",
+            "to_date": today.isoformat(),
         },
     )
 
@@ -3251,4 +3253,3 @@ def test_list_upcoming_uses_today_when_only_to_date_is_provided(
 
     assert len(body) == 1
     assert body[0]["episode"]["id"] == str(today_episode.id)
-

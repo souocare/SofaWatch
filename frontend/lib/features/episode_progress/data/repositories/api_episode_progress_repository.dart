@@ -28,4 +28,17 @@ final class ApiEpisodeProgressRepository implements EpisodeProgressRepository {
       throw AppException.unknown(originalError: error);
     }
   }
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {
+    try {
+      await _apiClient.delete<dynamic>('/episodes/$episodeId/watched');
+    } on AppException {
+      rethrow;
+    } on DioException catch (error) {
+      throw AppException.unknown(originalError: error);
+    } on Object catch (error) {
+      throw AppException.unknown(originalError: error);
+    }
+  }
 }

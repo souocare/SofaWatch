@@ -36,6 +36,10 @@ import 'package:sofawatch/features/library/application/cubit/library_cubit.dart'
 import 'package:sofawatch/features/library/data/repositories/api_library_repository.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/data/repositories/api_shows_repository.dart';
+import 'package:sofawatch/features/episode_details/application/cubit/episode_details_cubit.dart';
+import 'package:sofawatch/features/episode_details/data/repositories/api_episode_details_repository.dart';
+import 'package:sofawatch/features/episode_details/presentation/pages/episode_details_page.dart';
+import 'package:sofawatch/features/episode_progress/data/repositories/api_episode_progress_repository.dart';
 
 GoRouter createAppRouter({required ApiClient apiClient}) {
   final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -368,9 +372,15 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
 
           return buildDetailsModalPage(
             state: state,
-            child: DetailsPlaceholderPage(
-              title: 'Episode Details',
-              resourceId: episodeId,
+            child: BlocProvider<EpisodeDetailsCubit>(
+              create: (BuildContext context) {
+                return EpisodeDetailsCubit(
+                  repository: ApiEpisodeDetailsRepository(apiClient),
+                  progressRepository: ApiEpisodeProgressRepository(apiClient),
+                  episodeId: episodeId,
+                )..load();
+              },
+              child: const EpisodeDetailsPage(),
             ),
           );
         },

@@ -51,6 +51,8 @@ abstract final class AppErrorMessageMapper {
       'show_not_found' => 'The requested TV show could not be found.',
       'season_not_found' => 'The requested season could not be found.',
       'episode_not_found' => 'The requested episode could not be found.',
+      'episode_cannot_be_watched' =>
+        'This episode cannot be marked as watched yet.',
       'movie_not_found' => 'The requested movie could not be found.',
       'library_entry_not_found' =>
         'This item could not be found in your library.',

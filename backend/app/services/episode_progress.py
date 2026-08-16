@@ -167,6 +167,116 @@ class EpisodeProgressService:
 
         return progress
 
+    def mark_season_watched(
+        self,
+        *,
+        user_id: UUID,
+        season_id: UUID,
+        watched_at: datetime | None = None,
+    ) -> SeasonProgressResponse | None:
+        """Mark every eligible unwatched Episode in a Season as watched.
+
+        Only Episodes whose air date is known and not later than Today are
+        eligible.
+
+        Episodes that are already watched are deliberately left unchanged so
+        this bulk operation never records accidental rewatches.
+
+        All newly watched Episodes and their historical watch events are
+        persisted in one transaction.
+
+        Returns None when the Season does not exist.
+        """
+
+        season = self._season_repository.get_by_id(
+            season_id,
+        )
+
+        if season is None:
+            return None
+
+        episodes = self._episode_repository.list_by_season_id(
+            season_id,
+        )
+
+        if watched_at is not None and watched_at.tzinfo is None:
+            watched_at = watched_at.replace(
+                tzinfo=UTC,
+            )
+
+        viewed_at = watched_at or datetime.now(UTC)
+        today = self._today()
+
+        progress_entries = self._progress_repository.list_by_user_and_season(
+            user_id=user_id,
+            season_id=season_id,
+        )
+
+        progress_by_episode_id = {
+            progress.episode_id: progress
+            for progress in progress_entries
+        }
+
+        for episode in episodes:
+            air_date = episode.air_date
+
+            # /*
+            #  * Unknown and future Episodes are not watchable yet.
+            #  */
+            if air_date is None or air_date > today:
+                continue
+
+            progress = progress_by_episode_id.get(
+                episode.id,
+            )
+
+            # /*
+            #  * This is a bulk "complete Season" operation, not a Rewatch.
+            #  *
+            #  * Already watched Episodes keep their current watched_at and
+            #  * historical viewing events unchanged.
+            #  */
+            if progress is not None and progress.is_watched:
+                continue
+
+            if progress is None:
+                progress = EpisodeProgress(
+                    user_id=user_id,
+                    episode_id=episode.id,
+                    is_watched=True,
+                    watched_at=viewed_at,
+                )
+
+                self._progress_repository.add(
+                    progress,
+                )
+
+                progress_by_episode_id[episode.id] = progress
+            else:
+                progress.is_watched = True
+                progress.watched_at = viewed_at
+
+            self._watch_event_repository.add(
+                EpisodeWatchEvent(
+                    user_id=user_id,
+                    episode_id=episode.id,
+                    watched_at=viewed_at,
+                )
+            )
+
+        # /*
+        #  * The whole Season update is one logical operation.
+        #  *
+        #  * Progress and historical watch events must therefore either all be
+        #  * persisted together or not persisted at all.
+        #  */
+        self._session.commit()
+
+        return self.get_season_progress(
+            user_id=user_id,
+            season_id=season_id,
+        )
+
     def get_season_progress(
         self,
         *,

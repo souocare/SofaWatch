@@ -84,6 +84,43 @@ def get_season_progress(
 
     return progress
 
+
+@router.post(
+    "/{season_id}/watched",
+    response_model=SeasonProgressResponse,
+    summary="Mark TV season as watched",
+    description=(
+        "Mark every aired, currently unwatched Episode in a TV season "
+        "as watched for the current user."
+    ),
+)
+def mark_season_watched(
+    season_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV season identifier.",
+        ),
+    ],
+    service: EpisodeProgressServiceDependency,
+    current_user: CurrentUserDependency,
+) -> SeasonProgressResponse:
+    """Mark every eligible Episode in a Season as watched."""
+
+    progress = service.mark_season_watched(
+        user_id=current_user.id,
+        season_id=season_id,
+    )
+
+    if progress is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="season_not_found",
+            message="TV season not found.",
+        )
+
+    return progress
+
+
 @router.post(
     "/{season_id}/sync",
     response_model=list[EpisodeResponse],

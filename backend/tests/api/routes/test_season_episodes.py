@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from app.models.episode import Episode
 from app.models.season import Season
@@ -801,4 +802,516 @@ def test_list_season_episode_progress_returns_404_when_season_missing(
         }
     }
 
+
+def test_mark_season_watched_marks_aired_episodes(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Mark all eligible Episodes in a Season as watched."""
+
+    local_user = create_local_user(
+        db_session,
+    )
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    aired_episode_1 = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2001,
+        episode_number=1,
+        title="Episode 1",
+        air_date=date(2025, 1, 1),
+    )
+
+    aired_episode_2 = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2002,
+        episode_number=2,
+        title="Episode 2",
+        air_date=date(2025, 1, 8),
+    )
+
+    future_episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2003,
+        episode_number=3,
+        title="Episode 3",
+        air_date=date(2099, 1, 1),
+    )
+
+    response = client.post(
+        f"/api/v1/seasons/{season.id}/watched",
+    )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+
+    assert payload["season_id"] == str(season.id)
+    assert payload["watched_episodes"] == 2
+    assert payload["aired_episodes"] == 2
+    assert payload["watched_aired_episodes"] == 2
+    assert payload["aired_progress_percentage"] == 100.0
+    assert payload["caught_up"] is True
+
+    progress_entries = db_session.scalars(
+        select(EpisodeProgress).where(
+            EpisodeProgress.user_id == local_user.id,
+        )
+    ).all()
+
+    progress_by_episode_id = {
+        progress.episode_id: progress
+        for progress in progress_entries
+    }
+
+    assert progress_by_episode_id[aired_episode_1.id].is_watched is True
+    assert progress_by_episode_id[aired_episode_2.id].is_watched is True
+
+    assert future_episode.id not in progress_by_episode_id
+
+    watch_events = db_session.scalars(
+        select(EpisodeWatchEvent).where(
+            EpisodeWatchEvent.user_id == local_user.id,
+        )
+    ).all()
+
+    assert {
+        event.episode_id
+        for event in watch_events
+    } == {
+        aired_episode_1.id,
+        aired_episode_2.id,
+    }
+
+
+def test_mark_season_watched_does_not_rewatch_already_watched_episode(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Bulk Season completion must not create Rewatch events."""
+
+    local_user = create_local_user(
+        db_session,
+    )
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2001,
+        episode_number=1,
+        title="Episode 1",
+        air_date=date(2025, 1, 1),
+    )
+
+    watched_at = datetime(
+        2026,
+        8,
+        10,
+        20,
+        tzinfo=UTC,
+    )
+
+    progress = EpisodeProgress(
+        user_id=local_user.id,
+        episode_id=episode.id,
+        is_watched=True,
+        watched_at=watched_at,
+    )
+
+    event = EpisodeWatchEvent(
+        user_id=local_user.id,
+        episode_id=episode.id,
+        watched_at=watched_at,
+    )
+
+    db_session.add_all(
+        [
+            progress,
+            event,
+        ]
+    )
+
+    db_session.commit()
+
+    response = client.post(
+        f"/api/v1/seasons/{season.id}/watched",
+    )
+
+    assert response.status_code == 200
+
+    events = db_session.scalars(
+        select(EpisodeWatchEvent).where(
+            EpisodeWatchEvent.user_id == local_user.id,
+            EpisodeWatchEvent.episode_id == episode.id,
+        )
+    ).all()
+
+    assert len(events) == 1
+
+    db_session.refresh(progress)
+
+    assert progress.is_watched is True
+
+
+def test_mark_season_watched_returns_404_when_season_does_not_exist(
+    client: TestClient,
+    local_user: User,
+) -> None:
+    """Return 404 for an unknown Season."""
+
+    response = client.post(
+        f"/api/v1/seasons/{uuid4()}/watched",
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "error": {
+            "code": "season_not_found",
+            "message": "TV season not found.",
+        }
+    }
+
+
+def test_mark_season_watched_marks_all_aired_unwatched_episodes(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Mark every aired unwatched Episode in the Season as watched."""
+
+    user = create_local_user(
+        db_session,
+    )
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    already_watched_episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Episode 1",
+        air_date=date(2026, 8, 10),
+    )
+
+    unwatched_episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2102,
+        episode_number=2,
+        title="Episode 2",
+        air_date=date(2026, 8, 11),
+    )
+
+    future_episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2103,
+        episode_number=3,
+        title="Episode 3",
+        air_date=date(2099, 8, 20),
+    )
+
+    unknown_air_date_episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2104,
+        episode_number=4,
+        title="Episode 4",
+        air_date=None,
+    )
+
+    original_watched_at = datetime(
+        2026,
+        8,
+        10,
+        20,
+        tzinfo=UTC,
+    )
+
+    create_episode_progress(
+        db_session,
+        user=user,
+        episode=already_watched_episode,
+        is_watched=True,
+        watched_at=original_watched_at,
+    )
+
+    response = client.post(
+        f"/api/v1/seasons/{season.id}/watched",
+    )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+
+    assert payload["season_id"] == str(season.id)
+
+    assert payload["watched_episodes"] == 2
+    assert payload["total_episodes"] == 4
+
+    assert payload["aired_episodes"] == 2
+    assert payload["watched_aired_episodes"] == 2
+    assert payload["caught_up"] is True
+
+    progress_entries = {
+        progress.episode_id: progress
+        for progress in db_session.query(EpisodeProgress)
+        .filter(
+            EpisodeProgress.user_id == user.id,
+        )
+        .all()
+    }
+
+    assert progress_entries[already_watched_episode.id].is_watched is True
+
+    assert (
+        progress_entries[already_watched_episode.id].watched_at
+        is not None
+    )
+
+    assert progress_entries[unwatched_episode.id].is_watched is True
+
+    assert (
+        progress_entries[unwatched_episode.id].watched_at
+        is not None
+    )
+
+    assert future_episode.id not in progress_entries
+
+    assert unknown_air_date_episode.id not in progress_entries
+
+
+def test_mark_season_watched_preserves_existing_watched_episode_history(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Do not create another watch event for an already watched Episode."""
+
+    user = create_local_user(
+        db_session,
+    )
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Episode 1",
+        air_date=date(2026, 8, 10),
+    )
+
+    watched_at = datetime(
+        2026,
+        8,
+        10,
+        20,
+        tzinfo=UTC,
+    )
+
+    create_episode_progress(
+        db_session,
+        user=user,
+        episode=episode,
+        is_watched=True,
+        watched_at=watched_at,
+    )
+
+    existing_event = EpisodeWatchEvent(
+        user_id=user.id,
+        episode_id=episode.id,
+        watched_at=watched_at,
+    )
+
+    db_session.add(existing_event)
+    db_session.commit()
+
+    response = client.post(
+        f"/api/v1/seasons/{season.id}/watched",
+    )
+
+    assert response.status_code == 200
+
+    events = (
+        db_session.query(EpisodeWatchEvent)
+        .filter(
+            EpisodeWatchEvent.user_id == user.id,
+            EpisodeWatchEvent.episode_id == episode.id,
+        )
+        .all()
+    )
+
+    assert len(events) == 1
+
+    progress = (
+        db_session.query(EpisodeProgress)
+        .filter(
+            EpisodeProgress.user_id == user.id,
+            EpisodeProgress.episode_id == episode.id,
+        )
+        .one()
+    )
+
+    assert progress.is_watched is True
+
+    assert progress.watched_at is not None
+
+
+def test_mark_season_watched_reuses_existing_unwatched_progress(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Reuse the existing progress row when the Episode was unwatched."""
+
+    user = create_local_user(
+        db_session,
+    )
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Episode 1",
+        air_date=date(2026, 8, 10),
+    )
+
+    existing_progress = create_episode_progress(
+        db_session,
+        user=user,
+        episode=episode,
+        is_watched=False,
+    )
+
+    original_progress_id = existing_progress.id
+
+    response = client.post(
+        f"/api/v1/seasons/{season.id}/watched",
+    )
+
+    assert response.status_code == 200
+
+    progress_entries = (
+        db_session.query(EpisodeProgress)
+        .filter(
+            EpisodeProgress.user_id == user.id,
+            EpisodeProgress.episode_id == episode.id,
+        )
+        .all()
+    )
+
+    assert len(progress_entries) == 1
+
+    progress = progress_entries[0]
+
+    assert progress.id == original_progress_id
+    assert progress.is_watched is True
+    assert progress.watched_at is not None
+
+    events = (
+        db_session.query(EpisodeWatchEvent)
+        .filter(
+            EpisodeWatchEvent.user_id == user.id,
+            EpisodeWatchEvent.episode_id == episode.id,
+        )
+        .all()
+    )
+
+    assert len(events) == 1
+
+
+def test_mark_season_watched_returns_404_when_season_does_not_exist(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return HTTP 404 when the requested Season does not exist."""
+
+    create_local_user(
+        db_session,
+    )
+
+    season_id = uuid4()
+
+    response = client.post(
+        f"/api/v1/seasons/{season_id}/watched",
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "error": {
+            "code": "season_not_found",
+            "message": "TV season not found.",
+        }
+    }
 
