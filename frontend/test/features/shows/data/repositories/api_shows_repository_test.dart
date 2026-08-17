@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:sofawatch/core/api/api_client.dart';
@@ -6,10 +5,10 @@ import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/data/repositories/api_shows_repository.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 
 void main() {
   group('ApiShowsRepository', () {

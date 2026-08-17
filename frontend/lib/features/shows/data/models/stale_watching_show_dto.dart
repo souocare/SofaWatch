@@ -4,6 +4,27 @@ import 'package:sofawatch/features/shows/data/models/watch_next_episode_dto.dart
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
 
 final class StaleWatchingShowDto {
+  factory StaleWatchingShowDto.fromJson(Map<String, dynamic> json) {
+    final Map<String, dynamic> show = _requiredMap(json, 'show');
+
+    final Map<String, dynamic> lastWatched = _requiredMap(json, 'last_watched');
+
+    final Map<String, dynamic> nextEpisode = _requiredMap(json, 'next_episode');
+
+    return StaleWatchingShowDto(
+      libraryEntryId: _requiredString(json, 'library_entry_id'),
+      libraryStatus: _parseLibraryStatus(
+        _requiredString(json, 'library_status'),
+      ),
+      showId: _requiredString(show, 'id'),
+      showTmdbId: _requiredPositiveInt(show, 'tmdb_id'),
+      showTitle: _requiredString(show, 'title'),
+      posterUrl: _optionalString(show['poster_url']),
+      backdropUrl: _optionalString(show['backdrop_url']),
+      lastWatched: StaleWatchingEpisodeDto.fromJson(lastWatched),
+      nextEpisode: WatchNextEpisodeDto.fromJson(nextEpisode),
+    );
+  }
   const StaleWatchingShowDto({
     required this.libraryEntryId,
     required this.libraryStatus,
@@ -28,28 +49,6 @@ final class StaleWatchingShowDto {
 
   final StaleWatchingEpisodeDto lastWatched;
   final WatchNextEpisodeDto nextEpisode;
-
-  factory StaleWatchingShowDto.fromJson(Map<String, dynamic> json) {
-    final Map<String, dynamic> show = _requiredMap(json, 'show');
-
-    final Map<String, dynamic> lastWatched = _requiredMap(json, 'last_watched');
-
-    final Map<String, dynamic> nextEpisode = _requiredMap(json, 'next_episode');
-
-    return StaleWatchingShowDto(
-      libraryEntryId: _requiredString(json, 'library_entry_id'),
-      libraryStatus: _parseLibraryStatus(
-        _requiredString(json, 'library_status'),
-      ),
-      showId: _requiredString(show, 'id'),
-      showTmdbId: _requiredPositiveInt(show, 'tmdb_id'),
-      showTitle: _requiredString(show, 'title'),
-      posterUrl: _optionalString(show['poster_url']),
-      backdropUrl: _optionalString(show['backdrop_url']),
-      lastWatched: StaleWatchingEpisodeDto.fromJson(lastWatched),
-      nextEpisode: WatchNextEpisodeDto.fromJson(nextEpisode),
-    );
-  }
 
   StaleWatchingShow toDomain() {
     return StaleWatchingShow(

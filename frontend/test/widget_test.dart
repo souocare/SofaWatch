@@ -1,15 +1,15 @@
 @TestOn('vm')
 library;
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
-import 'package:dio/dio.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 
-import 'helpers/test_bootstrap_data.dart';
 import 'helpers/test_app.dart';
+import 'helpers/test_bootstrap_data.dart';
 
 void main() {
   testWidgets('redirects the initial route to Home', (

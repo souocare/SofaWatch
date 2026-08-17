@@ -2,6 +2,21 @@ import 'package:sofawatch/features/shows/data/models/watch_history_episode_dto.d
 import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 
 final class WatchHistoryItemDto {
+  factory WatchHistoryItemDto.fromJson(Map<String, dynamic> json) {
+    final Map<String, dynamic> show = _requiredMap(json, 'show');
+
+    final Map<String, dynamic> episode = _requiredMap(json, 'episode');
+
+    return WatchHistoryItemDto(
+      eventId: _requiredString(json, 'event_id'),
+      showId: _requiredString(show, 'id'),
+      showTmdbId: _requiredPositiveInt(show, 'tmdb_id'),
+      showTitle: _requiredString(show, 'title'),
+      posterUrl: _optionalString(show['poster_url']),
+      backdropUrl: _optionalString(show['backdrop_url']),
+      episode: WatchHistoryEpisodeDto.fromJson(episode),
+    );
+  }
   const WatchHistoryItemDto({
     required this.eventId,
     required this.showId,
@@ -23,22 +38,6 @@ final class WatchHistoryItemDto {
   final String? backdropUrl;
 
   final WatchHistoryEpisodeDto episode;
-
-  factory WatchHistoryItemDto.fromJson(Map<String, dynamic> json) {
-    final Map<String, dynamic> show = _requiredMap(json, 'show');
-
-    final Map<String, dynamic> episode = _requiredMap(json, 'episode');
-
-    return WatchHistoryItemDto(
-      eventId: _requiredString(json, 'event_id'),
-      showId: _requiredString(show, 'id'),
-      showTmdbId: _requiredPositiveInt(show, 'tmdb_id'),
-      showTitle: _requiredString(show, 'title'),
-      posterUrl: _optionalString(show['poster_url']),
-      backdropUrl: _optionalString(show['backdrop_url']),
-      episode: WatchHistoryEpisodeDto.fromJson(episode),
-    );
-  }
 
   WatchHistoryItem toDomain() {
     return WatchHistoryItem(

@@ -8,9 +8,8 @@ import 'package:sofawatch/features/show_details/application/cubit/show_details_s
 import 'package:sofawatch/features/show_details/domain/models/show_details.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_genre.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_network.dart';
-import 'package:sofawatch/features/show_details/domain/models/show_details_season.dart';
-import 'package:sofawatch/features/show_details/presentation/widgets/show_details_seasons_section.dart';
 import 'package:sofawatch/features/show_details/presentation/widgets/show_details_library_action.dart';
+import 'package:sofawatch/features/show_details/presentation/widgets/show_details_seasons_section.dart';
 
 class ShowDetailsPage extends StatelessWidget {
   const ShowDetailsPage({super.key});

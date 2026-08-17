@@ -4,11 +4,11 @@ import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
 import 'package:sofawatch/features/library/application/cubit/library_item_operation.dart';
 import 'package:sofawatch/features/library/application/cubit/library_state.dart';
+import 'package:sofawatch/features/library/domain/models/library_entry.dart';
 import 'package:sofawatch/features/library/domain/models/library_media_key.dart';
 import 'package:sofawatch/features/library/domain/models/library_media_type.dart';
-import 'package:sofawatch/features/library/presentation/mappers/library_failure_message_mapper.dart';
-import 'package:sofawatch/features/library/domain/models/library_entry.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
+import 'package:sofawatch/features/library/presentation/mappers/library_failure_message_mapper.dart';
 
 class ShowDetailsLibraryAction extends StatefulWidget {
   const ShowDetailsLibraryAction({required this.tmdbId, super.key});

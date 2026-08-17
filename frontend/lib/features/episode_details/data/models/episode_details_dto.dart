@@ -5,6 +5,16 @@ import 'package:sofawatch/features/episode_details/domain/models/episode_details
 import 'package:sofawatch/features/episode_details/domain/models/episode_details_show.dart';
 
 final class EpisodeDetailsDto {
+  factory EpisodeDetailsDto.fromJson(Map<String, dynamic> json) {
+    return EpisodeDetailsDto(
+      episode: EpisodeDetailsEpisodeDto.fromJson(_requiredMap(json, 'episode')),
+      season: EpisodeDetailsSeasonDto.fromJson(_requiredMap(json, 'season')),
+      show: EpisodeDetailsShowDto.fromJson(_requiredMap(json, 'show')),
+      progress: EpisodeDetailsProgressDto.fromJson(
+        _requiredMap(json, 'progress'),
+      ),
+    );
+  }
   const EpisodeDetailsDto({
     required this.episode,
     required this.season,
@@ -17,17 +27,6 @@ final class EpisodeDetailsDto {
   final EpisodeDetailsShowDto show;
   final EpisodeDetailsProgressDto progress;
 
-  factory EpisodeDetailsDto.fromJson(Map<String, dynamic> json) {
-    return EpisodeDetailsDto(
-      episode: EpisodeDetailsEpisodeDto.fromJson(_requiredMap(json, 'episode')),
-      season: EpisodeDetailsSeasonDto.fromJson(_requiredMap(json, 'season')),
-      show: EpisodeDetailsShowDto.fromJson(_requiredMap(json, 'show')),
-      progress: EpisodeDetailsProgressDto.fromJson(
-        _requiredMap(json, 'progress'),
-      ),
-    );
-  }
-
   EpisodeDetails toDomain() {
     return EpisodeDetails(
       episode: episode.toDomain(),
@@ -39,6 +38,20 @@ final class EpisodeDetailsDto {
 }
 
 final class EpisodeDetailsEpisodeDto {
+  factory EpisodeDetailsEpisodeDto.fromJson(Map<String, dynamic> json) {
+    return EpisodeDetailsEpisodeDto(
+      id: _requiredString(json, 'id'),
+      tmdbId: _requiredInt(json, 'tmdb_id'),
+      episodeNumber: _requiredInt(json, 'episode_number'),
+      title: _requiredString(json, 'title'),
+      overview: _optionalString(json, 'overview'),
+      airDate: _optionalDate(json, 'air_date'),
+      runtime: _optionalInt(json, 'runtime'),
+      voteAverage: _requiredDouble(json, 'vote_average'),
+      voteCount: _requiredInt(json, 'vote_count'),
+      stillUrl: _optionalString(json, 'still_url'),
+    );
+  }
   const EpisodeDetailsEpisodeDto({
     required this.id,
     required this.tmdbId,
@@ -67,21 +80,6 @@ final class EpisodeDetailsEpisodeDto {
 
   final String? stillUrl;
 
-  factory EpisodeDetailsEpisodeDto.fromJson(Map<String, dynamic> json) {
-    return EpisodeDetailsEpisodeDto(
-      id: _requiredString(json, 'id'),
-      tmdbId: _requiredInt(json, 'tmdb_id'),
-      episodeNumber: _requiredInt(json, 'episode_number'),
-      title: _requiredString(json, 'title'),
-      overview: _optionalString(json, 'overview'),
-      airDate: _optionalDate(json, 'air_date'),
-      runtime: _optionalInt(json, 'runtime'),
-      voteAverage: _requiredDouble(json, 'vote_average'),
-      voteCount: _requiredInt(json, 'vote_count'),
-      stillUrl: _optionalString(json, 'still_url'),
-    );
-  }
-
   EpisodeDetailsEpisode toDomain() {
     return EpisodeDetailsEpisode(
       id: id,
@@ -99,6 +97,13 @@ final class EpisodeDetailsEpisodeDto {
 }
 
 final class EpisodeDetailsSeasonDto {
+  factory EpisodeDetailsSeasonDto.fromJson(Map<String, dynamic> json) {
+    return EpisodeDetailsSeasonDto(
+      id: _requiredString(json, 'id'),
+      seasonNumber: _requiredInt(json, 'season_number'),
+      title: _requiredString(json, 'title'),
+    );
+  }
   const EpisodeDetailsSeasonDto({
     required this.id,
     required this.seasonNumber,
@@ -108,14 +113,6 @@ final class EpisodeDetailsSeasonDto {
   final String id;
   final int seasonNumber;
   final String title;
-
-  factory EpisodeDetailsSeasonDto.fromJson(Map<String, dynamic> json) {
-    return EpisodeDetailsSeasonDto(
-      id: _requiredString(json, 'id'),
-      seasonNumber: _requiredInt(json, 'season_number'),
-      title: _requiredString(json, 'title'),
-    );
-  }
 
   EpisodeDetailsSeason toDomain() {
     return EpisodeDetailsSeason(
@@ -127,6 +124,19 @@ final class EpisodeDetailsSeasonDto {
 }
 
 final class EpisodeDetailsShowDto {
+  factory EpisodeDetailsShowDto.fromJson(Map<String, dynamic> json) {
+    return EpisodeDetailsShowDto(
+      id: _requiredString(json, 'id'),
+      tmdbId: _requiredInt(json, 'tmdb_id'),
+      title: _requiredString(json, 'title'),
+      originalTitle: _requiredString(json, 'original_title'),
+      firstAirDate: _optionalDate(json, 'first_air_date'),
+      posterUrl: _optionalString(json, 'poster_url'),
+      backdropUrl: _optionalString(json, 'backdrop_url'),
+      status: _requiredString(json, 'status'),
+      voteAverage: _requiredDouble(json, 'vote_average'),
+    );
+  }
   const EpisodeDetailsShowDto({
     required this.id,
     required this.tmdbId,
@@ -153,20 +163,6 @@ final class EpisodeDetailsShowDto {
   final String status;
   final double voteAverage;
 
-  factory EpisodeDetailsShowDto.fromJson(Map<String, dynamic> json) {
-    return EpisodeDetailsShowDto(
-      id: _requiredString(json, 'id'),
-      tmdbId: _requiredInt(json, 'tmdb_id'),
-      title: _requiredString(json, 'title'),
-      originalTitle: _requiredString(json, 'original_title'),
-      firstAirDate: _optionalDate(json, 'first_air_date'),
-      posterUrl: _optionalString(json, 'poster_url'),
-      backdropUrl: _optionalString(json, 'backdrop_url'),
-      status: _requiredString(json, 'status'),
-      voteAverage: _requiredDouble(json, 'vote_average'),
-    );
-  }
-
   EpisodeDetailsShow toDomain() {
     return EpisodeDetailsShow(
       id: id,
@@ -183,6 +179,14 @@ final class EpisodeDetailsShowDto {
 }
 
 final class EpisodeDetailsProgressDto {
+  factory EpisodeDetailsProgressDto.fromJson(Map<String, dynamic> json) {
+    return EpisodeDetailsProgressDto(
+      isWatched: _requiredBool(json, 'is_watched'),
+      watchedAt: _optionalDateTime(json, 'watched_at'),
+      watchCount: _requiredInt(json, 'watch_count'),
+      lastWatchedAt: _optionalDateTime(json, 'last_watched_at'),
+    );
+  }
   const EpisodeDetailsProgressDto({
     required this.isWatched,
     required this.watchCount,
@@ -194,15 +198,6 @@ final class EpisodeDetailsProgressDto {
   final DateTime? watchedAt;
   final int watchCount;
   final DateTime? lastWatchedAt;
-
-  factory EpisodeDetailsProgressDto.fromJson(Map<String, dynamic> json) {
-    return EpisodeDetailsProgressDto(
-      isWatched: _requiredBool(json, 'is_watched'),
-      watchedAt: _optionalDateTime(json, 'watched_at'),
-      watchCount: _requiredInt(json, 'watch_count'),
-      lastWatchedAt: _optionalDateTime(json, 'last_watched_at'),
-    );
-  }
 
   EpisodeDetailsProgress toDomain() {
     return EpisodeDetailsProgress(

@@ -9,11 +9,11 @@ import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/movies/application/cubit/movies_cubit.dart';
+import 'package:sofawatch/features/movies/application/models/movies_filter.dart';
+import 'package:sofawatch/features/movies/application/models/movies_sort.dart';
 import 'package:sofawatch/features/movies/domain/models/library_movie.dart';
 import 'package:sofawatch/features/movies/domain/repositories/movies_repository.dart';
 import 'package:sofawatch/features/movies/presentation/pages/movies_page.dart';
-import 'package:sofawatch/features/movies/application/models/movies_filter.dart';
-import 'package:sofawatch/features/movies/application/models/movies_sort.dart';
 
 void main() {
   group('MoviesPage', () {

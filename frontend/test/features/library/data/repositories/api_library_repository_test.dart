@@ -1,9 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/api/api_client.dart';
+import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/library/data/repositories/api_library_repository.dart';
 import 'package:sofawatch/features/library/domain/models/library_media_type.dart';
-import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 
 void main() {

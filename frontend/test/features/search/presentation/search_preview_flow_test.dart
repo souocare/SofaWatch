@@ -1,7 +1,6 @@
 @TestOn('browser')
 library;
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/app/app_bootstrap_data.dart';
@@ -11,9 +10,9 @@ import 'package:sofawatch/features/search/domain/entities/search_result.dart';
 import 'package:sofawatch/features/search/domain/models/search_result_page.dart';
 
 import '../../../fakes/fake_search_repository.dart';
+import '../../../helpers/details_api_test_helper.dart';
 import '../../../helpers/test_app.dart';
 import '../../../helpers/test_bootstrap_data.dart';
-import '../../../helpers/details_api_test_helper.dart';
 
 const SearchResult _showResult = SearchResult(
   mediaType: SearchMediaType.show,

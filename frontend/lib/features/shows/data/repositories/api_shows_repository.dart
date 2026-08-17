@@ -2,16 +2,16 @@ import 'package:dio/dio.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/shows/data/models/library_show_dto.dart';
-import 'package:sofawatch/features/shows/domain/models/library_show.dart';
-import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
-import 'package:sofawatch/features/shows/data/models/watch_next_show_dto.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/data/models/stale_watching_show_dto.dart';
-import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
-import 'package:sofawatch/features/shows/data/models/watch_history_page_dto.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/data/models/upcoming_item_dto.dart';
+import 'package:sofawatch/features/shows/data/models/watch_history_page_dto.dart';
+import 'package:sofawatch/features/shows/data/models/watch_next_show_dto.dart';
+import 'package:sofawatch/features/shows/domain/models/library_show.dart';
+import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
+import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
 
 final class ApiShowsRepository implements ShowsRepository {
   const ApiShowsRepository(this._apiClient);

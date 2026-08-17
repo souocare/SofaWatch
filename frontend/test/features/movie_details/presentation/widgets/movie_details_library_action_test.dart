@@ -898,11 +898,10 @@ final LibraryEntry _completedLibraryEntry = LibraryEntry(
 class _FakeLibraryRepository implements LibraryRepository {
   _FakeLibraryRepository({
     this.importError,
-    this.addError,
     this.removeError,
     this.updateStatusError,
     this.movieEntry,
-  });
+  }) : addError = null;
 
   final AppException? removeError;
 

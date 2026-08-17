@@ -1,6 +1,20 @@
 import 'package:sofawatch/features/shows/domain/models/watch_history_episode.dart';
 
 final class WatchHistoryEpisodeDto {
+  factory WatchHistoryEpisodeDto.fromJson(Map<String, dynamic> json) {
+    return WatchHistoryEpisodeDto(
+      id: _requiredString(json, 'id'),
+      tmdbId: _requiredPositiveInt(json, 'tmdb_id'),
+      seasonNumber: _requiredPositiveInt(json, 'season_number'),
+      episodeNumber: _requiredNonNegativeInt(json, 'episode_number'),
+      title: _requiredString(json, 'title'),
+      watchedAt: _requiredDateTime(json, 'watched_at'),
+      watchCount: _requiredPositiveInt(json, 'watch_count'),
+      airDate: _optionalDate(json['air_date']),
+      runtime: _optionalNonNegativeInt(json['runtime'], fieldName: 'runtime'),
+      stillUrl: _optionalString(json['still_url']),
+    );
+  }
   const WatchHistoryEpisodeDto({
     required this.id,
     required this.tmdbId,
@@ -29,21 +43,6 @@ final class WatchHistoryEpisodeDto {
 
   final int? runtime;
   final String? stillUrl;
-
-  factory WatchHistoryEpisodeDto.fromJson(Map<String, dynamic> json) {
-    return WatchHistoryEpisodeDto(
-      id: _requiredString(json, 'id'),
-      tmdbId: _requiredPositiveInt(json, 'tmdb_id'),
-      seasonNumber: _requiredPositiveInt(json, 'season_number'),
-      episodeNumber: _requiredNonNegativeInt(json, 'episode_number'),
-      title: _requiredString(json, 'title'),
-      watchedAt: _requiredDateTime(json, 'watched_at'),
-      watchCount: _requiredPositiveInt(json, 'watch_count'),
-      airDate: _optionalDate(json['air_date']),
-      runtime: _optionalNonNegativeInt(json['runtime'], fieldName: 'runtime'),
-      stillUrl: _optionalString(json['still_url']),
-    );
-  }
 
   WatchHistoryEpisode toDomain() {
     return WatchHistoryEpisode(

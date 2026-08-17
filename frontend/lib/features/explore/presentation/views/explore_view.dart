@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
 import 'package:sofawatch/features/explore/application/cubit/explore_cubit.dart';
 import 'package:sofawatch/features/explore/application/cubit/explore_state.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_genre_options.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_media_collection.dart';
+import 'package:sofawatch/features/explore/domain/entities/explore_media_item.dart';
 import 'package:sofawatch/features/explore/domain/entities/explore_trending.dart';
 import 'package:sofawatch/features/explore/presentation/widgets/explore_genre_filter.dart';
 import 'package:sofawatch/features/explore/presentation/widgets/explore_header.dart';
@@ -13,9 +16,6 @@ import 'package:sofawatch/features/explore/presentation/widgets/explore_horizont
 import 'package:sofawatch/features/explore/presentation/widgets/explore_popular_section_loading.dart';
 import 'package:sofawatch/features/explore/presentation/widgets/explore_trending_loading.dart';
 import 'package:sofawatch/features/explore/presentation/widgets/explore_week_filter_bar.dart';
-import 'package:go_router/go_router.dart';
-import 'package:sofawatch/app/router/app_routes.dart';
-import 'package:sofawatch/features/explore/domain/entities/explore_media_item.dart';
 
 void _openExploreMedia(BuildContext context, ExploreMediaItem item) {
   if (item.isShow) {

@@ -2,6 +2,28 @@ import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/movies/domain/models/library_movie.dart';
 
 final class LibraryMovieDto {
+  factory LibraryMovieDto.fromJson(Map<String, dynamic> json) {
+    final Map<String, dynamic> movie = _requiredMap(json, 'movie');
+
+    return LibraryMovieDto(
+      libraryEntryId: _requiredString(json, 'id'),
+      movieId: _requiredString(movie, 'id'),
+      tmdbId: _requiredInt(movie, 'tmdb_id'),
+      title: _requiredString(movie, 'title'),
+      originalTitle: _requiredString(movie, 'original_title'),
+      releaseDate: _optionalDate(movie['release_date']),
+      posterUrl: _optionalString(movie['poster_url']),
+      backdropUrl: _optionalString(movie['backdrop_url']),
+      status: _parseLibraryStatus(_requiredString(json, 'status')),
+      movieStatus: _requiredString(movie, 'status'),
+      voteAverage: _requiredDouble(movie, 'vote_average'),
+      rating: _optionalDouble(json['rating']),
+      startedAt: _optionalDateTime(json['started_at']),
+      completedAt: _optionalDateTime(json['completed_at']),
+      createdAt: _requiredDateTime(json, 'created_at'),
+      updatedAt: _requiredDateTime(json, 'updated_at'),
+    );
+  }
   const LibraryMovieDto({
     required this.libraryEntryId,
     required this.movieId,
@@ -45,29 +67,6 @@ final class LibraryMovieDto {
 
   final DateTime createdAt;
   final DateTime updatedAt;
-
-  factory LibraryMovieDto.fromJson(Map<String, dynamic> json) {
-    final Map<String, dynamic> movie = _requiredMap(json, 'movie');
-
-    return LibraryMovieDto(
-      libraryEntryId: _requiredString(json, 'id'),
-      movieId: _requiredString(movie, 'id'),
-      tmdbId: _requiredInt(movie, 'tmdb_id'),
-      title: _requiredString(movie, 'title'),
-      originalTitle: _requiredString(movie, 'original_title'),
-      releaseDate: _optionalDate(movie['release_date']),
-      posterUrl: _optionalString(movie['poster_url']),
-      backdropUrl: _optionalString(movie['backdrop_url']),
-      status: _parseLibraryStatus(_requiredString(json, 'status')),
-      movieStatus: _requiredString(movie, 'status'),
-      voteAverage: _requiredDouble(movie, 'vote_average'),
-      rating: _optionalDouble(json['rating']),
-      startedAt: _optionalDateTime(json['started_at']),
-      completedAt: _optionalDateTime(json['completed_at']),
-      createdAt: _requiredDateTime(json, 'created_at'),
-      updatedAt: _requiredDateTime(json, 'updated_at'),
-    );
-  }
 
   LibraryMovie toDomain() {
     return LibraryMovie(

@@ -7,14 +7,14 @@ import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_state.dart';
+import 'package:sofawatch/features/shows/domain/models/library_first_episode.dart';
+import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_episode.dart';
+import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
-import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
-import 'package:sofawatch/features/shows/domain/models/library_show.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
-import 'package:sofawatch/features/shows/domain/models/library_first_episode.dart';
 
 class ShowsPage extends StatefulWidget {
   const ShowsPage({super.key});

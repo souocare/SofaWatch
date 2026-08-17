@@ -26,7 +26,7 @@ final class ApiExploreRepository implements ExploreRepository {
             '/explore/trending',
             queryParameters: <String, dynamic>{
               'window': window.name,
-              if (language != null) 'language': language,
+              'language': ?language,
             },
           );
 
@@ -54,9 +54,7 @@ final class ApiExploreRepository implements ExploreRepository {
       final Response<Map<String, dynamic>> response = await _apiClient
           .get<Map<String, dynamic>>(
             '/explore/genres',
-            queryParameters: <String, dynamic>{
-              if (language != null) 'language': language,
-            },
+            queryParameters: <String, dynamic>{'language': ?language},
           );
 
       final Map<String, dynamic>? data = response.data;
@@ -88,8 +86,8 @@ final class ApiExploreRepository implements ExploreRepository {
       final Response<dynamic> response = await _apiClient.get(
         '/explore/popular/shows',
         queryParameters: <String, dynamic>{
-          if (genreId != null) 'genre_id': genreId,
-          if (language != null) 'language': language,
+          'genre_id': ?genreId,
+          'language': ?language,
         },
       );
 
@@ -118,8 +116,8 @@ final class ApiExploreRepository implements ExploreRepository {
       final Response<dynamic> response = await _apiClient.get(
         '/explore/popular/movies',
         queryParameters: <String, dynamic>{
-          if (genreId != null) 'genre_id': genreId,
-          if (language != null) 'language': language,
+          'genre_id': ?genreId,
+          'language': ?language,
         },
       );
 

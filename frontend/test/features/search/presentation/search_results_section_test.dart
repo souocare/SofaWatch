@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/search/domain/entities/search_media_type.dart';
 import 'package:sofawatch/features/search/domain/entities/search_result.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_result_row.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_results_section.dart';
-import 'package:sofawatch/core/errors/app_exception.dart';
 
 void main() {
   group('SearchResultsSection', () {

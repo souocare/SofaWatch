@@ -14,10 +14,10 @@ import 'package:sofawatch/features/search/application/bloc/search_state.dart';
 import 'package:sofawatch/features/search/domain/entities/search_result.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_empty_state.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_failure_state.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_library_results_section.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_loading_state.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_media_type_filter_bar.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_minimum_characters_hint.dart';
-import 'package:sofawatch/features/search/presentation/widgets/search_library_results_section.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_text_field.dart';
 
 class SearchDesktopView extends StatelessWidget {

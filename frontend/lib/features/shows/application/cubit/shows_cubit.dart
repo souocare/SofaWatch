@@ -3,11 +3,11 @@ import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_state.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
-import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 
 final class ShowsCubit extends Cubit<ShowsState> {
   ShowsCubit({required this.repository, DateTime Function()? now})

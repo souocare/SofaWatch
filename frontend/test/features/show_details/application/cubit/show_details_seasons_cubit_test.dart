@@ -1716,7 +1716,6 @@ const List<ShowDetailsSeasonProgress> _defaultBatchProgress =
 final class _FakeShowDetailsSeasonsRepository
     implements ShowDetailsSeasonsRepository {
   _FakeShowDetailsSeasonsRepository({
-    this.localShowId = 'show-uuid',
     this.localSeasons = const <ShowDetailsLocalSeason>[
       ShowDetailsLocalSeason(
         id: 'season-1-uuid',
@@ -1736,7 +1735,7 @@ final class _FakeShowDetailsSeasonsRepository
     this.failingProgressSeasonId,
     this.failBatchProgress = false,
     this.failMarkSeasonWatched = false,
-  });
+  }) : localShowId = 'show-uuid';
 
   final String localShowId;
 

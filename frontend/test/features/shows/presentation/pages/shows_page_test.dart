@@ -5,12 +5,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
+import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
+import 'package:sofawatch/features/shows/domain/models/library_first_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show_progress.dart';
+import 'package:sofawatch/features/shows/domain/models/stale_watching_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_episode.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_history_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
@@ -18,12 +24,6 @@ import 'package:sofawatch/features/shows/domain/models/watch_next_progress.dart'
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
 import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
-import 'package:sofawatch/features/shows/domain/models/stale_watching_episode.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_history_episode.dart';
-import 'package:sofawatch/features/shows/domain/models/library_first_episode.dart';
-import 'package:sofawatch/features/shows/domain/models/upcoming_episode.dart';
-import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
-import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 
 void main() {
   group('ShowsPage', () {

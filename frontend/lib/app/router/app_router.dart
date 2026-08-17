@@ -5,14 +5,19 @@ import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/router/app_shell.dart';
 import 'package:sofawatch/app/router/details_modal_page.dart';
-import 'package:sofawatch/app/router/details_placeholder_page.dart';
 import 'package:sofawatch/app/router/not_found_page.dart';
 import 'package:sofawatch/app/router/route_paths.dart';
 import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
+import 'package:sofawatch/features/episode_details/application/cubit/episode_details_cubit.dart';
+import 'package:sofawatch/features/episode_details/data/repositories/api_episode_details_repository.dart';
+import 'package:sofawatch/features/episode_details/presentation/pages/episode_details_page.dart';
+import 'package:sofawatch/features/episode_progress/data/repositories/api_episode_progress_repository.dart';
 import 'package:sofawatch/features/explore/presentation/pages/explore_page.dart';
 import 'package:sofawatch/features/home/presentation/pages/home_page.dart';
+import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
+import 'package:sofawatch/features/library/data/repositories/api_library_repository.dart';
 import 'package:sofawatch/features/library/domain/models/library_media_key.dart';
 import 'package:sofawatch/features/library/domain/models/library_media_type.dart';
 import 'package:sofawatch/features/movie_details/application/cubit/movie_details_cubit.dart';
@@ -29,19 +34,13 @@ import 'package:sofawatch/features/server_setup/application/cubit/server_setup_c
 import 'package:sofawatch/features/server_setup/domain/services/server_connection_tester.dart';
 import 'package:sofawatch/features/server_setup/presentation/pages/server_setup_page.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_cubit.dart';
-import 'package:sofawatch/features/show_details/data/repositories/api_show_details_repository.dart';
-import 'package:sofawatch/features/show_details/presentation/pages/show_details_page.dart';
-import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_seasons_cubit.dart';
+import 'package:sofawatch/features/show_details/data/repositories/api_show_details_repository.dart';
 import 'package:sofawatch/features/show_details/data/repositories/api_show_details_seasons_repository.dart';
-import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
-import 'package:sofawatch/features/library/data/repositories/api_library_repository.dart';
+import 'package:sofawatch/features/show_details/presentation/pages/show_details_page.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/data/repositories/api_shows_repository.dart';
-import 'package:sofawatch/features/episode_details/application/cubit/episode_details_cubit.dart';
-import 'package:sofawatch/features/episode_details/data/repositories/api_episode_details_repository.dart';
-import 'package:sofawatch/features/episode_details/presentation/pages/episode_details_page.dart';
-import 'package:sofawatch/features/episode_progress/data/repositories/api_episode_progress_repository.dart';
+import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
 
 GoRouter createAppRouter({required ApiClient apiClient}) {
   final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(

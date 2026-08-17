@@ -2,12 +2,12 @@ import 'package:dio/dio.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode.dart';
-import 'package:sofawatch/features/show_details/domain/models/show_details_local_season.dart';
-import 'package:sofawatch/features/show_details/domain/repositories/show_details_seasons_repository.dart';
-import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
-import 'package:sofawatch/features/show_details/domain/models/show_details_seasons_bootstrap.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_watch_event.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_local_season.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_seasons_bootstrap.dart';
+import 'package:sofawatch/features/show_details/domain/repositories/show_details_seasons_repository.dart';
 
 final class ApiShowDetailsSeasonsRepository
     implements ShowDetailsSeasonsRepository {

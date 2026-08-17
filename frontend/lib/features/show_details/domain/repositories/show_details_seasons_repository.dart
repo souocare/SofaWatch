@@ -1,8 +1,8 @@
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode.dart';
-import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
-import 'package:sofawatch/features/show_details/domain/models/show_details_seasons_bootstrap.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_watch_event.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_seasons_bootstrap.dart';
 
 abstract interface class ShowDetailsSeasonsRepository {
   Future<ShowDetailsSeasonsBootstrap> resolveLocalSeasons({

@@ -5,54 +5,6 @@ import 'package:sofawatch/features/shows/data/models/library_show_progress_dto.d
 import 'package:sofawatch/features/shows/domain/models/library_show_progress.dart';
 
 final class LibraryShowDto {
-  const LibraryShowDto({
-    required this.libraryEntryId,
-    required this.showId,
-    required this.tmdbId,
-    required this.title,
-    required this.originalTitle,
-    required this.status,
-    required this.showStatus,
-    required this.voteAverage,
-    required this.createdAt,
-    required this.updatedAt,
-    this.firstAirDate,
-    this.posterUrl,
-    this.backdropUrl,
-    this.rating,
-    this.startedAt,
-    this.completedAt,
-    this.firstAvailableEpisode,
-    required this.progress,
-  });
-
-  final String libraryEntryId;
-
-  final String showId;
-  final int tmdbId;
-
-  final String title;
-  final String originalTitle;
-
-  final DateTime? firstAirDate;
-
-  final String? posterUrl;
-  final String? backdropUrl;
-
-  final LibraryStatus status;
-  final String showStatus;
-
-  final double voteAverage;
-  final double? rating;
-
-  final DateTime? startedAt;
-  final DateTime? completedAt;
-
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final LibraryFirstEpisode? firstAvailableEpisode;
-  final LibraryShowProgress progress;
-
   factory LibraryShowDto.fromJson(Map<String, dynamic> json) {
     final Map<String, dynamic> show = _requiredMap(json, 'show');
 
@@ -104,6 +56,53 @@ final class LibraryShowDto {
             ),
     );
   }
+  const LibraryShowDto({
+    required this.libraryEntryId,
+    required this.showId,
+    required this.tmdbId,
+    required this.title,
+    required this.originalTitle,
+    required this.status,
+    required this.showStatus,
+    required this.voteAverage,
+    required this.createdAt,
+    required this.updatedAt,
+    this.firstAirDate,
+    this.posterUrl,
+    this.backdropUrl,
+    this.rating,
+    this.startedAt,
+    this.completedAt,
+    this.firstAvailableEpisode,
+    required this.progress,
+  });
+
+  final String libraryEntryId;
+
+  final String showId;
+  final int tmdbId;
+
+  final String title;
+  final String originalTitle;
+
+  final DateTime? firstAirDate;
+
+  final String? posterUrl;
+  final String? backdropUrl;
+
+  final LibraryStatus status;
+  final String showStatus;
+
+  final double voteAverage;
+  final double? rating;
+
+  final DateTime? startedAt;
+  final DateTime? completedAt;
+
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final LibraryFirstEpisode? firstAvailableEpisode;
+  final LibraryShowProgress progress;
 
   LibraryShow toDomain() {
     return LibraryShow(

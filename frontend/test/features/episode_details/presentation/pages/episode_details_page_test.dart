@@ -581,10 +581,8 @@ final class _ChangingEpisodeDetailsRepository
 
 final class _FakeEpisodeProgressRepository
     implements EpisodeProgressRepository {
-  _FakeEpisodeProgressRepository({
-    this.markWatchedError,
-    this.markUnwatchedError,
-  });
+  _FakeEpisodeProgressRepository({this.markWatchedError})
+    : markUnwatchedError = null;
 
   final AppException? markWatchedError;
   final AppException? markUnwatchedError;

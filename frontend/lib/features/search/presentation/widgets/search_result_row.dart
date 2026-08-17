@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:sofawatch/app/theme/tokens/app_colors.dart';
 import 'package:sofawatch/app/theme/tokens/app_radius.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
 import 'package:sofawatch/features/search/domain/entities/search_result.dart';
-import 'package:sofawatch/app/theme/tokens/app_colors.dart';
 
 class SearchResultRow extends StatelessWidget {
   const SearchResultRow({

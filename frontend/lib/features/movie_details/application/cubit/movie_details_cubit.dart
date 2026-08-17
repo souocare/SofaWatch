@@ -6,12 +6,10 @@ import 'package:sofawatch/features/movie_details/domain/repositories/movie_detai
 
 final class MovieDetailsCubit extends Cubit<MovieDetailsState> {
   MovieDetailsCubit({
-    required MovieDetailsRepository repository,
+    required this._repository,
     required int tmdbId,
-    String? language,
-  }) : _repository = repository,
-       _tmdbId = tmdbId,
-       _language = language,
+    this._language,
+  }) : _tmdbId = tmdbId,
        super(const MovieDetailsInitial());
 
   final MovieDetailsRepository _repository;

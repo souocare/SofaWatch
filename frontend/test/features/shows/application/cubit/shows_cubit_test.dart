@@ -9,15 +9,15 @@ import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show_progress.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_episode.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_next_progress.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_next_progress.dart';
-import 'package:sofawatch/features/shows/domain/models/upcoming_episode.dart';
-import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 
 void main() {
   group('ShowsCubit', () {

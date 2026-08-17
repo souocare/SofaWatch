@@ -1,10 +1,10 @@
 import 'package:equatable/equatable.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_episode_operation.dart';
+import 'package:sofawatch/features/show_details/application/cubit/show_details_season_operation.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
-import 'package:sofawatch/features/show_details/application/cubit/show_details_season_operation.dart';
 
 final class ShowDetailsSeasonState extends Equatable {
   const ShowDetailsSeasonState({

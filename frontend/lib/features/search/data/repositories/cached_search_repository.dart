@@ -6,10 +6,9 @@ import 'package:sofawatch/features/search/domain/repositories/search_repository.
 
 final class CachedSearchRepository implements SearchRepository {
   CachedSearchRepository({
-    required SearchRepository repository,
+    required this._repository,
     required SearchCache cache,
-  }) : _repository = repository,
-       _cache = cache;
+  }) : _cache = cache;
 
   final SearchRepository _repository;
   final SearchCache _cache;

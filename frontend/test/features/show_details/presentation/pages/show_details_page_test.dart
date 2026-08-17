@@ -424,7 +424,7 @@ final class _FakeShowDetailsRepository implements ShowDetailsRepository {
 
 final class _FakeLibraryRepository implements LibraryRepository {
   @override
-  noSuchMethod(Invocation invocation) {
+  dynamic noSuchMethod(Invocation invocation) {
     return super.noSuchMethod(invocation);
   }
 }

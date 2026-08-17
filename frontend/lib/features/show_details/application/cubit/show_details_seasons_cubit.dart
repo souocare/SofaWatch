@@ -14,12 +14,9 @@ import 'package:sofawatch/features/show_details/application/cubit/show_details_s
 
 final class ShowDetailsSeasonsCubit
     extends Cubit<Map<int, ShowDetailsSeasonState>> {
-  ShowDetailsSeasonsCubit({
-    required ShowDetailsSeasonsRepository repository,
-    required int showTmdbId,
-  }) : _repository = repository,
-       _showTmdbId = showTmdbId,
-       super(const <int, ShowDetailsSeasonState>{});
+  ShowDetailsSeasonsCubit({required this._repository, required int showTmdbId})
+    : _showTmdbId = showTmdbId,
+      super(const <int, ShowDetailsSeasonState>{});
 
   final ShowDetailsSeasonsRepository _repository;
   final int _showTmdbId;

@@ -1,8 +1,8 @@
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
-import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 
 abstract interface class ShowsRepository {
   Future<List<LibraryShow>> getLibraryShows();

@@ -1,6 +1,18 @@
 import 'package:sofawatch/features/shows/domain/models/upcoming_episode.dart';
 
 final class UpcomingEpisodeDto {
+  factory UpcomingEpisodeDto.fromJson(Map<String, dynamic> json) {
+    return UpcomingEpisodeDto(
+      id: _requiredString(json, 'id'),
+      tmdbId: _requiredPositiveInt(json, 'tmdb_id'),
+      seasonNumber: _requiredPositiveInt(json, 'season_number'),
+      episodeNumber: _requiredNonNegativeInt(json, 'episode_number'),
+      title: _requiredString(json, 'title'),
+      airDate: _requiredDate(json, 'air_date'),
+      runtime: _optionalNonNegativeInt(json['runtime'], fieldName: 'runtime'),
+      stillUrl: _optionalString(json['still_url']),
+    );
+  }
   const UpcomingEpisodeDto({
     required this.id,
     required this.tmdbId,
@@ -24,19 +36,6 @@ final class UpcomingEpisodeDto {
   final int? runtime;
 
   final String? stillUrl;
-
-  factory UpcomingEpisodeDto.fromJson(Map<String, dynamic> json) {
-    return UpcomingEpisodeDto(
-      id: _requiredString(json, 'id'),
-      tmdbId: _requiredPositiveInt(json, 'tmdb_id'),
-      seasonNumber: _requiredPositiveInt(json, 'season_number'),
-      episodeNumber: _requiredNonNegativeInt(json, 'episode_number'),
-      title: _requiredString(json, 'title'),
-      airDate: _requiredDate(json, 'air_date'),
-      runtime: _optionalNonNegativeInt(json['runtime'], fieldName: 'runtime'),
-      stillUrl: _optionalString(json['still_url']),
-    );
-  }
 
   UpcomingEpisode toDomain() {
     return UpcomingEpisode(

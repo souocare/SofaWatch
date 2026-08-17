@@ -3,9 +3,8 @@ import 'package:sofawatch/features/search/domain/models/search_result_page.dart'
 import 'package:sofawatch/features/search/domain/repositories/search_repository.dart';
 
 final class FakeSearchRepository implements SearchRepository {
-  FakeSearchRepository({SearchResultPage? result, Object? error})
-    : _result = result ?? _emptyResult,
-      _error = error;
+  FakeSearchRepository({SearchResultPage? result, this._error})
+    : _result = result ?? _emptyResult;
 
   static const SearchResultPage _emptyResult = SearchResultPage(
     page: 1,

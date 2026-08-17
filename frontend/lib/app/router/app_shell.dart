@@ -13,13 +13,13 @@ import 'package:sofawatch/app/theme/tokens/app_durations.dart';
 import 'package:sofawatch/app/theme/tokens/app_radius.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
 import 'package:sofawatch/app/theme/tokens/app_typography.dart';
+import 'package:sofawatch/core/api/api_client.dart';
+import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
+import 'package:sofawatch/features/library/data/repositories/api_library_repository.dart';
 import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
 import 'package:sofawatch/features/search/domain/repositories/search_repository.dart';
 import 'package:sofawatch/features/search/presentation/views/search_mobile_view.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_text_field.dart';
-import 'package:sofawatch/core/api/api_client.dart';
-import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
-import 'package:sofawatch/features/library/data/repositories/api_library_repository.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({required this.navigationShell, super.key});

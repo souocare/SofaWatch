@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
+import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/features/show_details/application/cubit/show_details_episode_operation.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_season_operation.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_season_state.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_seasons_cubit.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_episode_watch_event.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_season.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
-import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
-import 'package:sofawatch/features/show_details/application/cubit/show_details_episode_operation.dart';
-import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
-import 'package:sofawatch/core/errors/app_exception.dart';
-import 'package:sofawatch/features/show_details/domain/models/show_details_episode_watch_event.dart';
-import 'package:sofawatch/core/errors/app_exception.dart';
 
 class ShowDetailsSeasonsSection extends StatelessWidget {
   const ShowDetailsSeasonsSection({required this.seasons, super.key});

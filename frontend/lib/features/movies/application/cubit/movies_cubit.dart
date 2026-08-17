@@ -1,10 +1,10 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/movies/application/cubit/movies_state.dart';
-import 'package:sofawatch/features/movies/domain/models/library_movie.dart';
-import 'package:sofawatch/features/movies/domain/repositories/movies_repository.dart';
 import 'package:sofawatch/features/movies/application/models/movies_filter.dart';
 import 'package:sofawatch/features/movies/application/models/movies_sort.dart';
+import 'package:sofawatch/features/movies/domain/models/library_movie.dart';
+import 'package:sofawatch/features/movies/domain/repositories/movies_repository.dart';
 
 final class MoviesCubit extends Cubit<MoviesState> {
   MoviesCubit({required this.repository}) : super(const MoviesState());

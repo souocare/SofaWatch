@@ -1,19 +1,19 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sofawatch/features/show_details/application/cubit/show_details_season_state.dart';
+import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_seasons_cubit.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_episode_watch_event.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_local_season.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_season.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_seasons_bootstrap.dart';
 import 'package:sofawatch/features/show_details/domain/repositories/show_details_seasons_repository.dart';
 import 'package:sofawatch/features/show_details/presentation/widgets/show_details_seasons_section.dart';
-import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
-import 'package:sofawatch/core/errors/app_exception.dart';
-import 'package:sofawatch/features/show_details/domain/models/show_details_episode_watch_event.dart';
 
 void main() {
   group('ShowDetailsSeasonsSection', () {

@@ -7,11 +7,11 @@ import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
 import 'package:sofawatch/features/library/domain/models/imported_library_media.dart';
 import 'package:sofawatch/features/library/domain/models/library_entry.dart';
+import 'package:sofawatch/features/library/domain/models/library_media_key.dart';
 import 'package:sofawatch/features/library/domain/models/library_media_type.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/library/domain/repositories/library_repository.dart';
 import 'package:sofawatch/features/show_details/presentation/widgets/show_details_library_action.dart';
-import 'package:sofawatch/features/library/domain/models/library_media_key.dart';
 
 void main() {
   group('ShowDetailsLibraryAction', () {

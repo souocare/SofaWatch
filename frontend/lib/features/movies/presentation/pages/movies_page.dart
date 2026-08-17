@@ -7,9 +7,9 @@ import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/movies/application/cubit/movies_cubit.dart';
 import 'package:sofawatch/features/movies/application/cubit/movies_state.dart';
-import 'package:sofawatch/features/movies/domain/models/library_movie.dart';
 import 'package:sofawatch/features/movies/application/models/movies_filter.dart';
 import 'package:sofawatch/features/movies/application/models/movies_sort.dart';
+import 'package:sofawatch/features/movies/domain/models/library_movie.dart';
 
 class MoviesPage extends StatelessWidget {
   const MoviesPage({super.key});

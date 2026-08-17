@@ -6,12 +6,10 @@ import 'package:sofawatch/features/show_details/domain/repositories/show_details
 
 final class ShowDetailsCubit extends Cubit<ShowDetailsState> {
   ShowDetailsCubit({
-    required ShowDetailsRepository repository,
+    required this._repository,
     required int tmdbId,
-    String? language,
-  }) : _repository = repository,
-       _tmdbId = tmdbId,
-       _language = language,
+    this._language,
+  }) : _tmdbId = tmdbId,
        super(const ShowDetailsInitial());
 
   final ShowDetailsRepository _repository;
