@@ -14,6 +14,7 @@ from app.models.episode import Episode
 from app.models.episode_progress import EpisodeProgress
 from app.models.season import Season
 from app.models.episode_watch_event import EpisodeWatchEvent
+from app.models.movie_watch_event import MovieWatchEvent
 
 
 def as_utc(
@@ -260,6 +261,30 @@ def create_movie_library_entry(
     db_session.refresh(entry)
 
     return entry
+
+
+def create_movie_watch_event(
+    db_session: Session,
+    *,
+    user: User,
+    movie: Movie,
+    watched_at: datetime,
+) -> MovieWatchEvent:
+    """Create and persist one historical Movie viewing."""
+
+    event = MovieWatchEvent(
+        user_id=user.id,
+        movie_id=movie.id,
+        watched_at=watched_at,
+    )
+
+    db_session.add(event)
+    db_session.commit()
+    db_session.refresh(event)
+
+    return event
+
+
 
 def test_add_show_to_library(
     client: TestClient,
@@ -3510,3 +3535,641 @@ def test_list_library_movies_returns_empty_list_when_library_has_no_movies(
     assert response.status_code == 200
     assert response.json() == []
 
+
+def test_record_first_movie_watch_event(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Record the first real viewing of a Movie."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    entry = create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+        status=LibraryStatus.PLANNING,
+    )
+
+    response = client.post(
+        f"/api/v1/library/movies/{movie.id}/watch-events",
+    )
+
+    assert response.status_code == 201
+
+    body = response.json()
+
+    assert body["movie_id"] == str(movie.id)
+    assert body["watched_at"] is not None
+
+    events = (
+        db_session.query(MovieWatchEvent)
+        .filter(
+            MovieWatchEvent.user_id == local_user.id,
+            MovieWatchEvent.movie_id == movie.id,
+        )
+        .all()
+    )
+
+    assert len(events) == 1
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.COMPLETED
+    assert entry.completed_at is not None
+
+
+def test_record_movie_rewatch_creates_another_event(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Record a Rewatch without moving the original completion timestamp."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    entry = create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+        status=LibraryStatus.PLANNING,
+    )
+
+    first_response = client.post(
+        f"/api/v1/library/movies/{movie.id}/watch-events",
+    )
+
+    assert first_response.status_code == 201
+
+    db_session.refresh(entry)
+
+    original_completed_at = as_utc(entry.completed_at)
+
+    second_response = client.post(
+        f"/api/v1/library/movies/{movie.id}/watch-events",
+    )
+
+    assert second_response.status_code == 201
+
+    events = (
+        db_session.query(MovieWatchEvent)
+        .filter(
+            MovieWatchEvent.user_id == local_user.id,
+            MovieWatchEvent.movie_id == movie.id,
+        )
+        .all()
+    )
+
+    assert len(events) == 2
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.COMPLETED
+
+    assert as_utc(
+        entry.completed_at,
+    ) == original_completed_at
+
+
+def test_record_movie_watch_event_returns_404_when_movie_does_not_exist(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Reject viewing history for an unknown Movie."""
+
+    create_local_user(db_session)
+
+    response = client.post(
+        f"/api/v1/library/movies/{uuid4()}/watch-events",
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "error": {
+            "code": "movie_not_available_for_watching",
+            "message": "The requested movie cannot be watched.",
+        }
+    }
+
+
+def test_record_movie_watch_event_returns_404_when_movie_is_not_in_library(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """A Movie must belong to the current user's Library before watching."""
+
+    create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    response = client.post(
+        f"/api/v1/library/movies/{movie.id}/watch-events",
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "error": {
+            "code": "movie_not_available_for_watching",
+            "message": "The requested movie cannot be watched.",
+        }
+    }
+
+
+def test_list_movie_watch_events_returns_newest_first(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return all Movie viewings from newest to oldest."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+        status=LibraryStatus.COMPLETED,
+    )
+
+    older_event = create_movie_watch_event(
+        db_session,
+        user=local_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            7,
+            20,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    newer_event = create_movie_watch_event(
+        db_session,
+        user=local_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    response = client.get(
+        f"/api/v1/library/movies/{movie.id}/watch-events",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 2
+
+    assert body[0]["id"] == str(newer_event.id)
+    assert body[1]["id"] == str(older_event.id)
+
+    assert body[0]["movie_id"] == str(movie.id)
+    assert body[1]["movie_id"] == str(movie.id)
+
+
+def test_list_movie_watch_events_is_isolated_to_current_user(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Do not expose another user's Movie viewing history."""
+
+    local_user = create_local_user(db_session)
+
+    other_user = create_user(
+        db_session,
+        display_name="Other User",
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+    )
+
+    local_event = create_movie_watch_event(
+        db_session,
+        user=local_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_movie_watch_event(
+        db_session,
+        user=other_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    response = client.get(
+        f"/api/v1/library/movies/{movie.id}/watch-events",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+    assert body[0]["id"] == str(local_event.id)
+
+
+def test_delete_movie_watch_event_keeps_movie_completed_when_history_remains(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Deleting one Rewatch preserves Completed while another viewing exists."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    entry = create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+        status=LibraryStatus.COMPLETED,
+    )
+
+    older_event = create_movie_watch_event(
+        db_session,
+        user=local_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            7,
+            20,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    newer_event = create_movie_watch_event(
+        db_session,
+        user=local_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    entry.completed_at = older_event.watched_at
+    db_session.commit()
+
+    response = client.delete(
+        f"/api/v1/library/movies/{movie.id}/watch-events/{newer_event.id}",
+    )
+
+    assert response.status_code == 204
+    assert response.content == b""
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.COMPLETED
+
+    assert as_utc(
+        entry.completed_at,
+    ) == as_utc(
+        older_event.watched_at,
+    )
+
+    remaining_events = (
+        db_session.query(MovieWatchEvent)
+        .filter(
+            MovieWatchEvent.user_id == local_user.id,
+            MovieWatchEvent.movie_id == movie.id,
+        )
+        .all()
+    )
+
+    assert len(remaining_events) == 1
+    assert remaining_events[0].id == older_event.id
+
+
+def test_delete_original_movie_watch_event_moves_completed_at(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Deleting the first viewing moves completion to the oldest remaining event."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    entry = create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+        status=LibraryStatus.COMPLETED,
+    )
+
+    original_event = create_movie_watch_event(
+        db_session,
+        user=local_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            7,
+            1,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    remaining_event = create_movie_watch_event(
+        db_session,
+        user=local_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    entry.completed_at = original_event.watched_at
+    db_session.commit()
+
+    response = client.delete(
+        f"/api/v1/library/movies/{movie.id}/watch-events/{original_event.id}",
+    )
+
+    assert response.status_code == 204
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.COMPLETED
+
+    assert as_utc(
+        entry.completed_at,
+    ) == as_utc(
+        remaining_event.watched_at,
+    )
+
+
+def test_delete_last_movie_watch_event_returns_movie_to_watchlist(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Deleting the final viewing makes the Movie unwatched again."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    entry = create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+        status=LibraryStatus.COMPLETED,
+    )
+
+    event = create_movie_watch_event(
+        db_session,
+        user=local_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    entry.completed_at = event.watched_at
+    db_session.commit()
+
+    response = client.delete(
+        f"/api/v1/library/movies/{movie.id}/watch-events/{event.id}",
+    )
+
+    assert response.status_code == 204
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.PLANNING
+    assert entry.completed_at is None
+
+    remaining_events = (
+        db_session.query(MovieWatchEvent)
+        .filter(
+            MovieWatchEvent.user_id == local_user.id,
+            MovieWatchEvent.movie_id == movie.id,
+        )
+        .all()
+    )
+
+    assert remaining_events == []
+
+
+def test_delete_movie_watch_event_returns_404_for_unknown_event(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return 404 when a Movie viewing event cannot be found."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+    )
+
+    response = client.delete(
+        f"/api/v1/library/movies/{movie.id}/watch-events/{uuid4()}",
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "error": {
+            "code": "movie_watch_event_not_found",
+            "message": "Movie watch event not found.",
+        }
+    }
+
+
+def test_delete_all_movie_watch_events_returns_movie_to_watchlist(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Delete all historical Movie viewings."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    entry = create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+        status=LibraryStatus.COMPLETED,
+    )
+
+    create_movie_watch_event(
+        db_session,
+        user=local_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            7,
+            20,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_movie_watch_event(
+        db_session,
+        user=local_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    response = client.delete(
+        f"/api/v1/library/movies/{movie.id}/watch-events",
+    )
+
+    assert response.status_code == 204
+    assert response.content == b""
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.PLANNING
+    assert entry.completed_at is None
+
+    events = (
+        db_session.query(MovieWatchEvent)
+        .filter(
+            MovieWatchEvent.user_id == local_user.id,
+            MovieWatchEvent.movie_id == movie.id,
+        )
+        .all()
+    )
+
+    assert events == []
+
+
+def test_delete_all_movie_watch_events_is_idempotent(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Deleting an already empty Movie history still succeeds."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    entry = create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+        status=LibraryStatus.PLANNING,
+    )
+
+    response = client.delete(
+        f"/api/v1/library/movies/{movie.id}/watch-events",
+    )
+
+    assert response.status_code == 204
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.PLANNING
+    assert entry.completed_at is None

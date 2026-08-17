@@ -12,6 +12,7 @@ from app.models.season import Season
 from app.models.show import Show
 from app.models.show_network import show_networks
 from app.models.user import User
+from app.models.movie_watch_event import MovieWatchEvent
 
 __all__ = [
     "Genre",
@@ -28,4 +29,5 @@ __all__ = [
     "show_networks",
     "BackgroundJob",
     "BackgroundJobRun",
+    "MovieWatchEvent",
 ]

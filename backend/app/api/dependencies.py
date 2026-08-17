@@ -57,6 +57,8 @@ from app.services.episode_watch_event import EpisodeWatchEventService
 from app.services.havent_started import HaventStartedService
 from app.services.upcoming import UpcomingService
 from app.services.episode_details import EpisodeDetailsService
+from app.repositories.movie_watch_event import MovieWatchEventRepository
+from app.services.movie_watch_event import MovieWatchEventService
 
 def get_genre_service(
     session: DatabaseSession,
@@ -334,6 +336,26 @@ def get_movie_import_service(
 MovieImportServiceDependency = Annotated[
     MovieImportService,
     Depends(get_movie_import_service),
+]
+
+
+
+def get_movie_watch_event_service(
+    session: DatabaseSession,
+) -> MovieWatchEventService:
+    """Provide historical Movie watch event operations."""
+
+    return MovieWatchEventService(
+        session=session,
+        movie_repository=MovieRepository(session),
+        library_repository=LibraryRepository(session),
+        watch_event_repository=MovieWatchEventRepository(session),
+    )
+
+
+MovieWatchEventServiceDependency = Annotated[
+    MovieWatchEventService,
+    Depends(get_movie_watch_event_service),
 ]
 
 

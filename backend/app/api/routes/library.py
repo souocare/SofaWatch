@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -13,10 +13,12 @@ from app.api.dependencies import (
     UpcomingServiceDependency,
     WatchHistoryServiceDependency,
     WatchNextServiceDependency,
+    MovieWatchEventServiceDependency,
 )
 from app.core.exceptions import APIError
 from app.models.enums import LibraryStatus
 from app.schemas.havent_started import HaventStartedShowResponse
+from app.schemas.movie_watch_event import MovieWatchEventResponse
 from app.schemas.library import (
     LibraryEntryResponse,
     LibraryMovieResponse,
@@ -525,6 +527,113 @@ def update_movie_library_status(
         )
 
     return entry
+
+
+@router.post(
+    "/movies/{movie_id}/watch-events",
+    response_model=MovieWatchEventResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Record Movie viewing",
+    description=(
+        "Record one historical viewing of a Movie. "
+        "Calling this for an already watched Movie represents a Rewatch."
+    ),
+)
+def record_movie_watch_event(
+    movie_id: UUID,
+    current_user: CurrentUserDependency,
+    service: MovieWatchEventServiceDependency,
+) -> MovieWatchEventResponse:
+    """Record a Movie watch or Rewatch."""
+
+    event = service.watch(
+        user_id=current_user.id,
+        movie_id=movie_id,
+    )
+
+    if event is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="movie_not_available_for_watching",
+            message="The requested movie cannot be watched.",
+        )
+
+    return event
+
+
+@router.get(
+    "/movies/{movie_id}/watch-events",
+    response_model=list[MovieWatchEventResponse],
+    summary="List Movie watch events",
+    description=(
+        "Return every recorded viewing of a Movie for the current user, "
+        "ordered from newest to oldest."
+    ),
+)
+def list_movie_watch_events(
+    movie_id: UUID,
+    current_user: CurrentUserDependency,
+    service: MovieWatchEventServiceDependency,
+) -> list[MovieWatchEventResponse]:
+    """Return historical Movie viewings."""
+
+    return service.list_for_movie(
+        user_id=current_user.id,
+        movie_id=movie_id,
+    )
+
+
+@router.delete(
+    "/movies/{movie_id}/watch-events",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete all Movie watch events",
+    description=(
+        "Delete every historical viewing of a Movie and return it "
+        "to the user's Watchlist."
+    ),
+)
+def delete_all_movie_watch_events(
+    movie_id: UUID,
+    current_user: CurrentUserDependency,
+    service: MovieWatchEventServiceDependency,
+) -> None:
+    """Delete every Movie viewing."""
+
+    service.delete_all(
+        user_id=current_user.id,
+        movie_id=movie_id,
+    )
+
+
+@router.delete(
+    "/movies/{movie_id}/watch-events/{event_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete Movie watch event",
+    description=(
+        "Delete one historical Movie viewing and synchronize "
+        "the Movie's current Library state."
+    ),
+)
+def delete_movie_watch_event(
+    movie_id: UUID,
+    event_id: UUID,
+    current_user: CurrentUserDependency,
+    service: MovieWatchEventServiceDependency,
+) -> None:
+    """Delete one historical Movie viewing."""
+
+    deleted = service.delete(
+        user_id=current_user.id,
+        movie_id=movie_id,
+        event_id=event_id,
+    )
+
+    if not deleted:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="movie_watch_event_not_found",
+            message="Movie watch event not found.",
+        )
 
 
 @router.post(
