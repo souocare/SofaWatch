@@ -52,13 +52,13 @@ from app.services.stale_watching import StaleWatchingService
 from app.services.watch_history import WatchHistoryService
 from app.services.start_show import StartShowService
 from app.repositories.episode_watch_event import EpisodeWatchEventRepository
-from app.repositories.episode_watch_event import EpisodeWatchEventRepository
 from app.services.episode_watch_event import EpisodeWatchEventService
 from app.services.havent_started import HaventStartedService
 from app.services.upcoming import UpcomingService
 from app.services.episode_details import EpisodeDetailsService
 from app.repositories.movie_watch_event import MovieWatchEventRepository
 from app.services.movie_watch_event import MovieWatchEventService
+from app.services.statistics import StatisticsService
 
 def get_genre_service(
     session: DatabaseSession,
@@ -679,4 +679,24 @@ def get_watch_history_service(
 WatchHistoryServiceDependency = Annotated[
     WatchHistoryService,
     Depends(get_watch_history_service),
+]
+
+def get_statistics_service(
+    session: DatabaseSession,
+) -> StatisticsService:
+    """Provide reusable viewing statistics for one request."""
+
+    return StatisticsService(
+        episode_watch_event_repository=EpisodeWatchEventRepository(
+            session,
+        ),
+        movie_watch_event_repository=MovieWatchEventRepository(
+            session,
+        ),
+    )
+
+
+StatisticsServiceDependency = Annotated[
+    StatisticsService,
+    Depends(get_statistics_service),
 ]

@@ -815,3 +815,145 @@ def test_delete_all_for_user_and_movie_is_idempotent(
     )
 
     assert deleted_count == 0
+
+
+def test_get_statistics_for_period_counts_viewings_and_runtime(
+    db_session: Session,
+) -> None:
+    """Aggregate Movie viewing count and runtime within a period."""
+
+    user = create_user(
+        db_session,
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    movie.runtime = 155
+
+    db_session.commit()
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            17,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            21,
+            21,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            16,
+            23,
+            59,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    count, watch_time = repository.get_statistics_for_period(
+        user_id=user.id,
+        start_at=datetime(
+            2026,
+            8,
+            17,
+            tzinfo=UTC,
+        ),
+        end_at=datetime(
+            2026,
+            8,
+            24,
+            tzinfo=UTC,
+        ),
+    )
+
+    assert count == 2
+    assert watch_time == 310
+
+
+def test_get_statistics_for_period_counts_movie_without_runtime(
+    db_session: Session,
+) -> None:
+    """Count a Movie viewing even when runtime is unknown."""
+
+    user = create_user(
+        db_session,
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    movie.runtime = None
+
+    db_session.commit()
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    count, watch_time = repository.get_statistics_for_period(
+        user_id=user.id,
+        start_at=datetime(
+            2026,
+            8,
+            17,
+            tzinfo=UTC,
+        ),
+        end_at=datetime(
+            2026,
+            8,
+            24,
+            tzinfo=UTC,
+        ),
+    )
+
+    assert count == 1
+    assert watch_time == 0

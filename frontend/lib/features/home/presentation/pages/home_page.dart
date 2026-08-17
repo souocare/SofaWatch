@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/features/home/presentation/widgets/home_header.dart';
+import 'package:sofawatch/features/statistics/presentation/widgets/weekly_statistics_section.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -59,10 +60,14 @@ class _HomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      key: const ValueKey<String>('home-sections'),
+    return const Column(
+      key: ValueKey<String>('home-sections'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: const <Widget>[HomeHeader()],
+      children: <Widget>[
+        HomeHeader(),
+        SizedBox(height: AppSpacing.xxxl),
+        WeeklyStatisticsSection(),
+      ],
     );
   }
 }

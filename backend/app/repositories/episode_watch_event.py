@@ -299,6 +299,49 @@ class EpisodeWatchEventRepository:
             for episode_id, watch_count in rows
         }
 
+    def get_statistics_for_period(
+        self,
+        *,
+        user_id: UUID,
+        start_at: datetime,
+        end_at: datetime,
+    ) -> tuple[int, int]:
+        """Return Episode viewing count and known watch time for a period.
+
+        Every historical watch event is counted independently, therefore
+        rewatches contribute again to both the viewing count and watch time.
+
+        Episodes without a known runtime still contribute to the viewing
+        count but add zero minutes to watch time.
+
+        ``end_at`` is exclusive.
+        """
+
+        row = self._session.execute(
+            select(
+                func.count(EpisodeWatchEvent.id),
+                func.coalesce(
+                    func.sum(Episode.runtime),
+                    0,
+                ),
+            )
+            .select_from(EpisodeWatchEvent)
+            .join(
+                Episode,
+                Episode.id == EpisodeWatchEvent.episode_id,
+            )
+            .where(
+                EpisodeWatchEvent.user_id == user_id,
+                EpisodeWatchEvent.watched_at >= start_at,
+                EpisodeWatchEvent.watched_at < end_at,
+            )
+        ).one()
+
+        return (
+            int(row[0] or 0),
+            int(row[1] or 0),
+        )
+
     def delete_all_for_user_and_episode(
         self,
         *,

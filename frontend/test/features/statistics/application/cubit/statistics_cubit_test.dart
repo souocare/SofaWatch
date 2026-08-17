@@ -1,0 +1,190 @@
+import 'dart:async';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_cubit.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_state.dart';
+import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
+import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
+
+void main() {
+  group('StatisticsCubit', () {
+    test('starts in initial state', () async {
+      final StatisticsCubit cubit = StatisticsCubit(
+        repository: _FakeStatisticsRepository(),
+      );
+
+      expect(cubit.state, isA<StatisticsInitial>());
+
+      await cubit.close();
+    });
+
+    test('loads weekly Statistics', () async {
+      final StatisticsCubit cubit = StatisticsCubit(
+        repository: _FakeStatisticsRepository(statistics: _statistics),
+      );
+
+      await cubit.loadWeeklyStatistics();
+
+      expect(cubit.state, StatisticsSuccess(_statistics));
+
+      await cubit.close();
+    });
+
+    test('preserves AppException when loading fails', () async {
+      final StatisticsCubit cubit = StatisticsCubit(
+        repository: _FakeStatisticsRepository(
+          error: const AppException.connection(),
+        ),
+      );
+
+      await cubit.loadWeeklyStatistics();
+
+      expect(cubit.state, isA<StatisticsFailure>());
+
+      final StatisticsFailure state = cubit.state as StatisticsFailure;
+
+      expect(state.error.type, AppExceptionType.connection);
+
+      await cubit.close();
+    });
+
+    test('maps unexpected failures to unknown', () async {
+      final StatisticsCubit cubit = StatisticsCubit(
+        repository: _FakeStatisticsRepository(
+          unexpectedError: StateError('boom'),
+        ),
+      );
+
+      await cubit.loadWeeklyStatistics();
+
+      final StatisticsFailure state = cubit.state as StatisticsFailure;
+
+      expect(state.error.type, AppExceptionType.unknown);
+
+      await cubit.close();
+    });
+
+    test('Retry repeats the weekly Statistics request', () async {
+      final _RetryStatisticsRepository repository =
+          _RetryStatisticsRepository();
+
+      final StatisticsCubit cubit = StatisticsCubit(repository: repository);
+
+      await cubit.loadWeeklyStatistics();
+
+      expect(repository.calls, 1);
+      expect(cubit.state, isA<StatisticsFailure>());
+
+      await cubit.retry();
+
+      expect(repository.calls, 2);
+      expect(cubit.state, StatisticsSuccess(_statistics));
+
+      await cubit.close();
+    });
+
+    test('does not start duplicate loads', () async {
+      final _ControlledStatisticsRepository repository =
+          _ControlledStatisticsRepository();
+
+      final StatisticsCubit cubit = StatisticsCubit(repository: repository);
+
+      final Future<void> firstLoad = cubit.loadWeeklyStatistics();
+
+      await repository.requested.future;
+
+      final Future<void> secondLoad = cubit.loadWeeklyStatistics();
+
+      expect(repository.calls, 1);
+
+      repository.complete(_statistics);
+
+      await Future.wait(<Future<void>>[firstLoad, secondLoad]);
+
+      expect(repository.calls, 1);
+      expect(cubit.state, StatisticsSuccess(_statistics));
+
+      await cubit.close();
+    });
+  });
+}
+
+final WeeklyStatistics _statistics = WeeklyStatistics(
+  weekStart: DateTime(2026, 8, 17),
+  weekEnd: DateTime(2026, 8, 23),
+  episodesWatched: 8,
+  moviesWatched: 2,
+  watchTimeMinutes: 642,
+);
+
+final class _FakeStatisticsRepository implements StatisticsRepository {
+  _FakeStatisticsRepository({
+    this.statistics,
+    this.error,
+    this.unexpectedError,
+  });
+
+  final WeeklyStatistics? statistics;
+  final AppException? error;
+  final Object? unexpectedError;
+
+  @override
+  Future<WeeklyStatistics> getWeeklyStatistics() async {
+    final AppException? appError = error;
+
+    if (appError != null) {
+      throw appError;
+    }
+
+    final Object? unknownError = unexpectedError;
+
+    if (unknownError != null) {
+      throw unknownError;
+    }
+
+    return statistics ?? _statistics;
+  }
+}
+
+final class _RetryStatisticsRepository implements StatisticsRepository {
+  int calls = 0;
+
+  @override
+  Future<WeeklyStatistics> getWeeklyStatistics() async {
+    calls++;
+
+    if (calls == 1) {
+      throw const AppException.connection();
+    }
+
+    return _statistics;
+  }
+}
+
+final class _ControlledStatisticsRepository implements StatisticsRepository {
+  int calls = 0;
+
+  final Completer<void> requested = Completer<void>();
+
+  final Completer<WeeklyStatistics> _result = Completer<WeeklyStatistics>();
+
+  void complete(WeeklyStatistics statistics) {
+    if (_result.isCompleted) {
+      return;
+    }
+
+    _result.complete(statistics);
+  }
+
+  @override
+  Future<WeeklyStatistics> getWeeklyStatistics() {
+    calls++;
+
+    if (!requested.isCompleted) {
+      requested.complete();
+    }
+
+    return _result.future;
+  }
+}

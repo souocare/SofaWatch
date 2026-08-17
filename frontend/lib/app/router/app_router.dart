@@ -41,6 +41,8 @@ import 'package:sofawatch/features/show_details/presentation/pages/show_details_
 import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/data/repositories/api_shows_repository.dart';
 import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_cubit.dart';
+import 'package:sofawatch/features/statistics/data/repositories/api_statistics_repository.dart';
 
 GoRouter createAppRouter({required ApiClient apiClient}) {
   final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -190,7 +192,16 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                 name: AppRoute.home.name,
                 path: RoutePaths.home,
                 builder: (BuildContext context, GoRouterState state) {
-                  return const HomePage();
+                  return BlocProvider<StatisticsCubit>(
+                    create: (BuildContext context) {
+                      return StatisticsCubit(
+                        repository: ApiStatisticsRepository(
+                          context.read<ApiClient>(),
+                        ),
+                      )..loadWeeklyStatistics();
+                    },
+                    child: const HomePage(),
+                  );
                 },
               ),
             ],

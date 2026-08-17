@@ -1082,3 +1082,176 @@ def test_get_counts_by_user_and_episode_ids_returns_empty_for_empty_input(
     )
 
     assert result == {}
+
+def test_get_statistics_for_period_counts_viewings_and_runtime(
+    db_session: Session,
+) -> None:
+    """Aggregate Episode viewing count and runtime within a period."""
+
+    user = create_user(
+        db_session,
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    episode.runtime = 50
+
+    db_session.commit()
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            17,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    # Previous week: must not be included.
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            16,
+            23,
+            59,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    count, watch_time = repository.get_statistics_for_period(
+        user_id=user.id,
+        start_at=datetime(
+            2026,
+            8,
+            17,
+            tzinfo=UTC,
+        ),
+        end_at=datetime(
+            2026,
+            8,
+            24,
+            tzinfo=UTC,
+        ),
+    )
+
+    assert count == 2
+
+    assert watch_time == 100
+
+
+def test_get_statistics_for_period_counts_episode_without_runtime(
+    db_session: Session,
+) -> None:
+    """Count a viewing even when the Episode runtime is unknown."""
+
+    user = create_user(
+        db_session,
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    assert episode.runtime is None
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    count, watch_time = repository.get_statistics_for_period(
+        user_id=user.id,
+        start_at=datetime(
+            2026,
+            8,
+            17,
+            tzinfo=UTC,
+        ),
+        end_at=datetime(
+            2026,
+            8,
+            24,
+            tzinfo=UTC,
+        ),
+    )
+
+    assert count == 1
+    assert watch_time == 0

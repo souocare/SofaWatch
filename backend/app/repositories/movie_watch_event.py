@@ -5,6 +5,7 @@ from sqlalchemy import delete as sqlalchemy_delete, func, select
 from sqlalchemy.orm import Session
 
 from app.models.movie_watch_event import MovieWatchEvent
+from app.models.movie import Movie
 
 
 class MovieWatchEventRepository:
@@ -136,6 +137,49 @@ class MovieWatchEventRepository:
                 MovieWatchEvent.id.asc(),
             )
             .limit(1)
+        )
+
+    def get_statistics_for_period(
+        self,
+        *,
+        user_id: UUID,
+        start_at: datetime,
+        end_at: datetime,
+    ) -> tuple[int, int]:
+        """Return Movie viewing count and known watch time for a period.
+
+        Every historical Movie watch event is counted independently, so
+        rewatches contribute again to both the viewing count and watch time.
+
+        Movies without a known runtime still contribute to the viewing count
+        but add zero minutes to watch time.
+
+        ``end_at`` is exclusive.
+        """
+
+        row = self._session.execute(
+            select(
+                func.count(MovieWatchEvent.id),
+                func.coalesce(
+                    func.sum(Movie.runtime),
+                    0,
+                ),
+            )
+            .select_from(MovieWatchEvent)
+            .join(
+                Movie,
+                Movie.id == MovieWatchEvent.movie_id,
+            )
+            .where(
+                MovieWatchEvent.user_id == user_id,
+                MovieWatchEvent.watched_at >= start_at,
+                MovieWatchEvent.watched_at < end_at,
+            )
+        ).one()
+
+        return (
+            int(row[0] or 0),
+            int(row[1] or 0),
         )
 
     def delete(
