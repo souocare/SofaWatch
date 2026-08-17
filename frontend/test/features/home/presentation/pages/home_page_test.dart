@@ -13,12 +13,19 @@ void main() {
 
       expect(find.byKey(const ValueKey<String>('home-page')), findsOneWidget);
 
+      expect(find.byKey(const ValueKey<String>('home-header')), findsOneWidget);
+
       expect(
-        find.byKey(const ValueKey<String>('home-page-title')),
+        find.byKey(const ValueKey<String>('home-greeting')),
         findsOneWidget,
       );
 
-      expect(find.text('Home'), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('home-date')), findsOneWidget);
+
+      expect(
+        find.byKey(const ValueKey<String>('home-user-avatar')),
+        findsOneWidget,
+      );
 
       expect(
         find.byKey(const ValueKey<String>('home-sections')),

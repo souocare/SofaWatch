@@ -1,0 +1,193 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sofawatch/app/router/app_routes.dart';
+import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
+
+enum HomeUserMenuAction { profile, settings, logout }
+
+class HomeHeader extends StatelessWidget {
+  const HomeHeader({this.now, super.key});
+
+  final DateTime Function()? now;
+
+  @override
+  Widget build(BuildContext context) {
+    final DateTime current = (now ?? DateTime.now)();
+
+    return Row(
+      key: const ValueKey<String>('home-header'),
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                _greetingFor(current),
+                key: const ValueKey<String>('home-greeting'),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                _formatHomeDate(current),
+                key: const ValueKey<String>('home-date'),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.lg),
+        _HomeUserMenu(
+          onSelected: (HomeUserMenuAction action) {
+            _handleUserAction(context, action);
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _HomeUserMenu extends StatelessWidget {
+  const _HomeUserMenu({required this.onSelected});
+
+  final ValueChanged<HomeUserMenuAction> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<HomeUserMenuAction>(
+      key: const ValueKey<String>('home-user-menu'),
+      tooltip: 'User menu',
+      onSelected: onSelected,
+      itemBuilder: (BuildContext context) {
+        return const <PopupMenuEntry<HomeUserMenuAction>>[
+          PopupMenuItem<HomeUserMenuAction>(
+            value: HomeUserMenuAction.profile,
+            child: _HomeUserMenuItem(
+              icon: Icons.person_outline_rounded,
+              label: 'Profile',
+            ),
+          ),
+          PopupMenuItem<HomeUserMenuAction>(
+            value: HomeUserMenuAction.settings,
+            child: _HomeUserMenuItem(
+              icon: Icons.settings_outlined,
+              label: 'Settings',
+            ),
+          ),
+          PopupMenuDivider(),
+          PopupMenuItem<HomeUserMenuAction>(
+            value: HomeUserMenuAction.logout,
+            child: _HomeUserMenuItem(
+              icon: Icons.logout_rounded,
+              label: 'Log out',
+            ),
+          ),
+        ];
+      },
+      child: Container(
+        key: const ValueKey<String>('home-user-avatar'),
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.surfaceHigh,
+          border: Border.all(color: AppColors.outlineVariant),
+        ),
+        child: const Icon(
+          Icons.person_outline_rounded,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeUserMenuItem extends StatelessWidget {
+  const _HomeUserMenuItem({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Icon(icon, size: 20),
+        const SizedBox(width: AppSpacing.md),
+        Text(label),
+      ],
+    );
+  }
+}
+
+void _handleUserAction(BuildContext context, HomeUserMenuAction action) {
+  switch (action) {
+    case HomeUserMenuAction.profile:
+      context.goNamed(AppRoute.profile.name);
+
+    case HomeUserMenuAction.settings:
+      _showTemporaryMessage(context, 'Settings are not available yet.');
+
+    case HomeUserMenuAction.logout:
+      _showTemporaryMessage(
+        context,
+        'Log out will be available when user accounts are implemented.',
+      );
+  }
+}
+
+void _showTemporaryMessage(BuildContext context, String message) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(message)));
+}
+
+String _greetingFor(DateTime value) {
+  final int hour = value.hour;
+
+  if (hour < 12) {
+    return 'Good morning';
+  }
+
+  if (hour < 18) {
+    return 'Good afternoon';
+  }
+
+  return 'Good evening';
+}
+
+String _formatHomeDate(DateTime value) {
+  const List<String> weekdays = <String>[
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+
+  const List<String> months = <String>[
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  final String weekday = weekdays[value.weekday - 1];
+  final String month = months[value.month - 1];
+
+  return '$weekday, $month ${value.day}';
+}
