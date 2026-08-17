@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
-import 'package:sofawatch/features/home/presentation/widgets/home_header.dart';
-import 'package:sofawatch/features/statistics/presentation/widgets/weekly_statistics_section.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
+import 'package:sofawatch/features/home/presentation/widgets/home_header.dart';
 import 'package:sofawatch/features/home/presentation/widgets/premiering_today_section.dart';
+import 'package:sofawatch/features/home/presentation/widgets/upcoming_section.dart';
+import 'package:sofawatch/features/statistics/presentation/widgets/weekly_statistics_section.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -92,6 +93,10 @@ class _HomeContent extends StatelessWidget {
           SizedBox(height: AppSpacing.section),
 
           PremieringTodaySection(),
+
+          SizedBox(height: AppSpacing.section),
+
+          UpcomingSection(),
         ],
       ),
     );

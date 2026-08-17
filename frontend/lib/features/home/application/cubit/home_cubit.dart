@@ -10,6 +10,9 @@ final class HomeCubit extends Cubit<HomeState> {
       super(const HomeState());
 
   static const int premieringTodayLimit = 5;
+  static const int upcomingLimit = 6;
+
+  static const int upcomingDays = 7;
 
   final ShowsRepository repository;
   final DateTime Function() _now;
@@ -19,6 +22,24 @@ final class HomeCubit extends Cubit<HomeState> {
 
     return DateTime(now.year, now.month, now.day);
   }
+
+  // ---------------------------------------------------------------------------
+  // Initial load
+  // ---------------------------------------------------------------------------
+
+  Future<void> load() async {
+    /*
+     * Home sections deliberately load independently.
+     *
+     * A failure in Premiering Today must not prevent Upcoming from loading,
+     * and vice versa.
+     */
+    await Future.wait(<Future<void>>[loadPremieringToday(), loadUpcoming()]);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Premiering Today
+  // ---------------------------------------------------------------------------
 
   Future<void> loadPremieringToday() async {
     if (state.isLoadingPremieringToday) {
@@ -178,5 +199,77 @@ final class HomeCubit extends Cubit<HomeState> {
         ),
       );
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Upcoming
+  // ---------------------------------------------------------------------------
+
+  Future<void> loadUpcoming() async {
+    if (state.isLoadingUpcoming) {
+      return;
+    }
+
+    emit(state.copyWith(isLoadingUpcoming: true, clearUpcomingError: true));
+
+    final DateTime today = _today();
+
+    /*
+     * Premiering Today owns today's Episodes.
+     *
+     * Upcoming starts tomorrow so the same Episode can never appear in both
+     * Home sections.
+     *
+     * Example:
+     *
+     * today    = 17 Aug
+     * fromDate = 18 Aug
+     * toDate   = 24 Aug
+     *
+     * Exactly seven future calendar days.
+     */
+    final DateTime fromDate = today.add(const Duration(days: 1));
+
+    final DateTime toDate = today.add(const Duration(days: upcomingDays));
+
+    try {
+      final List<UpcomingItem> result = await repository.getUpcoming(
+        fromDate: fromDate,
+        toDate: toDate,
+      );
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          upcoming: result.take(upcomingLimit).toList(growable: false),
+          isLoadingUpcoming: false,
+          clearUpcomingError: true,
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(state.copyWith(isLoadingUpcoming: false, upcomingError: error));
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          isLoadingUpcoming: false,
+          upcomingError: AppException.unknown(originalError: error),
+        ),
+      );
+    }
+  }
+
+  Future<void> retryUpcoming() {
+    return loadUpcoming();
   }
 }

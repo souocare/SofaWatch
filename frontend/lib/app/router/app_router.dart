@@ -200,8 +200,10 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                       BlocProvider<HomeCubit>(
                         create: (BuildContext context) {
                           return HomeCubit(
-                            repository: ApiShowsRepository(apiClient),
-                          )..loadPremieringToday();
+                            repository: ApiShowsRepository(
+                              context.read<ApiClient>(),
+                            ),
+                          )..load();
                         },
                       ),
                       BlocProvider<StatisticsCubit>(

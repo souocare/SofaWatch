@@ -9,7 +9,14 @@ final class HomeState extends Equatable {
     this.premieringTodayError,
     this.updatingPremieringTodayEpisodeId,
     this.premieringTodayOperationError,
+    this.upcoming = const <UpcomingItem>[],
+    this.isLoadingUpcoming = false,
+    this.upcomingError,
   });
+
+  // ---------------------------------------------------------------------------
+  // Premiering Today
+  // ---------------------------------------------------------------------------
 
   final List<UpcomingItem> premieringToday;
 
@@ -25,6 +32,16 @@ final class HomeState extends Equatable {
     return updatingPremieringTodayEpisodeId != null;
   }
 
+  // ---------------------------------------------------------------------------
+  // Upcoming
+  // ---------------------------------------------------------------------------
+
+  final List<UpcomingItem> upcoming;
+
+  final bool isLoadingUpcoming;
+
+  final AppException? upcomingError;
+
   HomeState copyWith({
     List<UpcomingItem>? premieringToday,
     bool? isLoadingPremieringToday,
@@ -34,6 +51,10 @@ final class HomeState extends Equatable {
     bool clearUpdatingPremieringTodayEpisodeId = false,
     AppException? premieringTodayOperationError,
     bool clearPremieringTodayOperationError = false,
+    List<UpcomingItem>? upcoming,
+    bool? isLoadingUpcoming,
+    AppException? upcomingError,
+    bool clearUpcomingError = false,
   }) {
     return HomeState(
       premieringToday: premieringToday ?? this.premieringToday,
@@ -49,6 +70,11 @@ final class HomeState extends Equatable {
       premieringTodayOperationError: clearPremieringTodayOperationError
           ? null
           : premieringTodayOperationError ?? this.premieringTodayOperationError,
+      upcoming: upcoming ?? this.upcoming,
+      isLoadingUpcoming: isLoadingUpcoming ?? this.isLoadingUpcoming,
+      upcomingError: clearUpcomingError
+          ? null
+          : upcomingError ?? this.upcomingError,
     );
   }
 
@@ -59,5 +85,8 @@ final class HomeState extends Equatable {
     premieringTodayError,
     updatingPremieringTodayEpisodeId,
     premieringTodayOperationError,
+    upcoming,
+    isLoadingUpcoming,
+    upcomingError,
   ];
 }

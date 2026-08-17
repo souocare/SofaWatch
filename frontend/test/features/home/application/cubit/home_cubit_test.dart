@@ -27,7 +27,10 @@ void main() {
 
       await cubit.loadPremieringToday();
 
-      expect(cubit.state.premieringToday, hasLength(5));
+      expect(
+        cubit.state.premieringToday,
+        hasLength(HomeCubit.premieringTodayLimit),
+      );
 
       expect(repository.requestedFromDate, DateTime(2026, 8, 17));
 
@@ -108,12 +111,109 @@ void main() {
       await cubit.close();
     });
   });
+
+  group('HomeCubit Upcoming', () {
+    test('loads tomorrow through the following seven days', () async {
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        upcoming: <UpcomingItem>[
+          _upcomingItem(episodeId: 'episode-1', airDate: DateTime(2026, 8, 18)),
+        ],
+      );
+
+      final HomeCubit cubit = HomeCubit(
+        repository: repository,
+        now: () => DateTime(2026, 8, 17, 14, 30),
+      );
+
+      await cubit.loadUpcoming();
+
+      expect(repository.requestedFromDate, DateTime(2026, 8, 18));
+
+      expect(repository.requestedToDate, DateTime(2026, 8, 24));
+
+      expect(cubit.state.upcoming, hasLength(1));
+
+      await cubit.close();
+    });
+
+    test('limits Upcoming results displayed on Home', () async {
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        upcoming: List<UpcomingItem>.generate(
+          10,
+          (int index) => _upcomingItem(
+            episodeId: 'episode-$index',
+            airDate: DateTime(2026, 8, 18 + index),
+          ),
+        ),
+      );
+
+      final HomeCubit cubit = HomeCubit(
+        repository: repository,
+        now: () => DateTime(2026, 8, 17),
+      );
+
+      await cubit.loadUpcoming();
+
+      expect(cubit.state.upcoming, hasLength(HomeCubit.upcomingLimit));
+
+      expect(cubit.state.upcoming.first.episode.id, 'episode-0');
+
+      expect(cubit.state.upcoming.last.episode.id, 'episode-5');
+
+      await cubit.close();
+    });
+
+    test('preserves Planning Shows in Upcoming', () async {
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        upcoming: <UpcomingItem>[
+          _upcomingItem(
+            episodeId: 'episode-planning',
+            status: LibraryStatus.planning,
+            airDate: DateTime(2026, 8, 20),
+          ),
+        ],
+      );
+
+      final HomeCubit cubit = HomeCubit(
+        repository: repository,
+        now: () => DateTime(2026, 8, 17),
+      );
+
+      await cubit.loadUpcoming();
+
+      expect(cubit.state.upcoming.single.libraryStatus, LibraryStatus.planning);
+
+      await cubit.close();
+    });
+
+    test('stores an independent Upcoming error', () async {
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        failUpcoming: true,
+      );
+
+      final HomeCubit cubit = HomeCubit(
+        repository: repository,
+        now: () => DateTime(2026, 8, 17),
+      );
+
+      await cubit.loadUpcoming();
+
+      expect(cubit.state.upcoming, isEmpty);
+
+      expect(cubit.state.upcomingError, isA<AppException>());
+
+      expect(cubit.state.isLoadingUpcoming, isFalse);
+
+      await cubit.close();
+    });
+  });
 }
 
 UpcomingItem _upcomingItem({
   required String episodeId,
   bool isWatched = false,
   LibraryStatus status = LibraryStatus.watching,
+  DateTime? airDate,
 }) {
   return UpcomingItem(
     libraryEntryId: 'library-$episodeId',
@@ -129,7 +229,7 @@ UpcomingItem _upcomingItem({
       seasonNumber: 2,
       episodeNumber: 1,
       title: 'Hello, Ms. Cobel',
-      airDate: DateTime(2026, 8, 17),
+      airDate: airDate ?? DateTime(2026, 8, 17),
       runtime: 52,
       stillUrl: null,
       isWatched: isWatched,
@@ -141,11 +241,13 @@ final class _FakeShowsRepository implements ShowsRepository {
   _FakeShowsRepository({
     this.upcoming = const <UpcomingItem>[],
     this.failMarkWatched = false,
+    this.failUpcoming = false,
   });
 
   final List<UpcomingItem> upcoming;
 
   final bool failMarkWatched;
+  final bool failUpcoming;
 
   DateTime? requestedFromDate;
   DateTime? requestedToDate;
@@ -159,6 +261,10 @@ final class _FakeShowsRepository implements ShowsRepository {
   }) async {
     requestedFromDate = fromDate;
     requestedToDate = toDate;
+
+    if (failUpcoming) {
+      throw const AppException.connection();
+    }
 
     return upcoming;
   }
