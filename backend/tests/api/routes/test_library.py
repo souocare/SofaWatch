@@ -3253,3 +3253,260 @@ def test_list_upcoming_uses_today_when_only_to_date_is_provided(
 
     assert len(body) == 1
     assert body[0]["episode"]["id"] == str(today_episode.id)
+
+def test_list_library_movies_returns_current_users_movies(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return Movies belonging to the current user's library."""
+
+    local_user = create_local_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    entry = create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+    )
+
+    response = client.get(
+        "/api/v1/library/movies",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+
+    assert body[0]["id"] == str(entry.id)
+    assert body[0]["status"] == "planning"
+    assert body[0]["rating"] is None
+    assert body[0]["started_at"] is None
+    assert body[0]["completed_at"] is None
+
+    assert body[0]["movie"]["id"] == str(movie.id)
+    assert body[0]["movie"]["tmdb_id"] == 438631
+    assert body[0]["movie"]["title"] == "Dune"
+    assert body[0]["movie"]["original_title"] == "Dune"
+    assert body[0]["movie"]["status"] == "Released"
+    assert body[0]["movie"]["vote_average"] == 8.0
+
+def test_list_library_movies_does_not_return_shows(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return only Movie entries from the Movie library endpoint."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+    )
+
+    response = client.get(
+        "/api/v1/library/movies",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+    assert body[0]["movie"]["id"] == str(movie.id)
+    assert body[0]["movie"]["title"] == "Dune"
+
+
+def test_list_library_movies_filters_planning_movies(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Filter Movie library entries by Planning status."""
+
+    local_user = create_local_user(db_session)
+
+    planning_movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    completed_movie = create_movie(
+        db_session,
+        tmdb_id=693134,
+        title="Dune: Part Two",
+    )
+
+    create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=planning_movie,
+        status=LibraryStatus.PLANNING,
+    )
+
+    create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=completed_movie,
+        status=LibraryStatus.COMPLETED,
+    )
+
+    response = client.get(
+        "/api/v1/library/movies",
+        params={
+            "status": "planning",
+        },
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+    assert body[0]["status"] == "planning"
+    assert body[0]["movie"]["id"] == str(planning_movie.id)
+    assert body[0]["movie"]["title"] == "Dune"
+
+
+def test_list_library_movies_filters_completed_movies(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Filter Movie library entries by Completed status."""
+
+    local_user = create_local_user(db_session)
+
+    planning_movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    completed_movie = create_movie(
+        db_session,
+        tmdb_id=693134,
+        title="Dune: Part Two",
+    )
+
+    create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=planning_movie,
+        status=LibraryStatus.PLANNING,
+    )
+
+    completed_entry = create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=completed_movie,
+        status=LibraryStatus.COMPLETED,
+    )
+
+    response = client.get(
+        "/api/v1/library/movies",
+        params={
+            "status": "completed",
+        },
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+    assert body[0]["id"] == str(completed_entry.id)
+    assert body[0]["status"] == "completed"
+    assert body[0]["movie"]["id"] == str(completed_movie.id)
+
+def test_list_library_movies_only_returns_current_users_movies(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Do not expose another user's Movie library entries."""
+
+    local_user = create_local_user(db_session)
+
+    other_user = User(
+        display_name="Other User",
+        is_local=False,
+    )
+
+    db_session.add(other_user)
+    db_session.commit()
+    db_session.refresh(other_user)
+
+    local_movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    other_movie = create_movie(
+        db_session,
+        tmdb_id=693134,
+        title="Dune: Part Two",
+    )
+
+    create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=local_movie,
+    )
+
+    create_movie_library_entry(
+        db_session,
+        user=other_user,
+        movie=other_movie,
+    )
+
+    response = client.get(
+        "/api/v1/library/movies",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+    assert body[0]["movie"]["id"] == str(local_movie.id)
+
+def test_list_library_movies_returns_empty_list_when_library_has_no_movies(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return an empty list when the user has no Movies."""
+
+    create_local_user(db_session)
+
+    response = client.get(
+        "/api/v1/library/movies",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+

@@ -18,6 +18,8 @@ import 'package:sofawatch/features/library/domain/models/library_media_type.dart
 import 'package:sofawatch/features/movie_details/application/cubit/movie_details_cubit.dart';
 import 'package:sofawatch/features/movie_details/data/repositories/api_movie_details_repository.dart';
 import 'package:sofawatch/features/movie_details/presentation/pages/movie_details_page.dart';
+import 'package:sofawatch/features/movies/application/cubit/movies_cubit.dart';
+import 'package:sofawatch/features/movies/data/repositories/api_movies_repository.dart';
 import 'package:sofawatch/features/movies/presentation/pages/movies_page.dart';
 import 'package:sofawatch/features/profile/presentation/pages/profile_page.dart';
 import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
@@ -222,7 +224,16 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                 name: AppRoute.movies.name,
                 path: RoutePaths.movies,
                 builder: (BuildContext context, GoRouterState state) {
-                  return const MoviesPage();
+                  final ApiClient apiClient = context.read<ApiClient>();
+
+                  return BlocProvider<MoviesCubit>(
+                    create: (BuildContext context) {
+                      return MoviesCubit(
+                        repository: ApiMoviesRepository(apiClient),
+                      )..load();
+                    },
+                    child: const MoviesPage(),
+                  );
                 },
               ),
             ],

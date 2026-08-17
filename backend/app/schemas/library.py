@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, model_validator, Field
 
 from app.models.enums import LibraryStatus
 from app.schemas.show import ShowSummaryResponse
-
+from app.schemas.movie import MovieSummaryResponse
 
 class LibraryEntryResponse(BaseModel):
     """Library entry returned by the API."""
@@ -92,6 +92,24 @@ class LibraryShowResponse(BaseModel):
 
     progress: LibraryShowProgressResponse
 
+
+class LibraryMovieResponse(BaseModel):
+    """Movie stored in the current user's library."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    status: LibraryStatus
+
+    rating: float | None
+
+    started_at: datetime | None
+    completed_at: datetime | None
+
+    created_at: datetime
+    updated_at: datetime
+
+    movie: MovieSummaryResponse
 
 class LibraryStatusUpdate(BaseModel):
     """Library tracking status update."""

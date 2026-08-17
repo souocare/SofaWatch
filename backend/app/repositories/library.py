@@ -121,6 +121,40 @@ class LibraryRepository:
             self._session.scalars(statement).all()
         )
 
+
+    def list_movies_by_user(
+        self,
+        user_id: UUID,
+        *,
+        status: LibraryStatus | None = None,
+    ) -> list[LibraryEntry]:
+        """Return Movie library entries belonging to a user."""
+
+        statement = (
+            select(LibraryEntry)
+            .options(
+                joinedload(LibraryEntry.movie),
+            )
+            .where(
+                LibraryEntry.user_id == user_id,
+                LibraryEntry.movie_id.is_not(None),
+            )
+        )
+
+        if status is not None:
+            statement = statement.where(
+                LibraryEntry.status == status,
+            )
+
+        statement = statement.order_by(
+            LibraryEntry.updated_at.desc(),
+            LibraryEntry.created_at.desc(),
+        )
+
+        return list(
+            self._session.scalars(statement).all()
+        )
+
     def add(
         self,
         entry: LibraryEntry,

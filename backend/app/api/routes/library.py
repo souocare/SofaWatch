@@ -1,38 +1,33 @@
+from datetime import date
 from typing import Annotated
 from uuid import UUID
-from datetime import date
 
-from app.schemas.havent_started import HaventStartedShowResponse
-from fastapi import (
-    APIRouter,
-    Path,
-    Query,
-    status,
-)
-from app.core.exceptions import APIError
-from app.schemas.upcoming import UpcomingItemResponse
+from fastapi import APIRouter, Path, Query, status
+
 from app.api.dependencies import (
     CurrentUserDependency,
+    HaventStartedServiceDependency,
     LibraryServiceDependency,
-    WatchHistoryServiceDependency,
-    WatchNextServiceDependency,
     StaleWatchingServiceDependency,
     StartShowServiceDependency,
-    HaventStartedServiceDependency,
     UpcomingServiceDependency,
+    WatchHistoryServiceDependency,
+    WatchNextServiceDependency,
 )
-from app.schemas.start_show import StartShowResponse
-from app.schemas.watch_next import WatchNextShowResponse
-from app.schemas.stale_watching import StaleWatchingShowResponse
-from app.schemas.watch_history import WatchHistoryPageResponse
+from app.core.exceptions import APIError
 from app.models.enums import LibraryStatus
+from app.schemas.havent_started import HaventStartedShowResponse
 from app.schemas.library import (
     LibraryEntryResponse,
+    LibraryMovieResponse,
     LibraryShowResponse,
     LibraryStatusUpdate,
 )
-from app.api.dependencies import UpcomingServiceDependency
+from app.schemas.stale_watching import StaleWatchingShowResponse
+from app.schemas.start_show import StartShowResponse
 from app.schemas.upcoming import UpcomingItemResponse
+from app.schemas.watch_history import WatchHistoryPageResponse
+from app.schemas.watch_next import WatchNextShowResponse
 
 router = APIRouter(
     prefix="/library",
@@ -396,6 +391,32 @@ def list_library(
         status=library_status,
     )
 
+@router.get(
+    "/movies",
+    response_model=list[LibraryMovieResponse],
+    summary="List library movies",
+    description=(
+        "Return Movies in the current user's library, "
+        "optionally filtered by tracking status."
+    ),
+)
+def list_library_movies(
+    current_user: CurrentUserDependency,
+    service: LibraryServiceDependency,
+    library_status: Annotated[
+        LibraryStatus | None,
+        Query(
+            alias="status",
+            description="Filter Movies by tracking status.",
+        ),
+    ] = None,
+) -> list[LibraryMovieResponse]:
+    """Return Movies belonging to the current user's library."""
+
+    return service.list_movies_for_user(
+        current_user.id,
+        status=library_status,
+    )
 
 @router.post(
     "/movies/{movie_id}",

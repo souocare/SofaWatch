@@ -397,3 +397,16 @@ class LibraryService:
             show_id=show_id,
             status=status,
         )
+
+    def list_movies_for_user(
+        self,
+        user_id: UUID,
+        *,
+        status: LibraryStatus | None = None,
+    ) -> list[LibraryEntry]:
+        """Return Movie library entries belonging to a user."""
+
+        return self._library_repository.list_movies_by_user(
+            user_id,
+            status=status,
+        )
