@@ -691,3 +691,28 @@ class EpisodeProgressRepository:
             show_id: int(watched_episodes or 0)
             for show_id, watched_episodes in rows
         }
+
+    def get_watched_episode_ids(
+        self,
+        *,
+        user_id: UUID,
+        episode_ids: list[UUID],
+    ) -> set[UUID]:
+        """Return watched Episode IDs for a user from the requested Episodes."""
+
+        if not episode_ids:
+            return set()
+
+        statement = select(
+            EpisodeProgress.episode_id,
+        ).where(
+            EpisodeProgress.user_id == user_id,
+            EpisodeProgress.episode_id.in_(episode_ids),
+            EpisodeProgress.is_watched.is_(True),
+        )
+
+        return set(
+            self._session.scalars(
+                statement,
+            ).all()
+        )

@@ -641,6 +641,7 @@ def get_upcoming_service(
     return UpcomingService(
         library_repository=LibraryRepository(session),
         episode_repository=EpisodeRepository(session),
+        progress_repository=EpisodeProgressRepository(session),
     )
 
 

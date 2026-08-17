@@ -23,6 +23,8 @@ class UpcomingEpisodeResponse(BaseModel):
 
     still_url: str | None = None
 
+    is_watched: bool = False
+
 
 class UpcomingItemResponse(BaseModel):
     """One Episode in the current user's Upcoming timeline."""

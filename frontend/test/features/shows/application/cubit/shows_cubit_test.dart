@@ -2114,6 +2114,7 @@ UpcomingItem _upcomingItem({
   int episodeNumber = 1,
   String episodeTitle = 'Upcoming Episode',
   DateTime? airDate,
+  bool isWatched = false,
 }) {
   return UpcomingItem(
     libraryEntryId: libraryEntryId,
@@ -2132,6 +2133,7 @@ UpcomingItem _upcomingItem({
       airDate: airDate ?? DateTime(2026, 8, 20),
       runtime: 52,
       stillUrl: null,
+      isWatched: isWatched,
     ),
   );
 }

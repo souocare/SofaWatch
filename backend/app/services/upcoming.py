@@ -12,6 +12,7 @@ from app.schemas.upcoming import (
     UpcomingEpisodeResponse,
     UpcomingItemResponse,
 )
+from app.repositories.episode_progress import EpisodeProgressRepository
 
 
 class UpcomingService:
@@ -29,9 +30,11 @@ class UpcomingService:
         *,
         library_repository: LibraryRepository,
         episode_repository: EpisodeRepository,
+        progress_repository: EpisodeProgressRepository,
     ) -> None:
         self._library_repository = library_repository
         self._episode_repository = episode_repository
+        self._progress_repository = progress_repository
 
     def list_for_user(
         self,
@@ -75,6 +78,14 @@ class UpcomingService:
             to_date=to_date,
         )
 
+        watched_episode_ids = self._progress_repository.get_watched_episode_ids(
+            user_id=user_id,
+            episode_ids=[
+                timeline_episode.episode.id
+                for timeline_episode in timeline_episodes
+            ],
+        )
+
         results: list[UpcomingItemResponse] = []
 
         for timeline_episode in timeline_episodes:
@@ -89,6 +100,7 @@ class UpcomingService:
                 self._build_item(
                     entry=entry,
                     timeline_episode=timeline_episode,
+                    is_watched=timeline_episode.episode.id in watched_episode_ids,
                 )
             )
 
@@ -109,6 +121,7 @@ class UpcomingService:
         *,
         entry: LibraryEntry,
         timeline_episode: TimelineEpisode,
+        is_watched: bool,
     ) -> UpcomingItemResponse:
         episode = timeline_episode.episode
 
@@ -118,17 +131,18 @@ class UpcomingService:
             )
 
         return UpcomingItemResponse(
-            library_entry_id=entry.id,
-            library_status=entry.status,
-            show=entry.show,
-            episode=UpcomingEpisodeResponse(
-                id=episode.id,
-                tmdb_id=episode.tmdb_id,
-                season_number=timeline_episode.season_number,
-                episode_number=episode.episode_number,
-                title=episode.title,
-                air_date=episode.air_date,
-                runtime=episode.runtime,
-                still_url=episode.still_url,
-            ),
-        )
+        library_entry_id=entry.id,
+        library_status=entry.status,
+        show=entry.show,
+        episode=UpcomingEpisodeResponse(
+            id=episode.id,
+            tmdb_id=episode.tmdb_id,
+            season_number=timeline_episode.season_number,
+            episode_number=episode.episode_number,
+            title=episode.title,
+            air_date=episode.air_date,
+            runtime=episode.runtime,
+            still_url=episode.still_url,
+            is_watched=is_watched,
+        ),
+    )

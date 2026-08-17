@@ -11,8 +11,10 @@ final class UpcomingEpisodeDto {
       airDate: _requiredDate(json, 'air_date'),
       runtime: _optionalNonNegativeInt(json['runtime'], fieldName: 'runtime'),
       stillUrl: _optionalString(json['still_url']),
+      isWatched: _requiredBool(json, 'is_watched'),
     );
   }
+
   const UpcomingEpisodeDto({
     required this.id,
     required this.tmdbId,
@@ -20,6 +22,7 @@ final class UpcomingEpisodeDto {
     required this.episodeNumber,
     required this.title,
     required this.airDate,
+    required this.isWatched,
     this.runtime,
     this.stillUrl,
   });
@@ -37,6 +40,8 @@ final class UpcomingEpisodeDto {
 
   final String? stillUrl;
 
+  final bool isWatched;
+
   UpcomingEpisode toDomain() {
     return UpcomingEpisode(
       id: id,
@@ -47,6 +52,7 @@ final class UpcomingEpisodeDto {
       airDate: airDate,
       runtime: runtime,
       stillUrl: stillUrl,
+      isWatched: isWatched,
     );
   }
 }
@@ -75,6 +81,16 @@ int _requiredNonNegativeInt(Map<String, dynamic> json, String key) {
   final Object? value = json[key];
 
   if (value is! int || value < 0) {
+    throw FormatException('Invalid $key.');
+  }
+
+  return value;
+}
+
+bool _requiredBool(Map<String, dynamic> json, String key) {
+  final Object? value = json[key];
+
+  if (value is! bool) {
     throw FormatException('Invalid $key.');
   }
 

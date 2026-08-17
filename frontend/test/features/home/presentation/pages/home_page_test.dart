@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
+import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/presentation/pages/home_page.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sofawatch/features/shows/domain/models/library_show.dart';
+import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
+import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_cubit.dart';
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
@@ -36,6 +44,7 @@ void main() {
         find.byKey(const ValueKey<String>('home-sections')),
         findsOneWidget,
       );
+
       expect(
         find.byKey(const ValueKey<String>('home-your-week')),
         findsOneWidget,
@@ -163,6 +172,7 @@ void main() {
 
       expect(contentSize.width, lessThanOrEqualTo(AppSpacing.maxContentWidth));
     });
+
     testWidgets(
       'keeps all three weekly Statistics cards side by side on mobile',
       (WidgetTester tester) async {
@@ -195,9 +205,7 @@ void main() {
         expect(watchTime, findsOneWidget);
 
         final Offset episodesPosition = tester.getTopLeft(episodes);
-
         final Offset moviesPosition = tester.getTopLeft(movies);
-
         final Offset watchTimePosition = tester.getTopLeft(watchTime);
 
         expect(moviesPosition.dx, greaterThan(episodesPosition.dx));
@@ -209,6 +217,7 @@ void main() {
         expect(watchTimePosition.dy, closeTo(episodesPosition.dy, 1));
       },
     );
+
     test('formats compact Watch Time values', () {
       expect(formatWatchTime(0), '0m');
       expect(formatWatchTime(35), '35m');
@@ -221,18 +230,66 @@ void main() {
 }
 
 Widget _buildTestApp() {
+  final HomeCubit homeCubit = HomeCubit(
+    repository: _FakeShowsRepository(),
+    now: () => DateTime(2026, 8, 17),
+  );
+
   final StatisticsCubit statisticsCubit = StatisticsCubit(
     repository: _FakeStatisticsRepository(),
   );
 
   statisticsCubit.loadWeeklyStatistics();
 
-  return MaterialApp(
-    home: BlocProvider<StatisticsCubit>.value(
-      value: statisticsCubit,
-      child: const HomePage(),
-    ),
+  return MultiBlocProvider(
+    providers: <BlocProvider>[
+      BlocProvider<HomeCubit>.value(value: homeCubit),
+      BlocProvider<StatisticsCubit>.value(value: statisticsCubit),
+    ],
+    child: const MaterialApp(home: HomePage()),
   );
+}
+
+final class _FakeShowsRepository implements ShowsRepository {
+  @override
+  Future<List<UpcomingItem>> getUpcoming({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    return const <UpcomingItem>[];
+  }
+
+  @override
+  Future<List<LibraryShow>> getLibraryShows() async {
+    return const <LibraryShow>[];
+  }
+
+  @override
+  Future<List<WatchNextShow>> getWatchNext() async {
+    return const <WatchNextShow>[];
+  }
+
+  @override
+  Future<List<StaleWatchingShow>> getStaleWatching() async {
+    return const <StaleWatchingShow>[];
+  }
+
+  @override
+  Future<WatchHistoryPage> getWatchHistory({
+    int limit = 30,
+    String? cursor,
+  }) async {
+    return const WatchHistoryPage(items: <WatchHistoryItem>[], hasMore: false);
+  }
+
+  @override
+  Future<void> markEpisodeWatched({required String episodeId}) async {}
+
+  @override
+  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
+
+  @override
+  Future<void> startShow({required String showId}) async {}
 }
 
 final class _FakeStatisticsRepository implements StatisticsRepository {

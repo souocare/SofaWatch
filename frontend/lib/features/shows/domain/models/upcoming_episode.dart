@@ -8,6 +8,7 @@ final class UpcomingEpisode extends Equatable {
     required this.episodeNumber,
     required this.title,
     required this.airDate,
+    required this.isWatched,
     this.runtime,
     this.stillUrl,
   });
@@ -25,9 +26,25 @@ final class UpcomingEpisode extends Equatable {
 
   final String? stillUrl;
 
+  final bool isWatched;
+
   String get code {
     return 'S${seasonNumber.toString().padLeft(2, '0')}'
         'E${episodeNumber.toString().padLeft(2, '0')}';
+  }
+
+  UpcomingEpisode copyWith({bool? isWatched}) {
+    return UpcomingEpisode(
+      id: id,
+      tmdbId: tmdbId,
+      seasonNumber: seasonNumber,
+      episodeNumber: episodeNumber,
+      title: title,
+      airDate: airDate,
+      runtime: runtime,
+      stillUrl: stillUrl,
+      isWatched: isWatched ?? this.isWatched,
+    );
   }
 
   @override
@@ -40,5 +57,6 @@ final class UpcomingEpisode extends Equatable {
     airDate,
     runtime,
     stillUrl,
+    isWatched,
   ];
 }

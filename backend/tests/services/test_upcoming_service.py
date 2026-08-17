@@ -10,6 +10,7 @@ from app.repositories.episode import (
 )
 from app.repositories.library import LibraryRepository
 from app.services.upcoming import UpcomingService
+from app.repositories.episode_progress import EpisodeProgressRepository
 
 
 def create_show(
@@ -74,10 +75,19 @@ def create_service(
     *,
     library_repository: Mock,
     episode_repository: Mock,
+    progress_repository: Mock | None = None,
 ) -> UpcomingService:
+    if progress_repository is None:
+        progress_repository = Mock(
+            spec=EpisodeProgressRepository,
+        )
+
+        progress_repository.get_watched_episode_ids.return_value = set()
+
     return UpcomingService(
         library_repository=library_repository,
         episode_repository=episode_repository,
+        progress_repository=progress_repository,
     )
 
 
@@ -445,3 +455,124 @@ def test_returns_empty_when_no_timeline_episodes_are_known() -> None:
     )
 
     assert result == []
+
+def test_marks_upcoming_episode_as_watched_when_user_has_watched_it() -> None:
+    """Expose whether an Upcoming Episode has already been watched."""
+
+    library_repository = Mock(spec=LibraryRepository)
+    episode_repository = Mock(spec=EpisodeRepository)
+    progress_repository = Mock(spec=EpisodeProgressRepository)
+
+    show = create_show()
+
+    entry = create_library_entry(
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    episode = create_episode(
+        tmdb_id=2001,
+        episode_number=3,
+        title="Already Watched",
+        air_date=date(2026, 8, 17),
+    )
+
+    library_repository.list_shows_by_user.return_value = [
+        entry,
+    ]
+
+    episode_repository.list_regular_for_shows_between.return_value = [
+        TimelineEpisode(
+            show_id=show.id,
+            episode=episode,
+            season_number=2,
+        ),
+    ]
+
+    progress_repository.get_watched_episode_ids.return_value = {
+        episode.id,
+    }
+
+    service = create_service(
+        library_repository=library_repository,
+        episode_repository=episode_repository,
+        progress_repository=progress_repository,
+    )
+
+    user_id = uuid4()
+
+    result = service.list_for_user(
+        user_id=user_id,
+        from_date=date(2026, 8, 17),
+        to_date=date(2026, 8, 17),
+    )
+
+    assert len(result) == 1
+
+    assert result[0].episode.id == episode.id
+    assert result[0].episode.is_watched is True
+
+    progress_repository.get_watched_episode_ids.assert_called_once_with(
+        user_id=user_id,
+        episode_ids=[episode.id],
+    )
+
+
+def test_marks_upcoming_episode_as_unwatched_when_user_has_not_watched_it() -> None:
+    """Expose an unwatched state when no watched progress exists."""
+
+    library_repository = Mock(spec=LibraryRepository)
+    episode_repository = Mock(spec=EpisodeRepository)
+    progress_repository = Mock(spec=EpisodeProgressRepository)
+
+    show = create_show()
+
+    entry = create_library_entry(
+        show=show,
+        status=LibraryStatus.PLANNING,
+    )
+
+    episode = create_episode(
+        tmdb_id=2001,
+        episode_number=1,
+        title="Not Watched Yet",
+        air_date=date(2026, 8, 17),
+    )
+
+    library_repository.list_shows_by_user.return_value = [
+        entry,
+    ]
+
+    episode_repository.list_regular_for_shows_between.return_value = [
+        TimelineEpisode(
+            show_id=show.id,
+            episode=episode,
+            season_number=1,
+        ),
+    ]
+
+    progress_repository.get_watched_episode_ids.return_value = set()
+
+    service = create_service(
+        library_repository=library_repository,
+        episode_repository=episode_repository,
+        progress_repository=progress_repository,
+    )
+
+    user_id = uuid4()
+
+    result = service.list_for_user(
+        user_id=user_id,
+        from_date=date(2026, 8, 17),
+        to_date=date(2026, 8, 17),
+    )
+
+    assert len(result) == 1
+
+    assert result[0].episode.id == episode.id
+    assert result[0].episode.is_watched is False
+
+    progress_repository.get_watched_episode_ids.assert_called_once_with(
+        user_id=user_id,
+        episode_ids=[episode.id],
+    )

@@ -3810,26 +3810,6 @@ final StaleWatchingShow _staleWatchingShow = StaleWatchingShow(
   ),
 );
 
-final UpcomingItem _upcomingItem = UpcomingItem(
-  libraryEntryId: 'library-upcoming',
-  libraryStatus: LibraryStatus.watching,
-  showId: 'show-upcoming',
-  showTmdbId: 95396,
-  showTitle: 'Severance',
-  posterUrl: null,
-  backdropUrl: null,
-  episode: UpcomingEpisode(
-    id: 'episode-upcoming',
-    tmdbId: 3000001,
-    seasonNumber: 3,
-    episodeNumber: 1,
-    title: 'Sweet Vitriol',
-    airDate: DateTime(2026, 8, 16),
-    runtime: 52,
-    stillUrl: null,
-  ),
-);
-
 UpcomingItem _makeUpcomingItem({
   required String id,
   required int episodeNumber,
@@ -3852,9 +3832,31 @@ UpcomingItem _makeUpcomingItem({
       airDate: airDate,
       runtime: 52,
       stillUrl: null,
+      isWatched: false,
     ),
   );
 }
+
+final UpcomingItem _upcomingItem = UpcomingItem(
+  libraryEntryId: 'library-upcoming',
+  libraryStatus: LibraryStatus.watching,
+  showId: 'show-upcoming',
+  showTmdbId: 95396,
+  showTitle: 'Severance',
+  posterUrl: null,
+  backdropUrl: null,
+  episode: UpcomingEpisode(
+    id: 'episode-upcoming',
+    tmdbId: 3000001,
+    seasonNumber: 3,
+    episodeNumber: 1,
+    title: 'Sweet Vitriol',
+    airDate: DateTime(2026, 8, 16),
+    runtime: 52,
+    stillUrl: null,
+    isWatched: false,
+  ),
+);
 
 const LibraryShowProgress _emptyLibraryShowProgress = LibraryShowProgress(
   watchedEpisodes: 0,

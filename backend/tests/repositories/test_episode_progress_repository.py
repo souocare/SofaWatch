@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime
+from uuid import uuid4
 
 import pytest
 
@@ -9,7 +10,6 @@ from app.models.episode_progress import EpisodeProgress
 from app.models.season import Season
 from app.models.show import Show
 from app.models.user import User
-from app.repositories.episode_progress import EpisodeProgressRepository
 from app.repositories.episode_progress import EpisodeProgressRepository
 
 def create_user(
@@ -2924,3 +2924,75 @@ def test_get_watched_aired_counts_by_show_ids_returns_empty_for_empty_input(
     )
 
     assert result == {}
+
+def test_get_watched_episode_ids_returns_only_watched_requested_episodes(
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    watched_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947647,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    unwatched_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=1947648,
+        episode_number=2,
+        title="Half Loop",
+    )
+
+    progress = EpisodeProgress(
+        user_id=user.id,
+        episode_id=watched_episode.id,
+        is_watched=True,
+        watched_at=datetime.now(UTC),
+    )
+
+    db_session.add(progress)
+    db_session.commit()
+
+    repository = EpisodeProgressRepository(db_session)
+
+    result = repository.get_watched_episode_ids(
+        user_id=user.id,
+        episode_ids=[
+            watched_episode.id,
+            unwatched_episode.id,
+        ],
+    )
+
+    assert result == {
+        watched_episode.id,
+    }
+
+
+def test_get_watched_episode_ids_returns_empty_for_empty_input(
+    db_session: Session,
+) -> None:
+    repository = EpisodeProgressRepository(db_session)
+
+    result = repository.get_watched_episode_ids(
+        user_id=uuid4(),
+        episode_ids=[],
+    )
+
+    assert result == set()

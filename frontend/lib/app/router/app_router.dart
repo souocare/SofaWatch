@@ -15,6 +15,7 @@ import 'package:sofawatch/features/episode_details/data/repositories/api_episode
 import 'package:sofawatch/features/episode_details/presentation/pages/episode_details_page.dart';
 import 'package:sofawatch/features/episode_progress/data/repositories/api_episode_progress_repository.dart';
 import 'package:sofawatch/features/explore/presentation/pages/explore_page.dart';
+import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/presentation/pages/home_page.dart';
 import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
 import 'package:sofawatch/features/library/data/repositories/api_library_repository.dart';
@@ -192,14 +193,25 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                 name: AppRoute.home.name,
                 path: RoutePaths.home,
                 builder: (BuildContext context, GoRouterState state) {
-                  return BlocProvider<StatisticsCubit>(
-                    create: (BuildContext context) {
-                      return StatisticsCubit(
-                        repository: ApiStatisticsRepository(
-                          context.read<ApiClient>(),
-                        ),
-                      )..loadWeeklyStatistics();
-                    },
+                  final ApiClient apiClient = context.read<ApiClient>();
+
+                  return MultiBlocProvider(
+                    providers: [
+                      BlocProvider<HomeCubit>(
+                        create: (BuildContext context) {
+                          return HomeCubit(
+                            repository: ApiShowsRepository(apiClient),
+                          )..loadPremieringToday();
+                        },
+                      ),
+                      BlocProvider<StatisticsCubit>(
+                        create: (BuildContext context) {
+                          return StatisticsCubit(
+                            repository: ApiStatisticsRepository(apiClient),
+                          )..loadWeeklyStatistics();
+                        },
+                      ),
+                    ],
                     child: const HomePage(),
                   );
                 },

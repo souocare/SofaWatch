@@ -3,6 +3,10 @@ import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/features/home/presentation/widgets/home_header.dart';
 import 'package:sofawatch/features/statistics/presentation/widgets/weekly_statistics_section.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
+import 'package:sofawatch/features/home/application/cubit/home_state.dart';
+import 'package:sofawatch/features/home/presentation/widgets/premiering_today_section.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -60,14 +64,36 @@ class _HomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      key: ValueKey<String>('home-sections'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        HomeHeader(),
-        SizedBox(height: AppSpacing.xxxl),
-        WeeklyStatisticsSection(),
-      ],
+    return BlocListener<HomeCubit, HomeState>(
+      listenWhen: (HomeState previous, HomeState current) {
+        return previous.premieringTodayOperationError !=
+                current.premieringTodayOperationError &&
+            current.premieringTodayOperationError != null;
+      },
+      listener: (BuildContext context, HomeState state) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('Could not mark this episode as watched.'),
+            ),
+          );
+      },
+      child: const Column(
+        key: ValueKey<String>('home-sections'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          HomeHeader(),
+
+          SizedBox(height: AppSpacing.xxxl),
+
+          WeeklyStatisticsSection(),
+
+          SizedBox(height: AppSpacing.section),
+
+          PremieringTodaySection(),
+        ],
+      ),
     );
   }
 }
