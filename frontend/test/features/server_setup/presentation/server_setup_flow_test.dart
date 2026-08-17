@@ -127,10 +127,7 @@ void main() {
 
       expect(apiClient.baseUrl, 'https://server.example.com/api/v1');
 
-      expect(
-        find.byKey(const ValueKey<String>('home-page-title')),
-        findsOneWidget,
-      );
+      expect(find.byKey(const ValueKey<String>('home-page')), findsOneWidget);
     });
 
     testWidgets('shows an error when the connection fails', (

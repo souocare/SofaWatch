@@ -13,10 +13,7 @@ void main() {
   ) async {
     await tester.pumpSofaWatchApp();
 
-    expect(
-      find.byKey(const ValueKey<String>('home-page-title')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('home-page')), findsOneWidget);
 
     expect(
       find.byKey(const ValueKey<String>('mobile-bottom-navigation')),

@@ -115,10 +115,7 @@ void main() {
     );
 
     // 13.15.16.1 — Open Search.
-    expect(
-      find.byKey(const ValueKey<String>('home-page-title')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('home-page')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey<String>('web-search-action')));
 
@@ -246,10 +243,7 @@ void main() {
       findsNothing,
     );
 
-    expect(
-      find.byKey(const ValueKey<String>('home-page-title')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('home-page')), findsOneWidget);
   });
 }
 

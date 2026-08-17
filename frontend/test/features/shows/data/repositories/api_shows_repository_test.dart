@@ -35,6 +35,12 @@ void main() {
             'completed_at': null,
             'created_at': '2026-07-01T10:00:00Z',
             'updated_at': '2026-08-10T10:00:00Z',
+            'progress': <String, dynamic>{
+              'watched_episodes': 7,
+              'aired_episodes': 10,
+              'percentage': 70.0,
+              'caught_up': false,
+            },
             'first_available_episode': null,
             'show': <String, dynamic>{
               'id': 'show-1',
@@ -57,6 +63,12 @@ void main() {
             'started_at': null,
             'completed_at': null,
             'created_at': '2026-08-01T10:00:00Z',
+            'progress': <String, dynamic>{
+              'watched_episodes': 0,
+              'aired_episodes': 62,
+              'percentage': 0.0,
+              'caught_up': false,
+            },
             'updated_at': '2026-08-02T10:00:00Z',
             'first_available_episode': <String, dynamic>{
               'id': 'episode-1',
@@ -116,6 +128,15 @@ void main() {
       expect(firstEpisode.title, 'Pilot');
       expect(firstEpisode.airDate, DateTime(2008, 1, 20));
       expect(firstEpisode.runtime, 58);
+      expect(result[0].progress.watchedEpisodes, 7);
+      expect(result[0].progress.airedEpisodes, 10);
+      expect(result[0].progress.percentage, 70.0);
+      expect(result[0].progress.caughtUp, isFalse);
+
+      expect(result[1].progress.watchedEpisodes, 0);
+      expect(result[1].progress.airedEpisodes, 62);
+      expect(result[1].progress.percentage, 0.0);
+      expect(result[1].progress.caughtUp, isFalse);
     });
 
     test('supports an empty Library', () async {
@@ -139,6 +160,12 @@ void main() {
             'completed_at': null,
             'created_at': '2026-07-01T10:00:00Z',
             'updated_at': '2026-08-10T10:00:00Z',
+            'progress': <String, dynamic>{
+              'watched_episodes': 7,
+              'aired_episodes': 10,
+              'percentage': 70.0,
+              'caught_up': false,
+            },
             'show': <String, dynamic>{
               // tmdb_id intentionally missing
               'id': 'show-1',
@@ -767,6 +794,7 @@ void main() {
               'air_date': '2026-08-20',
               'runtime': 52,
               'still_url': 'https://example.com/still.jpg',
+              'is_watched': false,
             },
           },
         ]);
@@ -791,6 +819,7 @@ void main() {
       expect(item.episode.tmdbId, 1947648);
       expect(item.episode.seasonNumber, 2);
       expect(item.episode.episodeNumber, 4);
+      expect(item.episode.isWatched, isFalse);
       expect(item.episode.code, 'S02E04');
       expect(item.episode.title, "Woe's Hollow");
       expect(item.episode.airDate, DateTime(2026, 8, 20));
@@ -825,6 +854,7 @@ void main() {
               'season_number': 2,
               'episode_number': 4,
               'title': "Woe's Hollow",
+              'is_watched': false,
               // air_date intentionally missing
             },
           },

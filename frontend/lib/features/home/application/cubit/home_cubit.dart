@@ -1,7 +1,11 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
+import 'package:sofawatch/features/home/application/models/home_watch_source.dart';
+import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
 
 final class HomeCubit extends Cubit<HomeState> {
@@ -11,8 +15,11 @@ final class HomeCubit extends Cubit<HomeState> {
 
   static const int premieringTodayLimit = 5;
   static const int upcomingLimit = 6;
-
+  static const int missedRecentlyLimit = 10;
+  static const int missedRecentlyDays = 14;
   static const int upcomingDays = 7;
+  static const int recentActivityLimit = 5;
+  static const int continueWatchingLimit = 6;
 
   final ShowsRepository repository;
   final DateTime Function() _now;
@@ -31,10 +38,286 @@ final class HomeCubit extends Cubit<HomeState> {
     /*
      * Home sections deliberately load independently.
      *
-     * A failure in Premiering Today must not prevent Upcoming from loading,
-     * and vice versa.
+     * A failure in one section must not prevent the remaining Home sections
+     * from being loaded.
      */
-    await Future.wait(<Future<void>>[loadPremieringToday(), loadUpcoming()]);
+    await Future.wait(<Future<void>>[
+      loadContinueWatching(),
+      loadPremieringToday(),
+      loadUpcoming(),
+      loadMissedRecently(),
+      loadRecentActivity(),
+    ]);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Continue Watching
+  // ---------------------------------------------------------------------------
+
+  Future<void> loadContinueWatching() async {
+    if (state.isLoadingContinueWatching) {
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        isLoadingContinueWatching: true,
+        clearContinueWatchingError: true,
+      ),
+    );
+
+    try {
+      final List<WatchNextShow> result = await repository.getWatchNext();
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          continueWatching: result
+              .take(continueWatchingLimit)
+              .toList(growable: false),
+          isLoadingContinueWatching: false,
+          clearContinueWatchingError: true,
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          isLoadingContinueWatching: false,
+          continueWatchingError: error,
+        ),
+      );
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          isLoadingContinueWatching: false,
+          continueWatchingError: AppException.unknown(originalError: error),
+        ),
+      );
+    }
+  }
+
+  Future<void> retryContinueWatching() {
+    return loadContinueWatching();
+  }
+
+  Future<void> markContinueWatchingEpisodeWatched({required String episodeId}) {
+    return _markEpisodeWatched(
+      episodeId: episodeId,
+      source: HomeWatchSource.continueWatching,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Missed Recently
+  // ---------------------------------------------------------------------------
+
+  Future<void> loadMissedRecently() async {
+    if (state.isLoadingMissedRecently) {
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        isLoadingMissedRecently: true,
+        clearMissedRecentlyError: true,
+      ),
+    );
+
+    final DateTime today = _today();
+
+    final DateTime fromDate = today.subtract(
+      const Duration(days: missedRecentlyDays),
+    );
+
+    final DateTime toDate = today.subtract(const Duration(days: 1));
+
+    try {
+      final List<UpcomingItem> result = await repository.getUpcoming(
+        fromDate: fromDate,
+        toDate: toDate,
+      );
+
+      if (isClosed) {
+        return;
+      }
+
+      /*
+       * Missed Recently represents recent backlog from Shows that the user
+       * is actively watching.
+       *
+       * Even though the API request already has a date range, keep the
+       * Home-specific validation here defensively.
+       */
+      final List<UpcomingItem> missedRecently = result
+          .where((UpcomingItem item) {
+            final DateTime airDate = DateTime(
+              item.episode.airDate.year,
+              item.episode.airDate.month,
+              item.episode.airDate.day,
+            );
+
+            final bool isInsideWindow =
+                !airDate.isBefore(fromDate) && !airDate.isAfter(toDate);
+
+            return item.libraryStatus == LibraryStatus.watching &&
+                !item.episode.isWatched &&
+                isInsideWindow;
+          })
+          .toList(growable: false);
+
+      missedRecently.sort((UpcomingItem left, UpcomingItem right) {
+        final int dateComparison = right.episode.airDate.compareTo(
+          left.episode.airDate,
+        );
+
+        if (dateComparison != 0) {
+          return dateComparison;
+        }
+
+        final int titleComparison = left.showTitle.toLowerCase().compareTo(
+          right.showTitle.toLowerCase(),
+        );
+
+        if (titleComparison != 0) {
+          return titleComparison;
+        }
+
+        final int seasonComparison = right.episode.seasonNumber.compareTo(
+          left.episode.seasonNumber,
+        );
+
+        if (seasonComparison != 0) {
+          return seasonComparison;
+        }
+
+        return right.episode.episodeNumber.compareTo(
+          left.episode.episodeNumber,
+        );
+      });
+
+      emit(
+        state.copyWith(
+          missedRecently: missedRecently
+              .take(missedRecentlyLimit)
+              .toList(growable: false),
+          isLoadingMissedRecently: false,
+          clearMissedRecentlyError: true,
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          isLoadingMissedRecently: false,
+          missedRecentlyError: error,
+        ),
+      );
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          isLoadingMissedRecently: false,
+          missedRecentlyError: AppException.unknown(originalError: error),
+        ),
+      );
+    }
+  }
+
+  Future<void> retryMissedRecently() {
+    return loadMissedRecently();
+  }
+
+  Future<void> markMissedRecentlyEpisodeWatched({required String episodeId}) {
+    return _markEpisodeWatched(
+      episodeId: episodeId,
+      source: HomeWatchSource.missedRecently,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Recent Activity
+  // ---------------------------------------------------------------------------
+
+  Future<void> loadRecentActivity() async {
+    if (state.isLoadingRecentActivity) {
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        isLoadingRecentActivity: true,
+        clearRecentActivityError: true,
+      ),
+    );
+
+    try {
+      /*
+       * Watch History is already ordered newest first by the backend.
+       *
+       * Home deliberately requests only a small fixed amount. Cursor
+       * pagination remains owned by the full Watch History experience.
+       */
+      final WatchHistoryPage page = await repository.getWatchHistory(
+        limit: recentActivityLimit,
+      );
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          recentActivity: page.items
+              .take(recentActivityLimit)
+              .toList(growable: false),
+          isLoadingRecentActivity: false,
+          clearRecentActivityError: true,
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          isLoadingRecentActivity: false,
+          recentActivityError: error,
+        ),
+      );
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          isLoadingRecentActivity: false,
+          recentActivityError: AppException.unknown(originalError: error),
+        ),
+      );
+    }
+  }
+
+  Future<void> retryRecentActivity() {
+    return loadRecentActivity();
   }
 
   // ---------------------------------------------------------------------------
@@ -103,102 +386,22 @@ final class HomeCubit extends Cubit<HomeState> {
     return loadPremieringToday();
   }
 
-  Future<void> markPremieringTodayEpisodeWatched({
+  Future<void> markPremieringTodayEpisodeWatched({required String episodeId}) {
+    return _markEpisodeWatched(
+      episodeId: episodeId,
+      source: HomeWatchSource.premieringToday,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Unified watch action
+  // ---------------------------------------------------------------------------
+
+  Future<void> markEpisodeWatched({
     required String episodeId,
-  }) async {
-    if (state.updatingPremieringTodayEpisodeId != null) {
-      return;
-    }
-
-    final int itemIndex = state.premieringToday.indexWhere(
-      (UpcomingItem item) => item.episode.id == episodeId,
-    );
-
-    if (itemIndex == -1) {
-      return;
-    }
-
-    final UpcomingItem currentItem = state.premieringToday[itemIndex];
-
-    if (currentItem.episode.isWatched) {
-      return;
-    }
-
-    final List<UpcomingItem> previousItems = state.premieringToday;
-
-    /*
-     * Give immediate visual feedback.
-     *
-     * The server is still the source of truth. If the request fails,
-     * rollback to the previous collection.
-     */
-    final List<UpcomingItem> optimisticItems = previousItems
-        .map((UpcomingItem item) {
-          if (item.episode.id != episodeId) {
-            return item;
-          }
-
-          return UpcomingItem(
-            libraryEntryId: item.libraryEntryId,
-            libraryStatus: item.libraryStatus,
-            showId: item.showId,
-            showTmdbId: item.showTmdbId,
-            showTitle: item.showTitle,
-            posterUrl: item.posterUrl,
-            backdropUrl: item.backdropUrl,
-            episode: item.episode.copyWith(isWatched: true),
-          );
-        })
-        .toList(growable: false);
-
-    emit(
-      state.copyWith(
-        premieringToday: optimisticItems,
-        updatingPremieringTodayEpisodeId: episodeId,
-        clearPremieringTodayOperationError: true,
-      ),
-    );
-
-    try {
-      await repository.markEpisodeWatched(episodeId: episodeId);
-
-      if (isClosed) {
-        return;
-      }
-
-      emit(
-        state.copyWith(
-          clearUpdatingPremieringTodayEpisodeId: true,
-          clearPremieringTodayOperationError: true,
-        ),
-      );
-    } on AppException catch (error) {
-      if (isClosed) {
-        return;
-      }
-
-      emit(
-        state.copyWith(
-          premieringToday: previousItems,
-          clearUpdatingPremieringTodayEpisodeId: true,
-          premieringTodayOperationError: error,
-        ),
-      );
-    } on Object catch (error) {
-      if (isClosed) {
-        return;
-      }
-
-      emit(
-        state.copyWith(
-          premieringToday: previousItems,
-          clearUpdatingPremieringTodayEpisodeId: true,
-          premieringTodayOperationError: AppException.unknown(
-            originalError: error,
-          ),
-        ),
-      );
-    }
+    required HomeWatchSource source,
+  }) {
+    return _markEpisodeWatched(episodeId: episodeId, source: source);
   }
 
   // ---------------------------------------------------------------------------
@@ -217,8 +420,7 @@ final class HomeCubit extends Cubit<HomeState> {
     /*
      * Premiering Today owns today's Episodes.
      *
-     * Upcoming starts tomorrow so the same Episode can never appear in both
-     * Home sections.
+     * Upcoming therefore starts tomorrow.
      *
      * Example:
      *
@@ -271,5 +473,222 @@ final class HomeCubit extends Cubit<HomeState> {
 
   Future<void> retryUpcoming() {
     return loadUpcoming();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cross-section watch synchronization
+  // ---------------------------------------------------------------------------
+
+  Future<void> _markEpisodeWatched({
+    required String episodeId,
+    required HomeWatchSource source,
+  }) async {
+    if (state.isUpdatingEpisode) {
+      return;
+    }
+
+    final bool sourceContainsEpisode = switch (source) {
+      HomeWatchSource.premieringToday => _containsUpcomingEpisode(
+        state.premieringToday,
+        episodeId,
+        requireUnwatched: true,
+      ),
+      HomeWatchSource.missedRecently => _containsUpcomingEpisode(
+        state.missedRecently,
+        episodeId,
+        requireUnwatched: true,
+      ),
+      HomeWatchSource.continueWatching => _containsWatchNextEpisode(
+        state.continueWatching,
+        episodeId,
+      ),
+    };
+
+    if (!sourceContainsEpisode) {
+      return;
+    }
+
+    /*
+     * Keep every locally affected collection so the optimistic state can be
+     * restored as one consistent unit if the server mutation fails.
+     */
+    final List<WatchNextShow> previousContinueWatching = state.continueWatching;
+
+    final List<UpcomingItem> previousPremieringToday = state.premieringToday;
+
+    final List<UpcomingItem> previousMissedRecently = state.missedRecently;
+
+    /*
+     * Apply only deterministic local consequences.
+     *
+     * Continue Watching:
+     * when the action originated here, remove the current Watch Next card
+     * immediately. The replacement Episode, if any, belongs to the backend.
+     *
+     * Premiering Today:
+     * if the same Episode is visible there, reflect the watched state
+     * immediately.
+     *
+     * Missed Recently:
+     * a watched Episode no longer qualifies, so remove it immediately.
+     */
+    emit(
+      state.copyWith(
+        continueWatching: source == HomeWatchSource.continueWatching
+            ? _removeWatchNextEpisode(state.continueWatching, episodeId)
+            : state.continueWatching,
+        premieringToday: _markEpisodeWatchedInItems(
+          state.premieringToday,
+          episodeId,
+        ),
+        missedRecently: _removeEpisode(state.missedRecently, episodeId),
+        updatingEpisodeId: episodeId,
+        updatingEpisodeSource: source,
+        clearWatchOperationError: true,
+      ),
+    );
+
+    try {
+      await repository.markEpisodeWatched(episodeId: episodeId);
+
+      if (isClosed) {
+        return;
+      }
+
+      /*
+       * Watch Next is server-owned.
+       *
+       * Watching an Episode can:
+       *
+       * - advance the Show to the next Episode;
+       * - remove it when the user becomes caught up;
+       * - update progress counters.
+       *
+       * Fetch only this affected section instead of reloading the whole Home.
+       */
+      await loadContinueWatching();
+
+      if (isClosed) {
+        return;
+      }
+
+      /*
+       * Recent Activity contains server-owned viewing-event data:
+       *
+       * - event_id;
+       * - watched_at;
+       * - watch_count;
+       * - final ordering.
+       *
+       * Refresh this small section after a successful mutation.
+       */
+      await loadRecentActivity();
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearUpdatingEpisodeId: true,
+          clearUpdatingEpisodeSource: true,
+          clearWatchOperationError: true,
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      /*
+       * Restore every collection changed optimistically.
+       */
+      emit(
+        state.copyWith(
+          continueWatching: previousContinueWatching,
+          premieringToday: previousPremieringToday,
+          missedRecently: previousMissedRecently,
+          clearUpdatingEpisodeId: true,
+          clearUpdatingEpisodeSource: true,
+          watchOperationError: error,
+        ),
+      );
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          continueWatching: previousContinueWatching,
+          premieringToday: previousPremieringToday,
+          missedRecently: previousMissedRecently,
+          clearUpdatingEpisodeId: true,
+          clearUpdatingEpisodeSource: true,
+          watchOperationError: AppException.unknown(originalError: error),
+        ),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  List<UpcomingItem> _markEpisodeWatchedInItems(
+    List<UpcomingItem> items,
+    String episodeId,
+  ) {
+    return items
+        .map((UpcomingItem item) {
+          if (item.episode.id != episodeId) {
+            return item;
+          }
+
+          return item.copyWith(episode: item.episode.copyWith(isWatched: true));
+        })
+        .toList(growable: false);
+  }
+
+  List<UpcomingItem> _removeEpisode(
+    List<UpcomingItem> items,
+    String episodeId,
+  ) {
+    return items
+        .where((UpcomingItem item) => item.episode.id != episodeId)
+        .toList(growable: false);
+  }
+
+  List<WatchNextShow> _removeWatchNextEpisode(
+    List<WatchNextShow> items,
+    String episodeId,
+  ) {
+    return items
+        .where((WatchNextShow item) => item.nextEpisode.id != episodeId)
+        .toList(growable: false);
+  }
+
+  bool _containsUpcomingEpisode(
+    List<UpcomingItem> items,
+    String episodeId, {
+    required bool requireUnwatched,
+  }) {
+    for (final UpcomingItem item in items) {
+      if (item.episode.id != episodeId) {
+        continue;
+      }
+
+      if (requireUnwatched && item.episode.isWatched) {
+        return false;
+      }
+
+      return true;
+    }
+
+    return false;
+  }
+
+  bool _containsWatchNextEpisode(List<WatchNextShow> items, String episodeId) {
+    return items.any((WatchNextShow item) => item.nextEpisode.id == episodeId);
   }
 }

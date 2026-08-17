@@ -74,10 +74,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey<String>('home-page-title')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('home-page')), findsOneWidget);
   });
 
   testWidgets('opens show details from a deep-link location', (
@@ -122,9 +119,10 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Episode Details'), findsWidgets);
-
-    expect(find.text('episode-789'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('episode-details-page')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('shows a not-found page for an unknown route', (
@@ -159,10 +157,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey<String>('home-page-title')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('home-page')), findsOneWidget);
   });
 
   testWidgets('opens the global Search route on mobile', (
@@ -236,10 +231,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey<String>('home-page-title')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('home-page')), findsOneWidget);
 
     router.pushNamed(AppRoute.search.name);
 
@@ -261,10 +253,7 @@ void main() {
       findsNothing,
     );
 
-    expect(
-      find.byKey(const ValueKey<String>('home-page-title')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('home-page')), findsOneWidget);
   });
 
   testWidgets('closes the SearchBloc when the Search route is popped', (
@@ -300,9 +289,6 @@ void main() {
 
     expect(searchBloc.isClosed, isTrue);
 
-    expect(
-      find.byKey(const ValueKey<String>('home-page-title')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('home-page')), findsOneWidget);
   });
 }

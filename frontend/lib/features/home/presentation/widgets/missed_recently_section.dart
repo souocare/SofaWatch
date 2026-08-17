@@ -5,12 +5,11 @@ import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
-import 'package:sofawatch/features/library/domain/models/library_status.dart';
-import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 import 'package:sofawatch/features/home/application/models/home_watch_source.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 
-class PremieringTodaySection extends StatelessWidget {
-  const PremieringTodaySection({super.key});
+class MissedRecentlySection extends StatelessWidget {
+  const MissedRecentlySection({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -20,44 +19,50 @@ class PremieringTodaySection extends StatelessWidget {
             previous.updatingEpisodeSource != current.updatingEpisodeSource;
       },
       builder: (BuildContext context, HomeState state) {
-        if (state.isLoadingPremieringToday && state.premieringToday.isEmpty) {
-          return const _PremieringTodayLoading();
+        if (state.isLoadingMissedRecently && state.missedRecently.isEmpty) {
+          return const _MissedRecentlyLoading();
         }
 
-        if (state.premieringTodayError != null &&
-            state.premieringToday.isEmpty) {
-          return const _PremieringTodayFailure();
+        if (state.missedRecentlyError != null && state.missedRecently.isEmpty) {
+          return const _MissedRecentlyFailure();
         }
 
-        if (state.premieringToday.isEmpty) {
+        if (state.missedRecently.isEmpty) {
           return const SizedBox.shrink();
         }
 
         return Column(
-          key: const ValueKey<String>('home-premiering-today'),
+          key: const ValueKey<String>('home-missed-recently'),
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             Text(
-              'Premiering Today',
+              'Missed Recently',
               style: Theme.of(
                 context,
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
             ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Episodes from the last 14 days you haven’t watched yet.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            ),
             const SizedBox(height: AppSpacing.md),
             for (
               int index = 0;
-              index < state.premieringToday.length;
+              index < state.missedRecently.length;
               index++
             ) ...<Widget>[
-              _PremieringTodayCard(
-                item: state.premieringToday[index],
+              _MissedRecentlyCard(
+                item: state.missedRecently[index],
                 isUpdating:
                     state.updatingEpisodeSource ==
-                        HomeWatchSource.premieringToday &&
+                        HomeWatchSource.missedRecently &&
                     state.updatingEpisodeId ==
-                        state.premieringToday[index].episode.id,
+                        state.missedRecently[index].episode.id,
               ),
-              if (index < state.premieringToday.length - 1)
+              if (index < state.missedRecently.length - 1)
                 const SizedBox(height: AppSpacing.md),
             ],
           ],
@@ -67,22 +72,20 @@ class PremieringTodaySection extends StatelessWidget {
   }
 }
 
-class _PremieringTodayCard extends StatelessWidget {
-  const _PremieringTodayCard({required this.item, required this.isUpdating});
+class _MissedRecentlyCard extends StatelessWidget {
+  const _MissedRecentlyCard({required this.item, required this.isUpdating});
 
   final UpcomingItem item;
   final bool isUpdating;
 
   @override
   Widget build(BuildContext context) {
-    final bool isPlanning = item.libraryStatus == LibraryStatus.planning;
-
     return Material(
       color: AppColors.surfaceHigh,
       borderRadius: AppRadius.borderLarge,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        key: ValueKey<String>('home-premiering-today-${item.episode.id}'),
+        key: ValueKey<String>('home-missed-recently-${item.episode.id}'),
         onTap: () {
           context.pushNamed(
             AppRoute.episodeDetails.name,
@@ -101,22 +104,13 @@ class _PremieringTodayCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            item.showTitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                        if (isPlanning) ...<Widget>[
-                          const SizedBox(width: AppSpacing.sm),
-                          const _PlanningBadge(),
-                        ],
-                      ],
+                    Text(
+                      item.showTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
@@ -125,24 +119,21 @@ class _PremieringTodayCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
-                    if (isPlanning) ...<Widget>[
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'You haven’t started this show yet',
-                        key: ValueKey<String>(
-                          'home-premiering-today-not-started-'
-                          '${item.episode.id}',
-                        ),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      _formatAirDate(item.episode.airDate),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
-              _WatchedAction(item: item, isUpdating: isUpdating),
+              _WatchedAction(
+                episodeId: item.episode.id,
+                isUpdating: isUpdating,
+              ),
             ],
           ),
         ),
@@ -193,44 +184,29 @@ class _EpisodeArtwork extends StatelessWidget {
 }
 
 class _WatchedAction extends StatelessWidget {
-  const _WatchedAction({required this.item, required this.isUpdating});
+  const _WatchedAction({required this.episodeId, required this.isUpdating});
 
-  final UpcomingItem item;
+  final String episodeId;
   final bool isUpdating;
 
   @override
   Widget build(BuildContext context) {
     if (isUpdating) {
       return const SizedBox(
-        key: ValueKey<String>('home-premiering-today-watched-progress'),
+        key: ValueKey<String>('home-missed-recently-watched-progress'),
         width: 24,
         height: 24,
         child: CircularProgressIndicator(strokeWidth: 2),
       );
     }
 
-    if (item.episode.isWatched) {
-      return IconButton(
-        key: ValueKey<String>(
-          'home-premiering-today-watched-${item.episode.id}',
-        ),
-        tooltip: 'Watched',
-        onPressed: null,
-        icon: const Icon(
-          Icons.check_circle_rounded,
-          color: AppColors.primarySoft,
-        ),
-      );
-    }
-
     return IconButton(
-      key: ValueKey<String>(
-        'home-premiering-today-mark-watched-${item.episode.id}',
-      ),
+      key: ValueKey<String>('home-missed-recently-mark-watched-$episodeId'),
       tooltip: 'Mark as watched',
       onPressed: () {
-        context.read<HomeCubit>().markPremieringTodayEpisodeWatched(
-          episodeId: item.episode.id,
+        context.read<HomeCubit>().markEpisodeWatched(
+          episodeId: episodeId,
+          source: HomeWatchSource.missedRecently,
         );
       },
       icon: const Icon(Icons.check_circle_outline_rounded),
@@ -238,53 +214,26 @@ class _WatchedAction extends StatelessWidget {
   }
 }
 
-class _PlanningBadge extends StatelessWidget {
-  const _PlanningBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('home-premiering-today-planning-badge'),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: AppRadius.borderFull,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Text(
-        'Not started',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColors.textSecondary,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _PremieringTodayLoading extends StatelessWidget {
-  const _PremieringTodayLoading();
+class _MissedRecentlyLoading extends StatelessWidget {
+  const _MissedRecentlyLoading();
 
   @override
   Widget build(BuildContext context) {
     return const SizedBox(
-      key: ValueKey<String>('home-premiering-today-loading'),
+      key: ValueKey<String>('home-missed-recently-loading'),
       height: 96,
       child: Center(child: CircularProgressIndicator()),
     );
   }
 }
 
-class _PremieringTodayFailure extends StatelessWidget {
-  const _PremieringTodayFailure();
+class _MissedRecentlyFailure extends StatelessWidget {
+  const _MissedRecentlyFailure();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      key: const ValueKey<String>('home-premiering-today-failure'),
+      key: const ValueKey<String>('home-missed-recently-failure'),
       padding: AppSpacing.cardPadding,
       decoration: BoxDecoration(
         color: AppColors.surfaceHigh,
@@ -293,11 +242,13 @@ class _PremieringTodayFailure extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          const Expanded(child: Text('Could not load today’s premieres.')),
+          const Expanded(
+            child: Text('Could not load recently missed episodes.'),
+          ),
           TextButton(
-            key: const ValueKey<String>('home-premiering-today-retry'),
+            key: const ValueKey<String>('home-missed-recently-retry'),
             onPressed: () {
-              context.read<HomeCubit>().retryPremieringToday();
+              context.read<HomeCubit>().retryMissedRecently();
             },
             child: const Text('Retry'),
           ),
@@ -305,4 +256,23 @@ class _PremieringTodayFailure extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatAirDate(DateTime value) {
+  const List<String> months = <String>[
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  return '${months[value.month - 1]} ${value.day}';
 }

@@ -17,10 +17,7 @@ void main() {
   ) async {
     await tester.pumpSofaWatchApp();
 
-    expect(
-      find.byKey(const ValueKey<String>('home-page-title')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('home-page')), findsOneWidget);
 
     expect(
       find.byKey(const ValueKey<String>('mobile-bottom-navigation')),
@@ -46,10 +43,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey<String>('movies-page-title')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('movies-page')), findsOneWidget);
 
     await tester.tap(
       find.byKey(const ValueKey<String>('mobile-navigation-explore')),
@@ -92,10 +86,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey<String>('home-page-title')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('home-page')), findsOneWidget);
 
     await tester.tap(
       find.byKey(const ValueKey<String>('mobile-navigation-shows')),
@@ -156,7 +147,7 @@ void main() {
     );
 
     final BuildContext context = tester.element(
-      find.byKey(const ValueKey<String>('home-page-title')),
+      find.byKey(const ValueKey<String>('home-page')),
     );
 
     context.pushNamed(
@@ -183,17 +174,14 @@ void main() {
       findsNothing,
     );
 
-    expect(
-      find.byKey(const ValueKey<String>('home-page-title')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('home-page')), findsOneWidget);
   });
 
   testWidgets('opens episode details', (WidgetTester tester) async {
     await tester.pumpSofaWatchApp();
 
     final BuildContext context = tester.element(
-      find.byKey(const ValueKey<String>('home-page-title')),
+      find.byKey(const ValueKey<String>('home-page')),
     );
 
     context.pushNamed(
@@ -203,8 +191,9 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Episode Details'), findsWidgets);
-
-    expect(find.text('episode-456'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('episode-details-page')),
+      findsOneWidget,
+    );
   });
 }

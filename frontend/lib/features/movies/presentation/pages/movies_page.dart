@@ -17,6 +17,7 @@ class MoviesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const ValueKey<String>('movies-page'),
       backgroundColor: AppColors.surface,
       body: SafeArea(
         child: BlocConsumer<MoviesCubit, MoviesState>(

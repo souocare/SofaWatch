@@ -26,6 +26,22 @@ final class UpcomingItem extends Equatable {
 
   final UpcomingEpisode episode;
 
+  UpcomingItem copyWith({
+    LibraryStatus? libraryStatus,
+    UpcomingEpisode? episode,
+  }) {
+    return UpcomingItem(
+      libraryEntryId: libraryEntryId,
+      libraryStatus: libraryStatus ?? this.libraryStatus,
+      showId: showId,
+      showTmdbId: showTmdbId,
+      showTitle: showTitle,
+      posterUrl: posterUrl,
+      backdropUrl: backdropUrl,
+      episode: episode ?? this.episode,
+    );
+  }
+
   @override
   List<Object?> get props => <Object?>[
     libraryEntryId,

@@ -45,4 +45,43 @@ final class StatisticsCubit extends Cubit<StatisticsState> {
   Future<void> retry() {
     return loadWeeklyStatistics();
   }
+
+  Future<void> refreshWeeklyStatistics() async {
+    final StatisticsState currentState = state;
+
+    /*
+   * Without existing data there is nothing to preserve visually.
+   * Fall back to the normal loading flow.
+   */
+    if (currentState is! StatisticsSuccess) {
+      await loadWeeklyStatistics();
+
+      return;
+    }
+
+    try {
+      final WeeklyStatistics statistics = await _repository
+          .getWeeklyStatistics();
+
+      if (isClosed) {
+        return;
+      }
+
+      /*
+     * Replace the existing values directly.
+     *
+     * Do not emit StatisticsLoading: the current cards remain visible
+     * until the refreshed aggregate is available.
+     */
+      emit(StatisticsSuccess(statistics));
+    } on Object {
+      /*
+     * A background refresh failure must not replace valid Statistics
+     * already visible on Home.
+     *
+     * A future dedicated refresh error can be added if the UI needs
+     * explicit feedback.
+     */
+    }
+  }
 }

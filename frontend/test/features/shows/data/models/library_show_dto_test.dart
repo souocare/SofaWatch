@@ -14,6 +14,12 @@ void main() {
         'completed_at': null,
         'created_at': '2026-07-01T10:00:00Z',
         'updated_at': '2026-08-10T10:00:00Z',
+        'progress': <String, dynamic>{
+          'watched_episodes': 7,
+          'aired_episodes': 10,
+          'percentage': 70.0,
+          'caught_up': false,
+        },
         'show': <String, dynamic>{
           'id': 'show-uuid',
           'tmdb_id': 95396,
@@ -69,6 +75,12 @@ void main() {
         'completed_at': null,
         'created_at': '2026-07-01T10:00:00Z',
         'updated_at': '2026-07-01T10:00:00Z',
+        'progress': <String, dynamic>{
+          'watched_episodes': 0,
+          'aired_episodes': 0,
+          'percentage': 0.0,
+          'caught_up': false,
+        },
         'show': <String, dynamic>{
           'id': 'show-uuid',
           'tmdb_id': 95396,

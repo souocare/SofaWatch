@@ -37,7 +37,7 @@ void main() {
     'mobile-navigation-shows',
   );
 
-  const ValueKey<String> homePageTitleKey = ValueKey<String>('home-page-title');
+  const ValueKey<String> homePageKey = ValueKey<String>('home-page');
 
   const ValueKey<String> showsPageTitleKey = ValueKey<String>(
     'shows-page-title',
@@ -53,7 +53,7 @@ void main() {
     ) async {
       await tester.pumpSofaWatchApp();
 
-      expect(find.byKey(homePageTitleKey), findsOneWidget);
+      expect(find.byKey(homePageKey), findsOneWidget);
       expect(find.byType(SearchMobileView), findsNothing);
       expect(find.byKey(compactSearchPillKey), findsOneWidget);
       expect(find.byKey(expandedSearchPillKey), findsNothing);
@@ -147,7 +147,7 @@ void main() {
       expect(find.byType(SearchTextField), findsNothing);
       expect(find.byKey(primaryNavigationPillKey), findsOneWidget);
       expect(find.byKey(compactSearchPillKey), findsOneWidget);
-      expect(find.byKey(homePageTitleKey), findsOneWidget);
+      expect(find.byKey(homePageKey), findsOneWidget);
     });
 
     testWidgets('closes Search when the system Back action is requested', (
@@ -165,7 +165,7 @@ void main() {
 
       expect(find.byType(SearchMobileView), findsNothing);
       expect(find.byKey(primaryNavigationPillKey), findsOneWidget);
-      expect(find.byKey(homePageTitleKey), findsOneWidget);
+      expect(find.byKey(homePageKey), findsOneWidget);
     });
 
     testWidgets('restores the branch from which Search was opened', (

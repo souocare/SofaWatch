@@ -19,6 +19,7 @@ class EpisodeDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const ValueKey<String>('episode-details-page'),
       backgroundColor: AppColors.surface,
       body: SafeArea(
         child: BlocConsumer<EpisodeDetailsCubit, EpisodeDetailsState>(

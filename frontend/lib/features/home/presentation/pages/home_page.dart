@@ -7,7 +7,11 @@ import 'package:sofawatch/features/home/application/cubit/home_state.dart';
 import 'package:sofawatch/features/home/presentation/widgets/home_header.dart';
 import 'package:sofawatch/features/home/presentation/widgets/premiering_today_section.dart';
 import 'package:sofawatch/features/home/presentation/widgets/upcoming_section.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_cubit.dart';
 import 'package:sofawatch/features/statistics/presentation/widgets/weekly_statistics_section.dart';
+import 'package:sofawatch/features/home/presentation/widgets/missed_recently_section.dart';
+import 'package:sofawatch/features/home/presentation/widgets/recent_activity_section.dart';
+import 'package:sofawatch/features/home/presentation/widgets/continue_watching_section.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -67,18 +71,37 @@ class _HomeContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocListener<HomeCubit, HomeState>(
       listenWhen: (HomeState previous, HomeState current) {
-        return previous.premieringTodayOperationError !=
-                current.premieringTodayOperationError &&
-            current.premieringTodayOperationError != null;
+        final bool operationFailed =
+            previous.watchOperationError != current.watchOperationError &&
+            current.watchOperationError != null;
+
+        final bool operationSucceeded =
+            previous.updatingEpisodeId != null &&
+            current.updatingEpisodeId == null &&
+            current.watchOperationError == null;
+
+        return operationFailed || operationSucceeded;
       },
       listener: (BuildContext context, HomeState state) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            const SnackBar(
-              content: Text('Could not mark this episode as watched.'),
-            ),
-          );
+        if (state.watchOperationError != null) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              const SnackBar(
+                content: Text('Could not mark this episode as watched.'),
+              ),
+            );
+
+          return;
+        }
+
+        /*
+   * The Episode mutation completed successfully.
+   *
+   * Weekly Statistics live in their own feature/Cubit, so Home merely
+   * requests a silent refresh instead of coupling Statistics to HomeCubit.
+   */
+        context.read<StatisticsCubit>().refreshWeeklyStatistics();
       },
       child: const Column(
         key: ValueKey<String>('home-sections'),
@@ -92,11 +115,23 @@ class _HomeContent extends StatelessWidget {
 
           SizedBox(height: AppSpacing.section),
 
+          ContinueWatchingSection(),
+
+          SizedBox(height: AppSpacing.section),
+
           PremieringTodaySection(),
 
           SizedBox(height: AppSpacing.section),
 
           UpcomingSection(),
+
+          SizedBox(height: AppSpacing.section),
+
+          MissedRecentlySection(),
+
+          SizedBox(height: AppSpacing.section),
+
+          RecentActivitySection(),
         ],
       ),
     );
