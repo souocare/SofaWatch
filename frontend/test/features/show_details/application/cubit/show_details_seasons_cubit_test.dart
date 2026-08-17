@@ -1379,6 +1379,16 @@ void main() {
         expect(progress.watchCount, 1);
         expect(progress.watchedAt, DateTime.utc(2026, 7, 20, 20));
 
+        final ShowDetailsSeasonProgress? seasonProgress =
+            cubit.state[1]!.progress;
+
+        expect(seasonProgress, isNotNull);
+        expect(seasonProgress!.watchedEpisodes, 1);
+        expect(seasonProgress.watchedAiredEpisodes, 1);
+        expect(seasonProgress.airedEpisodes, 1);
+        expect(seasonProgress.airedProgressPercentage, 100);
+        expect(seasonProgress.caughtUp, isTrue);
+
         expect(
           cubit.state[1]!.operationForEpisode('episode-1-uuid').status,
           ShowDetailsEpisodeOperationStatus.idle,
@@ -1412,6 +1422,16 @@ void main() {
       expect(progress.isWatched, isFalse);
       expect(progress.watchCount, 0);
       expect(progress.watchedAt, isNull);
+
+      final ShowDetailsSeasonProgress? seasonProgress =
+          cubit.state[1]!.progress;
+
+      expect(seasonProgress, isNotNull);
+      expect(seasonProgress!.watchedEpisodes, 0);
+      expect(seasonProgress.watchedAiredEpisodes, 0);
+      expect(seasonProgress.airedEpisodes, 1);
+      expect(seasonProgress.airedProgressPercentage, 0);
+      expect(seasonProgress.caughtUp, isFalse);
 
       expect(
         cubit.state[1]!.operationForEpisode('episode-1-uuid').status,
@@ -1476,6 +1496,12 @@ void main() {
 
       expect(cubit.state[1]?.progress?.caughtUp, isFalse);
 
+      expect(cubit.state[1]?.hasLoadedEpisodes, isFalse);
+      expect(cubit.state[1]?.episodes, isEmpty);
+
+      expect(repository.getEpisodesCalls, 0);
+      expect(repository.syncEpisodesCalls, 0);
+
       await cubit.markSeasonWatched(seasonNumber: 1);
 
       expect(repository.markSeasonWatchedCalls, 1);
@@ -1490,6 +1516,23 @@ void main() {
       expect(seasonState.progress?.airedEpisodes, 2);
       expect(seasonState.progress?.airedProgressPercentage, 100);
       expect(seasonState.progress?.caughtUp, isTrue);
+
+      expect(
+        seasonState.hasLoadedEpisodes,
+        isFalse,
+        reason:
+            'Marking a collapsed Season watched must not load its Episodes.',
+      );
+
+      expect(seasonState.episodes, isEmpty);
+
+      expect(
+        repository.getEpisodesCalls,
+        0,
+        reason: 'Bulk Season watched must preserve lazy Episode loading.',
+      );
+
+      expect(repository.syncEpisodesCalls, 0);
 
       expect(seasonState.operation, const ShowDetailsSeasonOperation.idle());
 
