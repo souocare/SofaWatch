@@ -11,6 +11,7 @@ from app.api.routes.images import router as images_router
 from app.api.routes.movies import router as movies_router
 from app.api.routes.explore import router as explore_router
 from app.api.routes.statistics import router as statistics_router
+from app.api.routes.users import router as users_router
 
 api_router = APIRouter(
     prefix="/api/v1",
@@ -27,3 +28,4 @@ api_router.include_router(images_router)
 api_router.include_router(movies_router)
 api_router.include_router(explore_router)
 api_router.include_router(statistics_router)
+api_router.include_router(users_router)
