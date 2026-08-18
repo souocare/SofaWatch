@@ -52,18 +52,55 @@ class _WeeklyStatisticsContent extends StatelessWidget {
 
   final WeeklyStatistics statistics;
 
-  bool get _hasActivity {
-    return statistics.episodesWatched > 0 ||
-        statistics.moviesWatched > 0 ||
-        statistics.watchTimeMinutes > 0;
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Row(
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool useHorizontalScroll = constraints.maxWidth < 360;
+
+        if (useHorizontalScroll) {
+          return SingleChildScrollView(
+            key: const ValueKey<String>('home-your-week-horizontal-scroll'),
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                SizedBox(
+                  width: 116,
+                  child: _WeeklyStatisticCard(
+                    cardKey: 'home-stat-episodes',
+                    icon: Icons.tv_rounded,
+                    value: statistics.episodesWatched.toString(),
+                    label: 'Episodes',
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                SizedBox(
+                  width: 116,
+                  child: _WeeklyStatisticCard(
+                    cardKey: 'home-stat-movies',
+                    icon: Icons.movie_rounded,
+                    value: statistics.moviesWatched.toString(),
+                    label: 'Movies',
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                SizedBox(
+                  width: 116,
+                  child: _WeeklyStatisticCard(
+                    cardKey: 'home-stat-watch-time',
+                    icon: Icons.schedule_rounded,
+                    value: formatWatchTime(statistics.watchTimeMinutes),
+                    label: 'Watch time',
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Row(
           key: const ValueKey<String>('home-your-week-cards'),
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -94,18 +131,8 @@ class _WeeklyStatisticsContent extends StatelessWidget {
               ),
             ),
           ],
-        ),
-        if (!_hasActivity) ...<Widget>[
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'No viewing activity this week yet.',
-            key: const ValueKey<String>('home-your-week-empty'),
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-          ),
-        ],
-      ],
+        );
+      },
     );
   }
 }
@@ -125,13 +152,22 @@ class _WeeklyStatisticCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool compact =
-        MediaQuery.sizeOf(context).width < AppBreakpoints.mobile;
+    final double width = MediaQuery.sizeOf(context).width;
+
+    final bool compact = width < AppBreakpoints.mobile;
+
+    final bool veryCompact = width < 340;
 
     return Container(
       key: ValueKey<String>(cardKey),
-      constraints: const BoxConstraints(minHeight: 104),
-      padding: EdgeInsets.all(compact ? AppSpacing.md : AppSpacing.lg),
+      constraints: BoxConstraints(minHeight: veryCompact ? 92 : 104),
+      padding: EdgeInsets.all(
+        veryCompact
+            ? AppSpacing.sm
+            : compact
+            ? AppSpacing.md
+            : AppSpacing.lg,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surfaceHigh,
         borderRadius: AppRadius.borderLarge,
@@ -141,14 +177,24 @@ class _WeeklyStatisticCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
-          Icon(icon, size: compact ? 19 : 21, color: AppColors.textSecondary),
+          Icon(
+            icon,
+            size: veryCompact
+                ? 17
+                : compact
+                ? 19
+                : 21,
+            color: AppColors.textSecondary,
+          ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style:
-                (compact
+                (veryCompact
+                        ? Theme.of(context).textTheme.titleMedium
+                        : compact
                         ? Theme.of(context).textTheme.titleLarge
                         : Theme.of(context).textTheme.headlineSmall)
                     ?.copyWith(fontWeight: FontWeight.w800),

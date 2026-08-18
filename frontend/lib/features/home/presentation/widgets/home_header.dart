@@ -2,58 +2,95 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
+import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 
 enum HomeUserMenuAction { profile, settings, logout }
 
 class HomeHeader extends StatelessWidget {
-  const HomeHeader({this.now, super.key});
+  const HomeHeader({
+    this.now,
+    this.showRefreshAction = false,
+    this.onRefresh,
+    super.key,
+  });
 
   final DateTime Function()? now;
+
+  final bool showRefreshAction;
+
+  final VoidCallback? onRefresh;
 
   @override
   Widget build(BuildContext context) {
     final DateTime current = (now ?? DateTime.now)();
 
-    return Row(
-      key: const ValueKey<String>('home-header'),
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: <Widget>[
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                _greetingFor(current),
-                key: const ValueKey<String>('home-greeting'),
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool compact = constraints.maxWidth < AppBreakpoints.mobile;
+
+        return Row(
+          key: const ValueKey<String>('home-header'),
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    _greetingFor(current),
+                    key: const ValueKey<String>('home-greeting'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        (compact
+                                ? Theme.of(context).textTheme.titleLarge
+                                : Theme.of(context).textTheme.headlineMedium)
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  SizedBox(height: compact ? AppSpacing.xs : AppSpacing.sm),
+                  Text(
+                    _formatHomeDate(current),
+                    key: const ValueKey<String>('home-date'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        (compact
+                                ? Theme.of(context).textTheme.bodyMedium
+                                : Theme.of(context).textTheme.bodyLarge)
+                            ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                _formatHomeDate(current),
-                key: const ValueKey<String>('home-date'),
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
+            ),
+            SizedBox(width: compact ? AppSpacing.md : AppSpacing.lg),
+
+            if (showRefreshAction) ...<Widget>[
+              IconButton(
+                key: const ValueKey<String>('home-refresh-action'),
+                tooltip: 'Refresh Home',
+                onPressed: onRefresh,
+                icon: const Icon(Icons.refresh_rounded),
               ),
+              const SizedBox(width: AppSpacing.sm),
             ],
-          ),
-        ),
-        const SizedBox(width: AppSpacing.lg),
-        _HomeUserMenu(
-          onSelected: (HomeUserMenuAction action) {
-            _handleUserAction(context, action);
-          },
-        ),
-      ],
+
+            _HomeUserMenu(
+              compact: compact,
+              onSelected: (HomeUserMenuAction action) {
+                _handleUserAction(context, action);
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
 class _HomeUserMenu extends StatelessWidget {
-  const _HomeUserMenu({required this.onSelected});
+  const _HomeUserMenu({required this.compact, required this.onSelected});
 
+  final bool compact;
   final ValueChanged<HomeUserMenuAction> onSelected;
 
   @override
@@ -90,8 +127,8 @@ class _HomeUserMenu extends StatelessWidget {
       },
       child: Container(
         key: const ValueKey<String>('home-user-avatar'),
-        width: 44,
-        height: 44,
+        width: compact ? 40 : 44,
+        height: compact ? 40 : 44,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: AppColors.surfaceHigh,

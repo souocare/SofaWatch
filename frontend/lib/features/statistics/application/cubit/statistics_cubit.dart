@@ -46,7 +46,7 @@ final class StatisticsCubit extends Cubit<StatisticsState> {
     return loadWeeklyStatistics();
   }
 
-  Future<void> refreshWeeklyStatistics() async {
+  Future<bool> refreshWeeklyStatistics() async {
     final StatisticsState currentState = state;
 
     /*
@@ -56,7 +56,7 @@ final class StatisticsCubit extends Cubit<StatisticsState> {
     if (currentState is! StatisticsSuccess) {
       await loadWeeklyStatistics();
 
-      return;
+      return state is StatisticsSuccess;
     }
 
     try {
@@ -64,7 +64,7 @@ final class StatisticsCubit extends Cubit<StatisticsState> {
           .getWeeklyStatistics();
 
       if (isClosed) {
-        return;
+        return false;
       }
 
       /*
@@ -74,14 +74,17 @@ final class StatisticsCubit extends Cubit<StatisticsState> {
      * until the refreshed aggregate is available.
      */
       emit(StatisticsSuccess(statistics));
+
+      return true;
     } on Object {
       /*
-     * A background refresh failure must not replace valid Statistics
-     * already visible on Home.
+     * A refresh failure must not replace valid Statistics already visible
+     * on Home.
      *
-     * A future dedicated refresh error can be added if the UI needs
-     * explicit feedback.
+     * The caller receives false so an explicit user refresh can provide
+     * subtle feedback when appropriate.
      */
+      return false;
     }
   }
 }

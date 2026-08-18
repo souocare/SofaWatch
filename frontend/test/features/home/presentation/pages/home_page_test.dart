@@ -368,6 +368,191 @@ void main() {
         findsOneWidget,
       );
     });
+    testWidgets('provides pull-to-refresh on mobile', (
+      WidgetTester tester,
+    ) async {
+      await tester.binding.setSurfaceSize(
+        const Size(AppBreakpoints.mobile - 100, 800),
+      );
+
+      addTearDown(() async {
+        await tester.binding.setSurfaceSize(null);
+      });
+
+      await tester.pumpWidget(_buildTestApp());
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('home-pull-to-refresh')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('home-refresh-action')),
+        findsNothing,
+      );
+    });
+    testWidgets('provides an explicit refresh action on desktop', (
+      WidgetTester tester,
+    ) async {
+      await tester.binding.setSurfaceSize(
+        const Size(AppBreakpoints.desktop + 200, 900),
+      );
+
+      addTearDown(() async {
+        await tester.binding.setSurfaceSize(null);
+      });
+
+      await tester.pumpWidget(_buildTestApp());
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('home-refresh-action')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('home-pull-to-refresh')),
+        findsNothing,
+      );
+    });
+    testWidgets('keeps weekly Statistics readable on very narrow screens', (
+      WidgetTester tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(320, 800));
+
+      addTearDown(() async {
+        await tester.binding.setSurfaceSize(null);
+      });
+
+      await tester.pumpWidget(_buildTestApp());
+
+      await tester.pumpAndSettle();
+
+      final Finder episodes = find.byKey(
+        const ValueKey<String>('home-stat-episodes'),
+      );
+
+      final Finder movies = find.byKey(
+        const ValueKey<String>('home-stat-movies'),
+      );
+
+      final Finder watchTime = find.byKey(
+        const ValueKey<String>('home-stat-watch-time'),
+      );
+
+      expect(episodes, findsOneWidget);
+      expect(movies, findsOneWidget);
+      expect(watchTime, findsOneWidget);
+
+      final Offset episodesPosition = tester.getTopLeft(episodes);
+      final Offset moviesPosition = tester.getTopLeft(movies);
+      final Offset watchTimePosition = tester.getTopLeft(watchTime);
+
+      expect(moviesPosition.dx, greaterThan(episodesPosition.dx));
+      expect(watchTimePosition.dx, greaterThan(moviesPosition.dx));
+
+      expect(moviesPosition.dy, closeTo(episodesPosition.dy, 1));
+      expect(watchTimePosition.dy, closeTo(episodesPosition.dy, 1));
+
+      expect(tester.takeException(), isNull);
+    });
+    testWidgets('allows scrolling through the complete Home content', (
+      WidgetTester tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(390, 600));
+
+      addTearDown(() async {
+        await tester.binding.setSurfaceSize(null);
+      });
+
+      await tester.pumpWidget(_buildTestApp());
+
+      await tester.pumpAndSettle();
+
+      final Finder scrollView = find.byKey(
+        const ValueKey<String>('home-scroll-view'),
+      );
+
+      expect(scrollView, findsOneWidget);
+
+      final Offset initialPosition = tester.getTopLeft(
+        find.byKey(const ValueKey<String>('home-header')),
+      );
+
+      await tester.drag(scrollView, const Offset(0, -400));
+
+      await tester.pump();
+
+      final Offset scrolledPosition = tester.getTopLeft(
+        find.byKey(const ValueKey<String>('home-header')),
+      );
+
+      expect(scrolledPosition.dy, lessThan(initialPosition.dy));
+    });
+    testWidgets('uses a compact Home header on narrow screens', (
+      WidgetTester tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(320, 800));
+
+      addTearDown(() async {
+        await tester.binding.setSurfaceSize(null);
+      });
+
+      await tester.pumpWidget(_buildTestApp());
+
+      await tester.pumpAndSettle();
+
+      final Finder avatar = find.byKey(
+        const ValueKey<String>('home-user-avatar'),
+      );
+
+      expect(avatar, findsOneWidget);
+
+      expect(tester.getSize(avatar), const Size(40, 40));
+
+      expect(
+        find.byKey(const ValueKey<String>('home-greeting')),
+        findsOneWidget,
+      );
+
+      expect(find.byKey(const ValueKey<String>('home-date')), findsOneWidget);
+    });
+    testWidgets('uses horizontal Statistics scrolling on very narrow screens', (
+      WidgetTester tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(320, 800));
+
+      addTearDown(() async {
+        await tester.binding.setSurfaceSize(null);
+      });
+
+      await tester.pumpWidget(_buildTestApp());
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('home-your-week-horizontal-scroll')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('home-stat-episodes')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('home-stat-movies')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('home-stat-watch-time')),
+        findsOneWidget,
+      );
+    });
   });
 }
 

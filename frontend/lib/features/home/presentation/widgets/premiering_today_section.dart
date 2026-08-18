@@ -219,9 +219,15 @@ class _WatchedAction extends StatelessWidget {
     if (isUpdating) {
       return const SizedBox(
         key: ValueKey<String>('home-premiering-today-watched-progress'),
-        width: 24,
-        height: 24,
-        child: CircularProgressIndicator(strokeWidth: 2),
+        width: 48,
+        height: 48,
+        child: Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
       );
     }
 
@@ -231,6 +237,7 @@ class _WatchedAction extends StatelessWidget {
           'home-premiering-today-watched-${item.episode.id}',
         ),
         tooltip: 'Watched',
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
         onPressed: null,
         icon: const Icon(
           Icons.check_circle_rounded,
@@ -244,6 +251,7 @@ class _WatchedAction extends StatelessWidget {
         'home-premiering-today-mark-watched-${item.episode.id}',
       ),
       tooltip: 'Mark as watched',
+      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
       onPressed: () {
         context.read<HomeCubit>().markPremieringTodayEpisodeWatched(
           episodeId: item.episode.id,

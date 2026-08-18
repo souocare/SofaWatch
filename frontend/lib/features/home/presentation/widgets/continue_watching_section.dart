@@ -165,9 +165,15 @@ class _ContinueWatchingCard extends StatelessWidget {
               if (isUpdating)
                 const SizedBox(
                   key: ValueKey<String>('home-continue-watching-progress'),
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  width: 48,
+                  height: 48,
+                  child: Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
                 )
               else
                 IconButton(
@@ -176,6 +182,10 @@ class _ContinueWatchingCard extends StatelessWidget {
                     '${item.nextEpisode.id}',
                   ),
                   tooltip: 'Mark as watched',
+                  constraints: const BoxConstraints(
+                    minWidth: 48,
+                    minHeight: 48,
+                  ),
                   onPressed: () {
                     context
                         .read<HomeCubit>()

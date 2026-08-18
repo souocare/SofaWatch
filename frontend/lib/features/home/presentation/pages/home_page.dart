@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
@@ -36,7 +38,7 @@ class _HomeView extends StatelessWidget {
         final bool useDesktopLayout =
             constraints.maxWidth >= AppBreakpoints.tablet;
 
-        return SingleChildScrollView(
+        final Widget scrollView = SingleChildScrollView(
           key: const ValueKey<String>('home-scroll-view'),
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.fromLTRB(
@@ -55,9 +57,22 @@ class _HomeView extends StatelessWidget {
               constraints: const BoxConstraints(
                 maxWidth: AppSpacing.maxContentWidth,
               ),
-              child: const _HomeContent(),
+              child: _HomeContent(
+                showRefreshAction: useDesktopLayout,
+                onRefresh: () => _refreshHome(context),
+              ),
             ),
           ),
+        );
+
+        if (useDesktopLayout) {
+          return scrollView;
+        }
+
+        return RefreshIndicator(
+          key: const ValueKey<String>('home-pull-to-refresh'),
+          onRefresh: () => _refreshHome(context),
+          child: scrollView,
         );
       },
     );
@@ -65,7 +80,14 @@ class _HomeView extends StatelessWidget {
 }
 
 class _HomeContent extends StatelessWidget {
-  const _HomeContent();
+  const _HomeContent({
+    required this.showRefreshAction,
+    required this.onRefresh,
+  });
+
+  final bool showRefreshAction;
+
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -103,11 +125,16 @@ class _HomeContent extends StatelessWidget {
    */
         context.read<StatisticsCubit>().refreshWeeklyStatistics();
       },
-      child: const Column(
+      child: Column(
         key: ValueKey<String>('home-sections'),
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          HomeHeader(),
+          HomeHeader(
+            showRefreshAction: showRefreshAction,
+            onRefresh: () {
+              unawaited(onRefresh());
+            },
+          ),
 
           SizedBox(height: AppSpacing.xxxl),
 
@@ -136,4 +163,37 @@ class _HomeContent extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _refreshHome(BuildContext context) async {
+  final HomeCubit homeCubit = context.read<HomeCubit>();
+
+  final StatisticsCubit statisticsCubit = context.read<StatisticsCubit>();
+
+  final List<bool> results = await Future.wait<bool>(<Future<bool>>[
+    homeCubit.refresh(),
+    statisticsCubit.refreshWeeklyStatistics(),
+  ]);
+
+  if (!context.mounted) {
+    return;
+  }
+
+  final bool succeeded = results.every((bool result) => result);
+
+  if (succeeded) {
+    return;
+  }
+
+  /*
+   * Individual sections keep their valid data and expose their own failure
+   * state. The global refresh feedback therefore stays intentionally subtle.
+   */
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      const SnackBar(
+        content: Text('Some Home sections could not be refreshed.'),
+      ),
+    );
 }

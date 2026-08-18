@@ -117,9 +117,26 @@ void main() {
 
       expect(cubit.state, StatisticsSuccess(_statistics));
 
-      await cubit.refreshWeeklyStatistics();
+      final bool succeeded = await cubit.refreshWeeklyStatistics();
+
+      expect(succeeded, isFalse);
 
       expect(repository.calls, 2);
+
+      expect(cubit.state, StatisticsSuccess(_statistics));
+
+      await cubit.close();
+    });
+    test('successful background refresh reports success', () async {
+      final StatisticsCubit cubit = StatisticsCubit(
+        repository: _FakeStatisticsRepository(statistics: _statistics),
+      );
+
+      await cubit.loadWeeklyStatistics();
+
+      final bool succeeded = await cubit.refreshWeeklyStatistics();
+
+      expect(succeeded, isTrue);
 
       expect(cubit.state, StatisticsSuccess(_statistics));
 

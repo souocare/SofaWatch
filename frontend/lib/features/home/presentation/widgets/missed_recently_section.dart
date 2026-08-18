@@ -212,15 +212,22 @@ class _WatchedAction extends StatelessWidget {
     if (isUpdating) {
       return const SizedBox(
         key: ValueKey<String>('home-missed-recently-watched-progress'),
-        width: 24,
-        height: 24,
-        child: CircularProgressIndicator(strokeWidth: 2),
+        width: 48,
+        height: 48,
+        child: Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
       );
     }
 
     return IconButton(
       key: ValueKey<String>('home-missed-recently-mark-watched-$episodeId'),
       tooltip: 'Mark as watched',
+      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
       onPressed: () {
         context.read<HomeCubit>().markEpisodeWatched(
           episodeId: episodeId,

@@ -1154,6 +1154,63 @@ void main() {
 
       await cubit.close();
     });
+    group('HomeCubit refresh', () {
+      test('refreshes every server-owned Home section', () async {
+        final _FakeShowsRepository repository = _FakeShowsRepository();
+
+        final HomeCubit cubit = HomeCubit(
+          repository: repository,
+          now: () => _referenceToday,
+        );
+
+        final bool succeeded = await cubit.refresh();
+
+        expect(succeeded, isTrue);
+
+        expect(repository.watchNextCalls, 1);
+
+        /*
+     * Upcoming is requested twice:
+     *
+     * - Premiering Today;
+     * - Upcoming.
+     */
+        expect(repository.upcomingCalls, 2);
+
+        expect(repository.missedRecentlyCalls, 1);
+
+        expect(repository.watchHistoryCalls, 1);
+
+        await cubit.close();
+      });
+
+      test(
+        'reports a partial refresh failure without blocking other sections',
+        () async {
+          final _FakeShowsRepository repository = _FakeShowsRepository(
+            failMissedRecently: true,
+          );
+
+          final HomeCubit cubit = HomeCubit(
+            repository: repository,
+            now: () => _referenceToday,
+          );
+
+          final bool succeeded = await cubit.refresh();
+
+          expect(succeeded, isFalse);
+
+          expect(repository.watchNextCalls, 1);
+          expect(repository.upcomingCalls, 2);
+          expect(repository.missedRecentlyCalls, 1);
+          expect(repository.watchHistoryCalls, 1);
+
+          expect(cubit.state.missedRecentlyError, isA<AppException>());
+
+          await cubit.close();
+        },
+      );
+    });
   });
 }
 

@@ -47,6 +47,39 @@ final class HomeCubit extends Cubit<HomeState> {
     ]);
   }
 
+  Future<bool> refresh() async {
+    /*
+   * Refresh every server-owned Home collection independently.
+   *
+   * Each section already preserves its existing content while loading and
+   * when a request fails, so refresh must reuse those loaders instead of
+   * implementing a second data-loading path.
+   */
+    await Future.wait(<Future<void>>[
+      loadContinueWatching(),
+      loadPremieringToday(),
+      loadUpcoming(),
+      loadMissedRecently(),
+      loadRecentActivity(),
+    ]);
+
+    if (isClosed) {
+      return false;
+    }
+
+    /*
+   * A partial failure still leaves the remaining Home sections usable.
+   *
+   * Returning a boolean lets the presentation layer show one unobtrusive
+   * refresh warning without replacing valid section content.
+   */
+    return state.continueWatchingError == null &&
+        state.premieringTodayError == null &&
+        state.upcomingError == null &&
+        state.missedRecentlyError == null &&
+        state.recentActivityError == null;
+  }
+
   // ---------------------------------------------------------------------------
   // Continue Watching
   // ---------------------------------------------------------------------------
