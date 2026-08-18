@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
+import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/presentation/pages/home_page.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
@@ -226,20 +227,137 @@ void main() {
       expect(formatWatchTime(720), '12h');
       expect(formatWatchTime(755), '12h 35m');
     });
+    testWidgets('shows compact empty states for empty Home sections', (
+      WidgetTester tester,
+    ) async {
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        continueWatching: const <WatchNextShow>[],
+        premieringToday: const <UpcomingItem>[],
+        upcoming: const <UpcomingItem>[],
+        missedRecently: const <UpcomingItem>[],
+        watchHistory: const WatchHistoryPage(
+          items: <WatchHistoryItem>[],
+          hasMore: false,
+        ),
+      );
+
+      await tester.pumpWidget(_buildTestApp(repository: repository));
+
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey<String>('home-continue-watching-empty')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('home-premiering-today-empty')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('home-upcoming-empty')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('home-missed-recently-empty')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('home-recent-activity-empty')),
+        findsOneWidget,
+      );
+    });
+    testWidgets('does not show an empty state when a Home section fails', (
+      WidgetTester tester,
+    ) async {
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        failMissedRecently: true,
+      );
+
+      await tester.pumpWidget(_buildTestApp(repository: repository));
+
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey<String>('home-missed-recently-failure')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('home-missed-recently-empty')),
+        findsNothing,
+      );
+    });
+    testWidgets(
+      'shows zero weekly Statistics without an intrusive empty state',
+      (WidgetTester tester) async {
+        final StatisticsRepository statisticsRepository =
+            _ZeroActivityStatisticsRepository();
+
+        await tester.pumpWidget(
+          _buildTestApp(statisticsRepository: statisticsRepository),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('home-your-week')),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('home-stat-episodes')),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('home-stat-movies')),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('home-stat-watch-time')),
+          findsOneWidget,
+        );
+
+        /*
+   * No activity is still valid Statistics data.
+   *
+   * Keep the normal compact cards instead of replacing the section
+   * with a large or intrusive empty-state message.
+   */
+        expect(find.text('0'), findsNWidgets(2));
+        expect(find.text('0m'), findsOneWidget);
+
+        expect(
+          find.byKey(const ValueKey<String>('home-your-week-failure')),
+          findsNothing,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('home-your-week-loading')),
+          findsNothing,
+        );
+      },
+    );
   });
 }
 
-Widget _buildTestApp() {
+Widget _buildTestApp({
+  ShowsRepository? repository,
+  StatisticsRepository? statisticsRepository,
+}) {
   final HomeCubit homeCubit = HomeCubit(
-    repository: _FakeShowsRepository(),
+    repository: repository ?? _FakeShowsRepository(),
     now: () => DateTime(2026, 8, 17),
-  );
+  )..load();
 
   final StatisticsCubit statisticsCubit = StatisticsCubit(
-    repository: _FakeStatisticsRepository(),
-  );
-
-  statisticsCubit.loadWeeklyStatistics();
+    repository: statisticsRepository ?? _FakeStatisticsRepository(),
+  )..loadWeeklyStatistics();
 
   return MultiBlocProvider(
     providers: <BlocProvider>[
@@ -251,13 +369,58 @@ Widget _buildTestApp() {
 }
 
 final class _FakeShowsRepository implements ShowsRepository {
+  const _FakeShowsRepository({
+    this.continueWatching = const <WatchNextShow>[],
+    this.premieringToday = const <UpcomingItem>[],
+    this.upcoming = const <UpcomingItem>[],
+    this.missedRecently = const <UpcomingItem>[],
+    this.watchHistory = const WatchHistoryPage(
+      items: <WatchHistoryItem>[],
+      hasMore: false,
+    ),
+    this.failMissedRecently = false,
+  });
+
+  final List<WatchNextShow> continueWatching;
+  final List<UpcomingItem> premieringToday;
+  final List<UpcomingItem> upcoming;
+  final List<UpcomingItem> missedRecently;
+
+  final WatchHistoryPage watchHistory;
+
+  final bool failMissedRecently;
+
   @override
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
     int? limit,
   }) async {
-    return const <UpcomingItem>[];
+    /*
+     * Home uses the same Upcoming endpoint for:
+     *
+     * - Premiering Today: fromDate == toDate
+     * - Upcoming: future date range
+     *
+     * Keep the distinction explicit in the fake so page tests can
+     * configure both collections independently.
+     */
+    final bool isPremieringToday =
+        fromDate != null &&
+        toDate != null &&
+        fromDate.year == toDate.year &&
+        fromDate.month == toDate.month &&
+        fromDate.day == toDate.day;
+
+    final List<UpcomingItem> result = isPremieringToday
+        ? premieringToday
+        : upcoming;
+
+    if (limit == null) {
+      return result;
+    }
+
+    return result.take(limit).toList(growable: false);
   }
 
   @override
@@ -267,7 +430,11 @@ final class _FakeShowsRepository implements ShowsRepository {
 
   @override
   Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
-    return const <WatchNextShow>[];
+    if (limit == null) {
+      return continueWatching;
+    }
+
+    return continueWatching.take(limit).toList(growable: false);
   }
 
   @override
@@ -280,7 +447,16 @@ final class _FakeShowsRepository implements ShowsRepository {
     int limit = 30,
     String? cursor,
   }) async {
-    return const WatchHistoryPage(items: <WatchHistoryItem>[], hasMore: false);
+    return watchHistory;
+  }
+
+  @override
+  Future<List<UpcomingItem>> getMissedRecently() async {
+    if (failMissedRecently) {
+      throw const AppException.connection();
+    }
+
+    return missedRecently;
   }
 
   @override
@@ -291,11 +467,6 @@ final class _FakeShowsRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
-
-  @override
-  Future<List<UpcomingItem>> getMissedRecently() async {
-    return const <UpcomingItem>[];
-  }
 }
 
 final class _FakeStatisticsRepository implements StatisticsRepository {
@@ -307,6 +478,19 @@ final class _FakeStatisticsRepository implements StatisticsRepository {
       episodesWatched: 8,
       moviesWatched: 2,
       watchTimeMinutes: 642,
+    );
+  }
+}
+
+final class _ZeroActivityStatisticsRepository implements StatisticsRepository {
+  @override
+  Future<WeeklyStatistics> getWeeklyStatistics() async {
+    return WeeklyStatistics(
+      weekStart: DateTime(2026, 8, 17),
+      weekEnd: DateTime(2026, 8, 23),
+      episodesWatched: 0,
+      moviesWatched: 0,
+      watchTimeMinutes: 0,
     );
   }
 }

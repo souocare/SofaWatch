@@ -7,6 +7,7 @@ import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
 import 'package:sofawatch/features/home/application/models/home_watch_source.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
+import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
 
 class ContinueWatchingSection extends StatelessWidget {
   const ContinueWatchingSection({super.key});
@@ -33,7 +34,12 @@ class ContinueWatchingSection extends StatelessWidget {
         }
 
         if (state.continueWatching.isEmpty) {
-          return const SizedBox.shrink();
+          return const HomeEmptyState(
+            emptyStateKey: 'home-continue-watching-empty',
+            title: 'Continue Watching',
+            message: 'Nothing to continue right now.',
+            icon: Icons.play_circle_outline_rounded,
+          );
         }
 
         return Column(

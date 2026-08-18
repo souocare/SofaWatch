@@ -7,6 +7,7 @@ import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
+import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
 
 class UpcomingSection extends StatelessWidget {
   const UpcomingSection({super.key});
@@ -29,7 +30,13 @@ class UpcomingSection extends StatelessWidget {
         }
 
         if (state.upcoming.isEmpty) {
-          return const SizedBox.shrink();
+          return const HomeEmptyState(
+            emptyStateKey: 'home-upcoming-empty',
+            title: 'Upcoming',
+            subtitle: 'Next 7 days',
+            message: 'No episodes scheduled for the next 7 days.',
+            icon: Icons.calendar_today_outlined,
+          );
         }
 
         return Column(

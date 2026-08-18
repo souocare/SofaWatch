@@ -8,6 +8,7 @@ import 'package:sofawatch/features/home/application/cubit/home_state.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 import 'package:sofawatch/features/home/application/models/home_watch_source.dart';
+import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
 
 class PremieringTodaySection extends StatelessWidget {
   const PremieringTodaySection({super.key});
@@ -34,7 +35,12 @@ class PremieringTodaySection extends StatelessWidget {
         }
 
         if (state.premieringToday.isEmpty) {
-          return const SizedBox.shrink();
+          return const HomeEmptyState(
+            emptyStateKey: 'home-premiering-today-empty',
+            title: 'Premiering Today',
+            message: 'Nothing from your library is premiering today.',
+            icon: Icons.today_outlined,
+          );
         }
 
         return Column(

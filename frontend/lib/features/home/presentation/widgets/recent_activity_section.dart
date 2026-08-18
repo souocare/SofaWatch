@@ -6,6 +6,7 @@ import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
+import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
 
 class RecentActivitySection extends StatelessWidget {
   const RecentActivitySection({super.key});
@@ -29,7 +30,12 @@ class RecentActivitySection extends StatelessWidget {
         }
 
         if (state.recentActivity.isEmpty) {
-          return const SizedBox.shrink();
+          return const HomeEmptyState(
+            emptyStateKey: 'home-recent-activity-empty',
+            title: 'Recent Activity',
+            message: 'Nothing watched recently.',
+            icon: Icons.history_rounded,
+          );
         }
 
         return Column(

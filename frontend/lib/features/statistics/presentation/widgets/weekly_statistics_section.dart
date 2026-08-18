@@ -49,38 +49,59 @@ class _WeeklyStatisticsContent extends StatelessWidget {
 
   final WeeklyStatistics statistics;
 
+  bool get _hasActivity {
+    return statistics.episodesWatched > 0 ||
+        statistics.moviesWatched > 0 ||
+        statistics.watchTimeMinutes > 0;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Row(
-      key: const ValueKey<String>('home-your-week-cards'),
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Expanded(
-          child: _WeeklyStatisticCard(
-            cardKey: 'home-stat-episodes',
-            icon: Icons.tv_rounded,
-            value: statistics.episodesWatched.toString(),
-            label: 'Episodes',
-          ),
+        Row(
+          key: const ValueKey<String>('home-your-week-cards'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Expanded(
+              child: _WeeklyStatisticCard(
+                cardKey: 'home-stat-episodes',
+                icon: Icons.tv_rounded,
+                value: statistics.episodesWatched.toString(),
+                label: 'Episodes',
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _WeeklyStatisticCard(
+                cardKey: 'home-stat-movies',
+                icon: Icons.movie_rounded,
+                value: statistics.moviesWatched.toString(),
+                label: 'Movies',
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _WeeklyStatisticCard(
+                cardKey: 'home-stat-watch-time',
+                icon: Icons.schedule_rounded,
+                value: formatWatchTime(statistics.watchTimeMinutes),
+                label: 'Watch time',
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: _WeeklyStatisticCard(
-            cardKey: 'home-stat-movies',
-            icon: Icons.movie_rounded,
-            value: statistics.moviesWatched.toString(),
-            label: 'Movies',
+        if (!_hasActivity) ...<Widget>[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'No viewing activity this week yet.',
+            key: const ValueKey<String>('home-your-week-empty'),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
           ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: _WeeklyStatisticCard(
-            cardKey: 'home-stat-watch-time',
-            icon: Icons.schedule_rounded,
-            value: formatWatchTime(statistics.watchTimeMinutes),
-            label: 'Watch time',
-          ),
-        ),
+        ],
       ],
     );
   }

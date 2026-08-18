@@ -7,6 +7,7 @@ import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
 import 'package:sofawatch/features/home/application/models/home_watch_source.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
+import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
 
 class MissedRecentlySection extends StatelessWidget {
   const MissedRecentlySection({super.key});
@@ -32,7 +33,13 @@ class MissedRecentlySection extends StatelessWidget {
         }
 
         if (state.missedRecently.isEmpty) {
-          return const SizedBox.shrink();
+          return const HomeEmptyState(
+            emptyStateKey: 'home-missed-recently-empty',
+            title: 'Missed Recently',
+            subtitle: 'Episodes from the last 14 days',
+            message: 'You’re all caught up.',
+            icon: Icons.check_circle_outline_rounded,
+          );
         }
 
         return Column(
