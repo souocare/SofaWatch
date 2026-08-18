@@ -8,5 +8,6 @@ enum AppRoute {
   movieDetails,
   explore,
   profile,
+  detailedStatistics,
   episodeDetails,
 }

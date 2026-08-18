@@ -957,3 +957,423 @@ def test_get_statistics_for_period_counts_movie_without_runtime(
 
     assert count == 1
     assert watch_time == 0
+
+def test_get_all_time_statistics_counts_unique_movies_and_rewatches(
+    db_session: Session,
+) -> None:
+    """Aggregate all-time Movie watches, unique Movies and rewatches."""
+
+    user = create_user(
+        db_session,
+    )
+
+    first_movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    second_movie = create_movie(
+        db_session,
+        tmdb_id=27205,
+        title="Inception",
+    )
+
+    first_movie.runtime = 155
+    second_movie.runtime = 148
+
+    db_session.commit()
+
+    # Dune: original watch + two rewatches.
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=first_movie,
+        watched_at=datetime(
+            2026,
+            8,
+            1,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=first_movie,
+        watched_at=datetime(
+            2026,
+            8,
+            2,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=first_movie,
+        watched_at=datetime(
+            2026,
+            8,
+            3,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=second_movie,
+        watched_at=datetime(
+            2026,
+            8,
+            4,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    (
+        watch_count,
+        unique_count,
+        rewatch_count,
+        watch_time_minutes,
+        rewatch_time_minutes,
+    ) = repository.get_all_time_statistics(
+        user_id=user.id,
+    )
+
+    assert watch_count == 4
+    assert unique_count == 2
+    assert rewatch_count == 2
+
+    # Dune 3x + Inception 1x.
+    assert watch_time_minutes == 613
+
+    # The second and third Dune views are rewatches.
+    assert rewatch_time_minutes == 310
+
+    assert watch_count == unique_count + rewatch_count
+
+
+def test_get_all_time_statistics_counts_movie_without_runtime(
+    db_session: Session,
+) -> None:
+    """Count Movie watches even when runtime is unknown."""
+
+    user = create_user(
+        db_session,
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    movie.runtime = None
+
+    db_session.commit()
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            1,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            2,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    (
+        watch_count,
+        unique_count,
+        rewatch_count,
+        watch_time_minutes,
+        rewatch_time_minutes,
+    ) = repository.get_all_time_statistics(
+        user_id=user.id,
+    )
+
+    assert watch_count == 2
+    assert unique_count == 1
+    assert rewatch_count == 1
+    assert watch_time_minutes == 0
+    assert rewatch_time_minutes == 0
+
+
+def test_get_all_time_statistics_is_isolated_by_user(
+    db_session: Session,
+) -> None:
+    """Only include Movie watches belonging to the requested user."""
+
+    first_user = create_user(
+        db_session,
+        display_name="First User",
+    )
+
+    second_user = create_user(
+        db_session,
+        display_name="Second User",
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    movie.runtime = 155
+
+    db_session.commit()
+
+    create_watch_event(
+        db_session,
+        user=first_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            1,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=second_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            2,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=second_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            3,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.get_all_time_statistics(
+        user_id=first_user.id,
+    )
+
+    assert result == (
+        1,
+        1,
+        0,
+        155,
+        0,
+    )
+
+def test_get_daily_statistics_for_period_groups_movie_activity_by_day(
+    db_session: Session,
+) -> None:
+    """Group Movie viewing counts and runtime by calendar day."""
+
+    user = create_user(
+        db_session,
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    movie.runtime = 155
+
+    db_session.commit()
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            17,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            17,
+            23,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.get_daily_statistics_for_period(
+        user_id=user.id,
+        start_at=datetime(
+            2026,
+            8,
+            17,
+            tzinfo=UTC,
+        ),
+        end_at=datetime(
+            2026,
+            8,
+            20,
+            tzinfo=UTC,
+        ),
+    )
+
+    assert [
+        (
+            item.day,
+            item.watch_count,
+            item.watch_time_minutes,
+        )
+        for item in result
+    ] == [
+        (
+            "2026-08-17",
+            2,
+            310,
+        ),
+        (
+            "2026-08-19",
+            1,
+            155,
+        ),
+    ]
+
+
+def test_get_daily_statistics_for_period_counts_unknown_movie_runtime_as_zero(
+    db_session: Session,
+) -> None:
+    """Keep Movie activity when runtime is unavailable."""
+
+    user = create_user(
+        db_session,
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    movie.runtime = None
+
+    db_session.commit()
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            17,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.get_daily_statistics_for_period(
+        user_id=user.id,
+        start_at=datetime(
+            2026,
+            8,
+            17,
+            tzinfo=UTC,
+        ),
+        end_at=datetime(
+            2026,
+            8,
+            18,
+            tzinfo=UTC,
+        ),
+    )
+
+    assert len(result) == 1
+    assert result[0].watch_count == 1
+    assert result[0].watch_time_minutes == 0

@@ -16,10 +16,12 @@ import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_cubit.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
 import 'package:sofawatch/features/statistics/presentation/widgets/weekly_statistics_section.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_activity.dart';
 
 void main() {
   group('HomePage', () {
@@ -820,6 +822,16 @@ final class _FakeStatisticsRepository implements StatisticsRepository {
       watchTimeMinutes: 642,
     );
   }
+
+  @override
+  Future<StatisticsSummary> getSummary() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsActivity> getActivity({required int days}) {
+    throw UnimplementedError();
+  }
 }
 
 final class _ZeroActivityStatisticsRepository implements StatisticsRepository {
@@ -832,5 +844,15 @@ final class _ZeroActivityStatisticsRepository implements StatisticsRepository {
       moviesWatched: 0,
       watchTimeMinutes: 0,
     );
+  }
+
+  @override
+  Future<StatisticsSummary> getSummary() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsActivity> getActivity({required int days}) {
+    throw UnimplementedError();
   }
 }

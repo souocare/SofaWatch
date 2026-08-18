@@ -362,4 +362,47 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('opens detailed statistics from Profile and returns back', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpSofaWatchApp();
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('mobile-navigation-profile')),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey<String>('profile-page')), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('profile-detailed-statistics-action')),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('detailed-statistics-page')),
+      findsOneWidget,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('detailed-statistics-title')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('detailed-statistics-back')),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('detailed-statistics-page')),
+      findsNothing,
+    );
+
+    expect(find.byKey(const ValueKey<String>('profile-page')), findsOneWidget);
+  });
 }

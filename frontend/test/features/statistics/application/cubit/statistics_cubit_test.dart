@@ -6,6 +6,8 @@ import 'package:sofawatch/features/statistics/application/cubit/statistics_cubit
 import 'package:sofawatch/features/statistics/application/cubit/statistics_state.dart';
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_activity.dart';
 
 void main() {
   group('StatisticsCubit', () {
@@ -180,6 +182,16 @@ final class _FakeStatisticsRepository implements StatisticsRepository {
 
     return statistics ?? _statistics;
   }
+
+  @override
+  Future<StatisticsSummary> getSummary() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsActivity> getActivity({required int days}) {
+    throw UnimplementedError();
+  }
 }
 
 final class _RetryStatisticsRepository implements StatisticsRepository {
@@ -194,6 +206,16 @@ final class _RetryStatisticsRepository implements StatisticsRepository {
     }
 
     return _statistics;
+  }
+
+  @override
+  Future<StatisticsSummary> getSummary() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsActivity> getActivity({required int days}) {
+    throw UnimplementedError();
   }
 }
 
@@ -222,6 +244,16 @@ final class _ControlledStatisticsRepository implements StatisticsRepository {
 
     return _result.future;
   }
+
+  @override
+  Future<StatisticsSummary> getSummary() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsActivity> getActivity({required int days}) {
+    throw UnimplementedError();
+  }
 }
 
 final class _RefreshFailureStatisticsRepository
@@ -237,5 +269,15 @@ final class _RefreshFailureStatisticsRepository
     }
 
     throw const AppException.receiveTimeout();
+  }
+
+  @override
+  Future<StatisticsSummary> getSummary() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsActivity> getActivity({required int days}) {
+    throw UnimplementedError();
   }
 }

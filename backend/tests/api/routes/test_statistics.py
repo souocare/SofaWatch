@@ -160,3 +160,99 @@ def test_get_weekly_statistics_returns_zero_summary_without_viewings(
     assert response.json()["episodes_watched"] == 0
     assert response.json()["movies_watched"] == 0
     assert response.json()["watch_time_minutes"] == 0
+
+
+def test_get_statistics_activity_returns_seven_days_by_default(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return seven consecutive activity days by default."""
+
+    user = User(
+        display_name="Local User",
+        is_local=True,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/statistics/activity",
+    )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+
+    assert len(payload["days"]) == 7
+
+    assert payload["start_date"] is not None
+    assert payload["end_date"] is not None
+
+    assert set(payload["days"][0]) == {
+        "day",
+        "episodes_watched",
+        "movies_watched",
+        "episode_watch_time_minutes",
+        "movie_watch_time_minutes",
+        "watch_time_minutes",
+    }
+
+def test_get_statistics_activity_supports_fourteen_days(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return fourteen consecutive activity days when requested."""
+
+    user = User(
+        display_name="Local User",
+        is_local=True,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/statistics/activity",
+        params={
+            "days": 14,
+        },
+    )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+
+    assert len(payload["days"]) == 14
+
+def test_get_statistics_activity_rejects_unsupported_range(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Reject unsupported activity ranges."""
+
+    user = User(
+        display_name="Local User",
+        is_local=True,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/statistics/activity",
+        params={
+            "days": 30,
+        },
+    )
+
+    assert response.status_code == 400
+
+    assert response.json() == {
+        "error": {
+            "code": "invalid_statistics_activity_range",
+            "message": (
+                "Statistics activity supports only 7 or 14 days."
+            ),
+        }
+    }

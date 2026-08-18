@@ -111,5 +111,137 @@ void main() {
 
       expect(repository.getWeeklyStatistics(), throwsA(isA<AppException>()));
     });
+    test('gets seven-day statistics activity', () async {
+      dioAdapter.onGet('/statistics/activity', (server) {
+        server.reply(200, <String, dynamic>{
+          'start_date': '2026-08-12',
+          'end_date': '2026-08-18',
+          'days': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'day': '2026-08-12',
+              'episodes_watched': 3,
+              'movies_watched': 1,
+              'episode_watch_time_minutes': 150,
+              'movie_watch_time_minutes': 120,
+              'watch_time_minutes': 270,
+            },
+          ],
+        });
+      }, queryParameters: <String, dynamic>{'days': 7});
+
+      final result = await repository.getActivity(days: 7);
+
+      expect(result.startDate, DateTime(2026, 8, 12));
+
+      expect(result.endDate, DateTime(2026, 8, 18));
+
+      expect(result.days, hasLength(1));
+
+      expect(result.days.first.episodesWatched, 3);
+
+      expect(result.days.first.moviesWatched, 1);
+
+      expect(result.days.first.watchTimeMinutes, 270);
+    });
+    test('gets fourteen-day statistics activity', () async {
+      dioAdapter.onGet('/statistics/activity', (server) {
+        server.reply(200, <String, dynamic>{
+          'start_date': '2026-08-05',
+          'end_date': '2026-08-18',
+          'days': <Map<String, dynamic>>[],
+        });
+      }, queryParameters: <String, dynamic>{'days': 14});
+
+      final result = await repository.getActivity(days: 14);
+
+      expect(result.startDate, DateTime(2026, 8, 5));
+
+      expect(result.endDate, DateTime(2026, 8, 18));
+
+      expect(result.days, isEmpty);
+    });
+    test('maps invalid statistics activity data to invalid data', () async {
+      dioAdapter.onGet('/statistics/activity', (server) {
+        server.reply(200, <String, dynamic>{
+          'start_date': '2026-08-12',
+          'end_date': '2026-08-18',
+          'days': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'day': '2026-08-12',
+              'episodes_watched': 'invalid',
+              'movies_watched': 1,
+              'episode_watch_time_minutes': 150,
+              'movie_watch_time_minutes': 120,
+              'watch_time_minutes': 270,
+            },
+          ],
+        });
+      }, queryParameters: <String, dynamic>{'days': 7});
+
+      expect(
+        () => repository.getActivity(days: 7),
+        throwsA(isA<AppException>()),
+      );
+    });
+    test('gets the statistics summary', () async {
+      dioAdapter.onGet('/statistics/summary', (server) {
+        server.reply(200, const <String, dynamic>{
+          'shows_watched': 12,
+          'episodes': <String, dynamic>{
+            'watch_count': 125,
+            'unique_count': 100,
+            'rewatch_count': 25,
+            'watch_time_minutes': 6250,
+            'rewatch_time_minutes': 1250,
+          },
+          'movies': <String, dynamic>{
+            'watch_count': 34,
+            'unique_count': 30,
+            'rewatch_count': 4,
+            'watch_time_minutes': 4200,
+            'rewatch_time_minutes': 500,
+          },
+          'watch_time_minutes': 10450,
+          'rewatch_time_minutes': 1750,
+        });
+      });
+
+      final result = await repository.getSummary();
+
+      expect(result.showsWatched, 12);
+
+      expect(result.episodes.watchCount, 125);
+
+      expect(result.episodes.uniqueCount, 100);
+
+      expect(result.episodes.rewatchCount, 25);
+
+      expect(result.movies.watchCount, 34);
+
+      expect(result.movies.rewatchCount, 4);
+
+      expect(result.watchTimeMinutes, 10450);
+
+      expect(result.rewatchTimeMinutes, 1750);
+    });
+    test('maps invalid statistics summary data to invalid data', () async {
+      dioAdapter.onGet('/statistics/summary', (server) {
+        server.reply(200, const <String, dynamic>{
+          'shows_watched': 12,
+          'episodes': 'invalid',
+          'movies': <String, dynamic>{
+            'watch_count': 34,
+            'unique_count': 30,
+            'rewatch_count': 4,
+            'watch_time_minutes': 4200,
+            'rewatch_time_minutes': 500,
+          },
+          'watch_time_minutes': 10450,
+          'rewatch_time_minutes': 1750,
+        });
+      });
+
+      expect(() => repository.getSummary(), throwsA(isA<AppException>()));
+    });
   });
 }

@@ -43,9 +43,12 @@ import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/data/repositories/api_shows_repository.dart';
 import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_cubit.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
 import 'package:sofawatch/features/statistics/data/repositories/api_statistics_repository.dart';
 import 'package:sofawatch/features/profile/application/cubit/profile_cubit.dart';
 import 'package:sofawatch/features/profile/data/repositories/api_profile_repository.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_activity_cubit.dart';
+import 'package:sofawatch/features/statistics/presentation/pages/detailed_statistics_page.dart';
 
 GoRouter createAppRouter({required ApiClient apiClient}) {
   final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -283,17 +286,59 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                 name: AppRoute.profile.name,
                 path: RoutePaths.profile,
                 builder: (BuildContext context, GoRouterState state) {
-                  return BlocProvider<ProfileCubit>(
-                    create: (BuildContext context) {
-                      return ProfileCubit(
-                        repository: ApiProfileRepository(
-                          context.read<ApiClient>(),
-                        ),
-                      )..load();
-                    },
+                  return MultiBlocProvider(
+                    providers: <BlocProvider<dynamic>>[
+                      BlocProvider<ProfileCubit>(
+                        create: (BuildContext context) {
+                          return ProfileCubit(
+                            repository: ApiProfileRepository(
+                              context.read<ApiClient>(),
+                            ),
+                          )..load();
+                        },
+                      ),
+                      BlocProvider<StatisticsSummaryCubit>(
+                        create: (BuildContext context) {
+                          return StatisticsSummaryCubit(
+                            repository: ApiStatisticsRepository(
+                              context.read<ApiClient>(),
+                            ),
+                          )..load();
+                        },
+                      ),
+                    ],
                     child: const ProfilePage(),
                   );
                 },
+                routes: <RouteBase>[
+                  GoRoute(
+                    name: AppRoute.detailedStatistics.name,
+                    path: RoutePaths.detailedStatistics,
+                    builder: (BuildContext context, GoRouterState state) {
+                      final ApiClient apiClient = context.read<ApiClient>();
+
+                      return MultiBlocProvider(
+                        providers: <BlocProvider<dynamic>>[
+                          BlocProvider<StatisticsSummaryCubit>(
+                            create: (BuildContext context) {
+                              return StatisticsSummaryCubit(
+                                repository: ApiStatisticsRepository(apiClient),
+                              )..load();
+                            },
+                          ),
+                          BlocProvider<StatisticsActivityCubit>(
+                            create: (BuildContext context) {
+                              return StatisticsActivityCubit(
+                                repository: ApiStatisticsRepository(apiClient),
+                              )..load();
+                            },
+                          ),
+                        ],
+                        child: const DetailedStatisticsPage(),
+                      );
+                    },
+                  ),
+                ],
               ),
             ],
           ),

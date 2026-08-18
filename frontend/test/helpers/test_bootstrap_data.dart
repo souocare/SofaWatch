@@ -119,6 +119,107 @@ ApiClient _createDefaultTestApiClient({required Uri? baseUrl}) {
           return;
         }
 
+        if (path.endsWith('/statistics/summary')) {
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: const <String, dynamic>{
+                'shows_watched': 0,
+                'episodes': <String, dynamic>{
+                  'watch_count': 0,
+                  'unique_count': 0,
+                  'rewatch_count': 0,
+                  'watch_time_minutes': 0,
+                  'rewatch_time_minutes': 0,
+                },
+                'movies': <String, dynamic>{
+                  'watch_count': 0,
+                  'unique_count': 0,
+                  'rewatch_count': 0,
+                  'watch_time_minutes': 0,
+                  'rewatch_time_minutes': 0,
+                },
+                'watch_time_minutes': 0,
+                'rewatch_time_minutes': 0,
+              },
+            ),
+          );
+          return;
+        }
+
+        if (path.endsWith('/statistics/activity')) {
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: const <String, dynamic>{
+                'start_date': '2026-08-12',
+                'end_date': '2026-08-18',
+                'days': <Map<String, dynamic>>[
+                  <String, dynamic>{
+                    'day': '2026-08-12',
+                    'episodes_watched': 0,
+                    'movies_watched': 0,
+                    'episode_watch_time_minutes': 0,
+                    'movie_watch_time_minutes': 0,
+                    'watch_time_minutes': 0,
+                  },
+                  <String, dynamic>{
+                    'day': '2026-08-13',
+                    'episodes_watched': 0,
+                    'movies_watched': 0,
+                    'episode_watch_time_minutes': 0,
+                    'movie_watch_time_minutes': 0,
+                    'watch_time_minutes': 0,
+                  },
+                  <String, dynamic>{
+                    'day': '2026-08-14',
+                    'episodes_watched': 0,
+                    'movies_watched': 0,
+                    'episode_watch_time_minutes': 0,
+                    'movie_watch_time_minutes': 0,
+                    'watch_time_minutes': 0,
+                  },
+                  <String, dynamic>{
+                    'day': '2026-08-15',
+                    'episodes_watched': 0,
+                    'movies_watched': 0,
+                    'episode_watch_time_minutes': 0,
+                    'movie_watch_time_minutes': 0,
+                    'watch_time_minutes': 0,
+                  },
+                  <String, dynamic>{
+                    'day': '2026-08-16',
+                    'episodes_watched': 0,
+                    'movies_watched': 0,
+                    'episode_watch_time_minutes': 0,
+                    'movie_watch_time_minutes': 0,
+                    'watch_time_minutes': 0,
+                  },
+                  <String, dynamic>{
+                    'day': '2026-08-17',
+                    'episodes_watched': 0,
+                    'movies_watched': 0,
+                    'episode_watch_time_minutes': 0,
+                    'movie_watch_time_minutes': 0,
+                    'watch_time_minutes': 0,
+                  },
+                  <String, dynamic>{
+                    'day': '2026-08-18',
+                    'episodes_watched': 0,
+                    'movies_watched': 0,
+                    'episode_watch_time_minutes': 0,
+                    'movie_watch_time_minutes': 0,
+                    'watch_time_minutes': 0,
+                  },
+                ],
+              },
+            ),
+          );
+          return;
+        }
+
         /*
          * Preserve the previous test behaviour for endpoints that individual
          * tests are not explicitly interested in.

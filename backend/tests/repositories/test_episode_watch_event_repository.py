@@ -1255,3 +1255,669 @@ def test_get_statistics_for_period_counts_episode_without_runtime(
 
     assert count == 1
     assert watch_time == 0
+
+def test_get_all_time_statistics_counts_unique_episodes_and_rewatches(
+    db_session: Session,
+) -> None:
+    """Aggregate all-time Episode watches, unique Episodes and rewatches."""
+
+    user = create_user(
+        db_session,
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    first_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    second_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2102,
+        episode_number=2,
+        title="Half Loop",
+    )
+
+    first_episode.runtime = 50
+    second_episode.runtime = 40
+
+    db_session.commit()
+
+    # First Episode: one original watch + two rewatches.
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=first_episode,
+        watched_at=datetime(
+            2026,
+            8,
+            1,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=first_episode,
+        watched_at=datetime(
+            2026,
+            8,
+            2,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=first_episode,
+        watched_at=datetime(
+            2026,
+            8,
+            3,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    # Second Episode: one original watch.
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=second_episode,
+        watched_at=datetime(
+            2026,
+            8,
+            4,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    (
+        watch_count,
+        unique_count,
+        rewatch_count,
+        watch_time_minutes,
+        rewatch_time_minutes,
+    ) = repository.get_all_time_statistics(
+        user_id=user.id,
+    )
+
+    assert watch_count == 4
+    assert unique_count == 2
+    assert rewatch_count == 2
+
+    # 50 + 50 + 50 + 40
+    assert watch_time_minutes == 190
+
+    # The second and third views of Episode 1 are rewatches.
+    assert rewatch_time_minutes == 100
+
+    assert watch_count == unique_count + rewatch_count
+
+
+def test_get_all_time_statistics_counts_episode_without_runtime(
+    db_session: Session,
+) -> None:
+    """Count Episode watches even when runtime is unknown."""
+
+    user = create_user(
+        db_session,
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    assert episode.runtime is None
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            1,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            2,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    (
+        watch_count,
+        unique_count,
+        rewatch_count,
+        watch_time_minutes,
+        rewatch_time_minutes,
+    ) = repository.get_all_time_statistics(
+        user_id=user.id,
+    )
+
+    assert watch_count == 2
+    assert unique_count == 1
+    assert rewatch_count == 1
+    assert watch_time_minutes == 0
+    assert rewatch_time_minutes == 0
+
+
+def test_get_all_time_statistics_is_isolated_by_user(
+    db_session: Session,
+) -> None:
+    """Only include Episode watches belonging to the requested user."""
+
+    first_user = create_user(
+        db_session,
+        display_name="First User",
+    )
+
+    second_user = create_user(
+        db_session,
+        display_name="Second User",
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    episode.runtime = 50
+
+    db_session.commit()
+
+    create_watch_event(
+        db_session,
+        user=first_user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            1,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=second_user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            2,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=second_user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            3,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.get_all_time_statistics(
+        user_id=first_user.id,
+    )
+
+    assert result == (
+        1,
+        1,
+        0,
+        50,
+        0,
+    )
+
+
+def test_count_watched_shows_counts_each_show_once(
+    db_session: Session,
+) -> None:
+    """Count each watched Show once regardless of Episodes or rewatches."""
+
+    user = create_user(
+        db_session,
+    )
+
+    first_show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    first_season = create_season(
+        db_session,
+        show=first_show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    first_episode = create_episode(
+        db_session,
+        season=first_season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    second_episode = create_episode(
+        db_session,
+        season=first_season,
+        tmdb_id=2102,
+        episode_number=2,
+        title="Half Loop",
+    )
+
+    second_show = create_show(
+        db_session,
+        tmdb_id=1396,
+        title="Breaking Bad",
+    )
+
+    second_season = create_season(
+        db_session,
+        show=second_show,
+        tmdb_id=3624,
+        season_number=1,
+        title="Season 1",
+    )
+
+    third_episode = create_episode(
+        db_session,
+        season=second_season,
+        tmdb_id=62085,
+        episode_number=1,
+        title="Pilot",
+    )
+
+    # Multiple watches from Show 1 must still represent one watched Show.
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=first_episode,
+        watched_at=datetime(
+            2026,
+            8,
+            1,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=first_episode,
+        watched_at=datetime(
+            2026,
+            8,
+            2,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=second_episode,
+        watched_at=datetime(
+            2026,
+            8,
+            3,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=third_episode,
+        watched_at=datetime(
+            2026,
+            8,
+            4,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.count_watched_shows(
+        user_id=user.id,
+    )
+
+    assert result == 2
+
+
+def test_get_daily_statistics_for_period_groups_episode_activity_by_day(
+    db_session: Session,
+) -> None:
+    """Group Episode viewing counts and runtime by calendar day."""
+
+    user = create_user(
+        db_session,
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    episode.runtime = 50
+
+    db_session.commit()
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            17,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            17,
+            22,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            21,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    # Outside requested range.
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            16,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.get_daily_statistics_for_period(
+        user_id=user.id,
+        start_at=datetime(
+            2026,
+            8,
+            17,
+            tzinfo=UTC,
+        ),
+        end_at=datetime(
+            2026,
+            8,
+            20,
+            tzinfo=UTC,
+        ),
+    )
+
+    assert [
+        (
+            item.day,
+            item.watch_count,
+            item.watch_time_minutes,
+        )
+        for item in result
+    ] == [
+        (
+            "2026-08-17",
+            2,
+            100,
+        ),
+        (
+            "2026-08-19",
+            1,
+            50,
+        ),
+    ]
+
+
+def test_get_daily_statistics_for_period_is_isolated_by_user(
+    db_session: Session,
+) -> None:
+    """Exclude Episode activity belonging to other users."""
+
+    user = create_user(
+        db_session,
+        display_name="Requested User",
+    )
+
+    other_user = create_user(
+        db_session,
+        display_name="Other User",
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    episode.runtime = 50
+
+    db_session.commit()
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            17,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=other_user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            17,
+            21,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.get_daily_statistics_for_period(
+        user_id=user.id,
+        start_at=datetime(
+            2026,
+            8,
+            17,
+            tzinfo=UTC,
+        ),
+        end_at=datetime(
+            2026,
+            8,
+            18,
+            tzinfo=UTC,
+        ),
+    )
+
+    assert len(result) == 1
+    assert result[0].watch_count == 1
+    assert result[0].watch_time_minutes == 50
