@@ -8,7 +8,9 @@ import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/presentation/pages/home_page.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_history_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
@@ -17,6 +19,7 @@ import 'package:sofawatch/features/statistics/application/cubit/statistics_cubit
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
 import 'package:sofawatch/features/statistics/presentation/widgets/weekly_statistics_section.dart';
+import 'package:sofawatch/features/library/domain/models/library_status.dart';
 
 void main() {
   group('HomePage', () {
@@ -553,6 +556,69 @@ void main() {
         findsOneWidget,
       );
     });
+    testWidgets('shows Planning state for a Premiering Today Show', (
+      WidgetTester tester,
+    ) async {
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        premieringToday: <UpcomingItem>[
+          _createUpcomingItem(
+            episodeId: 'planning-episode',
+            airDate: DateTime(2026, 8, 17),
+            status: LibraryStatus.planning,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(_buildTestApp(repository: repository));
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('home-premiering-today-planning-badge'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(find.text('Not started'), findsOneWidget);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'home-premiering-today-not-started-planning-episode',
+          ),
+        ),
+        findsOneWidget,
+      );
+    });
+    testWidgets('shows Rewatch for repeated Recent Activity watches', (
+      WidgetTester tester,
+    ) async {
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        watchHistory: WatchHistoryPage(
+          items: <WatchHistoryItem>[
+            _createWatchHistoryItem(
+              eventId: 'event-rewatch',
+              episodeId: 'episode-rewatch',
+              watchedAt: DateTime.utc(2026, 8, 16, 20),
+              watchCount: 2,
+            ),
+          ],
+          hasMore: false,
+        ),
+      );
+
+      await tester.pumpWidget(_buildTestApp(repository: repository));
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('home-recent-activity-rewatch')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Rewatch'), findsOneWidget);
+    });
   });
 }
 
@@ -575,6 +641,62 @@ Widget _buildTestApp({
       BlocProvider<StatisticsCubit>.value(value: statisticsCubit),
     ],
     child: const MaterialApp(home: HomePage()),
+  );
+}
+
+UpcomingItem _createUpcomingItem({
+  required String episodeId,
+  required DateTime airDate,
+  bool isWatched = false,
+  LibraryStatus status = LibraryStatus.watching,
+}) {
+  return UpcomingItem(
+    libraryEntryId: 'library-$episodeId',
+    libraryStatus: status,
+    showId: 'show-$episodeId',
+    showTmdbId: 95396,
+    showTitle: 'Severance',
+    posterUrl: null,
+    backdropUrl: null,
+    episode: UpcomingEpisode(
+      id: episodeId,
+      tmdbId: 1000,
+      seasonNumber: 2,
+      episodeNumber: 1,
+      title: 'Hello, Ms. Cobel',
+      airDate: airDate,
+      runtime: 52,
+      stillUrl: null,
+      isWatched: isWatched,
+    ),
+  );
+}
+
+WatchHistoryItem _createWatchHistoryItem({
+  required String eventId,
+  required String episodeId,
+  required DateTime watchedAt,
+  int watchCount = 1,
+}) {
+  return WatchHistoryItem(
+    eventId: eventId,
+    showId: 'show-$episodeId',
+    showTmdbId: 95396,
+    showTitle: 'Severance',
+    posterUrl: null,
+    backdropUrl: null,
+    episode: WatchHistoryEpisode(
+      id: episodeId,
+      tmdbId: 1000,
+      seasonNumber: 2,
+      episodeNumber: 1,
+      title: 'Hello, Ms. Cobel',
+      airDate: DateTime(2025, 1, 17),
+      runtime: 52,
+      stillUrl: null,
+      watchedAt: watchedAt,
+      watchCount: watchCount,
+    ),
   );
 }
 

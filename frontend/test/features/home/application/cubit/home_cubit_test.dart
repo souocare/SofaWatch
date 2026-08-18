@@ -198,6 +198,37 @@ void main() {
 
       await cubit.close();
     });
+    test('Retry reloads Premiering Today after failure', () async {
+      final UpcomingItem item = _upcomingItem(
+        episodeId: 'episode-retry',
+        airDate: _referenceToday,
+      );
+
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        upcoming: <UpcomingItem>[item],
+        failUpcoming: true,
+      );
+
+      final HomeCubit cubit = HomeCubit(
+        repository: repository,
+        now: () => _referenceToday,
+      );
+
+      await cubit.loadPremieringToday();
+
+      expect(repository.upcomingCalls, 1);
+      expect(cubit.state.premieringTodayError, isA<AppException>());
+
+      repository.failUpcoming = false;
+
+      await cubit.retryPremieringToday();
+
+      expect(repository.upcomingCalls, 2);
+      expect(cubit.state.premieringToday, <UpcomingItem>[item]);
+      expect(cubit.state.premieringTodayError, isNull);
+
+      await cubit.close();
+    });
   });
 
   group('HomeCubit Upcoming', () {
@@ -315,6 +346,37 @@ void main() {
       expect(cubit.state.upcoming, isEmpty);
       expect(cubit.state.upcomingError, isA<AppException>());
       expect(cubit.state.isLoadingUpcoming, isFalse);
+
+      await cubit.close();
+    });
+    test('Retry reloads only Upcoming after failure', () async {
+      final UpcomingItem item = _upcomingItem(
+        episodeId: 'episode-retry',
+        airDate: _relativeDay(1),
+      );
+
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        upcoming: <UpcomingItem>[item],
+        failUpcoming: true,
+      );
+
+      final HomeCubit cubit = HomeCubit(
+        repository: repository,
+        now: () => _referenceToday,
+      );
+
+      await cubit.loadUpcoming();
+
+      expect(repository.upcomingCalls, 1);
+      expect(cubit.state.upcomingError, isA<AppException>());
+
+      repository.failUpcoming = false;
+
+      await cubit.retryUpcoming();
+
+      expect(repository.upcomingCalls, 2);
+      expect(cubit.state.upcoming, <UpcomingItem>[item]);
+      expect(cubit.state.upcomingError, isNull);
 
       await cubit.close();
     });
@@ -546,6 +608,41 @@ void main() {
       expect(cubit.state.recentActivityError, isA<AppException>());
 
       expect(cubit.state.isLoadingRecentActivity, isFalse);
+
+      await cubit.close();
+    });
+    test('Retry reloads only Recent Activity after failure', () async {
+      final WatchHistoryItem item = _watchHistoryItem(
+        eventId: 'event-retry',
+        episodeId: 'episode-retry',
+        watchedAt: DateTime.utc(2026, 8, 16, 20),
+      );
+
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        watchHistory: WatchHistoryPage(
+          items: <WatchHistoryItem>[item],
+          hasMore: false,
+        ),
+        failWatchHistory: true,
+      );
+
+      final HomeCubit cubit = HomeCubit(
+        repository: repository,
+        now: () => _referenceToday,
+      );
+
+      await cubit.loadRecentActivity();
+
+      expect(repository.watchHistoryCalls, 1);
+      expect(cubit.state.recentActivityError, isA<AppException>());
+
+      repository.failWatchHistory = false;
+
+      await cubit.retryRecentActivity();
+
+      expect(repository.watchHistoryCalls, 2);
+      expect(cubit.state.recentActivity, <WatchHistoryItem>[item]);
+      expect(cubit.state.recentActivityError, isNull);
 
       await cubit.close();
     });
@@ -1211,6 +1308,36 @@ void main() {
         },
       );
     });
+    test('Retry reloads only Continue Watching after failure', () async {
+      final WatchNextShow item = _watchNextShow(episodeId: 'episode-retry');
+
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        watchNextResponses: <List<WatchNextShow>>[
+          <WatchNextShow>[item],
+        ],
+        failWatchNext: true,
+      );
+
+      final HomeCubit cubit = HomeCubit(
+        repository: repository,
+        now: () => _referenceToday,
+      );
+
+      await cubit.loadContinueWatching();
+
+      expect(repository.watchNextCalls, 1);
+      expect(cubit.state.continueWatchingError, isA<AppException>());
+
+      repository.failWatchNext = false;
+
+      await cubit.retryContinueWatching();
+
+      expect(repository.watchNextCalls, 2);
+      expect(cubit.state.continueWatching, <WatchNextShow>[item]);
+      expect(cubit.state.continueWatchingError, isNull);
+
+      await cubit.close();
+    });
   });
 }
 
@@ -1283,6 +1410,7 @@ final class _FakeShowsRepository implements ShowsRepository {
     this.watchNextResponses = const <List<WatchNextShow>>[],
     this.missedRecently = const <UpcomingItem>[],
     this.failMissedRecently = false,
+    this.failWatchNext = false,
   });
 
   final List<UpcomingItem> upcoming;
@@ -1291,7 +1419,8 @@ final class _FakeShowsRepository implements ShowsRepository {
   bool failUpcoming;
 
   final WatchHistoryPage watchHistory;
-  final bool failWatchHistory;
+  bool failWatchHistory;
+  bool failWatchNext;
 
   DateTime? requestedFromDate;
   DateTime? requestedToDate;
@@ -1345,6 +1474,10 @@ final class _FakeShowsRepository implements ShowsRepository {
   Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
     watchNextCalls++;
     requestedWatchNextLimit = limit;
+
+    if (failWatchNext) {
+      throw const AppException.connection();
+    }
 
     if (watchNextResponses.isEmpty) {
       return const <WatchNextShow>[];
