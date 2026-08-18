@@ -343,6 +343,31 @@ void main() {
         );
       },
     );
+    testWidgets('shows a specific safe message for a section timeout', (
+      WidgetTester tester,
+    ) async {
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        missedRecentlyError: const AppException.receiveTimeout(),
+      );
+
+      await tester.pumpWidget(_buildTestApp(repository: repository));
+
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey<String>('home-missed-recently-failure')),
+        findsOneWidget,
+      );
+
+      expect(find.text('This section took too long to load.'), findsOneWidget);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('home-missed-recently-failure-retry'),
+        ),
+        findsOneWidget,
+      );
+    });
   });
 }
 
@@ -379,6 +404,7 @@ final class _FakeShowsRepository implements ShowsRepository {
       hasMore: false,
     ),
     this.failMissedRecently = false,
+    this.missedRecentlyError,
   });
 
   final List<WatchNextShow> continueWatching;
@@ -389,6 +415,7 @@ final class _FakeShowsRepository implements ShowsRepository {
   final WatchHistoryPage watchHistory;
 
   final bool failMissedRecently;
+  final AppException? missedRecentlyError;
 
   @override
   Future<List<UpcomingItem>> getUpcoming({
@@ -452,6 +479,12 @@ final class _FakeShowsRepository implements ShowsRepository {
 
   @override
   Future<List<UpcomingItem>> getMissedRecently() async {
+    final AppException? error = missedRecentlyError;
+
+    if (error != null) {
+      throw error;
+    }
+
     if (failMissedRecently) {
       throw const AppException.connection();
     }

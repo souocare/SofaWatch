@@ -9,6 +9,7 @@ import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 import 'package:sofawatch/features/home/application/models/home_watch_source.dart';
 import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
+import 'package:sofawatch/core/widgets/section_failure_card.dart';
 
 class PremieringTodaySection extends StatelessWidget {
   const PremieringTodaySection({super.key});
@@ -29,9 +30,14 @@ class PremieringTodaySection extends StatelessWidget {
           return const _PremieringTodayLoading();
         }
 
-        if (state.premieringTodayError != null &&
-            state.premieringToday.isEmpty) {
-          return const _PremieringTodayFailure();
+        final error = state.premieringTodayError;
+
+        if (error != null && state.premieringToday.isEmpty) {
+          return SectionFailureCard(
+            failureKey: 'home-premiering-today-failure',
+            error: error,
+            onRetry: context.read<HomeCubit>().retryPremieringToday,
+          );
         }
 
         if (state.premieringToday.isEmpty) {

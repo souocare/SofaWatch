@@ -107,6 +107,24 @@ void main() {
 
       await cubit.close();
     });
+    test('failed background refresh preserves existing Statistics', () async {
+      final _RefreshFailureStatisticsRepository repository =
+          _RefreshFailureStatisticsRepository();
+
+      final StatisticsCubit cubit = StatisticsCubit(repository: repository);
+
+      await cubit.loadWeeklyStatistics();
+
+      expect(cubit.state, StatisticsSuccess(_statistics));
+
+      await cubit.refreshWeeklyStatistics();
+
+      expect(repository.calls, 2);
+
+      expect(cubit.state, StatisticsSuccess(_statistics));
+
+      await cubit.close();
+    });
   });
 }
 
@@ -186,5 +204,21 @@ final class _ControlledStatisticsRepository implements StatisticsRepository {
     }
 
     return _result.future;
+  }
+}
+
+final class _RefreshFailureStatisticsRepository
+    implements StatisticsRepository {
+  int calls = 0;
+
+  @override
+  Future<WeeklyStatistics> getWeeklyStatistics() async {
+    calls++;
+
+    if (calls == 1) {
+      return _statistics;
+    }
+
+    throw const AppException.receiveTimeout();
   }
 }

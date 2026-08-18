@@ -5,6 +5,7 @@ import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_state.dart';
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
+import 'package:sofawatch/core/widgets/section_failure_card.dart';
 
 class WeeklyStatisticsSection extends StatelessWidget {
   const WeeklyStatisticsSection({super.key});
@@ -33,7 +34,9 @@ class WeeklyStatisticsSection extends StatelessWidget {
                 statistics: statistics,
               ),
 
-              StatisticsFailure() => _WeeklyStatisticsFailure(
+              StatisticsFailure(:final error) => SectionFailureCard(
+                failureKey: 'home-your-week-failure',
+                error: error,
                 onRetry: context.read<StatisticsCubit>().retry,
               ),
             },
@@ -202,46 +205,6 @@ class _WeeklyStatisticSkeleton extends StatelessWidget {
           height: 18,
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
-      ),
-    );
-  }
-}
-
-class _WeeklyStatisticsFailure extends StatelessWidget {
-  const _WeeklyStatisticsFailure({required this.onRetry});
-
-  final Future<void> Function() onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('home-your-week-failure'),
-      padding: AppSpacing.cardPadding,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderLarge,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Row(
-        children: <Widget>[
-          const Icon(
-            Icons.error_outline_rounded,
-            color: AppColors.textSecondary,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              'Could not load this week’s statistics.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          TextButton(
-            key: const ValueKey<String>('home-your-week-retry'),
-            onPressed: onRetry,
-            child: const Text('Retry'),
-          ),
-        ],
       ),
     );
   }

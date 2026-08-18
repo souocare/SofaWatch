@@ -8,6 +8,7 @@ import 'package:sofawatch/features/home/application/cubit/home_state.dart';
 import 'package:sofawatch/features/home/application/models/home_watch_source.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
+import 'package:sofawatch/core/widgets/section_failure_card.dart';
 
 class ContinueWatchingSection extends StatelessWidget {
   const ContinueWatchingSection({super.key});
@@ -28,9 +29,14 @@ class ContinueWatchingSection extends StatelessWidget {
           return const _ContinueWatchingLoading();
         }
 
-        if (state.continueWatchingError != null &&
-            state.continueWatching.isEmpty) {
-          return const _ContinueWatchingFailure();
+        final error = state.continueWatchingError;
+
+        if (error != null && state.continueWatching.isEmpty) {
+          return SectionFailureCard(
+            failureKey: 'home-continue-watching-failure',
+            error: error,
+            onRetry: context.read<HomeCubit>().retryContinueWatching,
+          );
         }
 
         if (state.continueWatching.isEmpty) {
@@ -237,35 +243,6 @@ class _ContinueWatchingLoading extends StatelessWidget {
       key: ValueKey<String>('home-continue-watching-loading'),
       height: 96,
       child: Center(child: CircularProgressIndicator()),
-    );
-  }
-}
-
-class _ContinueWatchingFailure extends StatelessWidget {
-  const _ContinueWatchingFailure();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('home-continue-watching-failure'),
-      padding: AppSpacing.cardPadding,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderLarge,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Row(
-        children: <Widget>[
-          const Expanded(child: Text('Could not load Continue Watching.')),
-          TextButton(
-            key: const ValueKey<String>('home-continue-watching-retry'),
-            onPressed: () {
-              context.read<HomeCubit>().retryContinueWatching();
-            },
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
     );
   }
 }

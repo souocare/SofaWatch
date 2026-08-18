@@ -8,6 +8,7 @@ import 'package:sofawatch/features/home/application/cubit/home_state.dart';
 import 'package:sofawatch/features/home/application/models/home_watch_source.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
+import 'package:sofawatch/core/widgets/section_failure_card.dart';
 
 class MissedRecentlySection extends StatelessWidget {
   const MissedRecentlySection({super.key});
@@ -28,8 +29,14 @@ class MissedRecentlySection extends StatelessWidget {
           return const _MissedRecentlyLoading();
         }
 
-        if (state.missedRecentlyError != null && state.missedRecently.isEmpty) {
-          return const _MissedRecentlyFailure();
+        final error = state.missedRecentlyError;
+
+        if (error != null && state.missedRecently.isEmpty) {
+          return SectionFailureCard(
+            failureKey: 'home-missed-recently-failure',
+            error: error,
+            onRetry: context.read<HomeCubit>().retryMissedRecently,
+          );
         }
 
         if (state.missedRecently.isEmpty) {

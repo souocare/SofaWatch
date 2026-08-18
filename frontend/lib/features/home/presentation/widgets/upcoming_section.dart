@@ -8,6 +8,7 @@ import 'package:sofawatch/features/home/application/cubit/home_state.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
+import 'package:sofawatch/core/widgets/section_failure_card.dart';
 
 class UpcomingSection extends StatelessWidget {
   const UpcomingSection({super.key});
@@ -25,8 +26,14 @@ class UpcomingSection extends StatelessWidget {
           return const _UpcomingLoading();
         }
 
-        if (state.upcomingError != null && state.upcoming.isEmpty) {
-          return const _UpcomingFailure();
+        final error = state.upcomingError;
+
+        if (error != null && state.upcoming.isEmpty) {
+          return SectionFailureCard(
+            failureKey: 'home-upcoming-failure',
+            error: error,
+            onRetry: context.read<HomeCubit>().retryUpcoming,
+          );
         }
 
         if (state.upcoming.isEmpty) {

@@ -1042,6 +1042,118 @@ void main() {
         await cubit.close();
       },
     );
+    group('HomeCubit partial failures', () {
+      test(
+        'one failed section does not block the remaining Home sections',
+        () async {
+          final UpcomingItem upcomingItem = _upcomingItem(
+            episodeId: 'upcoming-episode',
+            airDate: _relativeDay(1),
+          );
+
+          final WatchNextShow continueWatchingItem = _watchNextShow(
+            episodeId: 'continue-episode',
+          );
+
+          final WatchHistoryItem recentItem = _watchHistoryItem(
+            eventId: 'recent-event',
+            episodeId: 'recent-episode',
+            watchedAt: DateTime.utc(2026, 8, 16, 20),
+          );
+
+          final _FakeShowsRepository repository = _FakeShowsRepository(
+            upcoming: <UpcomingItem>[upcomingItem],
+            watchNextResponses: <List<WatchNextShow>>[
+              <WatchNextShow>[continueWatchingItem],
+            ],
+            watchHistory: WatchHistoryPage(
+              items: <WatchHistoryItem>[recentItem],
+              hasMore: false,
+            ),
+            failMissedRecently: true,
+          );
+
+          final HomeCubit cubit = HomeCubit(
+            repository: repository,
+            now: () => _referenceToday,
+          );
+
+          await cubit.load();
+
+          expect(cubit.state.missedRecently, isEmpty);
+          expect(cubit.state.missedRecentlyError, isA<AppException>());
+
+          expect(cubit.state.continueWatching, isNotEmpty);
+          expect(cubit.state.premieringToday, isNotEmpty);
+          expect(cubit.state.upcoming, isNotEmpty);
+          expect(cubit.state.recentActivity, isNotEmpty);
+
+          await cubit.close();
+        },
+      );
+    });
+    test('retry reloads only the failed Missed Recently section', () async {
+      final UpcomingItem item = _upcomingItem(
+        episodeId: 'episode-1',
+        airDate: _relativeDay(-1),
+      );
+
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        missedRecently: <UpcomingItem>[item],
+        failMissedRecently: true,
+      );
+
+      final HomeCubit cubit = HomeCubit(
+        repository: repository,
+        now: () => _referenceToday,
+      );
+
+      await cubit.loadMissedRecently();
+
+      expect(repository.missedRecentlyCalls, 1);
+      expect(cubit.state.missedRecentlyError, isNotNull);
+
+      repository.failMissedRecently = false;
+
+      await cubit.retryMissedRecently();
+
+      expect(repository.missedRecentlyCalls, 2);
+      expect(cubit.state.missedRecently, <UpcomingItem>[item]);
+      expect(cubit.state.missedRecentlyError, isNull);
+
+      await cubit.close();
+    });
+    test('failed partial refresh preserves existing Upcoming data', () async {
+      final UpcomingItem existingItem = _upcomingItem(
+        episodeId: 'episode-existing',
+        airDate: _relativeDay(1),
+      );
+
+      final _FakeShowsRepository repository = _FakeShowsRepository(
+        upcoming: <UpcomingItem>[existingItem],
+      );
+
+      final HomeCubit cubit = HomeCubit(
+        repository: repository,
+        now: () => _referenceToday,
+      );
+
+      await cubit.loadUpcoming();
+
+      expect(cubit.state.upcoming, <UpcomingItem>[existingItem]);
+
+      repository.failUpcoming = true;
+
+      await cubit.loadUpcoming();
+
+      expect(cubit.state.upcoming, <UpcomingItem>[existingItem]);
+
+      expect(cubit.state.upcomingError, isA<AppException>());
+
+      expect(cubit.state.isLoadingUpcoming, isFalse);
+
+      await cubit.close();
+    });
   });
 }
 
@@ -1119,7 +1231,7 @@ final class _FakeShowsRepository implements ShowsRepository {
   final List<UpcomingItem> upcoming;
 
   final bool failMarkWatched;
-  final bool failUpcoming;
+  bool failUpcoming;
 
   final WatchHistoryPage watchHistory;
   final bool failWatchHistory;
@@ -1143,7 +1255,7 @@ final class _FakeShowsRepository implements ShowsRepository {
 
   final List<UpcomingItem> missedRecently;
 
-  final bool failMissedRecently;
+  bool failMissedRecently;
 
   int missedRecentlyCalls = 0;
 

@@ -7,6 +7,7 @@ import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
+import 'package:sofawatch/core/widgets/section_failure_card.dart';
 
 class RecentActivitySection extends StatelessWidget {
   const RecentActivitySection({super.key});
@@ -25,8 +26,14 @@ class RecentActivitySection extends StatelessWidget {
           return const _RecentActivityLoading();
         }
 
-        if (state.recentActivityError != null && state.recentActivity.isEmpty) {
-          return const _RecentActivityFailure();
+        final error = state.recentActivityError;
+
+        if (error != null && state.recentActivity.isEmpty) {
+          return SectionFailureCard(
+            failureKey: 'home-recent-activity-failure',
+            error: error,
+            onRetry: context.read<HomeCubit>().retryRecentActivity,
+          );
         }
 
         if (state.recentActivity.isEmpty) {
