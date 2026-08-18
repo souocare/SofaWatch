@@ -7,12 +7,15 @@ import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 abstract interface class ShowsRepository {
   Future<List<LibraryShow>> getLibraryShows();
 
-  Future<List<WatchNextShow>> getWatchNext();
+  Future<List<WatchNextShow>> getWatchNext({int? limit});
 
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   });
+
+  Future<List<UpcomingItem>> getMissedRecently();
 
   Future<List<StaleWatchingShow>> getStaleWatching();
 

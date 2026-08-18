@@ -2228,7 +2228,7 @@ class _FakeShowsRepository implements ShowsRepository {
   }
 
   @override
-  Future<List<WatchNextShow>> getWatchNext() async {
+  Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
     watchNextCalls++;
 
     final AppException? appError = watchNextError;
@@ -2287,6 +2287,11 @@ class _FakeShowsRepository implements ShowsRepository {
   Future<void> markEpisodeUnwatched({required String episodeId}) async {}
 
   @override
+  Future<List<UpcomingItem>> getMissedRecently() async {
+    return const <UpcomingItem>[];
+  }
+
+  @override
   Future<void> markEpisodeWatched({required String episodeId}) async {
     markEpisodeWatchedCalls++;
     markedEpisodeIds.add(episodeId);
@@ -2308,6 +2313,7 @@ class _FakeShowsRepository implements ShowsRepository {
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     _upcomingCalls++;
 
@@ -2394,7 +2400,7 @@ final class _PendingWatchHistoryRepository implements ShowsRepository {
   }
 
   @override
-  Future<List<WatchNextShow>> getWatchNext() async {
+  Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
     return const <WatchNextShow>[];
   }
 
@@ -2408,9 +2414,15 @@ final class _PendingWatchHistoryRepository implements ShowsRepository {
   Future<void> markEpisodeWatched({required String episodeId}) async {}
 
   @override
+  Future<List<UpcomingItem>> getMissedRecently() async {
+    return const <UpcomingItem>[];
+  }
+
+  @override
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     return const <UpcomingItem>[];
   }
@@ -2462,7 +2474,7 @@ final class _PendingLoadMoreWatchHistoryRepository implements ShowsRepository {
   }
 
   @override
-  Future<List<WatchNextShow>> getWatchNext() async {
+  Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
     return const <WatchNextShow>[];
   }
 
@@ -2476,9 +2488,15 @@ final class _PendingLoadMoreWatchHistoryRepository implements ShowsRepository {
   Future<void> markEpisodeWatched({required String episodeId}) async {}
 
   @override
+  Future<List<UpcomingItem>> getMissedRecently() async {
+    return const <UpcomingItem>[];
+  }
+
+  @override
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     return const <UpcomingItem>[];
   }
@@ -2503,7 +2521,7 @@ final class _ChangingWatchNextRepository implements ShowsRepository {
   }
 
   @override
-  Future<List<WatchNextShow>> getWatchNext() async {
+  Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
     watchNextCalls++;
 
     if (watchNextCalls == 1) {
@@ -2567,12 +2585,18 @@ final class _ChangingWatchNextRepository implements ShowsRepository {
   Future<void> startShow({required String showId}) async {}
 
   @override
+  Future<List<UpcomingItem>> getMissedRecently() async {
+    return const <UpcomingItem>[];
+  }
+
+  @override
   Future<void> markEpisodeUnwatched({required String episodeId}) async {}
 
   @override
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     return const <UpcomingItem>[];
   }
@@ -2594,7 +2618,7 @@ final class _CompletedWatchNextRepository implements ShowsRepository {
   }
 
   @override
-  Future<List<WatchNextShow>> getWatchNext() async {
+  Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
     watchNextCalls++;
 
     if (watchNextCalls == 1) {
@@ -2633,9 +2657,15 @@ final class _CompletedWatchNextRepository implements ShowsRepository {
   Future<void> markEpisodeUnwatched({required String episodeId}) async {}
 
   @override
+  Future<List<UpcomingItem>> getMissedRecently() async {
+    return const <UpcomingItem>[];
+  }
+
+  @override
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     return const <UpcomingItem>[];
   }
@@ -2654,6 +2684,7 @@ final class _RetryInitialUpcomingRepository extends _FakeShowsRepository {
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     _requests++;
 
@@ -2676,6 +2707,7 @@ class _EarlierUpcomingRepository extends _FakeShowsRepository {
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     _upcomingCalls++;
 
@@ -2708,6 +2740,7 @@ class _OverlappingEarlierUpcomingRepository extends _FakeShowsRepository {
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     _upcomingCalls++;
 
@@ -2738,6 +2771,7 @@ class _FailingEarlierUpcomingRepository extends _FakeShowsRepository {
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     _upcomingCalls++;
 
@@ -2792,7 +2826,7 @@ final class _PendingRefreshRepository implements ShowsRepository {
   }
 
   @override
-  Future<List<WatchNextShow>> getWatchNext() async {
+  Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
     watchNextCalls++;
 
     return <WatchNextShow>[_watchNextShow()];
@@ -2809,6 +2843,7 @@ final class _PendingRefreshRepository implements ShowsRepository {
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     upcomingCalls++;
 
@@ -2835,6 +2870,11 @@ final class _PendingRefreshRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getMissedRecently() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _ChangingRefreshRepository implements ShowsRepository {
@@ -2857,7 +2897,7 @@ final class _ChangingRefreshRepository implements ShowsRepository {
   }
 
   @override
-  Future<List<WatchNextShow>> getWatchNext() async {
+  Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
     watchNextCalls++;
 
     final WatchNextShow base = _watchNextShow();
@@ -2911,6 +2951,7 @@ final class _ChangingRefreshRepository implements ShowsRepository {
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     upcomingCalls++;
 
@@ -2943,6 +2984,11 @@ final class _ChangingRefreshRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getMissedRecently() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _FailingLibraryRefreshRepository implements ShowsRepository {
@@ -2969,7 +3015,7 @@ final class _FailingLibraryRefreshRepository implements ShowsRepository {
   }
 
   @override
-  Future<List<WatchNextShow>> getWatchNext() async {
+  Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
     watchNextCalls++;
 
     return <WatchNextShow>[_watchNextShow()];
@@ -2986,6 +3032,7 @@ final class _FailingLibraryRefreshRepository implements ShowsRepository {
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     upcomingCalls++;
 
@@ -3012,6 +3059,11 @@ final class _FailingLibraryRefreshRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getMissedRecently() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _PartialRefreshFailureRepository implements ShowsRepository {
@@ -3034,7 +3086,7 @@ final class _PartialRefreshFailureRepository implements ShowsRepository {
   }
 
   @override
-  Future<List<WatchNextShow>> getWatchNext() async {
+  Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
     watchNextCalls++;
 
     if (watchNextCalls == 2) {
@@ -3055,6 +3107,7 @@ final class _PartialRefreshFailureRepository implements ShowsRepository {
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     upcomingCalls++;
 
@@ -3089,4 +3142,9 @@ final class _PartialRefreshFailureRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getMissedRecently() async {
+    return const <UpcomingItem>[];
+  }
 }

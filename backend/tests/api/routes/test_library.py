@@ -4173,3 +4173,120 @@ def test_delete_all_movie_watch_events_is_idempotent(
 
     assert entry.status == LibraryStatus.PLANNING
     assert entry.completed_at is None
+
+def test_list_missed_recently_returns_home_collection(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return recently missed Episodes from actively Watching Shows."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300001,
+        episode_number=3,
+        title="Who Is Alive?",
+        air_date=date.today() - timedelta(days=1),
+    )
+
+    response = client.get(
+        "/api/v1/library/shows/missed-recently",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 1
+
+    item = body[0]
+
+    assert item["library_status"] == "watching"
+
+    assert item["show"]["id"] == str(show.id)
+    assert item["show"]["tmdb_id"] == 95396
+    assert item["show"]["title"] == "Severance"
+
+    assert item["episode"]["id"] == str(episode.id)
+    assert item["episode"]["tmdb_id"] == 300001
+    assert item["episode"]["season_number"] == 2
+    assert item["episode"]["episode_number"] == 3
+    assert item["episode"]["title"] == "Who Is Alive?"
+    assert item["episode"]["is_watched"] is False
+
+def test_list_upcoming_respects_limit(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    for index in range(5):
+        create_episode(
+            db_session,
+            season=season,
+            tmdb_id=300000 + index,
+            episode_number=index + 1,
+            title=f"Episode {index + 1}",
+            air_date=date(2026, 8, 20 + index),
+        )
+
+    response = client.get(
+        "/api/v1/library/shows/upcoming",
+        params={
+            "from_date": "2026-08-20",
+            "to_date": "2026-08-24",
+            "limit": 2,
+        },
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body) == 2
+    assert body[0]["episode"]["episode_number"] == 1
+    assert body[1]["episode"]["episode_number"] == 2

@@ -928,5 +928,179 @@ void main() {
 
       expect(result, isEmpty);
     });
+    test('loads and maps Missed Recently Episodes', () async {
+      dioAdapter.onGet('/library/shows/missed-recently', (server) {
+        server.reply(200, <Map<String, dynamic>>[
+          <String, dynamic>{
+            'library_entry_id': 'library-entry-1',
+            'library_status': 'watching',
+            'show': <String, dynamic>{
+              'id': 'show-1',
+              'tmdb_id': 95396,
+              'title': 'Severance',
+              'poster_url': 'https://example.com/poster.jpg',
+              'backdrop_url': 'https://example.com/backdrop.jpg',
+            },
+            'episode': <String, dynamic>{
+              'id': 'episode-1',
+              'tmdb_id': 1947648,
+              'season_number': 2,
+              'episode_number': 4,
+              'title': "Woe's Hollow",
+              'air_date': '2026-08-16',
+              'runtime': 52,
+              'still_url': 'https://example.com/still.jpg',
+              'is_watched': false,
+            },
+          },
+        ]);
+      });
+
+      final List<UpcomingItem> result = await repository.getMissedRecently();
+
+      expect(result, hasLength(1));
+
+      final UpcomingItem item = result.single;
+
+      expect(item.libraryEntryId, 'library-entry-1');
+      expect(item.libraryStatus, LibraryStatus.watching);
+
+      expect(item.showId, 'show-1');
+      expect(item.showTmdbId, 95396);
+      expect(item.showTitle, 'Severance');
+
+      expect(item.posterUrl, 'https://example.com/poster.jpg');
+      expect(item.backdropUrl, 'https://example.com/backdrop.jpg');
+
+      expect(item.episode.id, 'episode-1');
+      expect(item.episode.tmdbId, 1947648);
+      expect(item.episode.seasonNumber, 2);
+      expect(item.episode.episodeNumber, 4);
+      expect(item.episode.code, 'S02E04');
+      expect(item.episode.title, "Woe's Hollow");
+      expect(item.episode.airDate, DateTime(2026, 8, 16));
+      expect(item.episode.runtime, 52);
+      expect(item.episode.stillUrl, 'https://example.com/still.jpg');
+      expect(item.episode.isWatched, isFalse);
+    });
+
+    test('supports an empty Missed Recently collection', () async {
+      dioAdapter.onGet('/library/shows/missed-recently', (server) {
+        server.reply(200, <Map<String, dynamic>>[]);
+      });
+
+      final List<UpcomingItem> result = await repository.getMissedRecently();
+
+      expect(result, isEmpty);
+    });
+
+    test('maps malformed Missed Recently data to invalidData', () async {
+      dioAdapter.onGet('/library/shows/missed-recently', (server) {
+        server.reply(200, <Map<String, dynamic>>[
+          <String, dynamic>{
+            'library_entry_id': 'library-entry-1',
+            'library_status': 'watching',
+            'show': <String, dynamic>{
+              'id': 'show-1',
+              'tmdb_id': 95396,
+              'title': 'Severance',
+            },
+            'episode': <String, dynamic>{
+              'id': 'episode-1',
+              'tmdb_id': 1947648,
+              'season_number': 2,
+              'episode_number': 4,
+              'title': "Woe's Hollow",
+              'is_watched': false,
+
+              // air_date intentionally missing
+            },
+          },
+        ]);
+      });
+
+      expect(
+        repository.getMissedRecently(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
+
+    test(
+      'maps invalid Missed Recently response items to invalidData',
+      () async {
+        dioAdapter.onGet('/library/shows/missed-recently', (server) {
+          server.reply(200, <dynamic>['not-a-map']);
+        });
+
+        expect(
+          repository.getMissedRecently(),
+          throwsA(
+            isA<AppException>().having(
+              (AppException error) => error.type,
+              'type',
+              AppExceptionType.invalidData,
+            ),
+          ),
+        );
+      },
+    );
+
+    test('propagates Missed Recently API errors unchanged', () async {
+      dioAdapter.onGet('/library/shows/missed-recently', (server) {
+        server.reply(500, <String, dynamic>{
+          'code': 'server_error',
+          'message': 'Something went wrong.',
+        });
+      });
+
+      expect(
+        repository.getMissedRecently(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.server,
+          ),
+        ),
+      );
+    });
+    test('requests Upcoming with an explicit limit', () async {
+      dioAdapter.onGet(
+        '/library/shows/upcoming',
+        (server) {
+          server.reply(200, <Map<String, dynamic>>[]);
+        },
+        queryParameters: <String, dynamic>{
+          'from_date': '2026-08-18',
+          'to_date': '2026-08-24',
+          'limit': 6,
+        },
+      );
+
+      final List<UpcomingItem> result = await repository.getUpcoming(
+        fromDate: DateTime(2026, 8, 18),
+        toDate: DateTime(2026, 8, 24),
+        limit: 6,
+      );
+
+      expect(result, isEmpty);
+    });
+    test('requests Watch Next with an explicit limit', () async {
+      dioAdapter.onGet('/library/shows/watch-next', (server) {
+        server.reply(200, <Map<String, dynamic>>[]);
+      }, queryParameters: <String, dynamic>{'limit': 6});
+
+      final List<WatchNextShow> result = await repository.getWatchNext(
+        limit: 6,
+      );
+
+      expect(result, isEmpty);
+    });
   });
 }

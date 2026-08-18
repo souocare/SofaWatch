@@ -2,7 +2,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
 import 'package:sofawatch/features/home/application/models/home_watch_source.dart';
-import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
@@ -15,8 +14,6 @@ final class HomeCubit extends Cubit<HomeState> {
 
   static const int premieringTodayLimit = 5;
   static const int upcomingLimit = 6;
-  static const int missedRecentlyLimit = 10;
-  static const int missedRecentlyDays = 14;
   static const int upcomingDays = 7;
   static const int recentActivityLimit = 5;
   static const int continueWatchingLimit = 6;
@@ -67,7 +64,9 @@ final class HomeCubit extends Cubit<HomeState> {
     );
 
     try {
-      final List<WatchNextShow> result = await repository.getWatchNext();
+      final List<WatchNextShow> result = await repository.getWatchNext(
+        limit: continueWatchingLimit,
+      );
 
       if (isClosed) {
         return;
@@ -75,9 +74,7 @@ final class HomeCubit extends Cubit<HomeState> {
 
       emit(
         state.copyWith(
-          continueWatching: result
-              .take(continueWatchingLimit)
-              .toList(growable: false),
+          continueWatching: result,
           isLoadingContinueWatching: false,
           clearContinueWatchingError: true,
         ),
@@ -134,83 +131,33 @@ final class HomeCubit extends Cubit<HomeState> {
       ),
     );
 
-    final DateTime today = _today();
-
-    final DateTime fromDate = today.subtract(
-      const Duration(days: missedRecentlyDays),
-    );
-
-    final DateTime toDate = today.subtract(const Duration(days: 1));
-
     try {
-      final List<UpcomingItem> result = await repository.getUpcoming(
-        fromDate: fromDate,
-        toDate: toDate,
-      );
+      /*
+       * Missed Recently is a backend-owned Home collection.
+       *
+       * The server is responsible for:
+       *
+       * - the fourteen-day window;
+       * - excluding today;
+       * - regular Episodes only;
+       * - Watching Shows only;
+       * - excluding watched Episodes;
+       * - newest-first ordering;
+       * - the explicit Home limit.
+       *
+       * Keeping these rules server-side avoids duplicating domain logic
+       * in Flutter and allows the database query to perform the filtering
+       * efficiently.
+       */
+      final List<UpcomingItem> result = await repository.getMissedRecently();
 
       if (isClosed) {
         return;
       }
 
-      /*
-       * Missed Recently represents recent backlog from Shows that the user
-       * is actively watching.
-       *
-       * Even though the API request already has a date range, keep the
-       * Home-specific validation here defensively.
-       */
-      final List<UpcomingItem> missedRecently = result
-          .where((UpcomingItem item) {
-            final DateTime airDate = DateTime(
-              item.episode.airDate.year,
-              item.episode.airDate.month,
-              item.episode.airDate.day,
-            );
-
-            final bool isInsideWindow =
-                !airDate.isBefore(fromDate) && !airDate.isAfter(toDate);
-
-            return item.libraryStatus == LibraryStatus.watching &&
-                !item.episode.isWatched &&
-                isInsideWindow;
-          })
-          .toList(growable: false);
-
-      missedRecently.sort((UpcomingItem left, UpcomingItem right) {
-        final int dateComparison = right.episode.airDate.compareTo(
-          left.episode.airDate,
-        );
-
-        if (dateComparison != 0) {
-          return dateComparison;
-        }
-
-        final int titleComparison = left.showTitle.toLowerCase().compareTo(
-          right.showTitle.toLowerCase(),
-        );
-
-        if (titleComparison != 0) {
-          return titleComparison;
-        }
-
-        final int seasonComparison = right.episode.seasonNumber.compareTo(
-          left.episode.seasonNumber,
-        );
-
-        if (seasonComparison != 0) {
-          return seasonComparison;
-        }
-
-        return right.episode.episodeNumber.compareTo(
-          left.episode.episodeNumber,
-        );
-      });
-
       emit(
         state.copyWith(
-          missedRecently: missedRecently
-              .take(missedRecentlyLimit)
-              .toList(growable: false),
+          missedRecently: result,
           isLoadingMissedRecently: false,
           clearMissedRecentlyError: true,
         ),
@@ -342,6 +289,7 @@ final class HomeCubit extends Cubit<HomeState> {
       final List<UpcomingItem> result = await repository.getUpcoming(
         fromDate: today,
         toDate: today,
+        limit: premieringTodayLimit,
       );
 
       if (isClosed) {
@@ -350,9 +298,7 @@ final class HomeCubit extends Cubit<HomeState> {
 
       emit(
         state.copyWith(
-          premieringToday: result
-              .take(premieringTodayLimit)
-              .toList(growable: false),
+          premieringToday: result,
           isLoadingPremieringToday: false,
           clearPremieringTodayError: true,
         ),
@@ -438,6 +384,7 @@ final class HomeCubit extends Cubit<HomeState> {
       final List<UpcomingItem> result = await repository.getUpcoming(
         fromDate: fromDate,
         toDate: toDate,
+        limit: upcomingLimit,
       );
 
       if (isClosed) {
@@ -446,7 +393,7 @@ final class HomeCubit extends Cubit<HomeState> {
 
       emit(
         state.copyWith(
-          upcoming: result.take(upcomingLimit).toList(growable: false),
+          upcoming: result,
           isLoadingUpcoming: false,
           clearUpcomingError: true,
         ),

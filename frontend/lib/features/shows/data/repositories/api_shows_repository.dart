@@ -53,10 +53,17 @@ final class ApiShowsRepository implements ShowsRepository {
   }
 
   @override
-  Future<List<WatchNextShow>> getWatchNext() async {
+  Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
     try {
+      final Map<String, dynamic> queryParameters = <String, dynamic>{
+        if (limit != null) 'limit': limit,
+      };
+
       final Response<List<dynamic>> response = await _apiClient
-          .get<List<dynamic>>('/library/shows/watch-next');
+          .get<List<dynamic>>(
+            '/library/shows/watch-next',
+            queryParameters: queryParameters,
+          );
 
       final List<dynamic>? data = response.data;
 
@@ -86,11 +93,13 @@ final class ApiShowsRepository implements ShowsRepository {
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     try {
       final Map<String, dynamic> queryParameters = <String, dynamic>{
         if (fromDate != null) 'from_date': _formatDate(fromDate),
         if (toDate != null) 'to_date': _formatDate(toDate),
+        if (limit != null) 'limit': limit,
       };
 
       final Response<List<dynamic>> response = await _apiClient
@@ -109,6 +118,40 @@ final class ApiShowsRepository implements ShowsRepository {
           .map((dynamic item) {
             if (item is! Map<String, dynamic>) {
               throw const FormatException('Invalid Upcoming response item.');
+            }
+
+            return UpcomingItemDto.fromJson(item).toDomain();
+          })
+          .toList(growable: false);
+    } on AppException {
+      rethrow;
+    } on FormatException catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } on TypeError catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  @override
+  Future<List<UpcomingItem>> getMissedRecently() async {
+    try {
+      final Response<List<dynamic>> response = await _apiClient
+          .get<List<dynamic>>('/library/shows/missed-recently');
+
+      final List<dynamic>? data = response.data;
+
+      if (data == null) {
+        throw const FormatException(
+          'The Missed Recently response body is missing.',
+        );
+      }
+
+      return data
+          .map((dynamic item) {
+            if (item is! Map<String, dynamic>) {
+              throw const FormatException(
+                'Invalid Missed Recently response item.',
+              );
             }
 
             return UpcomingItemDto.fromJson(item).toDomain();

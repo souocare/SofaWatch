@@ -49,6 +49,7 @@ void main() {
 
       expect(repository.requestedFromDate, _referenceToday);
       expect(repository.requestedToDate, _referenceToday);
+      expect(repository.requestedUpcomingLimit, HomeCubit.premieringTodayLimit);
 
       await cubit.close();
     });
@@ -265,6 +266,7 @@ void main() {
       );
 
       await cubit.loadUpcoming();
+      expect(repository.requestedUpcomingLimit, HomeCubit.upcomingLimit);
 
       expect(cubit.state.upcoming, hasLength(HomeCubit.upcomingLimit));
 
@@ -319,78 +321,14 @@ void main() {
   });
 
   group('HomeCubit Missed Recently', () {
-    test('loads the previous 14 days excluding today', () async {
+    test('loads the backend-owned Missed Recently collection', () async {
+      final List<UpcomingItem> missedRecently = <UpcomingItem>[
+        _upcomingItem(episodeId: 'episode-1', airDate: _relativeDay(-1)),
+        _upcomingItem(episodeId: 'episode-2', airDate: _relativeDay(-2)),
+      ];
+
       final _FakeShowsRepository repository = _FakeShowsRepository(
-        upcoming: <UpcomingItem>[
-          _upcomingItem(episodeId: 'episode-1', airDate: _relativeDay(-1)),
-        ],
-      );
-
-      final HomeCubit cubit = HomeCubit(
-        repository: repository,
-        now: () => DateTime(2026, 8, 17, 14, 30),
-      );
-
-      await cubit.loadMissedRecently();
-
-      expect(repository.requestedFromDate, _relativeDay(-14));
-
-      expect(repository.requestedToDate, _relativeDay(-1));
-
-      await cubit.close();
-    });
-
-    test(
-      'calculates Missed Recently correctly when current day advances',
-      () async {
-        final DateTime simulatedToday = DateTime(2026, 8, 18);
-
-        final _FakeShowsRepository repository = _FakeShowsRepository(
-          upcoming: <UpcomingItem>[
-            _upcomingItem(
-              episodeId: 'episode-17',
-              airDate: DateTime(2026, 8, 17),
-            ),
-          ],
-        );
-
-        final HomeCubit cubit = HomeCubit(
-          repository: repository,
-          now: () => simulatedToday,
-        );
-
-        await cubit.loadMissedRecently();
-
-        expect(repository.requestedFromDate, DateTime(2026, 8, 4));
-
-        expect(repository.requestedToDate, DateTime(2026, 8, 17));
-
-        await cubit.close();
-      },
-    );
-
-    test('excludes Planning Shows and watched Episodes', () async {
-      final _FakeShowsRepository repository = _FakeShowsRepository(
-        upcoming: <UpcomingItem>[
-          _upcomingItem(
-            episodeId: 'watching-unwatched',
-            status: LibraryStatus.watching,
-            isWatched: false,
-            airDate: _relativeDay(-1),
-          ),
-          _upcomingItem(
-            episodeId: 'watching-watched',
-            status: LibraryStatus.watching,
-            isWatched: true,
-            airDate: _relativeDay(-2),
-          ),
-          _upcomingItem(
-            episodeId: 'planning-unwatched',
-            status: LibraryStatus.planning,
-            isWatched: false,
-            airDate: _relativeDay(-3),
-          ),
-        ],
+        missedRecently: missedRecently,
       );
 
       final HomeCubit cubit = HomeCubit(
@@ -400,21 +338,24 @@ void main() {
 
       await cubit.loadMissedRecently();
 
-      expect(
-        cubit.state.missedRecently.map((UpcomingItem item) => item.episode.id),
-        <String>['watching-unwatched'],
-      );
+      expect(repository.missedRecentlyCalls, 1);
+
+      expect(cubit.state.missedRecently, missedRecently);
+
+      expect(cubit.state.isLoadingMissedRecently, isFalse);
+      expect(cubit.state.missedRecentlyError, isNull);
 
       await cubit.close();
     });
 
-    test('orders missed Episodes newest first', () async {
+    test('does not re-filter the backend Missed Recently collection', () async {
+      final List<UpcomingItem> serverResult = <UpcomingItem>[
+        _upcomingItem(episodeId: 'episode-1', airDate: _relativeDay(-1)),
+        _upcomingItem(episodeId: 'episode-2', airDate: _relativeDay(-2)),
+      ];
+
       final _FakeShowsRepository repository = _FakeShowsRepository(
-        upcoming: <UpcomingItem>[
-          _upcomingItem(episodeId: 'oldest', airDate: _relativeDay(-12)),
-          _upcomingItem(episodeId: 'newest', airDate: _relativeDay(-1)),
-          _upcomingItem(episodeId: 'middle', airDate: _relativeDay(-7)),
-        ],
+        missedRecently: serverResult,
       );
 
       final HomeCubit cubit = HomeCubit(
@@ -424,24 +365,19 @@ void main() {
 
       await cubit.loadMissedRecently();
 
-      expect(
-        cubit.state.missedRecently.map((UpcomingItem item) => item.episode.id),
-        <String>['newest', 'middle', 'oldest'],
-      );
+      /*
+       * Filtering, ordering and limiting are backend responsibilities.
+       *
+       * Home preserves the server-owned collection exactly as received.
+       */
+      expect(cubit.state.missedRecently, serverResult);
 
       await cubit.close();
     });
 
-    test('limits Missed Recently to ten Episodes', () async {
+    test('stores Missed Recently errors independently', () async {
       final _FakeShowsRepository repository = _FakeShowsRepository(
-        upcoming: List<UpcomingItem>.generate(15, (int index) {
-          final int daysAgo = 1 + (index % 14);
-
-          return _upcomingItem(
-            episodeId: 'episode-$index',
-            airDate: _relativeDay(-daysAgo),
-          );
-        }),
+        failMissedRecently: true,
       );
 
       final HomeCubit cubit = HomeCubit(
@@ -451,17 +387,18 @@ void main() {
 
       await cubit.loadMissedRecently();
 
-      expect(
-        cubit.state.missedRecently,
-        hasLength(HomeCubit.missedRecentlyLimit),
-      );
+      expect(repository.missedRecentlyCalls, 1);
+
+      expect(cubit.state.missedRecently, isEmpty);
+      expect(cubit.state.missedRecentlyError, isA<AppException>());
+      expect(cubit.state.isLoadingMissedRecently, isFalse);
 
       await cubit.close();
     });
 
     test('removes Episode after marking it watched', () async {
       final _FakeShowsRepository repository = _FakeShowsRepository(
-        upcoming: <UpcomingItem>[
+        missedRecently: <UpcomingItem>[
           _upcomingItem(episodeId: 'episode-1', airDate: _relativeDay(-1)),
           _upcomingItem(episodeId: 'episode-2', airDate: _relativeDay(-2)),
         ],
@@ -485,41 +422,12 @@ void main() {
         <String>['episode-2'],
       );
 
-      expect(cubit.state.updatingEpisodeId, isNull);
-      expect(cubit.state.updatingEpisodeSource, isNull);
-      expect(cubit.state.watchOperationError, isNull);
-
-      await cubit.close();
-    });
-
-    test('supports unified watched action for Missed Recently', () async {
-      final _FakeShowsRepository repository = _FakeShowsRepository(
-        upcoming: <UpcomingItem>[
-          _upcomingItem(episodeId: 'episode-1', airDate: _relativeDay(-1)),
-        ],
-      );
-
-      final HomeCubit cubit = HomeCubit(
-        repository: repository,
-        now: () => _referenceToday,
-      );
-
-      await cubit.loadMissedRecently();
-
-      await cubit.markEpisodeWatched(
-        episodeId: 'episode-1',
-        source: HomeWatchSource.missedRecently,
-      );
-
-      expect(repository.markWatchedCalls, 1);
-      expect(cubit.state.missedRecently, isEmpty);
-
       await cubit.close();
     });
 
     test('restores Episode when marking it watched fails', () async {
       final _FakeShowsRepository repository = _FakeShowsRepository(
-        upcoming: <UpcomingItem>[
+        missedRecently: <UpcomingItem>[
           _upcomingItem(episodeId: 'episode-1', airDate: _relativeDay(-1)),
         ],
         failMarkWatched: true,
@@ -535,11 +443,8 @@ void main() {
       await cubit.markMissedRecentlyEpisodeWatched(episodeId: 'episode-1');
 
       expect(cubit.state.missedRecently, hasLength(1));
-
       expect(cubit.state.missedRecently.single.episode.id, 'episode-1');
 
-      expect(cubit.state.updatingEpisodeId, isNull);
-      expect(cubit.state.updatingEpisodeSource, isNull);
       expect(cubit.state.watchOperationError, isA<AppException>());
 
       await cubit.close();
@@ -894,7 +799,7 @@ void main() {
       'marking from Missed Recently removes Episode and refreshes Recent Activity',
       () async {
         final _FakeShowsRepository repository = _FakeShowsRepository(
-          upcoming: <UpcomingItem>[
+          missedRecently: <UpcomingItem>[
             _upcomingItem(
               episodeId: 'episode-1',
               airDate: _relativeDay(-1),
@@ -980,6 +885,10 @@ void main() {
         );
 
         await cubit.loadContinueWatching();
+        expect(
+          repository.requestedWatchNextLimit,
+          HomeCubit.continueWatchingLimit,
+        );
 
         expect(cubit.state.continueWatching.single.nextEpisode.id, 'episode-1');
 
@@ -1203,6 +1112,8 @@ final class _FakeShowsRepository implements ShowsRepository {
     ),
     this.failWatchHistory = false,
     this.watchNextResponses = const <List<WatchNextShow>>[],
+    this.missedRecently = const <UpcomingItem>[],
+    this.failMissedRecently = false,
   });
 
   final List<UpcomingItem> upcoming;
@@ -1216,6 +1127,8 @@ final class _FakeShowsRepository implements ShowsRepository {
   DateTime? requestedFromDate;
   DateTime? requestedToDate;
 
+  int? requestedUpcomingLimit;
+
   int? requestedWatchHistoryLimit;
 
   int upcomingCalls = 0;
@@ -1228,26 +1141,41 @@ final class _FakeShowsRepository implements ShowsRepository {
 
   int _watchNextResponseIndex = 0;
 
+  final List<UpcomingItem> missedRecently;
+
+  final bool failMissedRecently;
+
+  int missedRecentlyCalls = 0;
+
+  int? requestedWatchNextLimit;
+
   @override
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     upcomingCalls++;
 
     requestedFromDate = fromDate;
     requestedToDate = toDate;
+    requestedUpcomingLimit = limit;
 
     if (failUpcoming) {
       throw const AppException.connection();
     }
 
-    return upcoming;
+    if (limit == null) {
+      return upcoming;
+    }
+
+    return upcoming.take(limit).toList(growable: false);
   }
 
   @override
-  Future<List<WatchNextShow>> getWatchNext() async {
+  Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
     watchNextCalls++;
+    requestedWatchNextLimit = limit;
 
     if (watchNextResponses.isEmpty) {
       return const <WatchNextShow>[];
@@ -1264,7 +1192,11 @@ final class _FakeShowsRepository implements ShowsRepository {
       _watchNextResponseIndex++;
     }
 
-    return result;
+    if (limit == null) {
+      return result;
+    }
+
+    return result.take(limit).toList(growable: false);
   }
 
   @override
@@ -1309,6 +1241,17 @@ final class _FakeShowsRepository implements ShowsRepository {
   @override
   Future<void> markEpisodeUnwatched({required String episodeId}) {
     throw UnimplementedError();
+  }
+
+  @override
+  Future<List<UpcomingItem>> getMissedRecently() async {
+    missedRecentlyCalls++;
+
+    if (failMissedRecently) {
+      throw const AppException.connection();
+    }
+
+    return missedRecently;
   }
 }
 

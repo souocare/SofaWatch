@@ -195,6 +195,7 @@ def test_lists_upcoming_episodes_for_watching_and_planning_shows() -> None:
         ],
         from_date=date(2026, 8, 15),
         to_date=None,
+        limit=None,
     )
 
 
@@ -406,6 +407,7 @@ def test_forwards_explicit_date_range_to_episode_repository() -> None:
         show_ids=[show.id],
         from_date=date(2026, 8, 10),
         to_date=date(2026, 8, 20),
+        limit=None,
     )
 
 
@@ -575,4 +577,33 @@ def test_marks_upcoming_episode_as_unwatched_when_user_has_not_watched_it() -> N
     progress_repository.get_watched_episode_ids.assert_called_once_with(
         user_id=user_id,
         episode_ids=[episode.id],
+    )
+
+def test_forwards_explicit_limit_to_episode_repository() -> None:
+    library_repository = Mock(spec=LibraryRepository)
+    episode_repository = Mock(spec=EpisodeRepository)
+
+    show = create_show()
+    entry = create_library_entry(show=show)
+
+    library_repository.list_shows_by_user.return_value = [entry]
+    episode_repository.list_regular_for_shows_between.return_value = []
+
+    service = create_service(
+        library_repository=library_repository,
+        episode_repository=episode_repository,
+    )
+
+    service.list_for_user(
+        user_id=uuid4(),
+        from_date=date(2026, 8, 18),
+        to_date=date(2026, 8, 24),
+        limit=6,
+    )
+
+    episode_repository.list_regular_for_shows_between.assert_called_once_with(
+        show_ids=[show.id],
+        from_date=date(2026, 8, 18),
+        to_date=date(2026, 8, 24),
+        limit=6,
     )

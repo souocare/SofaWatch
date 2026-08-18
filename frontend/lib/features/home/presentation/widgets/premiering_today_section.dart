@@ -16,7 +16,11 @@ class PremieringTodaySection extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<HomeCubit, HomeState>(
       buildWhen: (HomeState previous, HomeState current) {
-        return previous.updatingEpisodeId != current.updatingEpisodeId ||
+        return previous.premieringToday != current.premieringToday ||
+            previous.isLoadingPremieringToday !=
+                current.isLoadingPremieringToday ||
+            previous.premieringTodayError != current.premieringTodayError ||
+            previous.updatingEpisodeId != current.updatingEpisodeId ||
             previous.updatingEpisodeSource != current.updatingEpisodeSource;
       },
       builder: (BuildContext context, HomeState state) {

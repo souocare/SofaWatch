@@ -59,6 +59,7 @@ from app.services.episode_details import EpisodeDetailsService
 from app.repositories.movie_watch_event import MovieWatchEventRepository
 from app.services.movie_watch_event import MovieWatchEventService
 from app.services.statistics import StatisticsService
+from app.services.missed_recently import MissedRecentlyService
 
 def get_genre_service(
     session: DatabaseSession,
@@ -648,6 +649,21 @@ def get_upcoming_service(
 UpcomingServiceDependency = Annotated[
     UpcomingService,
     Depends(get_upcoming_service),
+]
+
+def get_missed_recently_service(
+    session: DatabaseSession,
+) -> MissedRecentlyService:
+    """Provide the Home Missed Recently service for a single request."""
+
+    return MissedRecentlyService(
+        progress_repository=EpisodeProgressRepository(session),
+    )
+
+
+MissedRecentlyServiceDependency = Annotated[
+    MissedRecentlyService,
+    Depends(get_missed_recently_service),
 ]
 
 

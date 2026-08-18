@@ -1501,3 +1501,66 @@ def test_list_regular_for_shows_between_returns_empty_for_empty_input(
     )
 
     assert result == []
+
+def test_list_regular_for_shows_between_respects_limit(
+    db_session: Session,
+) -> None:
+    show = Show(
+        tmdb_id=95396,
+        title="Severance",
+        original_title="Severance",
+        original_language="en",
+        metadata_language="en-US",
+    )
+
+    db_session.add(show)
+    db_session.flush()
+
+    season = Season(
+        show_id=show.id,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+        overview=None,
+        air_date=None,
+        episode_count=5,
+        vote_average=0.0,
+    )
+
+    db_session.add(season)
+    db_session.flush()
+
+    for index in range(5):
+        episode = Episode(
+            season_id=season.id,
+            tmdb_id=300000 + index,
+            episode_number=index + 1,
+            title=f"Episode {index + 1}",
+            overview=None,
+            runtime=None,
+            vote_average=0.0,
+            vote_count=0,
+            tmdb_still_path=None,
+            local_still_path=None,
+            air_date=date(2026, 8, 20 + index),
+        )
+
+        db_session.add(episode)
+
+    db_session.commit()
+
+    repository = EpisodeRepository(db_session)
+
+    result = repository.list_regular_for_shows_between(
+        show_ids=[show.id],
+        from_date=date(2026, 8, 20),
+        to_date=date(2026, 8, 24),
+        limit=2,
+    )
+
+    assert len(result) == 2
+
+    assert [
+        item.episode.episode_number
+        for item in result
+    ] == [1, 2]

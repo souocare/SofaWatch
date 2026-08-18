@@ -255,6 +255,7 @@ final class _FakeShowsRepository implements ShowsRepository {
   Future<List<UpcomingItem>> getUpcoming({
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     return const <UpcomingItem>[];
   }
@@ -265,7 +266,7 @@ final class _FakeShowsRepository implements ShowsRepository {
   }
 
   @override
-  Future<List<WatchNextShow>> getWatchNext() async {
+  Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
     return const <WatchNextShow>[];
   }
 
@@ -290,6 +291,11 @@ final class _FakeShowsRepository implements ShowsRepository {
 
   @override
   Future<void> startShow({required String showId}) async {}
+
+  @override
+  Future<List<UpcomingItem>> getMissedRecently() async {
+    return const <UpcomingItem>[];
+  }
 }
 
 final class _FakeStatisticsRepository implements StatisticsRepository {

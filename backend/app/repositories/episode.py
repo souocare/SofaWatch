@@ -392,16 +392,21 @@ class EpisodeRepository:
         show_ids: list[UUID],
         from_date: date,
         to_date: date | None = None,
+        limit: int | None = None,
     ) -> list[TimelineEpisode]:
         """Return dated regular Episodes within an inclusive date range.
 
         When ``to_date`` is omitted, every known Episode on or after
-        ``from_date`` is returned.
+        ``from_date`` is eligible.
 
-        Results are ordered chronologically and deterministically.
+        ``limit`` restricts the number of rows returned directly at database
+        level after deterministic ordering.
         """
 
         if not show_ids:
+            return []
+
+        if limit is not None and limit <= 0:
             return []
 
         statement = (
@@ -435,6 +440,9 @@ class EpisodeRepository:
             Episode.episode_number.asc(),
             Episode.id.asc(),
         )
+
+        if limit is not None:
+            statement = statement.limit(limit)
 
         rows = self._session.execute(statement).all()
 

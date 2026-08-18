@@ -15,7 +15,11 @@ class MissedRecentlySection extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<HomeCubit, HomeState>(
       buildWhen: (HomeState previous, HomeState current) {
-        return previous.updatingEpisodeId != current.updatingEpisodeId ||
+        return previous.missedRecently != current.missedRecently ||
+            previous.isLoadingMissedRecently !=
+                current.isLoadingMissedRecently ||
+            previous.missedRecentlyError != current.missedRecentlyError ||
+            previous.updatingEpisodeId != current.updatingEpisodeId ||
             previous.updatingEpisodeSource != current.updatingEpisodeSource;
       },
       builder: (BuildContext context, HomeState state) {

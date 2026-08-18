@@ -22,7 +22,7 @@ extension SofaWatchWidgetTesterExtension on WidgetTester {
     );
 
     if (settle) {
-      await pumpAndSettle();
+      await _pumpInitialAppLoad();
     }
   }
 
@@ -42,7 +42,27 @@ extension SofaWatchWidgetTesterExtension on WidgetTester {
     );
 
     if (settle) {
-      await pumpAndSettle();
+      await _pumpInitialAppLoad();
     }
+  }
+
+  Future<void> _pumpInitialAppLoad() async {
+    /*
+     * Home starts several independent asynchronous sections at the same time.
+     *
+     * Some of those sections briefly render indeterminate progress indicators.
+     * pumpAndSettle is therefore not appropriate for application bootstrap,
+     * because indeterminate animations can keep scheduling frames.
+     *
+     * A few deterministic pumps are enough to:
+     *
+     * - mount the router;
+     * - start the Home requests;
+     * - allow mocked API futures to complete;
+     * - rebuild the final loaded state.
+     */
+    await pump();
+    await pump(const Duration(milliseconds: 100));
+    await pump(const Duration(milliseconds: 100));
   }
 }

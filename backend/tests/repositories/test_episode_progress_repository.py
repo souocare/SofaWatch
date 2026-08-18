@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -11,6 +11,9 @@ from app.models.season import Season
 from app.models.show import Show
 from app.models.user import User
 from app.repositories.episode_progress import EpisodeProgressRepository
+
+from app.models.enums import LibraryStatus
+from app.models.library import LibraryEntry
 
 def create_user(
     db_session: Session,
@@ -53,6 +56,26 @@ def create_show(
 
     return show
 
+def create_library_entry(
+    db_session: Session,
+    *,
+    user: User,
+    show: Show,
+    status: LibraryStatus = LibraryStatus.WATCHING,
+) -> LibraryEntry:
+    """Create and persist a Show library entry for progress repository tests."""
+
+    entry = LibraryEntry(
+        user_id=user.id,
+        show_id=show.id,
+        status=status,
+    )
+
+    db_session.add(entry)
+    db_session.commit()
+    db_session.refresh(entry)
+
+    return entry
 
 def create_season(
     db_session: Session,
@@ -2996,3 +3019,514 @@ def test_get_watched_episode_ids_returns_empty_for_empty_input(
     )
 
     assert result == set()
+
+
+def test_list_missed_recently_returns_unwatched_regular_episodes_for_watching_shows(
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300001,
+        episode_number=3,
+        title="Who Is Alive?",
+        air_date=date(2026, 8, 16),
+    )
+
+    repository = EpisodeProgressRepository(db_session)
+
+    result = repository.list_missed_recently(
+        user_id=user.id,
+        from_date=date(2026, 8, 3),
+        to_date=date(2026, 8, 16),
+        limit=10,
+    )
+
+    assert len(result) == 1
+
+    item = result[0]
+
+    assert item.show_id == show.id
+    assert item.episode.id == episode.id
+    assert item.season_number == 2
+
+
+def test_list_missed_recently_excludes_watched_episodes(
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    watched_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300001,
+        episode_number=1,
+        title="Watched",
+        air_date=date(2026, 8, 15),
+    )
+
+    unwatched_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300002,
+        episode_number=2,
+        title="Unwatched",
+        air_date=date(2026, 8, 16),
+    )
+
+    progress = EpisodeProgress(
+        user_id=user.id,
+        episode_id=watched_episode.id,
+        is_watched=True,
+        watched_at=datetime(
+            2026,
+            8,
+            15,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    db_session.add(progress)
+    db_session.commit()
+
+    repository = EpisodeProgressRepository(db_session)
+
+    result = repository.list_missed_recently(
+        user_id=user.id,
+        from_date=date(2026, 8, 3),
+        to_date=date(2026, 8, 16),
+        limit=10,
+    )
+
+    assert [item.episode.id for item in result] == [
+        unwatched_episode.id,
+    ]
+
+def test_list_missed_recently_keeps_explicitly_unwatched_progress(
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300001,
+        episode_number=1,
+        title="Unwatched",
+        air_date=date(2026, 8, 16),
+    )
+
+    progress = EpisodeProgress(
+        user_id=user.id,
+        episode_id=episode.id,
+        is_watched=False,
+        watched_at=None,
+    )
+
+    db_session.add(progress)
+    db_session.commit()
+
+    repository = EpisodeProgressRepository(db_session)
+
+    result = repository.list_missed_recently(
+        user_id=user.id,
+        from_date=date(2026, 8, 3),
+        to_date=date(2026, 8, 16),
+        limit=10,
+    )
+
+    assert [item.episode.id for item in result] == [
+        episode.id,
+    ]
+
+
+def test_list_missed_recently_only_returns_watching_shows(
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    statuses = (
+        LibraryStatus.WATCHING,
+        LibraryStatus.PLANNING,
+        LibraryStatus.PAUSED,
+        LibraryStatus.COMPLETED,
+        LibraryStatus.DROPPED,
+    )
+
+    expected_episode_id = None
+
+    for index, status in enumerate(statuses):
+        show = create_show(
+            db_session,
+            tmdb_id=110000 + index,
+            title=f"Show {status.value}",
+        )
+
+        create_library_entry(
+            db_session,
+            user=user,
+            show=show,
+            status=status,
+        )
+
+        season = create_season(
+            db_session,
+            show=show,
+            tmdb_id=120000 + index,
+            season_number=1,
+            title="Season 1",
+        )
+
+        episode = create_episode(
+            db_session,
+            season=season,
+            tmdb_id=130000 + index,
+            episode_number=1,
+            title="Episode",
+            air_date=date(2026, 8, 16),
+        )
+
+        if status == LibraryStatus.WATCHING:
+            expected_episode_id = episode.id
+
+    repository = EpisodeProgressRepository(db_session)
+
+    result = repository.list_missed_recently(
+        user_id=user.id,
+        from_date=date(2026, 8, 3),
+        to_date=date(2026, 8, 16),
+        limit=10,
+    )
+
+    assert [item.episode.id for item in result] == [
+        expected_episode_id,
+    ]
+
+def test_list_missed_recently_excludes_special_episodes(
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    specials = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134790,
+        season_number=0,
+        title="Specials",
+    )
+
+    regular_season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    create_episode(
+        db_session,
+        season=specials,
+        tmdb_id=300001,
+        episode_number=1,
+        title="Special",
+        air_date=date(2026, 8, 16),
+    )
+
+    regular_episode = create_episode(
+        db_session,
+        season=regular_season,
+        tmdb_id=300002,
+        episode_number=1,
+        title="Regular Episode",
+        air_date=date(2026, 8, 16),
+    )
+
+    repository = EpisodeProgressRepository(db_session)
+
+    result = repository.list_missed_recently(
+        user_id=user.id,
+        from_date=date(2026, 8, 3),
+        to_date=date(2026, 8, 16),
+        limit=10,
+    )
+
+    assert [item.episode.id for item in result] == [
+        regular_episode.id,
+    ]
+
+
+def test_list_missed_recently_uses_inclusive_date_range(
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    before = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300001,
+        episode_number=1,
+        title="Before",
+        air_date=date(2026, 8, 2),
+    )
+
+    first = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300002,
+        episode_number=2,
+        title="First Boundary",
+        air_date=date(2026, 8, 3),
+    )
+
+    last = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300003,
+        episode_number=3,
+        title="Last Boundary",
+        air_date=date(2026, 8, 16),
+    )
+
+    after = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300004,
+        episode_number=4,
+        title="After",
+        air_date=date(2026, 8, 17),
+    )
+
+    repository = EpisodeProgressRepository(db_session)
+
+    result = repository.list_missed_recently(
+        user_id=user.id,
+        from_date=date(2026, 8, 3),
+        to_date=date(2026, 8, 16),
+        limit=10,
+    )
+
+    ids = [item.episode.id for item in result]
+
+    assert first.id in ids
+    assert last.id in ids
+
+    assert before.id not in ids
+    assert after.id not in ids
+
+def test_list_missed_recently_orders_newest_first(
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    oldest = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300001,
+        episode_number=1,
+        title="Oldest",
+        air_date=date(2026, 8, 5),
+    )
+
+    middle = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300002,
+        episode_number=2,
+        title="Middle",
+        air_date=date(2026, 8, 10),
+    )
+
+    newest = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=300003,
+        episode_number=3,
+        title="Newest",
+        air_date=date(2026, 8, 16),
+    )
+
+    repository = EpisodeProgressRepository(db_session)
+
+    result = repository.list_missed_recently(
+        user_id=user.id,
+        from_date=date(2026, 8, 3),
+        to_date=date(2026, 8, 16),
+        limit=10,
+    )
+
+    assert [item.episode.id for item in result] == [
+        newest.id,
+        middle.id,
+        oldest.id,
+    ]
+
+
+def test_list_missed_recently_respects_limit(
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    create_library_entry(
+        db_session,
+        user=user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=2,
+        title="Season 2",
+    )
+
+    for index in range(12):
+        create_episode(
+            db_session,
+            season=season,
+            tmdb_id=300000 + index,
+            episode_number=index + 1,
+            title=f"Episode {index + 1}",
+            air_date=date(2026, 8, 16) - timedelta(days=index),
+        )
+
+    repository = EpisodeProgressRepository(db_session)
+
+    result = repository.list_missed_recently(
+        user_id=user.id,
+        from_date=date(2026, 8, 3),
+        to_date=date(2026, 8, 16),
+        limit=10,
+    )
+
+    assert len(result) == 10
+

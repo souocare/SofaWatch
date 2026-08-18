@@ -42,12 +42,18 @@ class UpcomingService:
         user_id: UUID,
         from_date: date | None = None,
         to_date: date | None = None,
+        limit: int | None = None,
     ) -> list[UpcomingItemResponse]:
         """Return known dated Episodes for the user's Upcoming timeline.
 
         By default the timeline starts today and has no upper date bound.
-        Only Watching and Planning Shows are eligible.
+
+        Only Watching and Planning Shows are eligible. When ``limit`` is
+        provided, the database returns at most that many Episodes.
         """
+
+        if limit is not None and limit <= 0:
+            return []
 
         timeline_start = from_date or date.today()
 
@@ -72,10 +78,13 @@ class UpcomingService:
             if entry.show_id is not None
         }
 
-        timeline_episodes = self._episode_repository.list_regular_for_shows_between(
-            show_ids=list(entries_by_show_id),
-            from_date=timeline_start,
-            to_date=to_date,
+        timeline_episodes = (
+            self._episode_repository.list_regular_for_shows_between(
+                show_ids=list(entries_by_show_id),
+                from_date=timeline_start,
+                to_date=to_date,
+                limit=limit,
+            )
         )
 
         watched_episode_ids = self._progress_repository.get_watched_episode_ids(
@@ -100,7 +109,10 @@ class UpcomingService:
                 self._build_item(
                     entry=entry,
                     timeline_episode=timeline_episode,
-                    is_watched=timeline_episode.episode.id in watched_episode_ids,
+                    is_watched=(
+                        timeline_episode.episode.id
+                        in watched_episode_ids
+                    ),
                 )
             )
 

@@ -34,8 +34,12 @@ class WatchNextService:
         self,
         *,
         user_id: UUID,
+        limit: int | None = None,
     ) -> list[WatchNextShowResponse]:
         """Return Shows that currently have an aired unwatched Episode."""
+
+        if limit is not None and limit <= 0:
+            return []
 
         entries = self._library_repository.list_shows_by_user(
             user_id,
@@ -164,5 +168,8 @@ class WatchNextService:
                 item.show.title.casefold(),
             )
         )
+
+        if limit is not None:
+            return results[:limit]
 
         return results

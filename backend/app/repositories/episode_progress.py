@@ -9,6 +9,8 @@ from app.models.episode import Episode
 from app.models.episode_progress import EpisodeProgress
 from app.models.season import Season
 from app.models.show import Show
+from app.models.enums import LibraryStatus
+from app.models.library import LibraryEntry
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +49,20 @@ class WatchHistoryPage:
     items: list[WatchHistoryEpisode]
     has_more: bool
 
+
+@dataclass(frozen=True, slots=True)
+class MissedRecentlyEpisode:
+    """Recent aired unwatched Episode from a Watching Show."""
+
+    library_entry_id: UUID
+    library_status: LibraryStatus
+    show: Show
+    episode: Episode
+    season_number: int
+
+    @property
+    def show_id(self) -> UUID:
+        return self.show.id
 
 class EpisodeProgressRepository:
     """Persistence operations for episode viewing progress."""
@@ -489,6 +505,98 @@ class EpisodeProgressRepository:
             for show_id, season_number, watched_at, episode in rows
         }
 
+    def list_missed_recently(
+        self,
+        *,
+        user_id: UUID,
+        from_date: date,
+        to_date: date,
+        limit: int = 10,
+    ) -> list[MissedRecentlyEpisode]:
+        """Return recently aired unwatched Episodes from Watching Shows.
+
+        Filtering is performed directly in the database:
+
+        - only Shows belonging to the requested user;
+        - only Library entries in Watching;
+        - only regular Episodes;
+        - only Episodes inside the inclusive requested date range;
+        - watched Episodes are excluded through EpisodeProgress;
+        - explicitly unwatched progress remains eligible;
+        - results are ordered newest first;
+        - the result limit is applied at database level.
+        """
+
+        if limit <= 0:
+            return []
+
+        watched_episode_ids = select(
+            EpisodeProgress.episode_id,
+        ).where(
+            EpisodeProgress.user_id == user_id,
+            EpisodeProgress.is_watched.is_(True),
+        )
+
+        statement = (
+            select(
+                LibraryEntry.id,
+                LibraryEntry.status,
+                Show,
+                Season.season_number,
+                Episode,
+            )
+            .select_from(LibraryEntry)
+            .join(
+                Show,
+                Show.id == LibraryEntry.show_id,
+            )
+            .join(
+                Season,
+                Season.show_id == Show.id,
+            )
+            .join(
+                Episode,
+                Episode.season_id == Season.id,
+            )
+            .where(
+                LibraryEntry.user_id == user_id,
+                LibraryEntry.show_id.is_not(None),
+                LibraryEntry.status == LibraryStatus.WATCHING,
+                Season.season_number > 0,
+                Episode.air_date.is_not(None),
+                Episode.air_date >= from_date,
+                Episode.air_date <= to_date,
+                Episode.id.not_in(watched_episode_ids),
+            )
+            .order_by(
+                Episode.air_date.desc(),
+                Show.title.asc(),
+                Season.season_number.desc(),
+                Episode.episode_number.desc(),
+                Episode.id.desc(),
+            )
+            .limit(limit)
+        )
+
+        rows = self._session.execute(statement).all()
+
+        return [
+            MissedRecentlyEpisode(
+                library_entry_id=library_entry_id,
+                library_status=library_status,
+                show=show,
+                episode=episode,
+                season_number=int(season_number),
+            )
+            for (
+                library_entry_id,
+                library_status,
+                show,
+                season_number,
+                episode,
+            ) in rows
+        ]
+
     def list_watch_history(
         self,
         *,
@@ -599,52 +707,102 @@ class EpisodeProgressRepository:
             has_more=has_more,
         )
 
-
-    def get_watched_aired_counts_by_show_ids(
+    def list_missed_recently_for_user(
         self,
         *,
         user_id: UUID,
-        show_ids: list[UUID],
-        as_of: date,
-    ) -> dict[UUID, int]:
-        """Return watched aired regular Episode counts grouped by Show."""
+        from_date: date,
+        to_date: date,
+        limit: int,
+    ) -> list[MissedRecentlyEpisode]:
+        """Return recent aired unwatched Episodes from Watching Shows.
 
-        if not show_ids:
-            return {}
+        Filtering is performed entirely in the database:
+
+        - only the requested user;
+        - only Shows currently marked as Watching;
+        - only regular Episodes;
+        - only Episodes inside the inclusive date range;
+        - watched Episodes are excluded;
+        - newest Episodes are returned first.
+
+        The query returns every piece of data required by the Home response,
+        avoiding per-item repository lookups and N+1 queries.
+        """
+
+        if limit <= 0:
+            return []
+
+        watched_progress = (
+            select(EpisodeProgress.id)
+            .where(
+                EpisodeProgress.user_id == user_id,
+                EpisodeProgress.episode_id == Episode.id,
+                EpisodeProgress.is_watched.is_(True),
+            )
+            .exists()
+        )
 
         statement = (
             select(
-                Season.show_id,
-                func.count(EpisodeProgress.id),
-            )
-            .select_from(EpisodeProgress)
-            .join(
+                LibraryEntry.id,
+                LibraryEntry.status,
+                Show,
+                Season.season_number,
                 Episode,
-                Episode.id == EpisodeProgress.episode_id,
+            )
+            .select_from(LibraryEntry)
+            .join(
+                Show,
+                Show.id == LibraryEntry.show_id,
             )
             .join(
                 Season,
-                Season.id == Episode.season_id,
+                Season.show_id == Show.id,
+            )
+            .join(
+                Episode,
+                Episode.season_id == Season.id,
             )
             .where(
-                EpisodeProgress.user_id == user_id,
-                EpisodeProgress.is_watched.is_(True),
-                Season.show_id.in_(show_ids),
+                LibraryEntry.user_id == user_id,
+                LibraryEntry.status == LibraryStatus.WATCHING,
+                LibraryEntry.show_id.is_not(None),
                 Season.season_number > 0,
                 Episode.air_date.is_not(None),
-                Episode.air_date <= as_of,
+                Episode.air_date >= from_date,
+                Episode.air_date <= to_date,
+                ~watched_progress,
             )
-            .group_by(
-                Season.show_id,
+            .order_by(
+                Episode.air_date.desc(),
+                Show.title.asc(),
+                Season.season_number.desc(),
+                Episode.episode_number.desc(),
+                Episode.id.desc(),
             )
+            .limit(limit)
         )
 
         rows = self._session.execute(statement).all()
 
-        return {
-            show_id: int(watched_episodes or 0)
-            for show_id, watched_episodes in rows
-        }
+        return [
+            MissedRecentlyEpisode(
+                library_entry_id=library_entry_id,
+                library_status=library_status,
+                show=show,
+                episode=episode,
+                season_number=int(season_number),
+            )
+            for (
+                library_entry_id,
+                library_status,
+                show,
+                season_number,
+                episode,
+            ) in rows
+        ]
+    
 
     def get_watched_aired_counts_by_show_ids(
         self,

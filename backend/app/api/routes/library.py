@@ -8,6 +8,7 @@ from app.api.dependencies import (
     CurrentUserDependency,
     HaventStartedServiceDependency,
     LibraryServiceDependency,
+    MissedRecentlyServiceDependency,
     StaleWatchingServiceDependency,
     StartShowServiceDependency,
     UpcomingServiceDependency,
@@ -132,6 +133,17 @@ def list_upcoming_episodes(
             description="Inclusive last air date to return.",
         ),
     ] = None,
+    limit: Annotated[
+        int | None,
+        Query(
+            ge=1,
+            le=100,
+            description=(
+                "Maximum number of Episodes to return. "
+                "When omitted, the timeline is not explicitly limited."
+            ),
+        ),
+    ] = None,
 ) -> list[UpcomingItemResponse]:
     """Return the current user's Upcoming Episode timeline."""
 
@@ -150,7 +162,29 @@ def list_upcoming_episodes(
         user_id=current_user.id,
         from_date=from_date,
         to_date=to_date,
+        limit=limit,
     )
+
+
+@router.get(
+    "/shows/missed-recently",
+    response_model=list[UpcomingItemResponse],
+    summary="List recently missed TV episodes",
+    description=(
+        "Return recent regular unwatched Episodes from TV series "
+        "currently marked as Watching, excluding today."
+    ),
+)
+def list_missed_recently_episodes(
+    current_user: CurrentUserDependency,
+    service: MissedRecentlyServiceDependency,
+) -> list[UpcomingItemResponse]:
+    """Return the Home Missed Recently collection."""
+
+    return service.list_for_user(
+        user_id=current_user.id,
+    )
+
 
 @router.get(
     "/shows/watch-next",
@@ -164,11 +198,22 @@ def list_upcoming_episodes(
 def list_watch_next_shows(
     current_user: CurrentUserDependency,
     service: WatchNextServiceDependency,
+    limit: Annotated[
+        int | None,
+        Query(
+            ge=1,
+            le=100,
+            description=(
+                "Maximum number of Watch Next items to return."
+            ),
+        ),
+    ] = None,
 ) -> list[WatchNextShowResponse]:
     """Return the current user's Watch Next collection."""
 
     return service.list_for_user(
         user_id=current_user.id,
+        limit=limit,
     )
 
 @router.get(
