@@ -57,6 +57,10 @@ import 'package:sofawatch/features/library/application/cubit/library_preview_cub
 import 'package:sofawatch/features/library/data/repositories/api_library_repository.dart';
 import 'package:sofawatch/features/library/application/cubit/library_collection_cubit.dart';
 import 'package:sofawatch/features/library/presentation/pages/library_collection_page.dart';
+import 'package:sofawatch/features/history/application/cubit/history_preview_cubit.dart';
+import 'package:sofawatch/features/history/data/repositories/api_history_repository.dart';
+import 'package:sofawatch/features/history/application/cubit/history_cubit.dart';
+import 'package:sofawatch/features/history/presentation/pages/history_page.dart';
 
 GoRouter createAppRouter({required ApiClient apiClient}) {
   final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -323,6 +327,15 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                           )..load();
                         },
                       ),
+                      BlocProvider<HistoryPreviewCubit>(
+                        create: (BuildContext context) {
+                          return HistoryPreviewCubit(
+                            repository: ApiHistoryRepository(
+                              context.read<ApiClient>(),
+                            ),
+                          )..load();
+                        },
+                      ),
                     ],
                     child: const ProfilePage(),
                   );
@@ -404,6 +417,22 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                           )..load();
                         },
                         child: LibraryCollectionPage(initialTab: initialTab),
+                      );
+                    },
+                  ),
+                  GoRoute(
+                    name: AppRoute.history.name,
+                    path: RoutePaths.history,
+                    builder: (BuildContext context, GoRouterState state) {
+                      return BlocProvider<HistoryCubit>(
+                        create: (BuildContext context) {
+                          return HistoryCubit(
+                            repository: ApiHistoryRepository(
+                              context.read<ApiClient>(),
+                            ),
+                          )..load();
+                        },
+                        child: const HistoryPage(),
                       );
                     },
                   ),

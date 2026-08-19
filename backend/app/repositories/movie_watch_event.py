@@ -12,6 +12,23 @@ from app.repositories.statistics_insights import (
     GenreViewingInsight,
     MovieViewingInsight,
 )
+from dataclasses import dataclass
+
+@dataclass(frozen=True, slots=True)
+class MovieWatchHistoryEvent:
+    """One historical Movie viewing displayed in History."""
+
+    event_id: UUID
+    movie: Movie
+    watched_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class MovieWatchHistoryEventPage:
+    """One cursor-paginated page of historical Movie viewings."""
+
+    items: list[MovieWatchHistoryEvent]
+    has_more: bool
 
 class MovieWatchEventRepository:
     """Persistence operations for historical Movie watch events."""
@@ -80,6 +97,99 @@ class MovieWatchEventRepository:
                     MovieWatchEvent.id.desc(),
                 )
             ).all()
+        )
+
+    def list_watch_history(
+        self,
+        *,
+        user_id: UUID,
+        limit: int = 30,
+        before_watched_at: datetime | None = None,
+        before_event_id: UUID | None = None,
+    ) -> MovieWatchHistoryEventPage:
+        """Return one cursor-paginated page of Movie viewing events.
+
+        Every result represents one real viewing event. Rewatching the same
+        Movie therefore produces multiple History entries.
+
+        Results are ordered newest first. The cursor combines ``watched_at``
+        with ``event_id`` so pagination remains deterministic when multiple
+        events have the same viewing timestamp.
+        """
+
+        if limit <= 0:
+            return MovieWatchHistoryEventPage(
+                items=[],
+                has_more=False,
+            )
+
+        if (before_watched_at is None) != (before_event_id is None):
+            raise ValueError(
+                "Movie History cursor requires both "
+                "before_watched_at and before_event_id."
+            )
+
+        statement = (
+            select(
+                MovieWatchEvent.id,
+                Movie,
+                MovieWatchEvent.watched_at,
+            )
+            .select_from(MovieWatchEvent)
+            .join(
+                Movie,
+                Movie.id == MovieWatchEvent.movie_id,
+            )
+            .where(
+                MovieWatchEvent.user_id == user_id,
+            )
+        )
+
+        if before_watched_at is not None and before_event_id is not None:
+            statement = statement.where(
+                (
+                    MovieWatchEvent.watched_at
+                    < before_watched_at
+                )
+                | (
+                    (
+                        MovieWatchEvent.watched_at
+                        == before_watched_at
+                    )
+                    & (
+                        MovieWatchEvent.id
+                        < before_event_id
+                    )
+                )
+            )
+
+        statement = statement.order_by(
+            MovieWatchEvent.watched_at.desc(),
+            MovieWatchEvent.id.desc(),
+        ).limit(limit + 1)
+
+        rows = self._session.execute(
+            statement,
+        ).all()
+
+        has_more = len(rows) > limit
+
+        items = [
+            MovieWatchHistoryEvent(
+                event_id=event_id,
+                movie=movie,
+                watched_at=watched_at,
+            )
+            for (
+                event_id,
+                movie,
+                watched_at,
+            ) in rows[:limit]
+        ]
+
+        return MovieWatchHistoryEventPage(
+            items=items,
+            has_more=has_more,
         )
 
     def count_by_user_and_movie(
@@ -290,6 +400,80 @@ class MovieWatchEventRepository:
         return (
             int(row[0] or 0),
             int(row[1] or 0),
+        )
+
+    def list_watch_history_before_timestamp(
+        self,
+        *,
+        user_id: UUID,
+        limit: int,
+        watched_at: datetime,
+        inclusive: bool,
+    ) -> MovieWatchHistoryEventPage:
+        """Return Movie History before a timestamp boundary.
+
+        This query is used when combining Movie and Episode History.
+
+        ``inclusive=True`` keeps Movie events occurring exactly at the
+        boundary timestamp. ``inclusive=False`` only returns older events.
+        """
+
+        if limit <= 0:
+            return MovieWatchHistoryEventPage(
+                items=[],
+                has_more=False,
+            )
+
+        timestamp_condition = (
+            MovieWatchEvent.watched_at <= watched_at
+            if inclusive
+            else MovieWatchEvent.watched_at < watched_at
+        )
+
+        statement = (
+            select(
+                MovieWatchEvent.id,
+                Movie,
+                MovieWatchEvent.watched_at,
+            )
+            .select_from(MovieWatchEvent)
+            .join(
+                Movie,
+                Movie.id == MovieWatchEvent.movie_id,
+            )
+            .where(
+                MovieWatchEvent.user_id == user_id,
+                timestamp_condition,
+            )
+            .order_by(
+                MovieWatchEvent.watched_at.desc(),
+                MovieWatchEvent.id.desc(),
+            )
+            .limit(limit + 1)
+        )
+
+        rows = self._session.execute(
+            statement,
+        ).all()
+
+        has_more = len(rows) > limit
+
+        items = [
+            MovieWatchHistoryEvent(
+                event_id=event_id,
+                movie=movie,
+                watched_at=event_watched_at,
+            )
+            for (
+                event_id,
+                movie,
+                event_watched_at,
+            ) in rows[:limit]
+        ]
+
+        return MovieWatchHistoryEventPage(
+            items=items,
+            has_more=has_more,
         )
 
     def delete(

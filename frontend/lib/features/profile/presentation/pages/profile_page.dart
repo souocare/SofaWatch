@@ -16,6 +16,11 @@ import 'package:sofawatch/features/statistics/presentation/formatters/statistics
 import 'package:sofawatch/features/library/application/cubit/library_preview_cubit.dart';
 import 'package:sofawatch/features/library/application/cubit/library_preview_state.dart';
 import 'package:sofawatch/features/library/domain/models/library_preview.dart';
+import 'package:sofawatch/features/history/application/cubit/history_preview_cubit.dart';
+import 'package:sofawatch/features/history/application/cubit/history_preview_state.dart';
+import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_preview.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -62,6 +67,10 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: AppSpacing.section),
 
                   const _ProfileLibrarySection(),
+
+                  const SizedBox(height: AppSpacing.section),
+
+                  const _ProfileHistorySection(),
                 ],
               ),
             ),
@@ -835,4 +844,439 @@ class _ProfileLibraryLoadingGroup extends StatelessWidget {
       ],
     );
   }
+}
+
+class _ProfileHistorySection extends StatelessWidget {
+  const _ProfileHistorySection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-history'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'History',
+          key: const ValueKey<String>('profile-history-title'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        BlocBuilder<HistoryPreviewCubit, HistoryPreviewState>(
+          builder: (BuildContext context, HistoryPreviewState state) {
+            return switch (state) {
+              HistoryPreviewInitial() ||
+              HistoryPreviewLoading() => const _ProfileHistoryLoading(),
+
+              HistoryPreviewSuccess(:final preview) => _ProfileHistoryContent(
+                preview: preview,
+              ),
+
+              HistoryPreviewFailure(:final error) => SectionFailureCard(
+                failureKey: 'profile-history-failure',
+                error: error,
+                onRetry: context.read<HistoryPreviewCubit>().retry,
+              ),
+            };
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileHistoryContent extends StatelessWidget {
+  const _ProfileHistoryContent({required this.preview});
+
+  final HistoryPreview preview;
+
+  @override
+  Widget build(BuildContext context) {
+    if (preview.isEmpty) {
+      return const _ProfileHistoryEmpty();
+    }
+
+    return Column(
+      key: const ValueKey<String>('profile-history-content'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (preview.episodes.isNotEmpty)
+          _ProfileHistoryGroup(
+            groupKey: 'profile-history-episodes',
+            title: 'Episodes',
+            children: preview.episodes
+                .map(
+                  (HistoryEpisodeItem item) =>
+                      _ProfileEpisodeHistoryRow(item: item),
+                )
+                .toList(growable: false),
+          ),
+
+        if (preview.episodes.isNotEmpty && preview.movies.isNotEmpty)
+          const SizedBox(height: AppSpacing.xl),
+
+        if (preview.movies.isNotEmpty)
+          _ProfileHistoryGroup(
+            groupKey: 'profile-history-movies',
+            title: 'Movies',
+            children: preview.movies
+                .map(
+                  (HistoryMovieItem item) =>
+                      _ProfileMovieHistoryRow(item: item),
+                )
+                .toList(growable: false),
+          ),
+      ],
+    );
+  }
+}
+
+class _ProfileHistoryGroup extends StatelessWidget {
+  const _ProfileHistoryGroup({
+    required this.groupKey,
+    required this.title,
+    required this.children,
+  });
+
+  final String groupKey;
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: ValueKey<String>(groupKey),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          title,
+          key: ValueKey<String>('$groupKey-title'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+
+        const SizedBox(height: AppSpacing.sm),
+
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.surfaceHigh,
+            borderRadius: AppRadius.borderLarge,
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Column(
+            children: <Widget>[
+              for (int index = 0; index < children.length; index++) ...<Widget>[
+                children[index],
+
+                if (index < children.length - 1)
+                  Divider(height: 1, color: AppColors.outlineVariant),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileEpisodeHistoryRow extends StatelessWidget {
+  const _ProfileEpisodeHistoryRow({required this.item});
+
+  final HistoryEpisodeItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      key: ValueKey<String>('profile-history-episode-${item.eventId}'),
+      borderRadius: AppRadius.borderLarge,
+      onTap: () {
+        context.pushNamed(
+          AppRoute.episodeDetails.name,
+          pathParameters: <String, String>{'episodeId': item.episode.id},
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: <Widget>[
+            _ProfileHistoryArtwork(
+              imageUrl: item.episode.stillUrl ?? item.posterUrl,
+              icon: Icons.tv_outlined,
+              isPoster: false,
+            ),
+
+            const SizedBox(width: AppSpacing.md),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    item.showTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+
+                  const SizedBox(height: AppSpacing.xs),
+
+                  Text(
+                    '${item.episode.code} · ${item.episode.title}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+
+                  const SizedBox(height: AppSpacing.xs),
+
+                  Text(
+                    _formatProfileHistoryDate(item.watchedAt),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: AppSpacing.sm),
+
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileMovieHistoryRow extends StatelessWidget {
+  const _ProfileMovieHistoryRow({required this.item});
+
+  final HistoryMovieItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      key: ValueKey<String>('profile-history-movie-${item.eventId}'),
+      borderRadius: AppRadius.borderLarge,
+      onTap: () {
+        context.pushNamed(
+          AppRoute.movieDetails.name,
+          pathParameters: <String, String>{
+            'movieId': item.movieTmdbId.toString(),
+          },
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: <Widget>[
+            _ProfileHistoryArtwork(
+              imageUrl: item.posterUrl,
+              icon: Icons.movie_outlined,
+              isPoster: true,
+            ),
+
+            const SizedBox(width: AppSpacing.md),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    item.movieTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+
+                  const SizedBox(height: AppSpacing.xs),
+
+                  Text(
+                    _formatProfileHistoryDate(item.watchedAt),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: AppSpacing.sm),
+
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileHistoryArtwork extends StatelessWidget {
+  const _ProfileHistoryArtwork({
+    required this.imageUrl,
+    required this.icon,
+    required this.isPoster,
+  });
+
+  final String? imageUrl;
+  final IconData icon;
+  final bool isPoster;
+
+  @override
+  Widget build(BuildContext context) {
+    final String? normalizedUrl = imageUrl?.trim();
+
+    final double width = isPoster ? 42 : 72;
+    final double height = isPoster ? 63 : 46;
+
+    return ClipRRect(
+      borderRadius: AppRadius.borderMedium,
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: normalizedUrl == null || normalizedUrl.isEmpty
+              ? Icon(icon, size: 24, color: AppColors.textMuted)
+              : Image.network(
+                  normalizedUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder:
+                      (
+                        BuildContext context,
+                        Object error,
+                        StackTrace? stackTrace,
+                      ) {
+                        return Icon(icon, size: 24, color: AppColors.textMuted);
+                      },
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileHistoryEmpty extends StatelessWidget {
+  const _ProfileHistoryEmpty();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey<String>('profile-history-empty'),
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Text(
+        'Your viewing History is empty.',
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+      ),
+    );
+  }
+}
+
+class _ProfileHistoryLoading extends StatelessWidget {
+  const _ProfileHistoryLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey<String>('profile-history-loading'),
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: const Column(
+        children: <Widget>[
+          _ProfileHistoryLoadingRow(),
+          SizedBox(height: AppSpacing.sm),
+          _ProfileHistoryLoadingRow(),
+          SizedBox(height: AppSpacing.sm),
+          _ProfileHistoryLoadingRow(),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileHistoryLoadingRow extends StatelessWidget {
+  const _ProfileHistoryLoadingRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Container(
+          width: 72,
+          height: 46,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: AppRadius.borderMedium,
+          ),
+        ),
+
+        const SizedBox(width: AppSpacing.md),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Container(
+                width: 140,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: AppRadius.borderMedium,
+                ),
+              ),
+
+              const SizedBox(height: AppSpacing.sm),
+
+              Container(
+                width: 100,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: AppRadius.borderMedium,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _formatProfileHistoryDate(DateTime value) {
+  final DateTime local = value.toLocal();
+
+  final String day = local.day.toString().padLeft(2, '0');
+  final String month = local.month.toString().padLeft(2, '0');
+  final String year = local.year.toString().padLeft(4, '0');
+
+  final String hour = local.hour.toString().padLeft(2, '0');
+  final String minute = local.minute.toString().padLeft(2, '0');
+
+  return '$day/$month/$year · $hour:$minute';
 }

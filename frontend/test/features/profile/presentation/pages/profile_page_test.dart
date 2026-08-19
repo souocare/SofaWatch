@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/features/history/domain/models/history_episode.dart';
 import 'package:sofawatch/features/profile/application/cubit/profile_cubit.dart';
 import 'package:sofawatch/features/profile/domain/models/profile_user.dart';
 import 'package:sofawatch/features/profile/domain/repositories/profile_repository.dart';
@@ -24,6 +25,12 @@ import 'package:sofawatch/features/library/domain/models/library_entry.dart';
 import 'package:sofawatch/features/library/domain/models/library_preview.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/library/domain/repositories/library_repository.dart';
+import 'package:sofawatch/features/history/application/cubit/history_preview_cubit.dart';
+import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_page.dart';
+import 'package:sofawatch/features/history/domain/models/history_preview.dart';
+import 'package:sofawatch/features/history/domain/repositories/history_repository.dart';
 
 void main() {
   group('ProfilePage Statistics', () {
@@ -573,12 +580,376 @@ void main() {
       );
     });
   });
+  group('ProfilePage History', () {
+    testWidgets('shows recent Episode and Movie History', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        _buildTestApp(
+          historyRepository: _FakeHistoryRepository(preview: _historyPreview),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-title')),
+        findsOneWidget,
+      );
+
+      expect(find.text('History'), findsOneWidget);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-content')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-episodes')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-movies')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-history-episode-episode-event-1'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-history-movie-movie-event-1'),
+        ),
+        findsOneWidget,
+      );
+
+      final Finder history = find.byKey(
+        const ValueKey<String>('profile-history'),
+      );
+
+      expect(
+        find.descendant(of: history, matching: find.text('Severance')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.descendant(
+          of: history,
+          matching: find.text('S01E01 · Good News About Hell'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.descendant(of: history, matching: find.text('Dune')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-empty')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('supports Episode History without Movie History', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        _buildTestApp(
+          historyRepository: _FakeHistoryRepository(
+            preview: HistoryPreview(
+              episodes: <HistoryEpisodeItem>[_historyEpisodeItem],
+              movies: const <HistoryMovieItem>[],
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-episodes')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-movies')),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-history-episode-episode-event-1'),
+        ),
+        findsOneWidget,
+      );
+
+      final Finder history = find.byKey(
+        const ValueKey<String>('profile-history'),
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-episodes')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-movies')),
+        findsNothing,
+      );
+
+      expect(
+        find.descendant(of: history, matching: find.text('Severance')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-history-episode-episode-event-1'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('supports Movie History without Episode History', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        _buildTestApp(
+          historyRepository: _FakeHistoryRepository(
+            preview: HistoryPreview(
+              episodes: const <HistoryEpisodeItem>[],
+              movies: <HistoryMovieItem>[_historyMovieItem],
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-episodes')),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-movies')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-history-movie-movie-event-1'),
+        ),
+        findsOneWidget,
+      );
+
+      final Finder history = find.byKey(
+        const ValueKey<String>('profile-history'),
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-movies')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-episodes')),
+        findsNothing,
+      );
+
+      expect(
+        find.descendant(of: history, matching: find.text('Dune')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-history-movie-movie-event-1'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('shows empty History state', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        _buildTestApp(
+          historyRepository: const _FakeHistoryRepository(
+            preview: HistoryPreview(
+              episodes: <HistoryEpisodeItem>[],
+              movies: <HistoryMovieItem>[],
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-empty')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Your viewing History is empty.'), findsOneWidget);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-content')),
+        findsNothing,
+      );
+    });
+
+    testWidgets(
+      'keeps Profile Statistics and Library visible while History loads',
+      (WidgetTester tester) async {
+        final _ControlledHistoryRepository historyRepository =
+            _ControlledHistoryRepository();
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            statisticsRepository: _FakeStatisticsRepository(summary: _summary),
+            libraryRepository: const _FakeLibraryRepository(
+              preview: _libraryPreview,
+            ),
+            historyRepository: historyRepository,
+          ),
+        );
+
+        await tester.pump();
+
+        expect(
+          find.byKey(const ValueKey<String>('profile-user-card')),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('profile-statistics-grid')),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('profile-library-content')),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('profile-history-loading')),
+          findsOneWidget,
+        );
+
+        historyRepository.complete(_historyPreview);
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('profile-history-loading')),
+          findsNothing,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('profile-history-content')),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('History failure does not hide other Profile sections', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        _buildTestApp(
+          historyRepository: const _FakeHistoryRepository(
+            error: AppException.connection(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-failure')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-user-card')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-statistics-grid')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-library-content')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('retries only History preview after failure', (
+      WidgetTester tester,
+    ) async {
+      final _RetryHistoryRepository historyRepository =
+          _RetryHistoryRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(historyRepository: historyRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(historyRepository.calls, 1);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-failure')),
+        findsOneWidget,
+      );
+
+      final Finder retryButton = find.byKey(
+        const ValueKey<String>('profile-history-failure-retry'),
+      );
+
+      await tester.ensureVisible(retryButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(retryButton);
+      await tester.pumpAndSettle();
+
+      expect(historyRepository.calls, 2);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-failure')),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-content')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-user-card')),
+        findsOneWidget,
+      );
+    });
+  });
 }
 
 Widget _buildTestApp({
   ProfileRepository? profileRepository,
   StatisticsRepository? statisticsRepository,
   LibraryRepository? libraryRepository,
+  HistoryRepository? historyRepository,
 }) {
   final ProfileCubit profileCubit = ProfileCubit(
     repository: profileRepository ?? _FakeProfileRepository(),
@@ -592,11 +963,16 @@ Widget _buildTestApp({
     repository: libraryRepository ?? const _FakeLibraryRepository(),
   )..load();
 
+  final HistoryPreviewCubit historyPreviewCubit = HistoryPreviewCubit(
+    repository: historyRepository ?? const _FakeHistoryRepository(),
+  )..load();
+
   return MultiBlocProvider(
     providers: <BlocProvider<dynamic>>[
       BlocProvider<ProfileCubit>.value(value: profileCubit),
       BlocProvider<StatisticsSummaryCubit>.value(value: statisticsSummaryCubit),
       BlocProvider<LibraryPreviewCubit>.value(value: libraryPreviewCubit),
+      BlocProvider<HistoryPreviewCubit>.value(value: historyPreviewCubit),
     ],
     child: const MaterialApp(home: ProfilePage()),
   );
@@ -645,6 +1021,34 @@ const LibraryPreview _libraryPreview = LibraryPreview(
       posterUrl: null,
     ),
   ],
+);
+
+final HistoryEpisodeItem _historyEpisodeItem = HistoryEpisodeItem(
+  eventId: 'episode-event-1',
+  watchedAt: DateTime.utc(2026, 8, 19, 20),
+  showId: 'show-1',
+  showTmdbId: 95396,
+  showTitle: 'Severance',
+  episode: const HistoryEpisode(
+    id: 'episode-1',
+    tmdbId: 2101,
+    seasonNumber: 1,
+    episodeNumber: 1,
+    title: 'Good News About Hell',
+  ),
+);
+
+final HistoryMovieItem _historyMovieItem = HistoryMovieItem(
+  eventId: 'movie-event-1',
+  watchedAt: DateTime.utc(2026, 8, 19, 19),
+  movieId: 'movie-1',
+  movieTmdbId: 438631,
+  movieTitle: 'Dune',
+);
+
+final HistoryPreview _historyPreview = HistoryPreview(
+  episodes: <HistoryEpisodeItem>[_historyEpisodeItem],
+  movies: <HistoryMovieItem>[_historyMovieItem],
 );
 
 final class _FakeProfileRepository implements ProfileRepository {
@@ -814,6 +1218,77 @@ final class _ControlledStatisticsRepository implements StatisticsRepository {
   @override
   Future<StatisticsBacklog> getBacklogStatistics() {
     throw UnimplementedError();
+  }
+}
+
+final class _FakeHistoryRepository implements HistoryRepository {
+  const _FakeHistoryRepository({
+    this.preview = const HistoryPreview(
+      episodes: <HistoryEpisodeItem>[],
+      movies: <HistoryMovieItem>[],
+    ),
+    this.error,
+  });
+
+  final HistoryPreview preview;
+  final AppException? error;
+
+  @override
+  Future<HistoryPreview> getPreview() async {
+    final AppException? failure = error;
+
+    if (failure != null) {
+      throw failure;
+    }
+
+    return preview;
+  }
+
+  @override
+  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) {
+    throw UnimplementedError('Full History is not used by ProfilePage tests.');
+  }
+}
+
+final class _ControlledHistoryRepository implements HistoryRepository {
+  final Completer<HistoryPreview> _result = Completer<HistoryPreview>();
+
+  void complete(HistoryPreview preview) {
+    if (_result.isCompleted) {
+      return;
+    }
+
+    _result.complete(preview);
+  }
+
+  @override
+  Future<HistoryPreview> getPreview() {
+    return _result.future;
+  }
+
+  @override
+  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) {
+    throw UnimplementedError('Full History is not used by ProfilePage tests.');
+  }
+}
+
+final class _RetryHistoryRepository implements HistoryRepository {
+  int calls = 0;
+
+  @override
+  Future<HistoryPreview> getPreview() async {
+    calls += 1;
+
+    if (calls == 1) {
+      throw const AppException.connection();
+    }
+
+    return _historyPreview;
+  }
+
+  @override
+  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) {
+    throw UnimplementedError('Full History is not used by ProfilePage tests.');
   }
 }
 

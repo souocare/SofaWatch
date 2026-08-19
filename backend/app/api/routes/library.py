@@ -7,14 +7,15 @@ from fastapi import APIRouter, Path, Query, status
 from app.api.dependencies import (
     CurrentUserDependency,
     HaventStartedServiceDependency,
+    HistoryServiceDependency,
     LibraryServiceDependency,
     MissedRecentlyServiceDependency,
+    MovieWatchEventServiceDependency,
     StaleWatchingServiceDependency,
     StartShowServiceDependency,
     UpcomingServiceDependency,
     WatchHistoryServiceDependency,
     WatchNextServiceDependency,
-    MovieWatchEventServiceDependency,
 )
 from app.core.exceptions import APIError
 from app.models.enums import LibraryStatus
@@ -32,6 +33,11 @@ from app.schemas.start_show import StartShowResponse
 from app.schemas.upcoming import UpcomingItemResponse
 from app.schemas.watch_history import WatchHistoryPageResponse
 from app.schemas.watch_next import WatchNextShowResponse
+from app.schemas.history import (
+    HistoryPageResponse,
+    HistoryPreviewResponse,
+)
+
 
 router = APIRouter(
     prefix="/library",
@@ -300,6 +306,113 @@ def get_library_preview(
         user_id=current_user.id,
         limit=10,
     )
+
+@router.get(
+    "/history/preview",
+    response_model=HistoryPreviewResponse,
+    summary="Get History preview",
+    description=(
+        "Return the most recent Episode and Movie viewing events "
+        "for the Profile History preview."
+    ),
+)
+def get_history_preview(
+    current_user: CurrentUserDependency,
+    service: HistoryServiceDependency,
+) -> HistoryPreviewResponse:
+    """Return the compact Profile History preview."""
+
+    return service.get_preview(
+        user_id=current_user.id,
+        limit=5,
+    )
+
+
+@router.get(
+    "/history",
+    response_model=HistoryPageResponse,
+    summary="List viewing History",
+    description=(
+        "Return Episode and Movie viewing events for the current user, "
+        "combined into one newest-first cursor-paginated timeline."
+    ),
+)
+def list_history(
+    current_user: CurrentUserDependency,
+    service: HistoryServiceDependency,
+    limit: Annotated[
+        int,
+        Query(
+            ge=1,
+            le=100,
+            description="Maximum number of History entries to return.",
+        ),
+    ] = 30,
+    cursor: Annotated[
+        str | None,
+        Query(
+            description="Opaque cursor returned by the previous History page.",
+        ),
+    ] = None,
+) -> HistoryPageResponse:
+    """Return one cursor-paginated page of combined viewing History."""
+
+    try:
+        return service.list_for_user(
+            user_id=current_user.id,
+            limit=limit,
+            cursor=cursor,
+        )
+    except ValueError as error:
+        raise APIError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="invalid_history_cursor",
+            message="Invalid History cursor.",
+        ) from error
+
+
+@router.get(
+    "/history",
+    response_model=HistoryPageResponse,
+    summary="List viewing History",
+    description=(
+        "Return combined Episode and Movie viewing events for the current "
+        "user, ordered from newest to oldest using cursor pagination."
+    ),
+)
+def list_history(
+    current_user: CurrentUserDependency,
+    service: HistoryServiceDependency,
+    limit: Annotated[
+        int,
+        Query(
+            ge=1,
+            le=100,
+            description="Maximum number of History entries to return.",
+        ),
+    ] = 30,
+    cursor: Annotated[
+        str | None,
+        Query(
+            description="Opaque cursor returned by the previous page.",
+        ),
+    ] = None,
+) -> HistoryPageResponse:
+    """Return one cursor-paginated page of combined viewing History."""
+
+    try:
+        return service.list_for_user(
+            user_id=current_user.id,
+            limit=limit,
+            cursor=cursor,
+        )
+    except ValueError as error:
+        raise APIError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="invalid_history_cursor",
+            message="Invalid History cursor.",
+        ) from error
+
 
 @router.post(
     "/shows/{show_id}",

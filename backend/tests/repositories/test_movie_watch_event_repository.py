@@ -1719,6 +1719,470 @@ def test_get_top_movie_genres_counts_movie_watch_events_for_each_genre(
         ),
     ]
 
+def test_list_watch_history_returns_newest_events_first(
+    db_session: Session,
+) -> None:
+    """Return global Movie History from newest to oldest."""
+
+    user = create_user(db_session)
+
+    dune = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    arrival = create_movie(
+        db_session,
+        tmdb_id=329865,
+        title="Arrival",
+    )
+
+    older_event = create_watch_event(
+        db_session,
+        user=user,
+        movie=dune,
+        watched_at=datetime(
+            2026,
+            8,
+            10,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    newer_event = create_watch_event(
+        db_session,
+        user=user,
+        movie=arrival,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    page = repository.list_watch_history(
+        user_id=user.id,
+        limit=30,
+    )
+
+    assert page.has_more is False
+
+    assert len(page.items) == 2
+
+    assert page.items[0].event_id == newer_event.id
+    assert page.items[0].movie.id == arrival.id
+    assert page.items[0].movie.title == "Arrival"
+
+    assert page.items[1].event_id == older_event.id
+    assert page.items[1].movie.id == dune.id
+    assert page.items[1].movie.title == "Dune"
+
+    assert as_utc(page.items[0].watched_at) == datetime(
+        2026,
+        8,
+        14,
+        21,
+        30,
+        tzinfo=UTC,
+    )
+
+
+def test_list_watch_history_keeps_rewatches_as_independent_items(
+    db_session: Session,
+) -> None:
+    """Keep every Movie Rewatch as an independent History entry."""
+
+    user = create_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    first_event = create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            1,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    rewatch_event = create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    page = repository.list_watch_history(
+        user_id=user.id,
+    )
+
+    assert len(page.items) == 2
+
+    assert page.items[0].event_id == rewatch_event.id
+    assert page.items[1].event_id == first_event.id
+
+    assert page.items[0].movie.id == movie.id
+    assert page.items[1].movie.id == movie.id
+
+
+def test_list_watch_history_is_isolated_by_user(
+    db_session: Session,
+) -> None:
+    """Do not leak global Movie History between users."""
+
+    user = create_user(
+        db_session,
+        display_name="First User",
+    )
+
+    other_user = create_user(
+        db_session,
+        display_name="Other User",
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    expected_event = create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=other_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    page = repository.list_watch_history(
+        user_id=user.id,
+    )
+
+    assert len(page.items) == 1
+    assert page.items[0].event_id == expected_event.id
+
+
+def test_list_watch_history_reports_when_more_items_exist(
+    db_session: Session,
+) -> None:
+    """Report when another Movie History page exists."""
+
+    user = create_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    for day in range(1, 4):
+        create_watch_event(
+            db_session,
+            user=user,
+            movie=movie,
+            watched_at=datetime(
+                2026,
+                8,
+                day,
+                20,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    page = repository.list_watch_history(
+        user_id=user.id,
+        limit=2,
+    )
+
+    assert len(page.items) == 2
+    assert page.has_more is True
+
+
+def test_list_watch_history_supports_cursor_pagination(
+    db_session: Session,
+) -> None:
+    """Continue Movie History before the previous page's last event."""
+
+    user = create_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    oldest_event = create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            1,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    middle_event = create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            2,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    newest_event = create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            3,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    first_page = repository.list_watch_history(
+        user_id=user.id,
+        limit=2,
+    )
+
+    assert len(first_page.items) == 2
+    assert first_page.has_more is True
+
+    assert first_page.items[0].event_id == newest_event.id
+    assert first_page.items[1].event_id == middle_event.id
+
+    second_page = repository.list_watch_history(
+        user_id=user.id,
+        limit=2,
+        before_watched_at=middle_event.watched_at,
+        before_event_id=middle_event.id,
+    )
+
+    assert len(second_page.items) == 1
+    assert second_page.has_more is False
+
+    assert second_page.items[0].event_id == oldest_event.id
+
+
+def test_list_watch_history_uses_event_id_to_break_timestamp_ties(
+    db_session: Session,
+) -> None:
+    """Use event ID when multiple Movie events share the same timestamp."""
+
+    user = create_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    watched_at = datetime(
+        2026,
+        8,
+        14,
+        21,
+        30,
+        tzinfo=UTC,
+    )
+
+    lower_id = UUID(
+        "00000000-0000-0000-0000-000000000001",
+    )
+
+    higher_id = UUID(
+        "00000000-0000-0000-0000-000000000002",
+    )
+
+    lower_event = create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=watched_at,
+        event_id=lower_id,
+    )
+
+    higher_event = create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=watched_at,
+        event_id=higher_id,
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    first_page = repository.list_watch_history(
+        user_id=user.id,
+        limit=1,
+    )
+
+    assert len(first_page.items) == 1
+    assert first_page.items[0].event_id == higher_event.id
+    assert first_page.has_more is True
+
+    second_page = repository.list_watch_history(
+        user_id=user.id,
+        limit=1,
+        before_watched_at=higher_event.watched_at,
+        before_event_id=higher_event.id,
+    )
+
+    assert len(second_page.items) == 1
+    assert second_page.items[0].event_id == lower_event.id
+    assert second_page.has_more is False
+
+
+def test_list_watch_history_rejects_incomplete_cursor(
+    db_session: Session,
+) -> None:
+    """Reject an incomplete Movie History cursor."""
+
+    user = create_user(db_session)
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    try:
+        repository.list_watch_history(
+            user_id=user.id,
+            before_watched_at=datetime(
+                2026,
+                8,
+                14,
+                21,
+                30,
+                tzinfo=UTC,
+            ),
+        )
+    except ValueError as error:
+        assert str(error) == (
+            "Movie History cursor requires both "
+            "before_watched_at and before_event_id."
+        )
+    else:
+        raise AssertionError(
+            "Expected incomplete Movie History cursor to be rejected."
+        )
+
+
+def test_list_watch_history_returns_empty_page_for_non_positive_limit(
+    db_session: Session,
+) -> None:
+    """Return an empty Movie History page for a non-positive limit."""
+
+    user = create_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    page = repository.list_watch_history(
+        user_id=user.id,
+        limit=0,
+    )
+
+    assert page.items == []
+    assert page.has_more is False
 
 
 

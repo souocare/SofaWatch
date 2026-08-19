@@ -4655,3 +4655,350 @@ def test_get_library_preview_limits_shows_and_movies_independently(
     assert len(body["movies"]) == 1
 
     assert body["movies"][0]["movie"]["tmdb_id"] == 400000
+
+
+def test_get_history_preview_returns_recent_episode_and_movie_events(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return independent recent Episode and Movie History previews."""
+
+    user = create_local_user(
+        db_session,
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+        air_date=date(2022, 2, 18),
+    )
+
+    episode_event = create_episode_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    movie_event = create_movie_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            19,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    response = client.get(
+        "/api/v1/library/history/preview",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert set(body) == {
+        "episodes",
+        "movies",
+    }
+
+    assert len(body["episodes"]) == 1
+    assert len(body["movies"]) == 1
+
+    episode_item = body["episodes"][0]
+
+    assert episode_item["media_type"] == "episode"
+    assert episode_item["event_id"] == str(episode_event.id)
+
+    assert episode_item["show"]["id"] == str(show.id)
+    assert episode_item["show"]["tmdb_id"] == 95396
+    assert episode_item["show"]["title"] == "Severance"
+
+    assert episode_item["episode"]["id"] == str(episode.id)
+    assert episode_item["episode"]["tmdb_id"] == 2101
+    assert episode_item["episode"]["season_number"] == 1
+    assert episode_item["episode"]["episode_number"] == 1
+    assert episode_item["episode"]["title"] == "Good News About Hell"
+
+    movie_item = body["movies"][0]
+
+    assert movie_item["media_type"] == "movie"
+    assert movie_item["event_id"] == str(movie_event.id)
+
+    assert movie_item["movie"]["id"] == str(movie.id)
+    assert movie_item["movie"]["tmdb_id"] == 438631
+    assert movie_item["movie"]["title"] == "Dune"
+
+def test_list_history_combines_episode_and_movie_events_newest_first(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return Episode and Movie viewings in one chronological timeline."""
+
+    user = create_local_user(
+        db_session,
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+        air_date=date(2022, 2, 18),
+    )
+
+    episode_event = create_episode_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    older_movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    older_movie_event = create_movie_watch_event(
+        db_session,
+        user=user,
+        movie=older_movie,
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            19,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    newer_movie = create_movie(
+        db_session,
+        tmdb_id=329865,
+        title="Arrival",
+    )
+
+    newer_movie_event = create_movie_watch_event(
+        db_session,
+        user=user,
+        movie=newer_movie,
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            21,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    response = client.get(
+        "/api/v1/library/history",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["has_more"] is False
+    assert body["next_cursor"] is None
+
+    assert [
+        item["event_id"]
+        for item in body["items"]
+    ] == [
+        str(newer_movie_event.id),
+        str(episode_event.id),
+        str(older_movie_event.id),
+    ]
+
+    assert [
+        item["media_type"]
+        for item in body["items"]
+    ] == [
+        "movie",
+        "episode",
+        "movie",
+    ]
+
+def test_list_history_supports_cursor_pagination(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Continue combined History from the opaque cursor."""
+
+    user = create_local_user(
+        db_session,
+    )
+
+    movies = [
+        create_movie(
+            db_session,
+            tmdb_id=438631 + index,
+            title=f"Movie {index + 1}",
+        )
+        for index in range(3)
+    ]
+
+    events = [
+        create_movie_watch_event(
+            db_session,
+            user=user,
+            movie=movie,
+            watched_at=datetime(
+                2026,
+                8,
+                19,
+                22 - index,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+        for index, movie in enumerate(movies)
+    ]
+
+    first_response = client.get(
+        "/api/v1/library/history",
+        params={
+            "limit": 2,
+        },
+    )
+
+    assert first_response.status_code == 200
+
+    first_body = first_response.json()
+
+    assert [
+        item["event_id"]
+        for item in first_body["items"]
+    ] == [
+        str(events[0].id),
+        str(events[1].id),
+    ]
+
+    assert first_body["has_more"] is True
+    assert first_body["next_cursor"] is not None
+
+    second_response = client.get(
+        "/api/v1/library/history",
+        params={
+            "limit": 2,
+            "cursor": first_body["next_cursor"],
+        },
+    )
+
+    assert second_response.status_code == 200
+
+    second_body = second_response.json()
+
+    assert [
+        item["event_id"]
+        for item in second_body["items"]
+    ] == [
+        str(events[2].id),
+    ]
+
+    assert second_body["has_more"] is False
+    assert second_body["next_cursor"] is None
+
+def test_list_history_returns_400_for_invalid_cursor(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Map malformed History cursor to a safe API error."""
+
+    create_local_user(
+        db_session,
+    )
+
+    response = client.get(
+        "/api/v1/library/history",
+        params={
+            "cursor": "invalid-history-cursor",
+        },
+    )
+
+    assert response.status_code == 400
+
+    body = response.json()
+
+    assert body["error"]["code"] == "invalid_history_cursor"
+
+
+def test_list_history_rejects_invalid_limit(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Reject History limits outside the public API contract."""
+
+    create_local_user(
+        db_session,
+    )
+
+    response = client.get(
+        "/api/v1/library/history",
+        params={
+            "limit": 0,
+        },
+    )
+
+    assert response.status_code == 422

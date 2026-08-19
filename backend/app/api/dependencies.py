@@ -60,6 +60,7 @@ from app.repositories.movie_watch_event import MovieWatchEventRepository
 from app.services.movie_watch_event import MovieWatchEventService
 from app.services.statistics import StatisticsService
 from app.services.missed_recently import MissedRecentlyService
+from app.services.history import HistoryService
 
 def get_genre_service(
     session: DatabaseSession,
@@ -697,6 +698,28 @@ WatchHistoryServiceDependency = Annotated[
     WatchHistoryService,
     Depends(get_watch_history_service),
 ]
+
+
+def get_history_service(
+    session: DatabaseSession,
+) -> HistoryService:
+    """Provide the combined viewing History service."""
+
+    return HistoryService(
+        episode_watch_event_repository=EpisodeWatchEventRepository(
+            session,
+        ),
+        movie_watch_event_repository=MovieWatchEventRepository(
+            session,
+        ),
+    )
+
+
+HistoryServiceDependency = Annotated[
+    HistoryService,
+    Depends(get_history_service),
+]
+
 
 def get_statistics_service(
     session: DatabaseSession,

@@ -943,6 +943,96 @@ class EpisodeWatchEventRepository:
             ) in rows
         ]
 
+
+    def list_watch_history_before_timestamp(
+        self,
+        *,
+        user_id: UUID,
+        limit: int,
+        watched_at: datetime,
+        inclusive: bool,
+    ) -> WatchHistoryEventPage:
+        """Return Episode History before a timestamp boundary.
+
+        This query is used when combining Episode and Movie History.
+
+        ``inclusive=True`` keeps Episode events occurring exactly at the
+        boundary timestamp. ``inclusive=False`` only returns older events.
+        """
+
+        if limit <= 0:
+            return WatchHistoryEventPage(
+                items=[],
+                has_more=False,
+            )
+
+        timestamp_condition = (
+            EpisodeWatchEvent.watched_at <= watched_at
+            if inclusive
+            else EpisodeWatchEvent.watched_at < watched_at
+        )
+
+        statement = (
+            select(
+                EpisodeWatchEvent.id,
+                Show,
+                Season.season_number,
+                EpisodeWatchEvent.watched_at,
+                Episode,
+            )
+            .select_from(EpisodeWatchEvent)
+            .join(
+                Episode,
+                Episode.id == EpisodeWatchEvent.episode_id,
+            )
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .join(
+                Show,
+                Show.id == Season.show_id,
+            )
+            .where(
+                EpisodeWatchEvent.user_id == user_id,
+                Season.season_number > 0,
+                timestamp_condition,
+            )
+            .order_by(
+                EpisodeWatchEvent.watched_at.desc(),
+                EpisodeWatchEvent.id.desc(),
+            )
+            .limit(limit + 1)
+        )
+
+        rows = self._session.execute(
+            statement,
+        ).all()
+
+        has_more = len(rows) > limit
+
+        items = [
+            WatchHistoryEvent(
+                event_id=event_id,
+                show=show,
+                episode=episode,
+                season_number=season_number,
+                watched_at=event_watched_at,
+            )
+            for (
+                event_id,
+                show,
+                season_number,
+                event_watched_at,
+                episode,
+            ) in rows[:limit]
+        ]
+
+        return WatchHistoryEventPage(
+            items=items,
+            has_more=has_more,
+        )
+
     def delete_all_for_user_and_episode(
         self,
         *,
