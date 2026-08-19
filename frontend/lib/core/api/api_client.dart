@@ -28,6 +28,28 @@ class ApiClient {
     return _dio.options.baseUrl;
   }
 
+  String? resolveServerUrl(String? value) {
+    final String? normalizedValue = value?.trim();
+
+    if (normalizedValue == null || normalizedValue.isEmpty) {
+      return null;
+    }
+
+    final Uri uri = Uri.parse(normalizedValue);
+
+    if (uri.hasScheme) {
+      return uri.toString();
+    }
+
+    _ensureConfigured();
+
+    final String normalizedBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl
+        : '$baseUrl/';
+
+    return Uri.parse(normalizedBaseUrl).resolve(normalizedValue).toString();
+  }
+
   bool get isConfigured {
     return _dio.options.baseUrl.isNotEmpty;
   }

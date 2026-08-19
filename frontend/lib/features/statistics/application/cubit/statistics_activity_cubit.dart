@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_activity_state.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_activity.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_activity_period.dart';
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
 
 final class StatisticsActivityCubit extends Cubit<StatisticsActivityState> {
@@ -9,37 +10,38 @@ final class StatisticsActivityCubit extends Cubit<StatisticsActivityState> {
     : _repository = repository,
       super(const StatisticsActivityInitial());
 
-  static const int defaultDays = 7;
+  static const StatisticsActivityPeriod defaultPeriod =
+      StatisticsActivityPeriod.days7;
 
   final StatisticsRepository _repository;
 
   bool _isRequestInFlight = false;
 
-  Future<void> load({int days = defaultDays}) async {
+  Future<void> load({StatisticsActivityPeriod period = defaultPeriod}) async {
     if (_isRequestInFlight) {
       return;
     }
 
     _isRequestInFlight = true;
 
-    emit(StatisticsActivityLoading(days: days));
+    emit(StatisticsActivityLoading(period: period));
 
     try {
       final StatisticsActivity activity = await _repository.getActivity(
-        days: days,
+        period: period,
       );
 
       if (isClosed) {
         return;
       }
 
-      emit(StatisticsActivitySuccess(activity: activity, days: days));
+      emit(StatisticsActivitySuccess(activity: activity, period: period));
     } on AppException catch (error) {
       if (isClosed) {
         return;
       }
 
-      emit(StatisticsActivityFailure(error: error, days: days));
+      emit(StatisticsActivityFailure(error: error, period: period));
     } on Object catch (error) {
       if (isClosed) {
         return;
@@ -48,7 +50,7 @@ final class StatisticsActivityCubit extends Cubit<StatisticsActivityState> {
       emit(
         StatisticsActivityFailure(
           error: AppException.unknown(originalError: error),
-          days: days,
+          period: period,
         ),
       );
     } finally {
@@ -56,7 +58,7 @@ final class StatisticsActivityCubit extends Cubit<StatisticsActivityState> {
     }
   }
 
-  Future<void> changeRange(int days) async {
+  Future<void> changePeriod(StatisticsActivityPeriod period) async {
     final StatisticsActivityState currentState = state;
 
     if (_isRequestInFlight) {
@@ -64,21 +66,21 @@ final class StatisticsActivityCubit extends Cubit<StatisticsActivityState> {
     }
 
     /*
-     * Without existing data, changing the range is equivalent to
+     * Without existing data, changing the period is equivalent to
      * performing the initial load.
      */
     if (currentState is! StatisticsActivitySuccess) {
-      await load(days: days);
+      await load(period: period);
 
       return;
     }
 
     /*
-     * The requested range is already visible.
+     * The requested period is already visible.
      *
      * Avoid an unnecessary network request.
      */
-    if (currentState.days == days) {
+    if (currentState.period == period) {
       return;
     }
 
@@ -86,38 +88,32 @@ final class StatisticsActivityCubit extends Cubit<StatisticsActivityState> {
 
     emit(
       currentState.copyWith(
-        isChangingRange: true,
-        pendingDays: days,
-        clearRangeChangeError: true,
+        isChangingPeriod: true,
+        pendingPeriod: period,
+        clearPeriodChangeError: true,
       ),
     );
 
     try {
       final StatisticsActivity activity = await _repository.getActivity(
-        days: days,
+        period: period,
       );
 
       if (isClosed) {
         return;
       }
 
-      emit(StatisticsActivitySuccess(activity: activity, days: days));
+      emit(StatisticsActivitySuccess(activity: activity, period: period));
     } on AppException catch (error) {
       if (isClosed) {
         return;
       }
 
-      /*
-       * Keep the previously loaded range visible.
-       *
-       * The failed range is not promoted to the selected range because
-       * no valid data for it was received.
-       */
       emit(
         currentState.copyWith(
-          isChangingRange: false,
-          clearPendingDays: true,
-          rangeChangeError: error,
+          isChangingPeriod: false,
+          clearPendingPeriod: true,
+          periodChangeError: error,
         ),
       );
     } on Object catch (error) {
@@ -127,9 +123,9 @@ final class StatisticsActivityCubit extends Cubit<StatisticsActivityState> {
 
       emit(
         currentState.copyWith(
-          isChangingRange: false,
-          clearPendingDays: true,
-          rangeChangeError: AppException.unknown(originalError: error),
+          isChangingPeriod: false,
+          clearPendingPeriod: true,
+          periodChangeError: AppException.unknown(originalError: error),
         ),
       );
     } finally {
@@ -141,19 +137,18 @@ final class StatisticsActivityCubit extends Cubit<StatisticsActivityState> {
     final StatisticsActivityState currentState = state;
 
     if (currentState is StatisticsActivityFailure) {
-      await load(days: currentState.days);
+      await load(period: currentState.period);
 
       return;
     }
 
     if (currentState is StatisticsActivitySuccess &&
-        currentState.rangeChangeError != null) {
+        currentState.periodChangeError != null) {
       /*
-       * A failed range change leaves the previous valid range selected.
+       * A failed period change leaves the previous valid period selected.
        *
-       * The UI can simply ask for another range again. There is no hidden
-       * failed range to retry because pendingDays is deliberately cleared
-       * after the failure.
+       * There is deliberately no hidden failed period to retry because
+       * pendingPeriod is cleared after the failure.
        */
       return;
     }

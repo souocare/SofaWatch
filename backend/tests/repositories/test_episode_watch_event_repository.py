@@ -10,6 +10,7 @@ from app.models.season import Season
 from app.models.show import Show
 from app.models.user import User
 from app.repositories.episode_watch_event import EpisodeWatchEventRepository
+from app.models.genre import Genre
 
 
 def as_utc(value: datetime) -> datetime:
@@ -152,6 +153,25 @@ def create_watch_event(
     db_session.refresh(event)
 
     return event
+
+def create_genre(
+    db_session: Session,
+    *,
+    name: str,
+    slug: str,
+) -> Genre:
+    """Create and persist a Genre."""
+
+    genre = Genre(
+        name=name,
+        slug=slug,
+    )
+
+    db_session.add(genre)
+    db_session.commit()
+    db_session.refresh(genre)
+
+    return genre
 
 
 def test_add_episode_watch_event(
@@ -1921,3 +1941,665 @@ def test_get_daily_statistics_for_period_is_isolated_by_user(
     assert len(result) == 1
     assert result[0].watch_count == 1
     assert result[0].watch_time_minutes == 50
+
+def test_get_earliest_watched_at_for_user(
+    db_session: Session,
+) -> None:
+    user = create_user(
+        db_session,
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            18,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2025,
+            3,
+            4,
+            21,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.get_earliest_watched_at_for_user(
+        user_id=user.id,
+    )
+
+    assert result is not None
+    assert as_utc(result) == datetime(
+        2025,
+        3,
+        4,
+        21,
+        0,
+        tzinfo=UTC,
+    )
+
+
+def test_get_earliest_watched_at_for_user_returns_none_without_history(
+    db_session: Session,
+) -> None:
+    user = create_user(
+        db_session,
+    )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    assert (
+        repository.get_earliest_watched_at_for_user(
+            user_id=user.id,
+        )
+        is None
+    )
+
+
+def test_get_most_watched_shows_ranks_by_episode_watch_events(
+    db_session: Session,
+) -> None:
+    """Rank Shows by total Episode watch events for the requested user."""
+
+    user = create_user(
+        db_session,
+    )
+
+    other_user = create_user(
+        db_session,
+        display_name="Other User",
+    )
+
+    severance = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    silo = create_show(
+        db_session,
+        tmdb_id=125988,
+        title="Silo",
+    )
+
+    severance_season = create_season(
+        db_session,
+        show=severance,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    silo_season = create_season(
+        db_session,
+        show=silo,
+        tmdb_id=200001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    severance_episode = create_episode(
+        db_session,
+        season=severance_season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    silo_episode = create_episode(
+        db_session,
+        season=silo_season,
+        tmdb_id=300001,
+        episode_number=1,
+        title="Freedom Day",
+    )
+
+    for hour in (
+        18,
+        19,
+        20,
+        21,
+    ):
+        create_watch_event(
+            db_session,
+            user=user,
+            episode=severance_episode,
+            watched_at=datetime(
+                2026,
+                8,
+                18,
+                hour,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+    for hour in (
+        18,
+        19,
+    ):
+        create_watch_event(
+            db_session,
+            user=user,
+            episode=silo_episode,
+            watched_at=datetime(
+                2026,
+                8,
+                17,
+                hour,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+    # Other-user activity must not affect the requested user's ranking.
+    for hour in (
+        10,
+        11,
+        12,
+        13,
+        14,
+    ):
+        create_watch_event(
+            db_session,
+            user=other_user,
+            episode=silo_episode,
+            watched_at=datetime(
+                2026,
+                8,
+                16,
+                hour,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.get_most_watched_shows(
+        user_id=user.id,
+        limit=5,
+    )
+
+    assert [
+        (
+            item.title,
+            item.watch_count,
+        )
+        for item in result
+    ] == [
+        (
+            "Severance",
+            4,
+        ),
+        (
+            "Silo",
+            2,
+        ),
+    ]
+
+def test_get_most_rewatched_shows_sums_episode_rewatches(
+    db_session: Session,
+) -> None:
+    """Rank Shows by rewatches calculated independently per Episode."""
+
+    user = create_user(
+        db_session,
+    )
+
+    severance = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    silo = create_show(
+        db_session,
+        tmdb_id=125988,
+        title="Silo",
+    )
+
+    severance_season = create_season(
+        db_session,
+        show=severance,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    silo_season = create_season(
+        db_session,
+        show=silo,
+        tmdb_id=200001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    severance_episode_1 = create_episode(
+        db_session,
+        season=severance_season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    severance_episode_2 = create_episode(
+        db_session,
+        season=severance_season,
+        tmdb_id=2102,
+        episode_number=2,
+        title="Half Loop",
+    )
+
+    silo_episode = create_episode(
+        db_session,
+        season=silo_season,
+        tmdb_id=300001,
+        episode_number=1,
+        title="Freedom Day",
+    )
+
+    # Episode 1 -> 3 watches -> 2 rewatches.
+    for hour in (
+        10,
+        11,
+        12,
+    ):
+        create_watch_event(
+            db_session,
+            user=user,
+            episode=severance_episode_1,
+            watched_at=datetime(
+                2026,
+                8,
+                16,
+                hour,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+    # Episode 2 -> 2 watches -> 1 rewatch.
+    for hour in (
+        13,
+        14,
+    ):
+        create_watch_event(
+            db_session,
+            user=user,
+            episode=severance_episode_2,
+            watched_at=datetime(
+                2026,
+                8,
+                16,
+                hour,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+    # Silo -> 2 watches -> 1 rewatch.
+    for hour in (
+        15,
+        16,
+    ):
+        create_watch_event(
+            db_session,
+            user=user,
+            episode=silo_episode,
+            watched_at=datetime(
+                2026,
+                8,
+                16,
+                hour,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.get_most_rewatched_shows(
+        user_id=user.id,
+        limit=5,
+    )
+
+    assert [
+        (
+            item.title,
+            item.watch_count,
+            item.rewatch_count,
+        )
+        for item in result
+    ] == [
+        (
+            "Severance",
+            5,
+            3,
+        ),
+        (
+            "Silo",
+            2,
+            1,
+        ),
+    ]
+
+def test_get_most_rewatched_episodes_excludes_single_viewings(
+    db_session: Session,
+) -> None:
+    """Rank only Episodes that have at least one Rewatch."""
+
+    user = create_user(
+        db_session,
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    first_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    second_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2102,
+        episode_number=2,
+        title="Half Loop",
+    )
+
+    third_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2103,
+        episode_number=3,
+        title="In Perpetuity",
+    )
+
+    for hour in (
+        10,
+        11,
+        12,
+    ):
+        create_watch_event(
+            db_session,
+            user=user,
+            episode=first_episode,
+            watched_at=datetime(
+                2026,
+                8,
+                18,
+                hour,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+    for hour in (
+        13,
+        14,
+    ):
+        create_watch_event(
+            db_session,
+            user=user,
+            episode=second_episode,
+            watched_at=datetime(
+                2026,
+                8,
+                18,
+                hour,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+    # One viewing only: must not appear.
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=third_episode,
+        watched_at=datetime(
+            2026,
+            8,
+            18,
+            15,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.get_most_rewatched_episodes(
+        user_id=user.id,
+        limit=5,
+    )
+
+    assert [
+        (
+            item.episode_title,
+            item.watch_count,
+            item.rewatch_count,
+        )
+        for item in result
+    ] == [
+        (
+            "Good News About Hell",
+            3,
+            2,
+        ),
+        (
+            "Half Loop",
+            2,
+            1,
+        ),
+    ]
+
+def test_get_top_show_genres_counts_episode_watch_events_for_each_genre(
+    db_session: Session,
+) -> None:
+    """Rank Show Genres by Episode watch events."""
+
+    user = create_user(
+        db_session,
+    )
+
+    drama = create_genre(
+        db_session,
+        name="Drama",
+        slug="drama",
+    )
+
+    science_fiction = create_genre(
+        db_session,
+        name="Science Fiction",
+        slug="science-fiction",
+    )
+
+    comedy = create_genre(
+        db_session,
+        name="Comedy",
+        slug="comedy",
+    )
+
+    severance = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    comedy_show = create_show(
+        db_session,
+        tmdb_id=999001,
+        title="Comedy Show",
+    )
+
+    severance.genres.extend(
+        [
+            drama,
+            science_fiction,
+        ]
+    )
+
+    comedy_show.genres.append(
+        comedy,
+    )
+
+    db_session.commit()
+
+    severance_season = create_season(
+        db_session,
+        show=severance,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    comedy_season = create_season(
+        db_session,
+        show=comedy_show,
+        tmdb_id=999002,
+        season_number=1,
+        title="Season 1",
+    )
+
+    severance_episode = create_episode(
+        db_session,
+        season=severance_season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    comedy_episode = create_episode(
+        db_session,
+        season=comedy_season,
+        tmdb_id=999003,
+        episode_number=1,
+        title="Pilot",
+    )
+
+    for hour in (
+        10,
+        11,
+        12,
+    ):
+        create_watch_event(
+            db_session,
+            user=user,
+            episode=severance_episode,
+            watched_at=datetime(
+                2026,
+                8,
+                18,
+                hour,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=comedy_episode,
+        watched_at=datetime(
+            2026,
+            8,
+            18,
+            13,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.get_top_show_genres(
+        user_id=user.id,
+        limit=5,
+    )
+
+    assert [
+        (
+            item.name,
+            item.watch_count,
+        )
+        for item in result
+    ] == [
+        (
+            "Drama",
+            3,
+        ),
+        (
+            "Science Fiction",
+            3,
+        ),
+        (
+            "Comedy",
+            1,
+        ),
+    ]

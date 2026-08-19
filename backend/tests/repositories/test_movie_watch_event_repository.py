@@ -8,6 +8,7 @@ from app.models.movie import Movie
 from app.models.movie_watch_event import MovieWatchEvent
 from app.models.user import User
 from app.repositories.movie_watch_event import MovieWatchEventRepository
+from app.models.genre import Genre
 
 
 def as_utc(value: datetime) -> datetime:
@@ -97,6 +98,25 @@ def create_watch_event(
     db_session.refresh(event)
 
     return event
+
+def create_genre(
+    db_session: Session,
+    *,
+    name: str,
+    slug: str,
+) -> Genre:
+    """Create and persist a Genre."""
+
+    genre = Genre(
+        name=name,
+        slug=slug,
+    )
+
+    db_session.add(genre)
+    db_session.commit()
+    db_session.refresh(genre)
+
+    return genre
 
 
 def test_add_movie_watch_event(
@@ -1377,3 +1397,328 @@ def test_get_daily_statistics_for_period_counts_unknown_movie_runtime_as_zero(
     assert len(result) == 1
     assert result[0].watch_count == 1
     assert result[0].watch_time_minutes == 0
+
+
+def test_get_earliest_watched_at_for_user(
+    db_session: Session,
+) -> None:
+    user = create_user(
+        db_session,
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            18,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2024,
+            7,
+            11,
+            21,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.get_earliest_watched_at_for_user(
+        user_id=user.id,
+    )
+
+    assert result is not None
+    assert as_utc(result) == datetime(
+        2024,
+        7,
+        11,
+        21,
+        0,
+        tzinfo=UTC,
+    )
+
+
+def test_get_earliest_watched_at_for_user_returns_none_without_history(
+    db_session: Session,
+) -> None:
+    user = create_user(
+        db_session,
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    assert (
+        repository.get_earliest_watched_at_for_user(
+            user_id=user.id,
+        )
+        is None
+    )
+
+def test_get_most_rewatched_movies_excludes_single_viewings(
+    db_session: Session,
+) -> None:
+    """Rank Movies by Rewatch count and exclude Movies watched once."""
+
+    user = create_user(
+        db_session,
+    )
+
+    other_user = create_user(
+        db_session,
+        display_name="Other User",
+    )
+
+    dune = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    arrival = create_movie(
+        db_session,
+        tmdb_id=329865,
+        title="Arrival",
+    )
+
+    blade_runner = create_movie(
+        db_session,
+        tmdb_id=335984,
+        title="Blade Runner 2049",
+    )
+
+    for hour in (
+        10,
+        11,
+        12,
+    ):
+        create_watch_event(
+            db_session,
+            user=user,
+            movie=dune,
+            watched_at=datetime(
+                2026,
+                8,
+                18,
+                hour,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+    for hour in (
+        13,
+        14,
+    ):
+        create_watch_event(
+            db_session,
+            user=user,
+            movie=arrival,
+            watched_at=datetime(
+                2026,
+                8,
+                18,
+                hour,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=blade_runner,
+        watched_at=datetime(
+            2026,
+            8,
+            18,
+            15,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    # Must not affect requested user's ranking.
+    for hour in (
+        16,
+        17,
+        18,
+    ):
+        create_watch_event(
+            db_session,
+            user=other_user,
+            movie=arrival,
+            watched_at=datetime(
+                2026,
+                8,
+                17,
+                hour,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.get_most_rewatched_movies(
+        user_id=user.id,
+        limit=5,
+    )
+
+    assert [
+        (
+            item.title,
+            item.watch_count,
+            item.rewatch_count,
+        )
+        for item in result
+    ] == [
+        (
+            "Dune",
+            3,
+            2,
+        ),
+        (
+            "Arrival",
+            2,
+            1,
+        ),
+    ]
+
+
+def test_get_top_movie_genres_counts_movie_watch_events_for_each_genre(
+    db_session: Session,
+) -> None:
+    """Rank Movie Genres by Movie watch events."""
+
+    user = create_user(
+        db_session,
+    )
+
+    science_fiction = create_genre(
+        db_session,
+        name="Science Fiction",
+        slug="science-fiction",
+    )
+
+    drama = create_genre(
+        db_session,
+        name="Drama",
+        slug="drama",
+    )
+
+    dune = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    arrival = create_movie(
+        db_session,
+        tmdb_id=329865,
+        title="Arrival",
+    )
+
+    dune.genres.extend(
+        [
+            science_fiction,
+            drama,
+        ]
+    )
+
+    arrival.genres.append(
+        science_fiction,
+    )
+
+    db_session.commit()
+
+    for hour in (
+        10,
+        11,
+        12,
+    ):
+        create_watch_event(
+            db_session,
+            user=user,
+            movie=dune,
+            watched_at=datetime(
+                2026,
+                8,
+                18,
+                hour,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+    for hour in (
+        13,
+        14,
+    ):
+        create_watch_event(
+            db_session,
+            user=user,
+            movie=arrival,
+            watched_at=datetime(
+                2026,
+                8,
+                18,
+                hour,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.get_top_movie_genres(
+        user_id=user.id,
+        limit=5,
+    )
+
+    assert [
+        (
+            item.name,
+            item.watch_count,
+        )
+        for item in result
+    ] == [
+        (
+            "Science Fiction",
+            5,
+        ),
+        (
+            "Drama",
+            3,
+        ),
+    ]
+
+
+
+

@@ -10,6 +10,13 @@ from app.models.episode_watch_event import EpisodeWatchEvent
 from app.models.season import Season
 from app.models.show import Show
 from app.repositories.viewing_statistics import DailyViewingStatistics
+from app.models.genre import Genre
+from app.repositories.statistics_insights import (
+    EpisodeViewingInsight,
+    GenreViewingInsight,
+    ShowViewingInsight,
+    
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -594,6 +601,347 @@ class EpisodeWatchEventRepository:
             int(row[1] or 0),
             int(row[2] or 0),
         )
+
+    def get_earliest_watched_at_for_user(
+        self,
+        *,
+        user_id: UUID,
+    ) -> datetime | None:
+        """Return the user's earliest recorded Episode viewing."""
+
+        return self._session.scalar(
+            select(
+                func.min(
+                    EpisodeWatchEvent.watched_at,
+                )
+            ).where(
+                EpisodeWatchEvent.user_id == user_id,
+            )
+        )
+
+    def get_most_watched_shows(
+        self,
+        *,
+        user_id: UUID,
+        limit: int = 5,
+        ) -> list[ShowViewingInsight]:
+        """Return Shows ranked by total Episode watch events."""
+
+        watch_count = func.count(
+            EpisodeWatchEvent.id,
+        )
+
+        rows = self._session.execute(
+            select(
+                Show.id,
+                Show.tmdb_id,
+                Show.title,
+                Show.local_poster_path,
+                Show.tmdb_poster_path,
+                watch_count.label("watch_count"),
+            )
+            .select_from(EpisodeWatchEvent)
+            .join(
+                Episode,
+                Episode.id == EpisodeWatchEvent.episode_id,
+            )
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .join(
+                Show,
+                Show.id == Season.show_id,
+            )
+            .where(
+                EpisodeWatchEvent.user_id == user_id,
+            )
+            .group_by(
+                Show.id,
+                Show.tmdb_id,
+                Show.title,
+                Show.local_poster_path,
+                Show.tmdb_poster_path,
+            )
+            .order_by(
+                watch_count.desc(),
+                Show.title.asc(),
+            )
+            .limit(limit)
+        ).all()
+
+        return [
+            ShowViewingInsight(
+                show_id=show_id,
+                tmdb_id=int(tmdb_id),
+                title=title,
+                poster_url=(
+                    f"/api/v1/images/shows/{show_id}/poster"
+                    if local_poster_path or tmdb_poster_path
+                    else None
+                ),
+                watch_count=int(total_watch_count),
+            )
+            for (
+                show_id,
+                tmdb_id,
+                title,
+                local_poster_path,
+                tmdb_poster_path,
+                total_watch_count,
+            ) in rows
+        ]
+
+    def get_most_rewatched_shows(
+        self,
+        *,
+        user_id: UUID,
+        limit: int = 5,
+    ) -> list[ShowViewingInsight]:
+        """Return Shows ranked by Episode rewatch count."""
+
+        per_episode = (
+            select(
+                Season.show_id.label("show_id"),
+                Episode.id.label("episode_id"),
+                func.count(
+                    EpisodeWatchEvent.id,
+                ).label("watch_count"),
+            )
+            .select_from(EpisodeWatchEvent)
+            .join(
+                Episode,
+                Episode.id == EpisodeWatchEvent.episode_id,
+            )
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .where(
+                EpisodeWatchEvent.user_id == user_id,
+            )
+            .group_by(
+                Season.show_id,
+                Episode.id,
+            )
+            .subquery()
+        )
+
+        total_watch_count = func.sum(
+            per_episode.c.watch_count,
+        )
+
+        rewatch_count = func.sum(
+            per_episode.c.watch_count - 1,
+        )
+
+        rows = self._session.execute(
+            select(
+                Show.id,
+                Show.tmdb_id,
+                Show.title,
+                Show.local_poster_path,
+                Show.tmdb_poster_path,
+                total_watch_count.label("watch_count"),
+                rewatch_count.label("rewatch_count"),
+            )
+            .join(
+                per_episode,
+                per_episode.c.show_id == Show.id,
+            )
+            .group_by(
+                Show.id,
+                Show.tmdb_id,
+                Show.title,
+                Show.local_poster_path,
+                Show.tmdb_poster_path,
+            )
+            .having(
+                rewatch_count > 0,
+            )
+            .order_by(
+                rewatch_count.desc(),
+                total_watch_count.desc(),
+                Show.title.asc(),
+            )
+            .limit(limit)
+        ).all()
+
+        return [
+            ShowViewingInsight(
+                show_id=show_id,
+                tmdb_id=int(tmdb_id),
+                title=title,
+                poster_url=(
+                    f"/api/v1/images/shows/{show_id}/poster"
+                    if local_poster_path or tmdb_poster_path
+                    else None
+                ),
+                watch_count=int(watch_count),
+                rewatch_count=int(rewatch_count_value),
+            )
+            for (
+                show_id,
+                tmdb_id,
+                title,
+                local_poster_path,
+                tmdb_poster_path,
+                watch_count,
+                rewatch_count_value,
+            ) in rows
+        ]
+
+    def get_most_rewatched_episodes(
+        self,
+        *,
+        user_id: UUID,
+        limit: int = 5,
+    ) -> list[EpisodeViewingInsight]:
+        """Return Episodes ranked by rewatch count."""
+
+        watch_count = func.count(
+            EpisodeWatchEvent.id,
+        )
+
+        rows = self._session.execute(
+            select(
+                Episode.id,
+                Show.tmdb_id,
+                Show.title,
+                Season.season_number,
+                Episode.episode_number,
+                Episode.title,
+                Episode.local_still_path,
+                Episode.tmdb_still_path,
+                watch_count.label("watch_count"),
+            )
+            .select_from(EpisodeWatchEvent)
+            .join(
+                Episode,
+                Episode.id == EpisodeWatchEvent.episode_id,
+            )
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .join(
+                Show,
+                Show.id == Season.show_id,
+            )
+            .where(
+                EpisodeWatchEvent.user_id == user_id,
+            )
+            .group_by(
+                Episode.id,
+                Show.tmdb_id,
+                Show.title,
+                Season.season_number,
+                Episode.episode_number,
+                Episode.title,
+                Episode.local_still_path,
+                Episode.tmdb_still_path,
+            )
+            .having(
+                watch_count > 1,
+            )
+            .order_by(
+                watch_count.desc(),
+                Show.title.asc(),
+                Season.season_number.asc(),
+                Episode.episode_number.asc(),
+            )
+            .limit(limit)
+        ).all()
+
+        return [
+            EpisodeViewingInsight(
+                episode_id=episode_id,
+                show_tmdb_id=int(show_tmdb_id),
+                show_title=show_title,
+                season_number=int(season_number),
+                episode_number=int(episode_number),
+                episode_title=episode_title,
+                still_url=(
+                    f"/api/v1/images/episodes/{episode_id}/still"
+                    if local_still_path or tmdb_still_path
+                    else None
+                ),
+                watch_count=int(total_watch_count),
+                rewatch_count=int(total_watch_count) - 1,
+            )
+            for (
+                episode_id,
+                show_tmdb_id,
+                show_title,
+                season_number,
+                episode_number,
+                episode_title,
+                local_still_path,
+                tmdb_still_path,
+                total_watch_count,
+            ) in rows
+        ]
+
+    def get_top_show_genres(
+        self,
+        *,
+        user_id: UUID,
+        limit: int = 5,
+    ) -> list[GenreViewingInsight]:
+        """Return Show Genres ranked by Episode watch events."""
+
+        watch_count = func.count(
+            EpisodeWatchEvent.id,
+        )
+
+        rows = self._session.execute(
+            select(
+                Genre.id,
+                Genre.name,
+                watch_count.label("watch_count"),
+            )
+            .select_from(EpisodeWatchEvent)
+            .join(
+                Episode,
+                Episode.id == EpisodeWatchEvent.episode_id,
+            )
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .join(
+                Show,
+                Show.id == Season.show_id,
+            )
+            .join(
+                Show.genres,
+            )
+            .where(
+                EpisodeWatchEvent.user_id == user_id,
+            )
+            .group_by(
+                Genre.id,
+                Genre.name,
+            )
+            .order_by(
+                watch_count.desc(),
+                Genre.name.asc(),
+            )
+            .limit(limit)
+        ).all()
+
+        return [
+            GenreViewingInsight(
+                genre_id=int(genre_id),
+                name=name,
+                watch_count=int(total_watch_count),
+            )
+            for (
+                genre_id,
+                name,
+                total_watch_count,
+            ) in rows
+        ]
 
     def delete_all_for_user_and_episode(
         self,

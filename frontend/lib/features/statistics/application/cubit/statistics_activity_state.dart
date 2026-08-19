@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_activity.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_activity_period.dart';
 
 sealed class StatisticsActivityState extends Equatable {
   const StatisticsActivityState();
@@ -14,75 +15,77 @@ final class StatisticsActivityInitial extends StatisticsActivityState {
 }
 
 final class StatisticsActivityLoading extends StatisticsActivityState {
-  const StatisticsActivityLoading({required this.days});
+  const StatisticsActivityLoading({required this.period});
 
-  final int days;
+  final StatisticsActivityPeriod period;
 
   @override
-  List<Object?> get props => <Object?>[days];
+  List<Object?> get props => <Object?>[period];
 }
 
 final class StatisticsActivitySuccess extends StatisticsActivityState {
   const StatisticsActivitySuccess({
     required this.activity,
-    required this.days,
-    this.isChangingRange = false,
-    this.pendingDays,
-    this.rangeChangeError,
+    required this.period,
+    this.isChangingPeriod = false,
+    this.pendingPeriod,
+    this.periodChangeError,
   });
 
   final StatisticsActivity activity;
 
-  /// Range represented by [activity].
-  final int days;
+  /// Period represented by [activity].
+  final StatisticsActivityPeriod period;
 
-  /// Whether another range is currently being requested.
-  final bool isChangingRange;
+  /// Whether another period is currently being requested.
+  final bool isChangingPeriod;
 
-  /// Range currently being requested while preserving [activity].
-  final int? pendingDays;
+  /// Period currently being requested while preserving [activity].
+  final StatisticsActivityPeriod? pendingPeriod;
 
-  /// Non-blocking failure from a range change.
-  final AppException? rangeChangeError;
+  /// Non-blocking failure from a period change.
+  final AppException? periodChangeError;
 
   StatisticsActivitySuccess copyWith({
     StatisticsActivity? activity,
-    int? days,
-    bool? isChangingRange,
-    int? pendingDays,
-    bool clearPendingDays = false,
-    AppException? rangeChangeError,
-    bool clearRangeChangeError = false,
+    StatisticsActivityPeriod? period,
+    bool? isChangingPeriod,
+    StatisticsActivityPeriod? pendingPeriod,
+    bool clearPendingPeriod = false,
+    AppException? periodChangeError,
+    bool clearPeriodChangeError = false,
   }) {
     return StatisticsActivitySuccess(
       activity: activity ?? this.activity,
-      days: days ?? this.days,
-      isChangingRange: isChangingRange ?? this.isChangingRange,
-      pendingDays: clearPendingDays ? null : pendingDays ?? this.pendingDays,
-      rangeChangeError: clearRangeChangeError
+      period: period ?? this.period,
+      isChangingPeriod: isChangingPeriod ?? this.isChangingPeriod,
+      pendingPeriod: clearPendingPeriod
           ? null
-          : rangeChangeError ?? this.rangeChangeError,
+          : pendingPeriod ?? this.pendingPeriod,
+      periodChangeError: clearPeriodChangeError
+          ? null
+          : periodChangeError ?? this.periodChangeError,
     );
   }
 
   @override
   List<Object?> get props => <Object?>[
     activity,
-    days,
-    isChangingRange,
-    pendingDays,
-    rangeChangeError,
+    period,
+    isChangingPeriod,
+    pendingPeriod,
+    periodChangeError,
   ];
 }
 
 final class StatisticsActivityFailure extends StatisticsActivityState {
-  const StatisticsActivityFailure({required this.error, required this.days});
+  const StatisticsActivityFailure({required this.error, required this.period});
 
   final AppException error;
 
-  /// Range whose initial load failed.
-  final int days;
+  /// Period whose initial load failed.
+  final StatisticsActivityPeriod period;
 
   @override
-  List<Object?> get props => <Object?>[error, days];
+  List<Object?> get props => <Object?>[error, period];
 }

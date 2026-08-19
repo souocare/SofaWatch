@@ -42,6 +42,7 @@ import 'package:sofawatch/features/show_details/presentation/pages/show_details_
 import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/data/repositories/api_shows_repository.dart';
 import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_content_insights_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
 import 'package:sofawatch/features/statistics/data/repositories/api_statistics_repository.dart';
@@ -49,6 +50,7 @@ import 'package:sofawatch/features/profile/application/cubit/profile_cubit.dart'
 import 'package:sofawatch/features/profile/data/repositories/api_profile_repository.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_activity_cubit.dart';
 import 'package:sofawatch/features/statistics/presentation/pages/detailed_statistics_page.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_habits_cubit.dart';
 
 GoRouter createAppRouter({required ApiClient apiClient}) {
   final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -329,6 +331,20 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                           BlocProvider<StatisticsActivityCubit>(
                             create: (BuildContext context) {
                               return StatisticsActivityCubit(
+                                repository: ApiStatisticsRepository(apiClient),
+                              )..load();
+                            },
+                          ),
+                          BlocProvider<StatisticsHabitsCubit>(
+                            create: (BuildContext context) {
+                              return StatisticsHabitsCubit(
+                                repository: ApiStatisticsRepository(apiClient),
+                              )..load();
+                            },
+                          ),
+                          BlocProvider<StatisticsContentInsightsCubit>(
+                            create: (BuildContext context) {
+                              return StatisticsContentInsightsCubit(
                                 repository: ApiStatisticsRepository(apiClient),
                               )..load();
                             },

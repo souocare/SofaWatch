@@ -5,9 +5,12 @@ import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_activity_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_activity_state.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_activity.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_activity_period.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_habits.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
 
 void main() {
   group('StatisticsActivityCubit', () {
@@ -23,7 +26,9 @@ void main() {
 
     test('loads seven days by default', () async {
       final _FakeStatisticsRepository repository = _FakeStatisticsRepository(
-        activities: <int, StatisticsActivity>{7: _sevenDayActivity},
+        activities: <StatisticsActivityPeriod, StatisticsActivity>{
+          StatisticsActivityPeriod.days7: _sevenDayActivity,
+        },
       );
 
       final StatisticsActivityCubit cubit = StatisticsActivityCubit(
@@ -34,36 +39,74 @@ void main() {
 
       expect(
         cubit.state,
-        StatisticsActivitySuccess(activity: _sevenDayActivity, days: 7),
+        StatisticsActivitySuccess(
+          activity: _sevenDayActivity,
+          period: StatisticsActivityPeriod.days7,
+        ),
       );
 
-      expect(repository.requestedDays, <int>[7]);
+      expect(repository.requestedPeriods, <StatisticsActivityPeriod>[
+        StatisticsActivityPeriod.days7,
+      ]);
 
       await cubit.close();
     });
 
     test('loads fourteen days when requested', () async {
       final _FakeStatisticsRepository repository = _FakeStatisticsRepository(
-        activities: <int, StatisticsActivity>{14: _fourteenDayActivity},
+        activities: <StatisticsActivityPeriod, StatisticsActivity>{
+          StatisticsActivityPeriod.days14: _fourteenDayActivity,
+        },
       );
 
       final StatisticsActivityCubit cubit = StatisticsActivityCubit(
         repository: repository,
       );
 
-      await cubit.load(days: 14);
+      await cubit.load(period: StatisticsActivityPeriod.days14);
 
       expect(
         cubit.state,
-        StatisticsActivitySuccess(activity: _fourteenDayActivity, days: 14),
+        StatisticsActivitySuccess(
+          activity: _fourteenDayActivity,
+          period: StatisticsActivityPeriod.days14,
+        ),
       );
 
-      expect(repository.requestedDays, <int>[14]);
+      expect(repository.requestedPeriods, <StatisticsActivityPeriod>[
+        StatisticsActivityPeriod.days14,
+      ]);
 
       await cubit.close();
     });
 
-    test('keeps existing data while changing range', () async {
+    test('supports every activity period', () async {
+      final Map<StatisticsActivityPeriod, StatisticsActivity> activities =
+          <StatisticsActivityPeriod, StatisticsActivity>{
+            for (final StatisticsActivityPeriod period
+                in StatisticsActivityPeriod.values)
+              period: _sevenDayActivity,
+          };
+
+      final _FakeStatisticsRepository repository = _FakeStatisticsRepository(
+        activities: activities,
+      );
+
+      final StatisticsActivityCubit cubit = StatisticsActivityCubit(
+        repository: repository,
+      );
+
+      for (final StatisticsActivityPeriod period
+          in StatisticsActivityPeriod.values) {
+        await cubit.load(period: period);
+      }
+
+      expect(repository.requestedPeriods, StatisticsActivityPeriod.values);
+
+      await cubit.close();
+    });
+
+    test('keeps existing data while changing period', () async {
       final _ControlledStatisticsRepository repository =
           _ControlledStatisticsRepository();
 
@@ -77,33 +120,40 @@ void main() {
 
       await initialLoad;
 
-      final Future<void> rangeChange = cubit.changeRange(14);
+      final Future<void> periodChange = cubit.changePeriod(
+        StatisticsActivityPeriod.days14,
+      );
 
       expect(
         cubit.state,
         StatisticsActivitySuccess(
           activity: _sevenDayActivity,
-          days: 7,
-          isChangingRange: true,
-          pendingDays: 14,
+          period: StatisticsActivityPeriod.days7,
+          isChangingPeriod: true,
+          pendingPeriod: StatisticsActivityPeriod.days14,
         ),
       );
 
       repository.complete(_fourteenDayActivity);
 
-      await rangeChange;
+      await periodChange;
 
       expect(
         cubit.state,
-        StatisticsActivitySuccess(activity: _fourteenDayActivity, days: 14),
+        StatisticsActivitySuccess(
+          activity: _fourteenDayActivity,
+          period: StatisticsActivityPeriod.days14,
+        ),
       );
 
       await cubit.close();
     });
 
-    test('does not reload the currently selected range', () async {
+    test('does not reload currently selected period', () async {
       final _FakeStatisticsRepository repository = _FakeStatisticsRepository(
-        activities: <int, StatisticsActivity>{7: _sevenDayActivity},
+        activities: <StatisticsActivityPeriod, StatisticsActivity>{
+          StatisticsActivityPeriod.days7: _sevenDayActivity,
+        },
       );
 
       final StatisticsActivityCubit cubit = StatisticsActivityCubit(
@@ -112,16 +162,18 @@ void main() {
 
       await cubit.load();
 
-      await cubit.changeRange(7);
+      await cubit.changePeriod(StatisticsActivityPeriod.days7);
 
-      expect(repository.requestedDays, <int>[7]);
+      expect(repository.requestedPeriods, <StatisticsActivityPeriod>[
+        StatisticsActivityPeriod.days7,
+      ]);
 
       await cubit.close();
     });
 
-    test('preserves existing activity when changing range fails', () async {
-      final _RangeFailureStatisticsRepository repository =
-          _RangeFailureStatisticsRepository();
+    test('preserves existing activity when changing period fails', () async {
+      final _PeriodFailureStatisticsRepository repository =
+          _PeriodFailureStatisticsRepository();
 
       final StatisticsActivityCubit cubit = StatisticsActivityCubit(
         repository: repository,
@@ -129,7 +181,7 @@ void main() {
 
       await cubit.load();
 
-      await cubit.changeRange(14);
+      await cubit.changePeriod(StatisticsActivityPeriod.days14);
 
       final StatisticsActivityState state = cubit.state;
 
@@ -140,13 +192,13 @@ void main() {
 
       expect(success.activity, _sevenDayActivity);
 
-      expect(success.days, 7);
+      expect(success.period, StatisticsActivityPeriod.days7);
 
-      expect(success.isChangingRange, isFalse);
+      expect(success.isChangingPeriod, isFalse);
 
-      expect(success.pendingDays, isNull);
+      expect(success.pendingPeriod, isNull);
 
-      expect(success.rangeChangeError, isA<AppException>());
+      expect(success.periodChangeError, isA<AppException>());
 
       await cubit.close();
     });
@@ -163,12 +215,12 @@ void main() {
       final StatisticsActivityFailure failure =
           cubit.state as StatisticsActivityFailure;
 
-      expect(failure.days, 7);
+      expect(failure.period, StatisticsActivityPeriod.days7);
 
       await cubit.close();
     });
 
-    test('retry repeats the failed initial range', () async {
+    test('retry repeats failed initial period', () async {
       final _RetryStatisticsRepository repository =
           _RetryStatisticsRepository();
 
@@ -176,7 +228,7 @@ void main() {
         repository: repository,
       );
 
-      await cubit.load(days: 14);
+      await cubit.load(period: StatisticsActivityPeriod.days14);
 
       expect(cubit.state, isA<StatisticsActivityFailure>());
 
@@ -184,14 +236,21 @@ void main() {
 
       expect(
         cubit.state,
-        StatisticsActivitySuccess(activity: _fourteenDayActivity, days: 14),
+        StatisticsActivitySuccess(
+          activity: _fourteenDayActivity,
+          period: StatisticsActivityPeriod.days14,
+        ),
       );
 
-      expect(repository.requestedDays, <int>[14, 14]);
+      expect(repository.requestedPeriods, <StatisticsActivityPeriod>[
+        StatisticsActivityPeriod.days14,
+        StatisticsActivityPeriod.days14,
+      ]);
 
       await cubit.close();
     });
-    test('ignores another range request while one is active', () async {
+
+    test('ignores another period request while one is active', () async {
       final _ControlledStatisticsRepository repository =
           _ControlledStatisticsRepository();
 
@@ -201,7 +260,9 @@ void main() {
 
       final Future<void> load = cubit.load();
 
-      final Future<void> duplicate = cubit.load(days: 14);
+      final Future<void> duplicate = cubit.load(
+        period: StatisticsActivityPeriod.days14,
+      );
 
       await duplicate;
 
@@ -211,7 +272,10 @@ void main() {
 
       expect(
         cubit.state,
-        StatisticsActivitySuccess(activity: _sevenDayActivity, days: 7),
+        StatisticsActivitySuccess(
+          activity: _sevenDayActivity,
+          period: StatisticsActivityPeriod.days7,
+        ),
       );
 
       await cubit.close();
@@ -233,18 +297,21 @@ final StatisticsActivity _fourteenDayActivity = StatisticsActivity(
 
 class _FakeStatisticsRepository implements StatisticsRepository {
   _FakeStatisticsRepository({
-    this.activities = const <int, StatisticsActivity>{},
+    this.activities = const <StatisticsActivityPeriod, StatisticsActivity>{},
   });
 
-  final Map<int, StatisticsActivity> activities;
+  final Map<StatisticsActivityPeriod, StatisticsActivity> activities;
 
-  final List<int> requestedDays = <int>[];
+  final List<StatisticsActivityPeriod> requestedPeriods =
+      <StatisticsActivityPeriod>[];
 
   @override
-  Future<StatisticsActivity> getActivity({required int days}) async {
-    requestedDays.add(days);
+  Future<StatisticsActivity> getActivity({
+    required StatisticsActivityPeriod period,
+  }) async {
+    requestedPeriods.add(period);
 
-    return activities[days]!;
+    return activities[period]!;
   }
 
   @override
@@ -256,13 +323,25 @@ class _FakeStatisticsRepository implements StatisticsRepository {
   Future<WeeklyStatistics> getWeeklyStatistics() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsHabits> getHabits() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsContentInsights> getContentInsights() {
+    throw UnimplementedError();
+  }
 }
 
 final class _ControlledStatisticsRepository implements StatisticsRepository {
   Completer<StatisticsActivity>? _completer;
 
   @override
-  Future<StatisticsActivity> getActivity({required int days}) {
+  Future<StatisticsActivity> getActivity({
+    required StatisticsActivityPeriod period,
+  }) {
     _completer = Completer<StatisticsActivity>();
 
     return _completer!.future;
@@ -281,13 +360,25 @@ final class _ControlledStatisticsRepository implements StatisticsRepository {
   Future<WeeklyStatistics> getWeeklyStatistics() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsHabits> getHabits() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsContentInsights> getContentInsights() {
+    throw UnimplementedError();
+  }
 }
 
-final class _RangeFailureStatisticsRepository implements StatisticsRepository {
+final class _PeriodFailureStatisticsRepository implements StatisticsRepository {
   int calls = 0;
 
   @override
-  Future<StatisticsActivity> getActivity({required int days}) async {
+  Future<StatisticsActivity> getActivity({
+    required StatisticsActivityPeriod period,
+  }) async {
     calls++;
 
     if (calls == 1) {
@@ -306,11 +397,23 @@ final class _RangeFailureStatisticsRepository implements StatisticsRepository {
   Future<WeeklyStatistics> getWeeklyStatistics() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsHabits> getHabits() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsContentInsights> getContentInsights() {
+    throw UnimplementedError();
+  }
 }
 
 final class _AlwaysFailingStatisticsRepository implements StatisticsRepository {
   @override
-  Future<StatisticsActivity> getActivity({required int days}) {
+  Future<StatisticsActivity> getActivity({
+    required StatisticsActivityPeriod period,
+  }) {
     throw const AppException.connection();
   }
 
@@ -323,16 +426,29 @@ final class _AlwaysFailingStatisticsRepository implements StatisticsRepository {
   Future<WeeklyStatistics> getWeeklyStatistics() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsHabits> getHabits() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsContentInsights> getContentInsights() {
+    throw UnimplementedError();
+  }
 }
 
 final class _RetryStatisticsRepository implements StatisticsRepository {
-  final List<int> requestedDays = <int>[];
+  final List<StatisticsActivityPeriod> requestedPeriods =
+      <StatisticsActivityPeriod>[];
 
   int calls = 0;
 
   @override
-  Future<StatisticsActivity> getActivity({required int days}) async {
-    requestedDays.add(days);
+  Future<StatisticsActivity> getActivity({
+    required StatisticsActivityPeriod period,
+  }) async {
+    requestedPeriods.add(period);
 
     calls++;
 
@@ -350,6 +466,16 @@ final class _RetryStatisticsRepository implements StatisticsRepository {
 
   @override
   Future<WeeklyStatistics> getWeeklyStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsHabits> getHabits() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsContentInsights> getContentInsights() {
     throw UnimplementedError();
   }
 }

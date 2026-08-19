@@ -8,6 +8,9 @@ import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.da
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_activity.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_activity_period.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_habits.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
 
 void main() {
   group('StatisticsCubit', () {
@@ -189,7 +192,19 @@ final class _FakeStatisticsRepository implements StatisticsRepository {
   }
 
   @override
-  Future<StatisticsActivity> getActivity({required int days}) {
+  Future<StatisticsActivity> getActivity({
+    required StatisticsActivityPeriod period,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsHabits> getHabits() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsContentInsights> getContentInsights() {
     throw UnimplementedError();
   }
 }
@@ -214,7 +229,19 @@ final class _RetryStatisticsRepository implements StatisticsRepository {
   }
 
   @override
-  Future<StatisticsActivity> getActivity({required int days}) {
+  Future<StatisticsActivity> getActivity({
+    required StatisticsActivityPeriod period,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsHabits> getHabits() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsContentInsights> getContentInsights() {
     throw UnimplementedError();
   }
 }
@@ -251,7 +278,19 @@ final class _ControlledStatisticsRepository implements StatisticsRepository {
   }
 
   @override
-  Future<StatisticsActivity> getActivity({required int days}) {
+  Future<StatisticsActivity> getActivity({
+    required StatisticsActivityPeriod period,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsHabits> getHabits() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsContentInsights> getContentInsights() {
     throw UnimplementedError();
   }
 }
@@ -277,7 +316,19 @@ final class _RefreshFailureStatisticsRepository
   }
 
   @override
-  Future<StatisticsActivity> getActivity({required int days}) {
+  Future<StatisticsActivity> getActivity({
+    required StatisticsActivityPeriod period,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsHabits> getHabits() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsContentInsights> getContentInsights() {
     throw UnimplementedError();
   }
 }

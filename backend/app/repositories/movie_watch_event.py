@@ -7,7 +7,11 @@ from sqlalchemy.orm import Session
 from app.models.movie_watch_event import MovieWatchEvent
 from app.models.movie import Movie
 from app.repositories.viewing_statistics import DailyViewingStatistics
-
+from app.models.genre import Genre
+from app.repositories.statistics_insights import (
+    GenreViewingInsight,
+    MovieViewingInsight,
+)
 
 class MovieWatchEventRepository:
     """Persistence operations for historical Movie watch events."""
@@ -406,3 +410,142 @@ class MovieWatchEventRepository:
             int(row[3] or 0),
             int(row[4] or 0),
         )
+
+    def get_earliest_watched_at_for_user(
+        self,
+        *,
+        user_id: UUID,
+    ) -> datetime | None:
+        """Return the user's earliest recorded Movie viewing."""
+
+        return self._session.scalar(
+            select(
+                func.min(
+                    MovieWatchEvent.watched_at,
+                )
+            ).where(
+                MovieWatchEvent.user_id == user_id,
+            )
+        )
+
+    def get_most_rewatched_movies(
+        self,
+        *,
+        user_id: UUID,
+        limit: int = 5,
+    ) -> list[MovieViewingInsight]:
+        """Return Movies ranked by rewatch count."""
+
+        watch_count = func.count(
+            MovieWatchEvent.id,
+        )
+
+        rows = self._session.execute(
+            select(
+                Movie.id,
+                Movie.tmdb_id,
+                Movie.title,
+                Movie.local_poster_path,
+                Movie.tmdb_poster_path,
+                watch_count.label("watch_count"),
+            )
+            .select_from(MovieWatchEvent)
+            .join(
+                Movie,
+                Movie.id == MovieWatchEvent.movie_id,
+            )
+            .where(
+                MovieWatchEvent.user_id == user_id,
+            )
+            .group_by(
+                Movie.id,
+                Movie.tmdb_id,
+                Movie.title,
+                Movie.local_poster_path,
+                Movie.tmdb_poster_path,
+            )
+            .having(
+                watch_count > 1,
+            )
+            .order_by(
+                watch_count.desc(),
+                Movie.title.asc(),
+            )
+            .limit(limit)
+        ).all()
+
+        return [
+            MovieViewingInsight(
+                movie_id=movie_id,
+                tmdb_id=int(tmdb_id),
+                title=title,
+                poster_url=(
+                    f"/api/v1/images/movies/{movie_id}/poster"
+                    if local_poster_path or tmdb_poster_path
+                    else None
+                ),
+                watch_count=int(total_watch_count),
+                rewatch_count=int(total_watch_count) - 1,
+            )
+            for (
+                movie_id,
+                tmdb_id,
+                title,
+                local_poster_path,
+                tmdb_poster_path,
+                total_watch_count,
+            ) in rows
+        ]
+
+    def get_top_movie_genres(
+        self,
+        *,
+        user_id: UUID,
+        limit: int = 5,
+    ) -> list[GenreViewingInsight]:
+        """Return Movie Genres ranked by Movie watch events."""
+
+        watch_count = func.count(
+            MovieWatchEvent.id,
+        )
+
+        rows = self._session.execute(
+            select(
+                Genre.id,
+                Genre.name,
+                watch_count.label("watch_count"),
+            )
+            .select_from(MovieWatchEvent)
+            .join(
+                Movie,
+                Movie.id == MovieWatchEvent.movie_id,
+            )
+            .join(
+                Movie.genres,
+            )
+            .where(
+                MovieWatchEvent.user_id == user_id,
+            )
+            .group_by(
+                Genre.id,
+                Genre.name,
+            )
+            .order_by(
+                watch_count.desc(),
+                Genre.name.asc(),
+            )
+            .limit(limit)
+        ).all()
+
+        return [
+            GenreViewingInsight(
+                genre_id=int(genre_id),
+                name=name,
+                watch_count=int(total_watch_count),
+            )
+            for (
+                genre_id,
+                name,
+                total_watch_count,
+            ) in rows
+        ]

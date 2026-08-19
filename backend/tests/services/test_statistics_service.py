@@ -1,11 +1,19 @@
 from datetime import UTC, date, datetime
 from unittest.mock import Mock
 from uuid import uuid4
+from types import SimpleNamespace
 
 from app.repositories.episode_watch_event import EpisodeWatchEventRepository
 from app.repositories.movie_watch_event import MovieWatchEventRepository
 from app.services.statistics import StatisticsService
 from app.repositories.viewing_statistics import DailyViewingStatistics
+from app.schemas.statistics import StatisticsActivityPeriod
+from app.repositories.statistics_insights import (
+    EpisodeViewingInsight,
+    GenreViewingInsight,
+    MovieViewingInsight,
+    ShowViewingInsight,
+)
 
 
 def test_weekly_summary_combines_episode_and_movie_statistics() -> None:
@@ -417,12 +425,8 @@ def test_get_activity_combines_episode_and_movie_daily_statistics() -> None:
 
     result = service.get_activity(
         user_id=user_id,
-        days=7,
-        reference_date=date(
-            2026,
-            8,
-            18,
-        ),
+        period=StatisticsActivityPeriod.DAYS_7,
+        reference_date=date(2026, 8, 18),
     )
 
     assert result.start_date == date(
@@ -494,12 +498,8 @@ def test_get_activity_fills_days_without_viewing_with_zeroes() -> None:
 
     result = service.get_activity(
         user_id=uuid4(),
-        days=7,
-        reference_date=date(
-            2026,
-            8,
-            18,
-        ),
+        period=StatisticsActivityPeriod.DAYS_7,
+        reference_date=date(2026, 8, 18),
     )
 
     assert len(result.days) == 7
@@ -531,13 +531,10 @@ def test_get_activity_supports_fourteen_days() -> None:
 
     result = service.get_activity(
         user_id=uuid4(),
-        days=14,
-        reference_date=date(
-            2026,
-            8,
-            18,
-        ),
+        period=StatisticsActivityPeriod.DAYS_14,
+        reference_date=date(2026, 8, 18),
     )
+
 
     assert result.start_date == date(
         2026,
@@ -554,7 +551,7 @@ def test_get_activity_supports_fourteen_days() -> None:
     assert len(result.days) == 14
 
 
-def test_get_activity_rejects_unsupported_day_range() -> None:
+def test_get_activity_supports_thirty_day_period() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
     )
@@ -563,26 +560,1326 @@ def test_get_activity_rejects_unsupported_day_range() -> None:
         spec=MovieWatchEventRepository,
     )
 
+    episode_repository.get_daily_statistics_for_period.return_value = []
+    movie_repository.get_daily_statistics_for_period.return_value = []
+
     service = StatisticsService(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
 
-    try:
-        service.get_activity(
-            user_id=uuid4(),
-            days=30,
-            reference_date=date(
-                2026,
-                8,
-                18,
+    result = service.get_activity(
+        user_id=uuid4(),
+        period=StatisticsActivityPeriod.DAYS_30,
+        reference_date=date(
+            2026,
+            8,
+            18,
+        ),
+    )
+
+    assert result.start_date == date(
+        2026,
+        7,
+        20,
+    )
+
+    assert result.end_date == date(
+        2026,
+        8,
+        18,
+    )
+
+    assert len(result.days) == 30
+
+def test_activity_supports_thirty_days() -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_daily_statistics_for_period.return_value = []
+    movie_repository.get_daily_statistics_for_period.return_value = []
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_activity(
+        user_id=uuid4(),
+        period=StatisticsActivityPeriod.DAYS_30,
+        reference_date=date(2026, 8, 18),
+    )
+
+    assert result.start_date == date(2026, 7, 20)
+    assert result.end_date == date(2026, 8, 18)
+    assert len(result.days) == 30
+
+
+def test_activity_supports_ninety_days() -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_daily_statistics_for_period.return_value = []
+    movie_repository.get_daily_statistics_for_period.return_value = []
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_activity(
+        user_id=uuid4(),
+        period=StatisticsActivityPeriod.DAYS_90,
+        reference_date=date(2026, 8, 18),
+    )
+
+    assert result.start_date == date(2026, 5, 21)
+    assert result.end_date == date(2026, 8, 18)
+    assert len(result.days) == 90
+
+
+def test_activity_supports_one_year() -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_daily_statistics_for_period.return_value = []
+    movie_repository.get_daily_statistics_for_period.return_value = []
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_activity(
+        user_id=uuid4(),
+        period=StatisticsActivityPeriod.YEAR_1,
+        reference_date=date(2026, 8, 18),
+    )
+
+    assert result.start_date == date(2025, 8, 19)
+    assert result.end_date == date(2026, 8, 18)
+    assert len(result.days) == 365
+
+def test_activity_all_starts_at_earliest_viewing() -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2024,
+            5,
+            10,
+            20,
+            0,
+            tzinfo=UTC,
+        )
+    )
+
+    movie_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2023,
+            11,
+            2,
+            21,
+            0,
+            tzinfo=UTC,
+        )
+    )
+
+    episode_repository.get_daily_statistics_for_period.return_value = []
+    movie_repository.get_daily_statistics_for_period.return_value = []
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_activity(
+        user_id=uuid4(),
+        period=StatisticsActivityPeriod.ALL,
+        reference_date=date(2026, 8, 18),
+    )
+
+    assert result.start_date == date(2023, 11, 2)
+    assert result.end_date == date(2026, 8, 18)
+
+    expected_days = (
+        date(2026, 8, 18)
+        - date(2023, 11, 2)
+    ).days + 1
+
+    assert len(result.days) == expected_days
+
+
+def test_activity_all_returns_today_without_viewing_history() -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = None
+    movie_repository.get_earliest_watched_at_for_user.return_value = None
+
+    episode_repository.get_daily_statistics_for_period.return_value = []
+    movie_repository.get_daily_statistics_for_period.return_value = []
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_activity(
+        user_id=uuid4(),
+        period=StatisticsActivityPeriod.ALL,
+        reference_date=date(2026, 8, 18),
+    )
+
+    assert result.start_date == date(2026, 8, 18)
+    assert result.end_date == date(2026, 8, 18)
+    assert len(result.days) == 1
+
+    assert result.days[0].day == date(2026, 8, 18)
+    assert result.days[0].episodes_watched == 0
+    assert result.days[0].movies_watched == 0
+    assert result.days[0].watch_time_minutes == 0
+
+def test_get_habits_calculates_current_and_longest_streaks() -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            10,
+            tzinfo=UTC,
+        )
+    )
+
+    movie_repository.get_earliest_watched_at_for_user.return_value = None
+
+    episode_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-10",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+        SimpleNamespace(
+            day="2026-08-11",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+        SimpleNamespace(
+            day="2026-08-12",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+        SimpleNamespace(
+            day="2026-08-16",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+        SimpleNamespace(
+            day="2026-08-17",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+        SimpleNamespace(
+            day="2026-08-18",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+    ]
+
+    movie_repository.get_daily_statistics_for_period.return_value = []
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_habits(
+        user_id=uuid4(),
+        reference_date=date(
+            2026,
+            8,
+            18,
+        ),
+    )
+
+    assert result.current_streak_days == 3
+    assert result.longest_streak_days == 3
+
+def test_get_habits_keeps_current_streak_alive_from_yesterday() -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            15,
+            tzinfo=UTC,
+        )
+    )
+
+    movie_repository.get_earliest_watched_at_for_user.return_value = None
+
+    episode_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-15",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+        SimpleNamespace(
+            day="2026-08-16",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+        SimpleNamespace(
+            day="2026-08-17",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+    ]
+
+    movie_repository.get_daily_statistics_for_period.return_value = []
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_habits(
+        user_id=uuid4(),
+        reference_date=date(
+            2026,
+            8,
+            18,
+        ),
+    )
+
+    assert result.current_streak_days == 3
+    assert result.longest_streak_days == 3
+
+def test_get_habits_returns_zero_current_streak_when_last_activity_is_old() -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            10,
+            tzinfo=UTC,
+        )
+    )
+
+    movie_repository.get_earliest_watched_at_for_user.return_value = None
+
+    episode_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-10",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+        SimpleNamespace(
+            day="2026-08-11",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+        SimpleNamespace(
+            day="2026-08-12",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+    ]
+
+    movie_repository.get_daily_statistics_for_period.return_value = []
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_habits(
+        user_id=uuid4(),
+        reference_date=date(
+            2026,
+            8,
+            18,
+        ),
+    )
+
+    assert result.current_streak_days == 0
+    assert result.longest_streak_days == 3
+
+def test_get_habits_combines_episode_and_movie_active_days() -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            15,
+            tzinfo=UTC,
+        )
+    )
+
+    movie_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            16,
+            tzinfo=UTC,
+        )
+    )
+
+    episode_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-15",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+        SimpleNamespace(
+            day="2026-08-17",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+    ]
+
+    movie_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-16",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+        SimpleNamespace(
+            day="2026-08-18",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+    ]
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_habits(
+        user_id=uuid4(),
+        reference_date=date(
+            2026,
+            8,
+            18,
+        ),
+    )
+
+    assert result.current_streak_days == 4
+    assert result.longest_streak_days == 4
+
+def test_get_habits_counts_shared_episode_and_movie_day_once() -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    watched_at = datetime(
+        2026,
+        8,
+        18,
+        tzinfo=UTC,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = (
+        watched_at
+    )
+
+    movie_repository.get_earliest_watched_at_for_user.return_value = (
+        watched_at
+    )
+
+    episode_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-18",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+    ]
+
+    movie_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-18",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+    ]
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_habits(
+        user_id=uuid4(),
+        reference_date=date(
+            2026,
+            8,
+            18,
+        ),
+    )
+
+    assert result.current_streak_days == 1
+    assert result.longest_streak_days == 1
+
+def test_get_habits_returns_zeroes_without_viewing_history() -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = None
+    movie_repository.get_earliest_watched_at_for_user.return_value = None
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_habits(
+        user_id=uuid4(),
+        reference_date=date(
+            2026,
+            8,
+            18,
+        ),
+    )
+
+    assert result.current_streak_days == 0
+    assert result.longest_streak_days == 0
+
+    episode_repository.get_daily_statistics_for_period.assert_not_called()
+    movie_repository.get_daily_statistics_for_period.assert_not_called()
+
+
+def test_get_habits_calculates_biggest_marathon_from_episode_and_movie_time(
+) -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            10,
+            tzinfo=UTC,
+        )
+    )
+
+    movie_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            10,
+            tzinfo=UTC,
+        )
+    )
+
+    episode_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-10",
+            watch_time_minutes=100,
+            watch_count=1,
+        ),
+        SimpleNamespace(
+            day="2026-08-12",
+            watch_time_minutes=180,
+            watch_count=1,
+        ),
+    ]
+
+    movie_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-10",
+            watch_time_minutes=155,
+            watch_count=1,
+        ),
+        SimpleNamespace(
+            day="2026-08-11",
+            watch_time_minutes=120,
+            watch_count=1,
+        ),
+        SimpleNamespace(
+            day="2026-08-12",
+            watch_time_minutes=90,
+            watch_count=1,
+        ),
+    ]
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_habits(
+        user_id=uuid4(),
+        reference_date=date(
+            2026,
+            8,
+            18,
+        ),
+    )
+
+    # 12 August: 180 Episode minutes + 90 Movie minutes.
+    assert result.biggest_marathon_watch_time_minutes == 270
+    assert result.biggest_marathon_day == date(
+        2026,
+        8,
+        12,
+    )
+
+def test_get_habits_uses_most_recent_day_when_marathon_time_is_tied(
+) -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            10,
+            tzinfo=UTC,
+        )
+    )
+
+    movie_repository.get_earliest_watched_at_for_user.return_value = None
+
+    episode_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-10",
+            watch_time_minutes=180,
+            watch_count=1,
+        ),
+        SimpleNamespace(
+            day="2026-08-15",
+            watch_time_minutes=180,
+            watch_count=1,
+        ),
+    ]
+
+    movie_repository.get_daily_statistics_for_period.return_value = []
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_habits(
+        user_id=uuid4(),
+        reference_date=date(
+            2026,
+            8,
+            18,
+        ),
+    )
+
+    assert result.biggest_marathon_watch_time_minutes == 180
+    assert result.biggest_marathon_day == date(
+        2026,
+        8,
+        15,
+    )
+
+
+def test_get_habits_returns_no_marathon_day_when_all_watch_time_is_unknown(
+) -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            18,
+            tzinfo=UTC,
+        )
+    )
+
+    movie_repository.get_earliest_watched_at_for_user.return_value = None
+
+    episode_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-18",
+            watch_time_minutes=0,
+            watch_count=1,
+        ),
+    ]
+
+    movie_repository.get_daily_statistics_for_period.return_value = []
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_habits(
+        user_id=uuid4(),
+        reference_date=date(
+            2026,
+            8,
+            18,
+        ),
+    )
+
+    assert result.current_streak_days == 1
+    assert result.longest_streak_days == 1
+
+    assert result.biggest_marathon_watch_time_minutes == 0
+    assert result.biggest_marathon_day is None
+
+
+def test_get_habits_calculates_longest_episode_binge() -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            10,
+            tzinfo=UTC,
+        )
+    )
+
+    movie_repository.get_earliest_watched_at_for_user.return_value = None
+
+    episode_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-10",
+            watch_count=3,
+            watch_time_minutes=150,
+        ),
+        SimpleNamespace(
+            day="2026-08-12",
+            watch_count=7,
+            watch_time_minutes=350,
+        ),
+        SimpleNamespace(
+            day="2026-08-15",
+            watch_count=4,
+            watch_time_minutes=200,
+        ),
+    ]
+
+    movie_repository.get_daily_statistics_for_period.return_value = []
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_habits(
+        user_id=uuid4(),
+        reference_date=date(
+            2026,
+            8,
+            18,
+        ),
+    )
+
+    assert result.longest_binge_episode_count == 7
+
+    assert result.longest_binge_day == date(
+        2026,
+        8,
+        12,
+    )
+
+
+def test_get_habits_uses_most_recent_day_when_episode_binge_is_tied(
+) -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            10,
+            tzinfo=UTC,
+        )
+    )
+
+    movie_repository.get_earliest_watched_at_for_user.return_value = None
+
+    episode_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-10",
+            watch_count=5,
+            watch_time_minutes=250,
+        ),
+        SimpleNamespace(
+            day="2026-08-15",
+            watch_count=5,
+            watch_time_minutes=250,
+        ),
+    ]
+
+    movie_repository.get_daily_statistics_for_period.return_value = []
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_habits(
+        user_id=uuid4(),
+        reference_date=date(
+            2026,
+            8,
+            18,
+        ),
+    )
+
+    assert result.longest_binge_episode_count == 5
+
+    assert result.longest_binge_day == date(
+        2026,
+        8,
+        15,
+    )
+
+
+def test_get_habits_returns_no_episode_binge_for_movie_only_history(
+) -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = None
+
+    movie_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            18,
+            tzinfo=UTC,
+        )
+    )
+
+    episode_repository.get_daily_statistics_for_period.return_value = []
+
+    movie_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-18",
+            watch_count=3,
+            watch_time_minutes=300,
+        ),
+    ]
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_habits(
+        user_id=uuid4(),
+        reference_date=date(
+            2026,
+            8,
+            18,
+        ),
+    )
+
+    assert result.longest_binge_episode_count == 0
+    assert result.longest_binge_day is None
+
+def test_get_habits_calculates_average_active_day_watch_time() -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            10,
+            tzinfo=UTC,
+        )
+    )
+
+    movie_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            11,
+            tzinfo=UTC,
+        )
+    )
+
+    episode_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-10",
+            watch_count=2,
+            watch_time_minutes=100,
+        ),
+        SimpleNamespace(
+            day="2026-08-11",
+            watch_count=1,
+            watch_time_minutes=50,
+        ),
+    ]
+
+    movie_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-11",
+            watch_count=1,
+            watch_time_minutes=120,
+        ),
+        SimpleNamespace(
+            day="2026-08-12",
+            watch_count=1,
+            watch_time_minutes=90,
+        ),
+    ]
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_habits(
+        user_id=uuid4(),
+        reference_date=date(
+            2026,
+            8,
+            18,
+        ),
+    )
+
+    # Active days:
+    # Aug 10 = 100
+    # Aug 11 = 50 + 120 = 170
+    # Aug 12 = 90
+    #
+    # 360 / 3 = 120.
+    assert result.average_active_day_watch_time_minutes == 120
+
+
+def test_get_habits_counts_zero_watch_time_day_in_active_day_average(
+) -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            17,
+            tzinfo=UTC,
+        )
+    )
+
+    movie_repository.get_earliest_watched_at_for_user.return_value = None
+
+    episode_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-17",
+            watch_count=1,
+            watch_time_minutes=0,
+        ),
+        SimpleNamespace(
+            day="2026-08-18",
+            watch_count=1,
+            watch_time_minutes=120,
+        ),
+    ]
+
+    movie_repository.get_daily_statistics_for_period.return_value = []
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_habits(
+        user_id=uuid4(),
+        reference_date=date(
+            2026,
+            8,
+            18,
+        ),
+    )
+
+    assert result.average_active_day_watch_time_minutes == 60
+
+
+
+def test_get_habits_calculates_most_active_weekday() -> None:
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            10,
+            tzinfo=UTC,
+        )
+    )
+
+    movie_repository.get_earliest_watched_at_for_user.return_value = (
+        datetime(
+            2026,
+            8,
+            10,
+            tzinfo=UTC,
+        )
+    )
+
+    episode_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-10",
+            watch_count=2,
+            watch_time_minutes=100,
+        ),
+        SimpleNamespace(
+            day="2026-08-17",
+            watch_count=3,
+            watch_time_minutes=150,
+        ),
+        SimpleNamespace(
+            day="2026-08-11",
+            watch_count=4,
+            watch_time_minutes=200,
+        ),
+    ]
+
+    movie_repository.get_daily_statistics_for_period.return_value = [
+        SimpleNamespace(
+            day="2026-08-10",
+            watch_count=1,
+            watch_time_minutes=120,
+        ),
+        SimpleNamespace(
+            day="2026-08-17",
+            watch_count=2,
+            watch_time_minutes=240,
+        ),
+    ]
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_habits(
+        user_id=uuid4(),
+        reference_date=date(
+            2026,
+            8,
+            18,
+        ),
+    )
+
+    assert result.most_active_weekday == "Monday"
+    assert result.most_active_weekday_watch_count == 8
+
+
+def test_get_content_insights_combines_all_rankings() -> None:
+    """Combine every Content Insights ranking into one response."""
+
+    user_id = uuid4()
+
+    show_id = uuid4()
+    episode_id = uuid4()
+    movie_id = uuid4()
+
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_most_watched_shows.return_value = [
+        ShowViewingInsight(
+            show_id=show_id,
+            tmdb_id=95396,
+            title="Severance",
+            poster_url=f"/api/v1/images/shows/{show_id}/poster",
+            watch_count=12,
+            rewatch_count=0,
+        ),
+    ]
+
+    episode_repository.get_most_rewatched_shows.return_value = [
+        ShowViewingInsight(
+            show_id=show_id,
+            tmdb_id=95396,
+            title="Severance",
+            poster_url=f"/api/v1/images/shows/{show_id}/poster",
+            watch_count=12,
+            rewatch_count=4,
+        ),
+    ]
+
+    episode_repository.get_most_rewatched_episodes.return_value = [
+        EpisodeViewingInsight(
+            episode_id=episode_id,
+            show_tmdb_id=95396,
+            show_title="Severance",
+            season_number=1,
+            episode_number=1,
+            episode_title="Good News About Hell",
+            still_url=(
+                f"/api/v1/images/episodes/"
+                f"{episode_id}/still"
             ),
+            watch_count=4,
+            rewatch_count=3,
+        ),
+    ]
+
+    movie_repository.get_most_rewatched_movies.return_value = [
+        MovieViewingInsight(
+            movie_id=movie_id,
+            tmdb_id=438631,
+            title="Dune",
+            poster_url=f"/api/v1/images/movies/{movie_id}/poster",
+            watch_count=3,
+            rewatch_count=2,
+        ),
+    ]
+
+    episode_repository.get_top_show_genres.return_value = [
+        GenreViewingInsight(
+            genre_id=1,
+            name="Drama",
+            watch_count=12,
+        ),
+    ]
+
+    movie_repository.get_top_movie_genres.return_value = [
+        GenreViewingInsight(
+            genre_id=2,
+            name="Science Fiction",
+            watch_count=8,
+        ),
+    ]
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_content_insights(
+        user_id=user_id,
+    )
+
+    assert len(result.most_watched_shows) == 1
+    assert result.most_watched_shows[0].title == "Severance"
+    assert result.most_watched_shows[0].watch_count == 12
+
+    assert len(result.most_rewatched_shows) == 1
+    assert result.most_rewatched_shows[0].rewatch_count == 4
+
+    assert len(result.most_rewatched_episodes) == 1
+
+    episode = result.most_rewatched_episodes[0]
+
+    assert episode.show_title == "Severance"
+    assert episode.season_number == 1
+    assert episode.episode_number == 1
+    assert episode.episode_title == "Good News About Hell"
+    assert episode.watch_count == 4
+    assert episode.rewatch_count == 3
+
+    assert len(result.most_rewatched_movies) == 1
+    assert result.most_rewatched_movies[0].title == "Dune"
+    assert result.most_rewatched_movies[0].rewatch_count == 2
+
+    assert [
+        (
+            item.name,
+            item.watch_count,
         )
-    except ValueError as error:
-        assert str(error) == (
-            "Statistics activity supports only 7 or 14 days."
+        for item in result.top_show_genres
+    ] == [
+        (
+            "Drama",
+            12,
+        ),
+    ]
+
+    assert [
+        (
+            item.name,
+            item.watch_count,
         )
-    else:
-        raise AssertionError(
-            "Expected unsupported activity range to raise ValueError."
-        )
+        for item in result.top_movie_genres
+    ] == [
+        (
+            "Science Fiction",
+            8,
+        ),
+    ]
+
+    episode_repository.get_most_watched_shows.assert_called_once_with(
+        user_id=user_id,
+        limit=5,
+    )
+
+    episode_repository.get_most_rewatched_shows.assert_called_once_with(
+        user_id=user_id,
+        limit=5,
+    )
+
+    episode_repository.get_most_rewatched_episodes.assert_called_once_with(
+        user_id=user_id,
+        limit=5,
+    )
+
+    movie_repository.get_most_rewatched_movies.assert_called_once_with(
+        user_id=user_id,
+        limit=5,
+    )
+
+    episode_repository.get_top_show_genres.assert_called_once_with(
+        user_id=user_id,
+        limit=5,
+    )
+
+    movie_repository.get_top_movie_genres.assert_called_once_with(
+        user_id=user_id,
+        limit=5,
+    )
+
+
+def test_get_content_insights_returns_empty_rankings_without_history() -> None:
+    """Return usable empty Content Insights when no rankings exist."""
+
+    user_id = uuid4()
+
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    episode_repository.get_most_watched_shows.return_value = []
+    episode_repository.get_most_rewatched_shows.return_value = []
+    episode_repository.get_most_rewatched_episodes.return_value = []
+    episode_repository.get_top_show_genres.return_value = []
+
+    movie_repository.get_most_rewatched_movies.return_value = []
+    movie_repository.get_top_movie_genres.return_value = []
+
+    service = StatisticsService(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+    )
+
+    result = service.get_content_insights(
+        user_id=user_id,
+    )
+
+    assert result.most_watched_shows == []
+    assert result.most_rewatched_shows == []
+    assert result.most_rewatched_episodes == []
+    assert result.most_rewatched_movies == []
+    assert result.top_show_genres == []
+    assert result.top_movie_genres == []
+
+

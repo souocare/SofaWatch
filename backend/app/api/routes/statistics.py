@@ -1,14 +1,16 @@
-from app.core.exceptions import APIError
-from fastapi import APIRouter
 from typing import Annotated
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query
+
 from app.api.dependencies import (
     CurrentUserDependency,
     StatisticsServiceDependency,
 )
 from app.schemas.statistics import (
+    StatisticsActivityPeriod,
     StatisticsActivityResponse,
+    StatisticsContentInsightsResponse,
+    StatisticsHabitsResponse,
     StatisticsSummaryResponse,
     WeeklyStatisticsResponse,
 )
@@ -41,41 +43,72 @@ def get_statistics_summary(
 
 
 @router.get(
+    "/habits",
+    response_model=StatisticsHabitsResponse,
+    summary="Get viewing habits",
+    description=(
+        "Return the current user's all-time viewing habits, including "
+        "current and longest watching streaks."
+    ),
+)
+def get_statistics_habits(
+    current_user: CurrentUserDependency,
+    service: StatisticsServiceDependency,
+) -> StatisticsHabitsResponse:
+    """Return all-time viewing habits for the current user."""
+
+    return service.get_habits(
+        user_id=current_user.id,
+    )
+
+
+@router.get(
+    "/content-insights",
+    response_model=StatisticsContentInsightsResponse,
+    summary="Get content insights",
+    description=(
+        "Return the current user's ranked all-time content insights, "
+        "including most watched and rewatched content and top genres."
+    ),
+)
+def get_statistics_content_insights(
+    current_user: CurrentUserDependency,
+    service: StatisticsServiceDependency,
+) -> StatisticsContentInsightsResponse:
+    """Return ranked all-time content insights for the current user."""
+
+    return service.get_content_insights(
+        user_id=current_user.id,
+    )
+
+@router.get(
     "/activity",
     response_model=StatisticsActivityResponse,
-    summary="Get recent viewing activity",
+    summary="Get viewing activity",
     description=(
         "Return the current user's daily viewing activity for the "
-        "previous 7 or 14 calendar days, including today."
+        "selected time period, including today."
     ),
 )
 def get_statistics_activity(
     current_user: CurrentUserDependency,
     service: StatisticsServiceDependency,
-    days: Annotated[
-        int,
+    period: Annotated[
+        StatisticsActivityPeriod,
         Query(
-            description="Number of recent calendar days to return.",
-            examples=[7, 14],
+            alias="range",
+            description="Viewing activity time period.",
+            examples=["7d", "14d", "30d", "90d", "1y", "all"],
         ),
-    ] = 7,
+    ] = StatisticsActivityPeriod.DAYS_7,
 ) -> StatisticsActivityResponse:
-    """Return recent daily viewing activity."""
-
-    if days not in {
-        7,
-        14,
-    }:
-        raise APIError(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            code="invalid_statistics_activity_range",
-            message="Statistics activity supports only 7 or 14 days.",
-        )
+    """Return daily viewing activity for the selected period."""
 
     return service.get_activity(
         user_id=current_user.id,
-        days=days,
+        period=period,
     )
+
 
 @router.get(
     "/weekly",
