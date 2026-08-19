@@ -291,3 +291,58 @@ class LibraryRepository:
         return set(
             self._session.scalars(statement).all()
         )
+
+
+    def get_backlog_show_ids_for_user(
+        self,
+        *,
+        user_id: UUID,
+    ) -> list[UUID]:
+        """Return Show IDs that currently contribute to the user's backlog."""
+
+        statement = select(
+            LibraryEntry.show_id,
+        ).where(
+            LibraryEntry.user_id == user_id,
+            LibraryEntry.show_id.is_not(None),
+            LibraryEntry.status != LibraryStatus.DROPPED,
+        )
+
+        return [
+            show_id
+            for show_id in self._session.scalars(statement).all()
+            if show_id is not None
+        ]
+
+
+    def get_planned_movie_statistics(
+        self,
+        *,
+        user_id: UUID,
+    ) -> tuple[int, int]:
+        """Return Planned Movie count and total known runtime."""
+
+        row = self._session.execute(
+            select(
+                func.count(LibraryEntry.id),
+                func.coalesce(
+                    func.sum(Movie.runtime),
+                    0,
+                ),
+            )
+            .select_from(LibraryEntry)
+            .join(
+                Movie,
+                Movie.id == LibraryEntry.movie_id,
+            )
+            .where(
+                LibraryEntry.user_id == user_id,
+                LibraryEntry.movie_id.is_not(None),
+                LibraryEntry.status == LibraryStatus.PLANNING,
+            )
+        ).one()
+
+        return (
+            int(row[0] or 0),
+            int(row[1] or 0),
+        )

@@ -16,8 +16,13 @@ from app.schemas.statistics import (
     StatisticsGenreInsightResponse,
     StatisticsMovieInsightResponse,
     StatisticsShowInsightResponse,
-        StatisticsLibraryResponse,
+    StatisticsLibraryResponse,
+    StatisticsBacklogResponse,
+    StatisticsBacklogTrend,
 )
+from app.repositories.library import LibraryRepository
+from app.repositories.episode import EpisodeRepository
+from app.repositories.episode_progress import EpisodeProgressRepository
 from app.repositories.library import LibraryRepository
 
 
@@ -30,6 +35,8 @@ class StatisticsService:
         episode_watch_event_repository: EpisodeWatchEventRepository,
         movie_watch_event_repository: MovieWatchEventRepository,
         library_repository: LibraryRepository,
+        episode_repository: EpisodeRepository,
+        episode_progress_repository: EpisodeProgressRepository,
     ) -> None:
         self._episode_watch_event_repository = (
             episode_watch_event_repository
@@ -38,7 +45,14 @@ class StatisticsService:
         self._movie_watch_event_repository = (
             movie_watch_event_repository
         )
+
         self._library_repository = library_repository
+
+        self._episode_repository = episode_repository
+
+        self._episode_progress_repository = (
+            episode_progress_repository
+        )
 
     def get_weekly_summary(
         self,
@@ -693,6 +707,136 @@ class StatisticsService:
             shows_added=shows_added,
             movies_added=movies_added,
             shows_completed=shows_completed,
+        )
+
+
+    def get_backlog_statistics(
+        self,
+        *,
+        user_id: UUID,
+        reference_date: date | None = None,
+    ) -> StatisticsBacklogResponse:
+        """Return current backlog and recent catch-up statistics.
+
+        The recent trend window covers the previous 28 calendar days,
+        including the reference date.
+
+        Catch-up speed measures unique regular Episodes first watched
+        during that window, normalized to Episodes per week.
+
+        Backlog trend compares newly aired regular Episodes with Episodes
+        first watched during the same period.
+        """
+
+        current_date = reference_date or datetime.now(
+            UTC,
+        ).date()
+
+        backlog_show_ids = (
+            self._library_repository
+            .get_backlog_show_ids_for_user(
+                user_id=user_id,
+            )
+        )
+
+        (
+            unwatched_aired_episodes,
+            unwatched_aired_watch_time_minutes,
+        ) = (
+            self._episode_progress_repository
+            .get_unwatched_aired_statistics(
+                user_id=user_id,
+                show_ids=backlog_show_ids,
+                as_of=current_date,
+            )
+        )
+
+        (
+            planned_movies,
+            planned_movie_watch_time_minutes,
+        ) = (
+            self._library_repository
+            .get_planned_movie_statistics(
+                user_id=user_id,
+            )
+        )
+
+        future_watch_time_minutes = (
+            unwatched_aired_watch_time_minutes
+            + planned_movie_watch_time_minutes
+        )
+
+        trend_window_days = 28
+
+        trend_start_date = current_date - timedelta(
+            days=trend_window_days - 1,
+        )
+
+        trend_start_at = datetime.combine(
+            trend_start_date,
+            time.min,
+            tzinfo=UTC,
+        )
+
+        trend_end_at = datetime.combine(
+            current_date + timedelta(days=1),
+            time.min,
+            tzinfo=UTC,
+        )
+
+        first_watched_episodes = (
+            self._episode_progress_repository
+            .count_first_watched_regular_episodes_between(
+                user_id=user_id,
+                show_ids=backlog_show_ids,
+                start_at=trend_start_at,
+                end_at=trend_end_at,
+            )
+        )
+
+        recently_aired_episodes = (
+            self._episode_repository
+            .list_regular_for_shows_between(
+                show_ids=backlog_show_ids,
+                from_date=trend_start_date,
+                to_date=current_date,
+            )
+        )
+
+        aired_episode_count = len(
+            recently_aired_episodes,
+        )
+
+        catch_up_speed_episodes_per_week = round(
+            first_watched_episodes / 4,
+            2,
+        )
+
+        backlog_trend_episode_delta = (
+            aired_episode_count
+            - first_watched_episodes
+        )
+
+        if backlog_trend_episode_delta > 0:
+            backlog_trend = StatisticsBacklogTrend.GROWING
+
+        elif backlog_trend_episode_delta < 0:
+            backlog_trend = StatisticsBacklogTrend.SHRINKING
+
+        else:
+            backlog_trend = StatisticsBacklogTrend.STABLE
+
+        return StatisticsBacklogResponse(
+            unwatched_aired_episodes=unwatched_aired_episodes,
+            planned_movies=planned_movies,
+            future_watch_time_minutes=future_watch_time_minutes,
+            catch_up_speed_episodes_per_week=(
+                catch_up_speed_episodes_per_week
+            ),
+            backlog_trend=backlog_trend,
+            backlog_trend_episode_delta=(
+                backlog_trend_episode_delta
+            ),
         )
 
 

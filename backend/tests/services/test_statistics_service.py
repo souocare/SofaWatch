@@ -15,6 +15,8 @@ from app.repositories.statistics_insights import (
     ShowViewingInsight,
 )
 from app.repositories.library import LibraryRepository
+from app.repositories.episode import EpisodeRepository
+from app.repositories.episode_progress import EpisodeProgressRepository
 
 def create_statistics_service(
     *,
@@ -34,6 +36,41 @@ def create_statistics_service(
             )
         ),
     )
+
+def create_statistics_service(
+    *,
+    episode_watch_event_repository: EpisodeWatchEventRepository,
+    movie_watch_event_repository: MovieWatchEventRepository,
+    library_repository: LibraryRepository | None = None,
+    episode_repository: EpisodeRepository | None = None,
+    episode_progress_repository: EpisodeProgressRepository | None = None,
+) -> StatisticsService:
+    """Create StatisticsService with isolated repository dependencies."""
+
+    return StatisticsService(
+        episode_watch_event_repository=episode_watch_event_repository,
+        movie_watch_event_repository=movie_watch_event_repository,
+        library_repository=(
+            library_repository
+            or Mock(
+                spec=LibraryRepository,
+            )
+        ),
+        episode_repository=(
+            episode_repository
+            or Mock(
+                spec=EpisodeRepository,
+            )
+        ),
+        episode_progress_repository=(
+            episode_progress_repository
+            or Mock(
+                spec=EpisodeProgressRepository,
+            )
+        ),
+    )
+
+
 
 def test_weekly_summary_combines_episode_and_movie_statistics() -> None:
     """Combine Episode and Movie viewing statistics into one summary."""
@@ -1987,3 +2024,399 @@ def test_get_library_statistics_supports_empty_library() -> None:
     assert result.shows_completed == 0
 
 
+
+def test_get_backlog_statistics_combines_current_backlog_values() -> None:
+    """Combine Episode and Movie backlog counts and known watch time."""
+
+    user_id = uuid4()
+
+    episode_watch_event_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_watch_event_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    library_repository = Mock(
+        spec=LibraryRepository,
+    )
+
+    episode_repository = Mock(
+        spec=EpisodeRepository,
+    )
+
+    episode_progress_repository = Mock(
+        spec=EpisodeProgressRepository,
+    )
+
+    show_ids = [
+        uuid4(),
+        uuid4(),
+    ]
+
+    library_repository.get_backlog_show_ids_for_user.return_value = (
+        show_ids
+    )
+
+    episode_progress_repository.get_unwatched_aired_statistics.return_value = (
+        12,
+        540,
+    )
+
+    library_repository.get_planned_movie_statistics.return_value = (
+        3,
+        360,
+    )
+
+    episode_progress_repository.count_first_watched_regular_episodes_between.return_value = (
+        8
+    )
+
+    episode_repository.list_regular_for_shows_between.return_value = [
+        SimpleNamespace()
+        for _ in range(6)
+    ]
+
+    service = create_statistics_service(
+        episode_watch_event_repository=episode_watch_event_repository,
+        movie_watch_event_repository=movie_watch_event_repository,
+        library_repository=library_repository,
+        episode_repository=episode_repository,
+        episode_progress_repository=episode_progress_repository,
+    )
+
+    result = service.get_backlog_statistics(
+        user_id=user_id,
+        reference_date=date(
+            2026,
+            8,
+            19,
+        ),
+    )
+
+    assert result.unwatched_aired_episodes == 12
+    assert result.planned_movies == 3
+    assert result.future_watch_time_minutes == 900
+
+    assert result.catch_up_speed_episodes_per_week == 2.0
+
+    assert result.backlog_trend == "shrinking"
+    assert result.backlog_trend_episode_delta == -2
+
+
+def test_get_backlog_statistics_reports_growing_backlog() -> None:
+    """Report a growing backlog when more Episodes aired than were caught up."""
+
+    user_id = uuid4()
+
+    episode_watch_event_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_watch_event_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    library_repository = Mock(
+        spec=LibraryRepository,
+    )
+
+    episode_repository = Mock(
+        spec=EpisodeRepository,
+    )
+
+    episode_progress_repository = Mock(
+        spec=EpisodeProgressRepository,
+    )
+
+    show_ids = [
+        uuid4(),
+    ]
+
+    library_repository.get_backlog_show_ids_for_user.return_value = (
+        show_ids
+    )
+
+    episode_progress_repository.get_unwatched_aired_statistics.return_value = (
+        7,
+        315,
+    )
+
+    library_repository.get_planned_movie_statistics.return_value = (
+        0,
+        0,
+    )
+
+    episode_progress_repository.count_first_watched_regular_episodes_between.return_value = (
+        3
+    )
+
+    episode_repository.list_regular_for_shows_between.return_value = [
+        SimpleNamespace()
+        for _ in range(7)
+    ]
+
+    service = create_statistics_service(
+        episode_watch_event_repository=episode_watch_event_repository,
+        movie_watch_event_repository=movie_watch_event_repository,
+        library_repository=library_repository,
+        episode_repository=episode_repository,
+        episode_progress_repository=episode_progress_repository,
+    )
+
+    result = service.get_backlog_statistics(
+        user_id=user_id,
+        reference_date=date(
+            2026,
+            8,
+            19,
+        ),
+    )
+
+    assert result.catch_up_speed_episodes_per_week == 0.75
+
+    assert result.backlog_trend == "growing"
+    assert result.backlog_trend_episode_delta == 4
+
+
+def test_get_backlog_statistics_reports_stable_backlog() -> None:
+    """Report a stable backlog when aired and caught-up counts match."""
+
+    user_id = uuid4()
+
+    episode_watch_event_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_watch_event_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    library_repository = Mock(
+        spec=LibraryRepository,
+    )
+
+    episode_repository = Mock(
+        spec=EpisodeRepository,
+    )
+
+    episode_progress_repository = Mock(
+        spec=EpisodeProgressRepository,
+    )
+
+    library_repository.get_backlog_show_ids_for_user.return_value = [
+        uuid4(),
+    ]
+
+    episode_progress_repository.get_unwatched_aired_statistics.return_value = (
+        4,
+        180,
+    )
+
+    library_repository.get_planned_movie_statistics.return_value = (
+        2,
+        240,
+    )
+
+    episode_progress_repository.count_first_watched_regular_episodes_between.return_value = (
+        4
+    )
+
+    episode_repository.list_regular_for_shows_between.return_value = [
+        SimpleNamespace()
+        for _ in range(4)
+    ]
+
+    service = create_statistics_service(
+        episode_watch_event_repository=episode_watch_event_repository,
+        movie_watch_event_repository=movie_watch_event_repository,
+        library_repository=library_repository,
+        episode_repository=episode_repository,
+        episode_progress_repository=episode_progress_repository,
+    )
+
+    result = service.get_backlog_statistics(
+        user_id=user_id,
+        reference_date=date(
+            2026,
+            8,
+            19,
+        ),
+    )
+
+    assert result.future_watch_time_minutes == 420
+
+    assert result.catch_up_speed_episodes_per_week == 1.0
+
+    assert result.backlog_trend == "stable"
+    assert result.backlog_trend_episode_delta == 0
+
+
+def test_get_backlog_statistics_returns_zeroes_without_backlog() -> None:
+    """Return usable zero backlog statistics when nothing is pending."""
+
+    user_id = uuid4()
+
+    episode_watch_event_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_watch_event_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    library_repository = Mock(
+        spec=LibraryRepository,
+    )
+
+    episode_repository = Mock(
+        spec=EpisodeRepository,
+    )
+
+    episode_progress_repository = Mock(
+        spec=EpisodeProgressRepository,
+    )
+
+    library_repository.get_backlog_show_ids_for_user.return_value = []
+
+    episode_progress_repository.get_unwatched_aired_statistics.return_value = (
+        0,
+        0,
+    )
+
+    library_repository.get_planned_movie_statistics.return_value = (
+        0,
+        0,
+    )
+
+    episode_progress_repository.count_first_watched_regular_episodes_between.return_value = (
+        0
+    )
+
+    episode_repository.list_regular_for_shows_between.return_value = []
+
+    service = create_statistics_service(
+        episode_watch_event_repository=episode_watch_event_repository,
+        movie_watch_event_repository=movie_watch_event_repository,
+        library_repository=library_repository,
+        episode_repository=episode_repository,
+        episode_progress_repository=episode_progress_repository,
+    )
+
+    result = service.get_backlog_statistics(
+        user_id=user_id,
+        reference_date=date(
+            2026,
+            8,
+            19,
+        ),
+    )
+
+    assert result.unwatched_aired_episodes == 0
+    assert result.planned_movies == 0
+    assert result.future_watch_time_minutes == 0
+
+    assert result.catch_up_speed_episodes_per_week == 0.0
+
+    assert result.backlog_trend == "stable"
+    assert result.backlog_trend_episode_delta == 0
+
+
+def test_get_backlog_statistics_uses_twenty_eight_day_trend_window() -> None:
+    """Use the previous 28 calendar days including the reference date."""
+
+    user_id = uuid4()
+    show_id = uuid4()
+
+    episode_watch_event_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_watch_event_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    library_repository = Mock(
+        spec=LibraryRepository,
+    )
+
+    episode_repository = Mock(
+        spec=EpisodeRepository,
+    )
+
+    episode_progress_repository = Mock(
+        spec=EpisodeProgressRepository,
+    )
+
+    library_repository.get_backlog_show_ids_for_user.return_value = [
+        show_id,
+    ]
+
+    episode_progress_repository.get_unwatched_aired_statistics.return_value = (
+        0,
+        0,
+    )
+
+    library_repository.get_planned_movie_statistics.return_value = (
+        0,
+        0,
+    )
+
+    episode_progress_repository.count_first_watched_regular_episodes_between.return_value = (
+        0
+    )
+
+    episode_repository.list_regular_for_shows_between.return_value = []
+
+    service = create_statistics_service(
+        episode_watch_event_repository=episode_watch_event_repository,
+        movie_watch_event_repository=movie_watch_event_repository,
+        library_repository=library_repository,
+        episode_repository=episode_repository,
+        episode_progress_repository=episode_progress_repository,
+    )
+
+    service.get_backlog_statistics(
+        user_id=user_id,
+        reference_date=date(
+            2026,
+            8,
+            19,
+        ),
+    )
+
+    episode_repository.list_regular_for_shows_between.assert_called_once_with(
+        show_ids=[
+            show_id,
+        ],
+        from_date=date(
+            2026,
+            7,
+            23,
+        ),
+        to_date=date(
+            2026,
+            8,
+            19,
+        ),
+    )
+
+    episode_progress_repository.count_first_watched_regular_episodes_between.assert_called_once_with(
+        user_id=user_id,
+        show_ids=[
+            show_id,
+        ],
+        start_at=datetime(
+            2026,
+            7,
+            23,
+            tzinfo=UTC,
+        ),
+        end_at=datetime(
+            2026,
+            8,
+            20,
+            tzinfo=UTC,
+        ),
+    )

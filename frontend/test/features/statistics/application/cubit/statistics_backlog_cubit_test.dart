@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
-import 'package:sofawatch/features/statistics/application/cubit/statistics_library_cubit.dart';
-import 'package:sofawatch/features/statistics/application/cubit/statistics_library_state.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_backlog_cubit.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_backlog_state.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_activity.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_activity_period.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_backlog.dart';
@@ -15,39 +15,39 @@ import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.da
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
 
 void main() {
-  group('StatisticsLibraryCubit', () {
+  group('StatisticsBacklogCubit', () {
     test('starts in Initial', () {
-      final StatisticsLibraryCubit cubit = StatisticsLibraryCubit(
-        repository: const _LibraryRepository(),
+      final StatisticsBacklogCubit cubit = StatisticsBacklogCubit(
+        repository: const _BacklogRepository(),
       );
 
       addTearDown(cubit.close);
 
-      expect(cubit.state, const StatisticsLibraryInitial());
+      expect(cubit.state, const StatisticsBacklogInitial());
     });
 
-    test('loads Library Statistics successfully', () async {
-      final StatisticsLibraryCubit cubit = StatisticsLibraryCubit(
-        repository: const _LibraryRepository(),
+    test('loads Backlog Statistics successfully', () async {
+      final StatisticsBacklogCubit cubit = StatisticsBacklogCubit(
+        repository: const _BacklogRepository(),
       );
 
       addTearDown(cubit.close);
 
-      final Future<List<StatisticsLibraryState>> states = cubit.stream
+      final Future<List<StatisticsBacklogState>> states = cubit.stream
           .take(2)
           .toList();
 
       await cubit.load();
 
-      expect(await states, <StatisticsLibraryState>[
-        const StatisticsLibraryLoading(),
-        const StatisticsLibrarySuccess(_statistics),
+      expect(await states, <StatisticsBacklogState>[
+        const StatisticsBacklogLoading(),
+        const StatisticsBacklogSuccess(_statistics),
       ]);
     });
 
     test('maps AppException failure', () async {
-      final StatisticsLibraryCubit cubit = StatisticsLibraryCubit(
-        repository: const _FailingLibraryRepository(),
+      final StatisticsBacklogCubit cubit = StatisticsBacklogCubit(
+        repository: const _FailingBacklogRepository(),
       );
 
       addTearDown(cubit.close);
@@ -56,8 +56,8 @@ void main() {
 
       expect(
         cubit.state,
-        isA<StatisticsLibraryFailure>().having(
-          (StatisticsLibraryFailure state) => state.error.type,
+        isA<StatisticsBacklogFailure>().having(
+          (StatisticsBacklogFailure state) => state.error.type,
           'error.type',
           AppExceptionType.connection,
         ),
@@ -65,8 +65,8 @@ void main() {
     });
 
     test('maps unexpected failure to unknown', () async {
-      final StatisticsLibraryCubit cubit = StatisticsLibraryCubit(
-        repository: const _UnexpectedFailureLibraryRepository(),
+      final StatisticsBacklogCubit cubit = StatisticsBacklogCubit(
+        repository: const _UnexpectedFailureBacklogRepository(),
       );
 
       addTearDown(cubit.close);
@@ -75,8 +75,8 @@ void main() {
 
       expect(
         cubit.state,
-        isA<StatisticsLibraryFailure>().having(
-          (StatisticsLibraryFailure state) => state.error.type,
+        isA<StatisticsBacklogFailure>().having(
+          (StatisticsBacklogFailure state) => state.error.type,
           'error.type',
           AppExceptionType.unknown,
         ),
@@ -84,10 +84,10 @@ void main() {
     });
 
     test('ignores another load while loading', () async {
-      final _ControlledLibraryRepository repository =
-          _ControlledLibraryRepository();
+      final _ControlledBacklogRepository repository =
+          _ControlledBacklogRepository();
 
-      final StatisticsLibraryCubit cubit = StatisticsLibraryCubit(
+      final StatisticsBacklogCubit cubit = StatisticsBacklogCubit(
         repository: repository,
       );
 
@@ -107,13 +107,13 @@ void main() {
 
       await firstLoad;
 
-      expect(cubit.state, const StatisticsLibrarySuccess(_statistics));
+      expect(cubit.state, const StatisticsBacklogSuccess(_statistics));
     });
 
-    test('retry loads Library Statistics again', () async {
-      final _RetryLibraryRepository repository = _RetryLibraryRepository();
+    test('retry loads Backlog Statistics again', () async {
+      final _RetryBacklogRepository repository = _RetryBacklogRepository();
 
-      final StatisticsLibraryCubit cubit = StatisticsLibraryCubit(
+      final StatisticsBacklogCubit cubit = StatisticsBacklogCubit(
         repository: repository,
       );
 
@@ -122,28 +122,30 @@ void main() {
       await cubit.load();
 
       expect(repository.calls, 1);
-      expect(cubit.state, isA<StatisticsLibraryFailure>());
+      expect(cubit.state, isA<StatisticsBacklogFailure>());
 
       await cubit.retry();
 
       expect(repository.calls, 2);
-
-      expect(cubit.state, const StatisticsLibrarySuccess(_statistics));
+      expect(cubit.state, const StatisticsBacklogSuccess(_statistics));
     });
   });
 }
 
-const StatisticsLibrary _statistics = StatisticsLibrary(
-  showsAdded: 18,
-  moviesAdded: 42,
-  showsCompleted: 7,
+const StatisticsBacklog _statistics = StatisticsBacklog(
+  unwatchedAiredEpisodes: 24,
+  plannedMovies: 6,
+  futureWatchTimeMinutes: 1830,
+  catchUpSpeedEpisodesPerWeek: 4.5,
+  backlogTrend: 'shrinking',
+  backlogTrendEpisodeDelta: -3,
 );
 
-final class _LibraryRepository implements StatisticsRepository {
-  const _LibraryRepository();
+final class _BacklogRepository implements StatisticsRepository {
+  const _BacklogRepository();
 
   @override
-  Future<StatisticsLibrary> getLibraryStatistics() async {
+  Future<StatisticsBacklog> getBacklogStatistics() async {
     return _statistics;
   }
 
@@ -175,16 +177,16 @@ final class _LibraryRepository implements StatisticsRepository {
   }
 
   @override
-  Future<StatisticsBacklog> getBacklogStatistics() {
+  Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
 }
 
-final class _FailingLibraryRepository implements StatisticsRepository {
-  const _FailingLibraryRepository();
+final class _FailingBacklogRepository implements StatisticsRepository {
+  const _FailingBacklogRepository();
 
   @override
-  Future<StatisticsLibrary> getLibraryStatistics() {
+  Future<StatisticsBacklog> getBacklogStatistics() {
     throw const AppException.connection();
   }
 
@@ -216,18 +218,18 @@ final class _FailingLibraryRepository implements StatisticsRepository {
   }
 
   @override
-  Future<StatisticsBacklog> getBacklogStatistics() {
+  Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
 }
 
-final class _UnexpectedFailureLibraryRepository
+final class _UnexpectedFailureBacklogRepository
     implements StatisticsRepository {
-  const _UnexpectedFailureLibraryRepository();
+  const _UnexpectedFailureBacklogRepository();
 
   @override
-  Future<StatisticsLibrary> getLibraryStatistics() {
-    throw StateError('Unexpected Library Statistics failure.');
+  Future<StatisticsBacklog> getBacklogStatistics() {
+    throw StateError('Unexpected Backlog Statistics failure.');
   }
 
   @override
@@ -258,22 +260,22 @@ final class _UnexpectedFailureLibraryRepository
   }
 
   @override
-  Future<StatisticsBacklog> getBacklogStatistics() {
+  Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
 }
 
-final class _ControlledLibraryRepository implements StatisticsRepository {
-  final Completer<StatisticsLibrary> _result = Completer<StatisticsLibrary>();
+final class _ControlledBacklogRepository implements StatisticsRepository {
+  final Completer<StatisticsBacklog> _result = Completer<StatisticsBacklog>();
 
   int calls = 0;
 
-  void complete(StatisticsLibrary statistics) {
+  void complete(StatisticsBacklog statistics) {
     _result.complete(statistics);
   }
 
   @override
-  Future<StatisticsLibrary> getLibraryStatistics() {
+  Future<StatisticsBacklog> getBacklogStatistics() {
     calls += 1;
 
     return _result.future;
@@ -307,16 +309,16 @@ final class _ControlledLibraryRepository implements StatisticsRepository {
   }
 
   @override
-  Future<StatisticsBacklog> getBacklogStatistics() {
+  Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
 }
 
-final class _RetryLibraryRepository implements StatisticsRepository {
+final class _RetryBacklogRepository implements StatisticsRepository {
   int calls = 0;
 
   @override
-  Future<StatisticsLibrary> getLibraryStatistics() async {
+  Future<StatisticsBacklog> getBacklogStatistics() async {
     calls += 1;
 
     if (calls == 1) {
@@ -354,7 +356,7 @@ final class _RetryLibraryRepository implements StatisticsRepository {
   }
 
   @override
-  Future<StatisticsBacklog> getBacklogStatistics() {
+  Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
 }

@@ -8,6 +8,7 @@ import 'package:sofawatch/features/statistics/domain/models/statistics_activity_
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_backlog.dart';
 
 void main() {
   group('ApiStatisticsRepository', () {
@@ -529,6 +530,97 @@ void main() {
 
       expect(
         repository.getLibraryStatistics(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
+    test('gets Statistics Backlog', () async {
+      dioAdapter.onGet('/statistics/backlog', (server) {
+        server.reply(200, const <String, dynamic>{
+          'unwatched_aired_episodes': 24,
+          'planned_movies': 6,
+          'future_watch_time_minutes': 1830,
+          'catch_up_speed_episodes_per_week': 4.5,
+          'backlog_trend': 'shrinking',
+          'backlog_trend_episode_delta': -3,
+        });
+      });
+
+      final StatisticsBacklog result = await repository.getBacklogStatistics();
+
+      expect(result.unwatchedAiredEpisodes, 24);
+      expect(result.plannedMovies, 6);
+      expect(result.futureWatchTimeMinutes, 1830);
+      expect(result.catchUpSpeedEpisodesPerWeek, 4.5);
+      expect(result.backlogTrend, 'shrinking');
+      expect(result.backlogTrendEpisodeDelta, -3);
+    });
+
+    test('supports empty Statistics Backlog', () async {
+      dioAdapter.onGet('/statistics/backlog', (server) {
+        server.reply(200, const <String, dynamic>{
+          'unwatched_aired_episodes': 0,
+          'planned_movies': 0,
+          'future_watch_time_minutes': 0,
+          'catch_up_speed_episodes_per_week': 0.0,
+          'backlog_trend': 'stable',
+          'backlog_trend_episode_delta': 0,
+        });
+      });
+
+      final StatisticsBacklog result = await repository.getBacklogStatistics();
+
+      expect(result.unwatchedAiredEpisodes, 0);
+      expect(result.plannedMovies, 0);
+      expect(result.futureWatchTimeMinutes, 0);
+      expect(result.catchUpSpeedEpisodesPerWeek, 0.0);
+      expect(result.backlogTrend, 'stable');
+      expect(result.backlogTrendEpisodeDelta, 0);
+    });
+
+    test('maps invalid Statistics Backlog response to invalidData', () async {
+      dioAdapter.onGet('/statistics/backlog', (server) {
+        server.reply(200, const <String, dynamic>{
+          'unwatched_aired_episodes': -1,
+          'planned_movies': 6,
+          'future_watch_time_minutes': 1830,
+          'catch_up_speed_episodes_per_week': 4.5,
+          'backlog_trend': 'shrinking',
+          'backlog_trend_episode_delta': -3,
+        });
+      });
+
+      expect(
+        repository.getBacklogStatistics(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
+
+    test('rejects unsupported Statistics Backlog trend', () async {
+      dioAdapter.onGet('/statistics/backlog', (server) {
+        server.reply(200, const <String, dynamic>{
+          'unwatched_aired_episodes': 24,
+          'planned_movies': 6,
+          'future_watch_time_minutes': 1830,
+          'catch_up_speed_episodes_per_week': 4.5,
+          'backlog_trend': 'something-else',
+          'backlog_trend_episode_delta': -3,
+        });
+      });
+
+      expect(
+        repository.getBacklogStatistics(),
         throwsA(
           isA<AppException>().having(
             (AppException error) => error.type,

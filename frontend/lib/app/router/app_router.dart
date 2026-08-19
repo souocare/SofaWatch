@@ -52,6 +52,7 @@ import 'package:sofawatch/features/statistics/application/cubit/statistics_activ
 import 'package:sofawatch/features/statistics/presentation/pages/detailed_statistics_page.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_habits_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_library_cubit.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_backlog_cubit.dart';
 
 GoRouter createAppRouter({required ApiClient apiClient}) {
   final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -353,6 +354,13 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                           BlocProvider<StatisticsLibraryCubit>(
                             create: (BuildContext context) {
                               return StatisticsLibraryCubit(
+                                repository: ApiStatisticsRepository(apiClient),
+                              )..load();
+                            },
+                          ),
+                          BlocProvider<StatisticsBacklogCubit>(
+                            create: (BuildContext context) {
+                              return StatisticsBacklogCubit(
                                 repository: ApiStatisticsRepository(apiClient),
                               )..load();
                             },

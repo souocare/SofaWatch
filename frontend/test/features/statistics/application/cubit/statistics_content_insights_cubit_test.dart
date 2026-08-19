@@ -12,6 +12,7 @@ import 'package:sofawatch/features/statistics/domain/models/statistics_summary.d
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_backlog.dart';
 
 void main() {
   group('StatisticsContentInsightsCubit', () {
@@ -197,6 +198,11 @@ final class _ContentInsightsRepository implements StatisticsRepository {
   Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
+    throw UnimplementedError();
+  }
 }
 
 final class _FailingContentInsightsRepository implements StatisticsRepository {
@@ -231,6 +237,11 @@ final class _FailingContentInsightsRepository implements StatisticsRepository {
 
   @override
   Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
     throw UnimplementedError();
   }
 }
@@ -268,6 +279,11 @@ final class _UnexpectedFailureContentInsightsRepository
 
   @override
   Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
     throw UnimplementedError();
   }
 }
@@ -316,6 +332,11 @@ final class _ControlledContentInsightsRepository
   Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
+    throw UnimplementedError();
+  }
 }
 
 final class _RetryContentInsightsRepository implements StatisticsRepository {
@@ -356,6 +377,11 @@ final class _RetryContentInsightsRepository implements StatisticsRepository {
 
   @override
   Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
     throw UnimplementedError();
   }
 }

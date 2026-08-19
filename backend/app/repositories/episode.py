@@ -454,3 +454,37 @@ class EpisodeRepository:
             )
             for show_id, season_number, episode in rows
         ]
+
+
+    def count_regular_for_shows_between(
+        self,
+        *,
+        show_ids: list[UUID],
+        from_date: date,
+        to_date: date,
+    ) -> int:
+        """Count regular Episodes aired inside an inclusive calendar-date range."""
+
+        if not show_ids:
+            return 0
+
+        return (
+            self._session.scalar(
+                select(
+                    func.count(Episode.id),
+                )
+                .select_from(Episode)
+                .join(
+                    Season,
+                    Season.id == Episode.season_id,
+                )
+                .where(
+                    Season.show_id.in_(show_ids),
+                    Season.season_number > 0,
+                    Episode.air_date.is_not(None),
+                    Episode.air_date >= from_date,
+                    Episode.air_date <= to_date,
+                )
+            )
+            or 0
+        )

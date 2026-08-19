@@ -11,6 +11,7 @@ import 'package:sofawatch/features/statistics/domain/models/statistics_library.d
 import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
+import 'package:sofawatch/features/statistics/presentation/formatters/statistics_watch_time_formatter.dart';
 import 'package:sofawatch/features/statistics/presentation/pages/detailed_statistics_page.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_activity_period.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_habits.dart';
@@ -21,6 +22,8 @@ import 'package:sofawatch/features/statistics/application/cubit/statistics_conte
 import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_library_cubit.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_backlog.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_backlog_cubit.dart';
 
 void main() {
   group('DetailedStatisticsPage Overview', () {
@@ -1816,6 +1819,236 @@ void main() {
         findsOneWidget,
       );
     });
+    testWidgets('shows Backlog and future Statistics', (
+      WidgetTester tester,
+    ) async {
+      await _pumpPage(
+        tester,
+        summaryRepository: const _SummaryRepository(summary: _summary),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('detailed-statistics-backlog')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('detailed-statistics-backlog-title')),
+        findsOneWidget,
+      );
+
+      _expectCardText(
+        cardKey: 'detailed-statistics-unwatched-aired-episodes',
+        texts: <String>['Unwatched aired', '24', 'episodes'],
+      );
+
+      _expectCardText(
+        cardKey: 'detailed-statistics-planned-movies',
+        texts: <String>['Planned Movies', '6', 'movies'],
+      );
+
+      _expectCardText(
+        cardKey: 'detailed-statistics-future-watch-time',
+        texts: <String>[
+          'Future watch time',
+          formatStatisticsWatchTime(1830),
+          'known backlog runtime',
+        ],
+      );
+
+      _expectCardText(
+        cardKey: 'detailed-statistics-catch-up-speed',
+        texts: <String>['Catch-up speed', '4.5', 'episodes per week'],
+      );
+
+      _expectCardText(
+        cardKey: 'detailed-statistics-backlog-trend',
+        texts: <String>['Backlog trend', 'Shrinking', '-3 episodes'],
+      );
+    });
+    testWidgets('shows usable empty Backlog Statistics', (
+      WidgetTester tester,
+    ) async {
+      await _pumpPage(
+        tester,
+        summaryRepository: const _SummaryRepository(summary: _summary),
+        backlogRepository: const _BacklogStatisticsRepository(
+          statistics: _emptyBacklogStatistics,
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      _expectCardText(
+        cardKey: 'detailed-statistics-unwatched-aired-episodes',
+        texts: <String>['0', 'episodes'],
+      );
+
+      _expectCardText(
+        cardKey: 'detailed-statistics-planned-movies',
+        texts: <String>['0', 'movies'],
+      );
+
+      _expectCardText(
+        cardKey: 'detailed-statistics-catch-up-speed',
+        texts: <String>['0', 'episodes per week'],
+      );
+
+      _expectCardText(
+        cardKey: 'detailed-statistics-backlog-trend',
+        texts: <String>['Stable', 'no change'],
+      );
+    });
+    testWidgets('keeps previous sections visible while Backlog loads', (
+      WidgetTester tester,
+    ) async {
+      final _ControlledBacklogStatisticsRepository repository =
+          _ControlledBacklogStatisticsRepository();
+
+      await _pumpPage(
+        tester,
+        summaryRepository: const _SummaryRepository(summary: _summary),
+        backlogRepository: repository,
+      );
+
+      await tester.pump();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('detailed-statistics-backlog-loading'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('detailed-statistics-overview-grid')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('detailed-statistics-watching-habits-content'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'detailed-statistics-content-insights-content',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('detailed-statistics-library-content'),
+        ),
+        findsOneWidget,
+      );
+
+      repository.complete(_backlogStatistics);
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('detailed-statistics-backlog-loading'),
+        ),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('detailed-statistics-backlog-content'),
+        ),
+        findsOneWidget,
+      );
+    });
+    testWidgets('isolates Backlog failure from other sections', (
+      WidgetTester tester,
+    ) async {
+      await _pumpPage(
+        tester,
+        summaryRepository: const _SummaryRepository(summary: _summary),
+        backlogRepository: const _FailingBacklogStatisticsRepository(),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('detailed-statistics-backlog-failure'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('detailed-statistics-overview-grid')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('detailed-statistics-watching-habits-content'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'detailed-statistics-content-insights-content',
+          ),
+        ),
+        findsOneWidget,
+      );
+    });
+    testWidgets('retries only Backlog after failure', (
+      WidgetTester tester,
+    ) async {
+      final _RetryBacklogStatisticsRepository repository =
+          _RetryBacklogStatisticsRepository();
+
+      await _pumpPage(
+        tester,
+        summaryRepository: const _SummaryRepository(summary: _summary),
+        backlogRepository: repository,
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(repository.calls, 1);
+
+      final Finder retryButton = find.byKey(
+        const ValueKey<String>('detailed-statistics-backlog-failure-retry'),
+      );
+
+      await tester.ensureVisible(retryButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(retryButton);
+      await tester.pumpAndSettle();
+
+      expect(repository.calls, 2);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('detailed-statistics-backlog-failure'),
+        ),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('detailed-statistics-backlog-content'),
+        ),
+        findsOneWidget,
+      );
+    });
   });
 }
 
@@ -1827,6 +2060,7 @@ Future<void> _pumpPage(
   StatisticsRepository contentInsightsRepository =
       const _ContentInsightsRepository(),
   StatisticsRepository libraryRepository = const _LibraryStatisticsRepository(),
+  StatisticsRepository backlogRepository = const _BacklogStatisticsRepository(),
 }) async {
   final StatisticsSummaryCubit summaryCubit = StatisticsSummaryCubit(
     repository: summaryRepository,
@@ -1848,6 +2082,10 @@ Future<void> _pumpPage(
     repository: libraryRepository,
   )..load();
 
+  final StatisticsBacklogCubit backlogCubit = StatisticsBacklogCubit(
+    repository: backlogRepository,
+  )..load();
+
   addTearDown(summaryCubit.close);
 
   addTearDown(activityCubit.close);
@@ -1857,6 +2095,8 @@ Future<void> _pumpPage(
   addTearDown(contentInsightsCubit.close);
 
   addTearDown(libraryCubit.close);
+
+  addTearDown(backlogCubit.close);
 
   await tester.pumpWidget(
     MaterialApp(
@@ -1869,6 +2109,7 @@ Future<void> _pumpPage(
             value: contentInsightsCubit,
           ),
           BlocProvider<StatisticsLibraryCubit>.value(value: libraryCubit),
+          BlocProvider<StatisticsBacklogCubit>.value(value: backlogCubit),
         ],
         child: const DetailedStatisticsPage(),
       ),
@@ -2048,6 +2289,24 @@ const StatisticsContentInsights _emptyContentInsights =
       topMovieGenres: <StatisticsGenreInsight>[],
     );
 
+const StatisticsBacklog _backlogStatistics = StatisticsBacklog(
+  unwatchedAiredEpisodes: 24,
+  plannedMovies: 6,
+  futureWatchTimeMinutes: 1830,
+  catchUpSpeedEpisodesPerWeek: 4.5,
+  backlogTrend: 'shrinking',
+  backlogTrendEpisodeDelta: -3,
+);
+
+const StatisticsBacklog _emptyBacklogStatistics = StatisticsBacklog(
+  unwatchedAiredEpisodes: 0,
+  plannedMovies: 0,
+  futureWatchTimeMinutes: 0,
+  catchUpSpeedEpisodesPerWeek: 0,
+  backlogTrend: 'stable',
+  backlogTrendEpisodeDelta: 0,
+);
+
 final StatisticsHabits _habitsWithMarathonDay = StatisticsHabits(
   currentStreakDays: 4,
   longestStreakDays: 12,
@@ -2126,6 +2385,11 @@ final class _SummaryRepository implements StatisticsRepository {
   Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
+    throw UnimplementedError();
+  }
 }
 
 final class _ActivityRepository implements StatisticsRepository {
@@ -2164,6 +2428,11 @@ final class _ActivityRepository implements StatisticsRepository {
 
   @override
   Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
     throw UnimplementedError();
   }
 }
@@ -2206,6 +2475,11 @@ final class _ControlledSummaryRepository implements StatisticsRepository {
   Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
+    throw UnimplementedError();
+  }
 }
 
 final class _RetrySummaryRepository implements StatisticsRepository {
@@ -2246,6 +2520,11 @@ final class _RetrySummaryRepository implements StatisticsRepository {
 
   @override
   Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
     throw UnimplementedError();
   }
 }
@@ -2291,6 +2570,11 @@ final class _PeriodActivityRepository implements StatisticsRepository {
   Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
+    throw UnimplementedError();
+  }
 }
 
 final class _ControlledActivityRepository implements StatisticsRepository {
@@ -2331,6 +2615,11 @@ final class _ControlledActivityRepository implements StatisticsRepository {
 
   @override
   Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
     throw UnimplementedError();
   }
 }
@@ -2380,6 +2669,11 @@ final class _FailingPeriodActivityRepository implements StatisticsRepository {
   Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
+    throw UnimplementedError();
+  }
 }
 
 final class _HabitsRepository implements StatisticsRepository {
@@ -2418,6 +2712,11 @@ final class _HabitsRepository implements StatisticsRepository {
   Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
+    throw UnimplementedError();
+  }
 }
 
 final class _ContentInsightsRepository implements StatisticsRepository {
@@ -2454,6 +2753,11 @@ final class _ContentInsightsRepository implements StatisticsRepository {
 
   @override
   Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
     throw UnimplementedError();
   }
 }
@@ -2496,6 +2800,11 @@ final class _ControlledHabitsRepository implements StatisticsRepository {
   Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
+    throw UnimplementedError();
+  }
 }
 
 final class _FailingHabitsRepository implements StatisticsRepository {
@@ -2530,6 +2839,11 @@ final class _FailingHabitsRepository implements StatisticsRepository {
 
   @override
   Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
     throw UnimplementedError();
   }
 }
@@ -2574,6 +2888,11 @@ final class _RetryHabitsRepository implements StatisticsRepository {
   Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
+    throw UnimplementedError();
+  }
 }
 
 final class _ControlledContentInsightsRepository
@@ -2614,6 +2933,11 @@ final class _ControlledContentInsightsRepository
 
   @override
   Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
     throw UnimplementedError();
   }
 }
@@ -2658,6 +2982,11 @@ final class _RetryContentInsightsRepository implements StatisticsRepository {
   Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
+    throw UnimplementedError();
+  }
 }
 
 final class _FailingContentInsightsRepository implements StatisticsRepository {
@@ -2692,6 +3021,11 @@ final class _FailingContentInsightsRepository implements StatisticsRepository {
 
   @override
   Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
     throw UnimplementedError();
   }
 }
@@ -2730,6 +3064,11 @@ final class _LibraryStatisticsRepository implements StatisticsRepository {
 
   @override
   Future<WeeklyStatistics> getWeeklyStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
     throw UnimplementedError();
   }
 }
@@ -2777,6 +3116,11 @@ final class _ControlledLibraryStatisticsRepository
   Future<WeeklyStatistics> getWeeklyStatistics() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
+    throw UnimplementedError();
+  }
 }
 
 final class _FailingLibraryStatisticsRepository
@@ -2812,6 +3156,11 @@ final class _FailingLibraryStatisticsRepository
 
   @override
   Future<WeeklyStatistics> getWeeklyStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
     throw UnimplementedError();
   }
 }
@@ -2854,6 +3203,189 @@ final class _RetryLibraryStatisticsRepository implements StatisticsRepository {
 
   @override
   Future<WeeklyStatistics> getWeeklyStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
+    throw UnimplementedError();
+  }
+}
+
+final class _BacklogStatisticsRepository implements StatisticsRepository {
+  const _BacklogStatisticsRepository({this.statistics = _backlogStatistics});
+
+  final StatisticsBacklog statistics;
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() async {
+    return statistics;
+  }
+
+  @override
+  Future<WeeklyStatistics> getWeeklyStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsSummary> getSummary() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsActivity> getActivity({
+    required StatisticsActivityPeriod period,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsHabits> getHabits() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsContentInsights> getContentInsights() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
+}
+
+final class _ControlledBacklogStatisticsRepository
+    implements StatisticsRepository {
+  final Completer<StatisticsBacklog> _result = Completer<StatisticsBacklog>();
+
+  void complete(StatisticsBacklog statistics) {
+    _result.complete(statistics);
+  }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
+    return _result.future;
+  }
+
+  @override
+  Future<WeeklyStatistics> getWeeklyStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsSummary> getSummary() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsActivity> getActivity({
+    required StatisticsActivityPeriod period,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsHabits> getHabits() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsContentInsights> getContentInsights() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
+}
+
+final class _FailingBacklogStatisticsRepository
+    implements StatisticsRepository {
+  const _FailingBacklogStatisticsRepository();
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() {
+    throw const AppException.connection();
+  }
+
+  @override
+  Future<WeeklyStatistics> getWeeklyStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsSummary> getSummary() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsActivity> getActivity({
+    required StatisticsActivityPeriod period,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsHabits> getHabits() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsContentInsights> getContentInsights() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
+}
+
+final class _RetryBacklogStatisticsRepository implements StatisticsRepository {
+  int calls = 0;
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() async {
+    calls += 1;
+
+    if (calls == 1) {
+      throw const AppException.connection();
+    }
+
+    return _backlogStatistics;
+  }
+
+  @override
+  Future<WeeklyStatistics> getWeeklyStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsSummary> getSummary() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsActivity> getActivity({
+    required StatisticsActivityPeriod period,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsHabits> getHabits() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsContentInsights> getContentInsights() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
 }

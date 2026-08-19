@@ -874,3 +874,106 @@ class EpisodeProgressRepository:
                 statement,
             ).all()
         )
+
+
+    def get_unwatched_aired_statistics(
+        self,
+        *,
+        user_id: UUID,
+        show_ids: list[UUID],
+        as_of: date,
+    ) -> tuple[int, int]:
+        """Return count and known runtime of aired unwatched regular Episodes."""
+
+        if not show_ids:
+            return (
+                0,
+                0,
+            )
+
+        watched_progress = (
+            select(EpisodeProgress.id)
+            .where(
+                EpisodeProgress.user_id == user_id,
+                EpisodeProgress.episode_id == Episode.id,
+                EpisodeProgress.is_watched.is_(True),
+            )
+            .exists()
+        )
+
+        row = self._session.execute(
+            select(
+                func.count(Episode.id),
+                func.coalesce(
+                    func.sum(Episode.runtime),
+                    0,
+                ),
+            )
+            .select_from(Episode)
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .where(
+                Season.show_id.in_(show_ids),
+                Season.season_number > 0,
+                Episode.air_date.is_not(None),
+                Episode.air_date <= as_of,
+                ~watched_progress,
+            )
+        ).one()
+
+        return (
+            int(row[0] or 0),
+            int(row[1] or 0),
+        )
+
+
+    def count_first_watched_regular_episodes_between(
+        self,
+        *,
+        user_id: UUID,
+        show_ids: list[UUID],
+        start_at: datetime,
+        end_at: datetime,
+    ) -> int:
+        """Count regular Episodes first watched inside a half-open interval."""
+
+        if not show_ids:
+            return 0
+
+        first_watched_at = func.min(
+            EpisodeProgress.watched_at,
+        )
+
+        statement = (
+            select(
+                EpisodeProgress.episode_id,
+            )
+            .join(
+                Episode,
+                Episode.id == EpisodeProgress.episode_id,
+            )
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .where(
+                EpisodeProgress.user_id == user_id,
+                EpisodeProgress.is_watched.is_(True),
+                EpisodeProgress.watched_at.is_not(None),
+                Season.show_id.in_(show_ids),
+                Season.season_number > 0,
+            )
+            .group_by(
+                EpisodeProgress.episode_id,
+            )
+            .having(
+                first_watched_at >= start_at,
+                first_watched_at < end_at,
+            )
+        )
+
+        return len(
+            self._session.execute(statement).all()
+        )

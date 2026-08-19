@@ -713,6 +713,12 @@ def get_statistics_service(
         library_repository=LibraryRepository(
             session,
         ),
+        episode_repository=EpisodeRepository(
+            session,
+        ),
+        episode_progress_repository=EpisodeProgressRepository(
+            session,
+        ),
     )
 
 

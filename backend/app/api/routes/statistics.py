@@ -14,6 +14,7 @@ from app.schemas.statistics import (
     StatisticsSummaryResponse,
     WeeklyStatisticsResponse,
     StatisticsLibraryResponse,
+    StatisticsBacklogResponse,
 )
 
 
@@ -102,6 +103,25 @@ def get_statistics_library(
         user_id=current_user.id,
     )
 
+@router.get(
+    "/backlog",
+    response_model=StatisticsBacklogResponse,
+    summary="Get backlog statistics",
+    description=(
+        "Return the current user's backlog and future viewing statistics, "
+        "including unwatched aired Episodes, Planned Movies, future known "
+        "watch time, recent catch-up speed and backlog trend."
+    ),
+)
+def get_statistics_backlog(
+    current_user: CurrentUserDependency,
+    service: StatisticsServiceDependency,
+) -> StatisticsBacklogResponse:
+    """Return backlog statistics for the current user."""
+
+    return service.get_backlog_statistics(
+        user_id=current_user.id,
+    )
 
 @router.get(
     "/activity",

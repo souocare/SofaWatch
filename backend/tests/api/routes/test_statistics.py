@@ -1243,3 +1243,143 @@ def test_get_statistics_library_returns_zeroes_for_empty_library(
         "shows_completed": 0,
     }
 
+def test_get_statistics_backlog_returns_current_backlog(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return current backlog and future viewing statistics."""
+
+    user = create_local_user(
+        db_session,
+    )
+
+    show = Show(
+        tmdb_id=95396,
+        title="Severance",
+        original_title="Severance",
+        original_language="en",
+        metadata_language="en-US",
+    )
+
+    planned_movie = Movie(
+        tmdb_id=438631,
+        title="Dune",
+        original_title="Dune",
+        original_language="en",
+        runtime=155,
+        status="Released",
+        adult=False,
+        video=False,
+        popularity=10.0,
+        vote_average=8.0,
+        vote_count=100,
+        metadata_language="en-US",
+    )
+
+    db_session.add_all(
+        [
+            show,
+            planned_movie,
+        ]
+    )
+
+    db_session.commit()
+
+    season = Season(
+        show_id=show.id,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+        overview=None,
+        air_date=None,
+        episode_count=1,
+        vote_average=0.0,
+    )
+
+    db_session.add(
+        season,
+    )
+
+    db_session.commit()
+
+    today = datetime.now(
+        UTC,
+    ).date()
+
+    episode = Episode(
+        season_id=season.id,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+        overview=None,
+        air_date=today,
+        runtime=50,
+        vote_average=0.0,
+        vote_count=0,
+    )
+
+    db_session.add(
+        episode,
+    )
+
+    db_session.commit()
+
+    db_session.add_all(
+        [
+            LibraryEntry(
+                user_id=user.id,
+                show_id=show.id,
+                status=LibraryStatus.WATCHING,
+            ),
+            LibraryEntry(
+                user_id=user.id,
+                movie_id=planned_movie.id,
+                status=LibraryStatus.PLANNING,
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/statistics/backlog",
+    )
+
+    assert response.status_code == 200
+
+    assert response.json() == {
+        "unwatched_aired_episodes": 1,
+        "planned_movies": 1,
+        "future_watch_time_minutes": 205,
+        "catch_up_speed_episodes_per_week": 0.0,
+        "backlog_trend": "growing",
+        "backlog_trend_episode_delta": 1,
+    }
+
+
+def test_get_statistics_backlog_returns_zeroes_without_backlog(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return usable zero backlog statistics when nothing is pending."""
+
+    create_local_user(
+        db_session,
+    )
+
+    response = client.get(
+        "/api/v1/statistics/backlog",
+    )
+
+    assert response.status_code == 200
+
+    assert response.json() == {
+        "unwatched_aired_episodes": 0,
+        "planned_movies": 0,
+        "future_watch_time_minutes": 0,
+        "catch_up_speed_episodes_per_week": 0.0,
+        "backlog_trend": "stable",
+        "backlog_trend_episode_delta": 0,
+    }
+
+

@@ -15,6 +15,8 @@ import 'package:sofawatch/features/statistics/data/models/statistics_content_ins
 import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
 import 'package:sofawatch/features/statistics/data/models/statistics_library_dto.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
+import 'package:sofawatch/features/statistics/data/models/statistics_backlog_dto.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_backlog.dart';
 
 final class ApiStatisticsRepository implements StatisticsRepository {
   const ApiStatisticsRepository(this._apiClient);
@@ -163,6 +165,30 @@ final class ApiStatisticsRepository implements StatisticsRepository {
       }
 
       return StatisticsLibraryDto.fromJson(data).toDomain();
+    } on AppException {
+      rethrow;
+    } on FormatException catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } on TypeError catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  @override
+  Future<StatisticsBacklog> getBacklogStatistics() async {
+    try {
+      final Response<Map<String, dynamic>> response = await _apiClient
+          .get<Map<String, dynamic>>('/statistics/backlog');
+
+      final Map<String, dynamic>? data = response.data;
+
+      if (data == null) {
+        throw const FormatException(
+          'The statistics Backlog response body is missing.',
+        );
+      }
+
+      return StatisticsBacklogDto.fromJson(data).toDomain();
     } on AppException {
       rethrow;
     } on FormatException catch (error) {

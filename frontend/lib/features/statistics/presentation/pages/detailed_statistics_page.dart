@@ -25,6 +25,9 @@ import 'package:sofawatch/features/statistics/domain/models/statistics_content_i
 import 'package:sofawatch/features/statistics/application/cubit/statistics_library_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_library_state.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_backlog_cubit.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_backlog_state.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_backlog.dart';
 
 class DetailedStatisticsPage extends StatelessWidget {
   const DetailedStatisticsPage({super.key});
@@ -73,6 +76,10 @@ class DetailedStatisticsPage extends StatelessWidget {
                   const SizedBox(height: AppSpacing.section),
 
                   const _LibraryStatisticsSection(),
+
+                  const SizedBox(height: AppSpacing.section),
+
+                  const _BacklogSection(),
                 ],
               ),
             ),
@@ -1820,6 +1827,276 @@ class _ContentInsightEmptyState extends StatelessWidget {
   }
 }
 
+class _BacklogSection extends StatelessWidget {
+  const _BacklogSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('detailed-statistics-backlog'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'Backlog & future',
+          key: const ValueKey<String>('detailed-statistics-backlog-title'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        BlocBuilder<StatisticsBacklogCubit, StatisticsBacklogState>(
+          builder: (BuildContext context, StatisticsBacklogState state) {
+            return switch (state) {
+              StatisticsBacklogInitial() ||
+              StatisticsBacklogLoading() => const _BacklogLoading(),
+
+              StatisticsBacklogSuccess(:final statistics) => _BacklogContent(
+                statistics: statistics,
+              ),
+
+              StatisticsBacklogFailure(:final error) => SectionFailureCard(
+                failureKey: 'detailed-statistics-backlog-failure',
+                error: error,
+                onRetry: context.read<StatisticsBacklogCubit>().retry,
+              ),
+            };
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _BacklogContent extends StatelessWidget {
+  const _BacklogContent({required this.statistics});
+
+  final StatisticsBacklog statistics;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final int columns = switch (constraints.maxWidth) {
+          >= 960 => 5,
+          >= 720 => 3,
+          >= 520 => 2,
+          _ => 1,
+        };
+
+        final double totalSpacing = AppSpacing.sm * (columns - 1);
+
+        final double cardWidth =
+            (constraints.maxWidth - totalSpacing) / columns;
+
+        return Wrap(
+          key: const ValueKey<String>('detailed-statistics-backlog-content'),
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: <Widget>[
+            SizedBox(
+              width: cardWidth,
+              child: _BacklogCard(
+                cardKey: 'detailed-statistics-unwatched-aired-episodes',
+                icon: Icons.playlist_remove_rounded,
+                value: statistics.unwatchedAiredEpisodes.toString(),
+                label: 'Unwatched aired',
+                supportingText: _episodeCountLabel(
+                  statistics.unwatchedAiredEpisodes,
+                ),
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _BacklogCard(
+                cardKey: 'detailed-statistics-planned-movies',
+                icon: Icons.bookmark_outline_rounded,
+                value: statistics.plannedMovies.toString(),
+                label: 'Planned Movies',
+                supportingText: _movieCountLabel(statistics.plannedMovies),
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _BacklogCard(
+                cardKey: 'detailed-statistics-future-watch-time',
+                icon: Icons.schedule_rounded,
+                value: formatStatisticsWatchTime(
+                  statistics.futureWatchTimeMinutes,
+                ),
+                label: 'Future watch time',
+                supportingText: 'known backlog runtime',
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _BacklogCard(
+                cardKey: 'detailed-statistics-catch-up-speed',
+                icon: Icons.speed_rounded,
+                value: _formatCatchUpSpeed(
+                  statistics.catchUpSpeedEpisodesPerWeek,
+                ),
+                label: 'Catch-up speed',
+                supportingText: 'episodes per week',
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _BacklogCard(
+                cardKey: 'detailed-statistics-backlog-trend',
+                icon: _backlogTrendIcon(statistics.backlogTrend),
+                value: _backlogTrendLabel(statistics.backlogTrend),
+                label: 'Backlog trend',
+                supportingText: _backlogDeltaLabel(
+                  statistics.backlogTrendEpisodeDelta,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _BacklogCard extends StatelessWidget {
+  const _BacklogCard({
+    required this.cardKey,
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.supportingText,
+  });
+
+  final String cardKey;
+  final IconData icon;
+  final String value;
+  final String label;
+  final String supportingText;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: ValueKey<String>(cardKey),
+      constraints: const BoxConstraints(minHeight: 112),
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: AppRadius.borderLarge,
+              border: Border.all(color: AppColors.outlineVariant),
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 22, color: AppColors.textSecondary),
+          ),
+
+          const SizedBox(width: AppSpacing.md),
+
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                const SizedBox(height: AppSpacing.xs),
+
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+
+                const SizedBox(height: AppSpacing.xs),
+
+                Text(
+                  supportingText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BacklogLoading extends StatelessWidget {
+  const _BacklogLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final int columns = switch (constraints.maxWidth) {
+          >= 960 => 5,
+          >= 720 => 3,
+          >= 520 => 2,
+          _ => 1,
+        };
+
+        final double totalSpacing = AppSpacing.sm * (columns - 1);
+
+        final double cardWidth =
+            (constraints.maxWidth - totalSpacing) / columns;
+
+        return Wrap(
+          key: const ValueKey<String>('detailed-statistics-backlog-loading'),
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: <Widget>[
+            for (int index = 0; index < 5; index++)
+              SizedBox(width: cardWidth, child: const _BacklogSkeleton()),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _BacklogSkeleton extends StatelessWidget {
+  const _BacklogSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 112,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+    );
+  }
+}
+
 String _twoDigits(int value) {
   return value.toString().padLeft(2, '0');
 }
@@ -1870,4 +2147,54 @@ String _watchLabel(int count) {
 
 String _rewatchCountLabel(int count) {
   return count == 1 ? '1 rewatch' : '$count rewatches';
+}
+
+String _episodeCountLabel(int count) {
+  return count == 1 ? 'episode' : 'episodes';
+}
+
+String _movieCountLabel(int count) {
+  return count == 1 ? 'movie' : 'movies';
+}
+
+String _formatCatchUpSpeed(double value) {
+  if (value == value.roundToDouble()) {
+    return value.toInt().toString();
+  }
+
+  return value.toStringAsFixed(1);
+}
+
+String _backlogTrendLabel(String trend) {
+  return switch (trend) {
+    'growing' => 'Growing',
+    'shrinking' => 'Shrinking',
+    'stable' => 'Stable',
+    _ => '—',
+  };
+}
+
+IconData _backlogTrendIcon(String trend) {
+  return switch (trend) {
+    'growing' => Icons.trending_up_rounded,
+    'shrinking' => Icons.trending_down_rounded,
+    'stable' => Icons.trending_flat_rounded,
+    _ => Icons.remove_rounded,
+  };
+}
+
+String _backlogDeltaLabel(int delta) {
+  if (delta == 0) {
+    return 'no change';
+  }
+
+  final int absoluteDelta = delta.abs();
+
+  final String episodeLabel = absoluteDelta == 1 ? 'episode' : 'episodes';
+
+  if (delta > 0) {
+    return '+$absoluteDelta $episodeLabel';
+  }
+
+  return '-$absoluteDelta $episodeLabel';
 }

@@ -231,3 +231,34 @@ class StatisticsLibraryResponse(BaseModel):
     shows_completed: int = Field(
         ge=0,
     )
+
+class StatisticsBacklogTrend(StrEnum):
+    """Direction of the recent Episode backlog."""
+
+    GROWING = "growing"
+    STABLE = "stable"
+    SHRINKING = "shrinking"
+
+
+class StatisticsBacklogResponse(BaseModel):
+    """Current backlog and future viewing statistics."""
+
+    unwatched_aired_episodes: int = Field(
+        ge=0,
+    )
+
+    planned_movies: int = Field(
+        ge=0,
+    )
+
+    future_watch_time_minutes: int = Field(
+        ge=0,
+    )
+
+    catch_up_speed_episodes_per_week: float = Field(
+        ge=0,
+    )
+
+    backlog_trend: StatisticsBacklogTrend
+
+    backlog_trend_episode_delta: int
