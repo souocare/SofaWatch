@@ -14,7 +14,26 @@ from app.repositories.statistics_insights import (
     MovieViewingInsight,
     ShowViewingInsight,
 )
+from app.repositories.library import LibraryRepository
 
+def create_statistics_service(
+    *,
+    episode_watch_event_repository: EpisodeWatchEventRepository,
+    movie_watch_event_repository: MovieWatchEventRepository,
+    library_repository: LibraryRepository | None = None,
+) -> StatisticsService:
+    """Create StatisticsService with isolated repository dependencies."""
+
+    return StatisticsService(
+        episode_watch_event_repository=episode_watch_event_repository,
+        movie_watch_event_repository=movie_watch_event_repository,
+        library_repository=(
+            library_repository
+            or Mock(
+                spec=LibraryRepository,
+            )
+        ),
+    )
 
 def test_weekly_summary_combines_episode_and_movie_statistics() -> None:
     """Combine Episode and Movie viewing statistics into one summary."""
@@ -39,7 +58,7 @@ def test_weekly_summary_combines_episode_and_movie_statistics() -> None:
         226,
     )
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -120,7 +139,7 @@ def test_weekly_summary_returns_zero_statistics_without_viewings() -> None:
         0,
     )
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -183,7 +202,7 @@ def test_weekly_summary_uses_monday_for_every_day_of_week() -> None:
             0,
         )
 
-        service = StatisticsService(
+        service = create_statistics_service(
             episode_watch_event_repository=episode_repository,
             movie_watch_event_repository=movie_repository,
         )
@@ -229,7 +248,7 @@ def test_weekly_summary_rolls_over_on_next_monday() -> None:
         120,
     )
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -287,7 +306,7 @@ def test_get_summary_combines_lifetime_viewing_statistics() -> None:
         500,   # rewatch_time_minutes
     )
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -355,7 +374,7 @@ def test_get_summary_returns_zero_values_without_viewings() -> None:
         0,
     )
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -416,7 +435,7 @@ def test_get_activity_combines_episode_and_movie_daily_statistics() -> None:
         ),
     ]
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -491,7 +510,7 @@ def test_get_activity_fills_days_without_viewing_with_zeroes() -> None:
     episode_repository.get_daily_statistics_for_period.return_value = []
     movie_repository.get_daily_statistics_for_period.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -524,7 +543,7 @@ def test_get_activity_supports_fourteen_days() -> None:
     episode_repository.get_daily_statistics_for_period.return_value = []
     movie_repository.get_daily_statistics_for_period.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -563,7 +582,7 @@ def test_get_activity_supports_thirty_day_period() -> None:
     episode_repository.get_daily_statistics_for_period.return_value = []
     movie_repository.get_daily_statistics_for_period.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -603,7 +622,7 @@ def test_activity_supports_thirty_days() -> None:
     episode_repository.get_daily_statistics_for_period.return_value = []
     movie_repository.get_daily_statistics_for_period.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -630,7 +649,7 @@ def test_activity_supports_ninety_days() -> None:
     episode_repository.get_daily_statistics_for_period.return_value = []
     movie_repository.get_daily_statistics_for_period.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -657,7 +676,7 @@ def test_activity_supports_one_year() -> None:
     episode_repository.get_daily_statistics_for_period.return_value = []
     movie_repository.get_daily_statistics_for_period.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -705,7 +724,7 @@ def test_activity_all_starts_at_earliest_viewing() -> None:
     episode_repository.get_daily_statistics_for_period.return_value = []
     movie_repository.get_daily_statistics_for_period.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -741,7 +760,7 @@ def test_activity_all_returns_today_without_viewing_history() -> None:
     episode_repository.get_daily_statistics_for_period.return_value = []
     movie_repository.get_daily_statistics_for_period.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -816,7 +835,7 @@ def test_get_habits_calculates_current_and_longest_streaks() -> None:
 
     movie_repository.get_daily_statistics_for_period.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -873,7 +892,7 @@ def test_get_habits_keeps_current_streak_alive_from_yesterday() -> None:
 
     movie_repository.get_daily_statistics_for_period.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -930,7 +949,7 @@ def test_get_habits_returns_zero_current_streak_when_last_activity_is_old() -> N
 
     movie_repository.get_daily_statistics_for_period.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -1000,7 +1019,7 @@ def test_get_habits_combines_episode_and_movie_active_days() -> None:
         ),
     ]
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -1057,7 +1076,7 @@ def test_get_habits_counts_shared_episode_and_movie_day_once() -> None:
         ),
     ]
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -1086,7 +1105,7 @@ def test_get_habits_returns_zeroes_without_viewing_history() -> None:
     episode_repository.get_earliest_watched_at_for_user.return_value = None
     movie_repository.get_earliest_watched_at_for_user.return_value = None
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -1166,7 +1185,7 @@ def test_get_habits_calculates_biggest_marathon_from_episode_and_movie_time(
         ),
     ]
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -1224,7 +1243,7 @@ def test_get_habits_uses_most_recent_day_when_marathon_time_is_tied(
 
     movie_repository.get_daily_statistics_for_period.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -1277,7 +1296,7 @@ def test_get_habits_returns_no_marathon_day_when_all_watch_time_is_unknown(
 
     movie_repository.get_daily_statistics_for_period.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -1338,7 +1357,7 @@ def test_get_habits_calculates_longest_episode_binge() -> None:
 
     movie_repository.get_daily_statistics_for_period.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -1397,7 +1416,7 @@ def test_get_habits_uses_most_recent_day_when_episode_binge_is_tied(
 
     movie_repository.get_daily_statistics_for_period.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -1451,7 +1470,7 @@ def test_get_habits_returns_no_episode_binge_for_movie_only_history(
         ),
     ]
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -1521,7 +1540,7 @@ def test_get_habits_calculates_average_active_day_watch_time() -> None:
         ),
     ]
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -1580,7 +1599,7 @@ def test_get_habits_counts_zero_watch_time_day_in_active_day_average(
 
     movie_repository.get_daily_statistics_for_period.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -1656,7 +1675,7 @@ def test_get_habits_calculates_most_active_weekday() -> None:
         ),
     ]
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -1757,7 +1776,7 @@ def test_get_content_insights_combines_all_rankings() -> None:
         ),
     ]
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -1866,7 +1885,7 @@ def test_get_content_insights_returns_empty_rankings_without_history() -> None:
     movie_repository.get_most_rewatched_movies.return_value = []
     movie_repository.get_top_movie_genres.return_value = []
 
-    service = StatisticsService(
+    service = create_statistics_service(
         episode_watch_event_repository=episode_repository,
         movie_watch_event_repository=movie_repository,
     )
@@ -1881,5 +1900,90 @@ def test_get_content_insights_returns_empty_rankings_without_history() -> None:
     assert result.most_rewatched_movies == []
     assert result.top_show_genres == []
     assert result.top_movie_genres == []
+
+
+
+def test_get_library_statistics_returns_library_counts() -> None:
+    """Return Shows, Movies and completed Show Library counts."""
+
+    user_id = uuid4()
+
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    library_repository = Mock(
+        spec=LibraryRepository,
+    )
+
+    library_repository.count_shows_by_user.return_value = 18
+    library_repository.count_movies_by_user.return_value = 42
+    library_repository.count_completed_shows_by_user.return_value = 7
+
+    service = create_statistics_service(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+        library_repository=library_repository,
+    )
+
+    result = service.get_library_statistics(
+        user_id=user_id,
+    )
+
+    assert result.shows_added == 18
+    assert result.movies_added == 42
+    assert result.shows_completed == 7
+
+    library_repository.count_shows_by_user.assert_called_once_with(
+        user_id=user_id,
+    )
+
+    library_repository.count_movies_by_user.assert_called_once_with(
+        user_id=user_id,
+    )
+
+    library_repository.count_completed_shows_by_user.assert_called_once_with(
+        user_id=user_id,
+    )
+
+
+def test_get_library_statistics_supports_empty_library() -> None:
+    """Return usable zero Library statistics."""
+
+    user_id = uuid4()
+
+    episode_repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    movie_repository = Mock(
+        spec=MovieWatchEventRepository,
+    )
+
+    library_repository = Mock(
+        spec=LibraryRepository,
+    )
+
+    library_repository.count_shows_by_user.return_value = 0
+    library_repository.count_movies_by_user.return_value = 0
+    library_repository.count_completed_shows_by_user.return_value = 0
+
+    service = create_statistics_service(
+        episode_watch_event_repository=episode_repository,
+        movie_watch_event_repository=movie_repository,
+        library_repository=library_repository,
+    )
+
+    result = service.get_library_statistics(
+        user_id=user_id,
+    )
+
+    assert result.shows_added == 0
+    assert result.movies_added == 0
+    assert result.shows_completed == 0
 
 

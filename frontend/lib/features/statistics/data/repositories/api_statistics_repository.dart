@@ -13,6 +13,8 @@ import 'package:sofawatch/features/statistics/data/models/statistics_habits_dto.
 import 'package:sofawatch/features/statistics/domain/models/statistics_habits.dart';
 import 'package:sofawatch/features/statistics/data/models/statistics_content_insights_dto.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
+import 'package:sofawatch/features/statistics/data/models/statistics_library_dto.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
 
 final class ApiStatisticsRepository implements StatisticsRepository {
   const ApiStatisticsRepository(this._apiClient);
@@ -137,6 +139,30 @@ final class ApiStatisticsRepository implements StatisticsRepository {
       return StatisticsContentInsightsDto.fromJson(
         data,
       ).toDomain(resolveUrl: _apiClient.resolveServerUrl);
+    } on AppException {
+      rethrow;
+    } on FormatException catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } on TypeError catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  @override
+  Future<StatisticsLibrary> getLibraryStatistics() async {
+    try {
+      final Response<Map<String, dynamic>> response = await _apiClient
+          .get<Map<String, dynamic>>('/statistics/library');
+
+      final Map<String, dynamic>? data = response.data;
+
+      if (data == null) {
+        throw const FormatException(
+          'The statistics Library response body is missing.',
+        );
+      }
+
+      return StatisticsLibraryDto.fromJson(data).toDomain();
     } on AppException {
       rethrow;
     } on FormatException catch (error) {

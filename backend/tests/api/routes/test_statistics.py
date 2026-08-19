@@ -12,6 +12,8 @@ from app.models.season import Season
 from app.models.show import Show
 from app.models.user import User
 from app.models.genre import Genre
+from app.models.enums import LibraryStatus
+from app.models.library import LibraryEntry
 
 
 def create_local_user(
@@ -1133,4 +1135,111 @@ def test_get_statistics_content_insights_returns_empty_lists_without_history(
         "top_movie_genres": [],
     }
 
+
+def test_get_statistics_library_returns_current_user_counts(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return current Library statistics for the local user."""
+
+    user = create_local_user(
+        db_session,
+    )
+
+    watching_show = Show(
+        tmdb_id=95396,
+        title="Severance",
+        original_title="Severance",
+        original_language="en",
+        metadata_language="en-US",
+    )
+
+    completed_show = Show(
+        tmdb_id=1396,
+        title="Breaking Bad",
+        original_title="Breaking Bad",
+        original_language="en",
+        metadata_language="en-US",
+    )
+
+    movie = Movie(
+        tmdb_id=438631,
+        title="Dune",
+        original_title="Dune",
+        original_language="en",
+        runtime=155,
+        status="Released",
+        adult=False,
+        video=False,
+        popularity=10.0,
+        vote_average=8.0,
+        vote_count=100,
+        metadata_language="en-US",
+    )
+
+    db_session.add_all(
+        [
+            watching_show,
+            completed_show,
+            movie,
+        ]
+    )
+
+    db_session.commit()
+
+    db_session.add_all(
+        [
+            LibraryEntry(
+                user_id=user.id,
+                show_id=watching_show.id,
+                status=LibraryStatus.WATCHING,
+            ),
+            LibraryEntry(
+                user_id=user.id,
+                show_id=completed_show.id,
+                status=LibraryStatus.COMPLETED,
+            ),
+            LibraryEntry(
+                user_id=user.id,
+                movie_id=movie.id,
+                status=LibraryStatus.COMPLETED,
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/statistics/library",
+    )
+
+    assert response.status_code == 200
+
+    assert response.json() == {
+        "shows_added": 2,
+        "movies_added": 1,
+        "shows_completed": 1,
+    }
+
+def test_get_statistics_library_returns_zeroes_for_empty_library(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return usable zero Library statistics without entries."""
+
+    create_local_user(
+        db_session,
+    )
+
+    response = client.get(
+        "/api/v1/statistics/library",
+    )
+
+    assert response.status_code == 200
+
+    assert response.json() == {
+        "shows_added": 0,
+        "movies_added": 0,
+        "shows_completed": 0,
+    }
 

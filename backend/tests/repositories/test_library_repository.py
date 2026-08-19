@@ -586,3 +586,189 @@ def test_get_library_tmdb_ids_returns_empty_sets_for_empty_input(
         user_id=user.id,
         tmdb_ids=set(),
     ) == set()
+
+
+def test_count_library_statistics_for_user(
+    db_session: Session,
+) -> None:
+    """Count Shows, Movies and completed Shows for one user."""
+
+    user = create_user(
+        db_session,
+    )
+
+    watching_show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    completed_show = create_show(
+        db_session,
+        tmdb_id=1396,
+        title="Breaking Bad",
+    )
+
+    planning_show = create_show(
+        db_session,
+        tmdb_id=66732,
+        title="Stranger Things",
+    )
+
+    planning_movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    completed_movie = create_movie(
+        db_session,
+        tmdb_id=603,
+        title="The Matrix",
+    )
+
+    db_session.add_all(
+        [
+            LibraryEntry(
+                user_id=user.id,
+                show_id=watching_show.id,
+                status=LibraryStatus.WATCHING,
+            ),
+            LibraryEntry(
+                user_id=user.id,
+                show_id=completed_show.id,
+                status=LibraryStatus.COMPLETED,
+            ),
+            LibraryEntry(
+                user_id=user.id,
+                show_id=planning_show.id,
+                status=LibraryStatus.PLANNING,
+            ),
+            LibraryEntry(
+                user_id=user.id,
+                movie_id=planning_movie.id,
+                status=LibraryStatus.PLANNING,
+            ),
+            LibraryEntry(
+                user_id=user.id,
+                movie_id=completed_movie.id,
+                status=LibraryStatus.COMPLETED,
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    repository = LibraryRepository(
+        db_session,
+    )
+
+    assert repository.count_shows_by_user(
+        user_id=user.id,
+    ) == 3
+
+    assert repository.count_movies_by_user(
+        user_id=user.id,
+    ) == 2
+
+    assert repository.count_completed_shows_by_user(
+        user_id=user.id,
+    ) == 1
+
+
+def test_count_library_statistics_is_isolated_by_user(
+    db_session: Session,
+) -> None:
+    """Exclude another user's Library entries from statistics."""
+
+    user = create_user(
+        db_session,
+        display_name="Requested User",
+    )
+
+    other_user = create_user(
+        db_session,
+        display_name="Other User",
+    )
+
+    user_show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    other_show = create_show(
+        db_session,
+        tmdb_id=1396,
+        title="Breaking Bad",
+    )
+
+    other_movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    db_session.add_all(
+        [
+            LibraryEntry(
+                user_id=user.id,
+                show_id=user_show.id,
+                status=LibraryStatus.COMPLETED,
+            ),
+            LibraryEntry(
+                user_id=other_user.id,
+                show_id=other_show.id,
+                status=LibraryStatus.COMPLETED,
+            ),
+            LibraryEntry(
+                user_id=other_user.id,
+                movie_id=other_movie.id,
+                status=LibraryStatus.COMPLETED,
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    repository = LibraryRepository(
+        db_session,
+    )
+
+    assert repository.count_shows_by_user(
+        user_id=user.id,
+    ) == 1
+
+    assert repository.count_movies_by_user(
+        user_id=user.id,
+    ) == 0
+
+    assert repository.count_completed_shows_by_user(
+        user_id=user.id,
+    ) == 1
+
+
+def test_count_library_statistics_returns_zero_without_entries(
+    db_session: Session,
+) -> None:
+    """Return zero counts when the user has an empty Library."""
+
+    user = create_user(
+        db_session,
+    )
+
+    repository = LibraryRepository(
+        db_session,
+    )
+
+    assert repository.count_shows_by_user(
+        user_id=user.id,
+    ) == 0
+
+    assert repository.count_movies_by_user(
+        user_id=user.id,
+    ) == 0
+
+    assert repository.count_completed_shows_by_user(
+        user_id=user.id,
+    ) == 0

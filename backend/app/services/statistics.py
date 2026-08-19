@@ -16,7 +16,9 @@ from app.schemas.statistics import (
     StatisticsGenreInsightResponse,
     StatisticsMovieInsightResponse,
     StatisticsShowInsightResponse,
+        StatisticsLibraryResponse,
 )
+from app.repositories.library import LibraryRepository
 
 
 class StatisticsService:
@@ -27,6 +29,7 @@ class StatisticsService:
         *,
         episode_watch_event_repository: EpisodeWatchEventRepository,
         movie_watch_event_repository: MovieWatchEventRepository,
+        library_repository: LibraryRepository,
     ) -> None:
         self._episode_watch_event_repository = (
             episode_watch_event_repository
@@ -35,6 +38,7 @@ class StatisticsService:
         self._movie_watch_event_repository = (
             movie_watch_event_repository
         )
+        self._library_repository = library_repository
 
     def get_weekly_summary(
         self,
@@ -662,6 +666,33 @@ class StatisticsService:
                 )
                 for item in top_movie_genres
             ],
+        )
+
+    def get_library_statistics(
+        self,
+        *,
+        user_id: UUID,
+    ) -> StatisticsLibraryResponse:
+        """Return current Library statistics for a SofaWatch user."""
+
+        shows_added = self._library_repository.count_shows_by_user(
+            user_id=user_id,
+        )
+
+        movies_added = self._library_repository.count_movies_by_user(
+            user_id=user_id,
+        )
+
+        shows_completed = (
+            self._library_repository.count_completed_shows_by_user(
+                user_id=user_id,
+            )
+        )
+
+        return StatisticsLibraryResponse(
+            shows_added=shows_added,
+            movies_added=movies_added,
+            shows_completed=shows_completed,
         )
 
 

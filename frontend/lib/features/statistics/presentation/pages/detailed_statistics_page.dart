@@ -22,6 +22,9 @@ import 'package:sofawatch/features/statistics/domain/models/statistics_habits.da
 import 'package:sofawatch/features/statistics/application/cubit/statistics_content_insights_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_content_insights_state.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_library_cubit.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_library_state.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
 
 class DetailedStatisticsPage extends StatelessWidget {
   const DetailedStatisticsPage({super.key});
@@ -66,6 +69,10 @@ class DetailedStatisticsPage extends StatelessWidget {
                   const SizedBox(height: AppSpacing.section),
 
                   const _ContentInsightsSection(),
+
+                  const SizedBox(height: AppSpacing.section),
+
+                  const _LibraryStatisticsSection(),
                 ],
               ),
             ),
@@ -1084,6 +1091,232 @@ class _ContentInsightsContent extends StatelessWidget {
           items: insights.topMovieGenres,
         ),
       ],
+    );
+  }
+}
+
+class _LibraryStatisticsSection extends StatelessWidget {
+  const _LibraryStatisticsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('detailed-statistics-library'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'Library',
+          key: const ValueKey<String>('detailed-statistics-library-title'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        BlocBuilder<StatisticsLibraryCubit, StatisticsLibraryState>(
+          builder: (BuildContext context, StatisticsLibraryState state) {
+            return switch (state) {
+              StatisticsLibraryInitial() ||
+              StatisticsLibraryLoading() => const _LibraryStatisticsLoading(),
+
+              StatisticsLibrarySuccess(:final statistics) =>
+                _LibraryStatisticsContent(statistics: statistics),
+
+              StatisticsLibraryFailure(:final error) => SectionFailureCard(
+                failureKey: 'detailed-statistics-library-failure',
+                error: error,
+                onRetry: context.read<StatisticsLibraryCubit>().retry,
+              ),
+            };
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _LibraryStatisticsContent extends StatelessWidget {
+  const _LibraryStatisticsContent({required this.statistics});
+
+  final StatisticsLibrary statistics;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final int columns = switch (constraints.maxWidth) {
+          >= 720 => 3,
+          >= 520 => 2,
+          _ => 1,
+        };
+
+        final double totalSpacing = AppSpacing.sm * (columns - 1);
+
+        final double cardWidth =
+            (constraints.maxWidth - totalSpacing) / columns;
+
+        return Wrap(
+          key: const ValueKey<String>('detailed-statistics-library-content'),
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: <Widget>[
+            SizedBox(
+              width: cardWidth,
+              child: _LibraryStatisticsCard(
+                cardKey: 'detailed-statistics-shows-added',
+                icon: Icons.tv_rounded,
+                value: statistics.showsAdded.toString(),
+                label: 'Shows added',
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _LibraryStatisticsCard(
+                cardKey: 'detailed-statistics-movies-added',
+                icon: Icons.movie_rounded,
+                value: statistics.moviesAdded.toString(),
+                label: 'Movies added',
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _LibraryStatisticsCard(
+                cardKey: 'detailed-statistics-shows-completed',
+                icon: Icons.check_circle_outline_rounded,
+                value: statistics.showsCompleted.toString(),
+                label: 'Shows completed',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LibraryStatisticsCard extends StatelessWidget {
+  const _LibraryStatisticsCard({
+    required this.cardKey,
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  final String cardKey;
+  final IconData icon;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: ValueKey<String>(cardKey),
+      constraints: const BoxConstraints(minHeight: 112),
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: AppRadius.borderLarge,
+              border: Border.all(color: AppColors.outlineVariant),
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 22, color: AppColors.textSecondary),
+          ),
+
+          const SizedBox(width: AppSpacing.md),
+
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                const SizedBox(height: AppSpacing.xs),
+
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LibraryStatisticsLoading extends StatelessWidget {
+  const _LibraryStatisticsLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final int columns = switch (constraints.maxWidth) {
+          >= 720 => 3,
+          >= 520 => 2,
+          _ => 1,
+        };
+
+        final double totalSpacing = AppSpacing.sm * (columns - 1);
+
+        final double cardWidth =
+            (constraints.maxWidth - totalSpacing) / columns;
+
+        return Wrap(
+          key: const ValueKey<String>('detailed-statistics-library-loading'),
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: <Widget>[
+            for (int index = 0; index < 3; index++)
+              SizedBox(
+                width: cardWidth,
+                child: const _LibraryStatisticsSkeleton(),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LibraryStatisticsSkeleton extends StatelessWidget {
+  const _LibraryStatisticsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 112,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
     );
   }
 }

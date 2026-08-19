@@ -13,6 +13,7 @@ from app.schemas.statistics import (
     StatisticsHabitsResponse,
     StatisticsSummaryResponse,
     WeeklyStatisticsResponse,
+    StatisticsLibraryResponse,
 )
 
 
@@ -80,6 +81,27 @@ def get_statistics_content_insights(
     return service.get_content_insights(
         user_id=current_user.id,
     )
+
+
+@router.get(
+    "/library",
+    response_model=StatisticsLibraryResponse,
+    summary="Get Library statistics",
+    description=(
+        "Return the current user's Library statistics, including "
+        "Shows added, Movies added and completed Shows."
+    ),
+)
+def get_statistics_library(
+    current_user: CurrentUserDependency,
+    service: StatisticsServiceDependency,
+) -> StatisticsLibraryResponse:
+    """Return current Library statistics for the current user."""
+
+    return service.get_library_statistics(
+        user_id=current_user.id,
+    )
+
 
 @router.get(
     "/activity",

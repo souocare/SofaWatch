@@ -7,6 +7,7 @@ import 'package:sofawatch/features/statistics/domain/models/statistics_activity.
 import 'package:sofawatch/features/statistics/domain/models/statistics_activity_period.dart';
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
 
 void main() {
   group('ApiStatisticsRepository', () {
@@ -485,5 +486,57 @@ void main() {
         );
       },
     );
+    test('gets Statistics Library', () async {
+      dioAdapter.onGet('/statistics/library', (server) {
+        server.reply(200, const <String, dynamic>{
+          'shows_added': 18,
+          'movies_added': 42,
+          'shows_completed': 7,
+        });
+      });
+
+      final StatisticsLibrary result = await repository.getLibraryStatistics();
+
+      expect(result.showsAdded, 18);
+      expect(result.moviesAdded, 42);
+      expect(result.showsCompleted, 7);
+    });
+
+    test('supports empty Statistics Library', () async {
+      dioAdapter.onGet('/statistics/library', (server) {
+        server.reply(200, const <String, dynamic>{
+          'shows_added': 0,
+          'movies_added': 0,
+          'shows_completed': 0,
+        });
+      });
+
+      final StatisticsLibrary result = await repository.getLibraryStatistics();
+
+      expect(result.showsAdded, 0);
+      expect(result.moviesAdded, 0);
+      expect(result.showsCompleted, 0);
+    });
+
+    test('maps invalid Statistics Library response to invalidData', () async {
+      dioAdapter.onGet('/statistics/library', (server) {
+        server.reply(200, const <String, dynamic>{
+          'shows_added': -1,
+          'movies_added': 42,
+          'shows_completed': 7,
+        });
+      });
+
+      expect(
+        repository.getLibraryStatistics(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
   });
 }

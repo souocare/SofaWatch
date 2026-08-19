@@ -710,6 +710,9 @@ def get_statistics_service(
         movie_watch_event_repository=MovieWatchEventRepository(
             session,
         ),
+        library_repository=LibraryRepository(
+            session,
+        ),
     )
 
 

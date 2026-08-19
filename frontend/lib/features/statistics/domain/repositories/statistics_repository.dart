@@ -4,6 +4,7 @@ import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.da
 import 'package:sofawatch/features/statistics/domain/models/statistics_activity_period.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_habits.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
 
 abstract interface class StatisticsRepository {
   Future<WeeklyStatistics> getWeeklyStatistics();
@@ -17,4 +18,6 @@ abstract interface class StatisticsRepository {
   Future<StatisticsHabits> getHabits();
 
   Future<StatisticsContentInsights> getContentInsights();
+
+  Future<StatisticsLibrary> getLibraryStatistics();
 }

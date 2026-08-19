@@ -11,6 +11,7 @@ import 'package:sofawatch/features/statistics/domain/models/statistics_activity.
 import 'package:sofawatch/features/statistics/domain/models/statistics_activity_period.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_habits.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
 
 void main() {
   group('StatisticsCubit', () {
@@ -192,6 +193,11 @@ final class _FakeStatisticsRepository implements StatisticsRepository {
   }
 
   @override
+  Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<StatisticsActivity> getActivity({
     required StatisticsActivityPeriod period,
   }) {
@@ -244,6 +250,11 @@ final class _RetryStatisticsRepository implements StatisticsRepository {
   Future<StatisticsContentInsights> getContentInsights() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
 }
 
 final class _ControlledStatisticsRepository implements StatisticsRepository {
@@ -293,6 +304,11 @@ final class _ControlledStatisticsRepository implements StatisticsRepository {
   Future<StatisticsContentInsights> getContentInsights() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
 }
 
 final class _RefreshFailureStatisticsRepository
@@ -329,6 +345,11 @@ final class _RefreshFailureStatisticsRepository
 
   @override
   Future<StatisticsContentInsights> getContentInsights() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
 }

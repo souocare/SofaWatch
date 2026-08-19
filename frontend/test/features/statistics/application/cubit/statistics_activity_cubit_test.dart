@@ -11,6 +11,7 @@ import 'package:sofawatch/features/statistics/domain/models/statistics_summary.d
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
 
 void main() {
   group('StatisticsActivityCubit', () {
@@ -333,6 +334,11 @@ class _FakeStatisticsRepository implements StatisticsRepository {
   Future<StatisticsContentInsights> getContentInsights() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
 }
 
 final class _ControlledStatisticsRepository implements StatisticsRepository {
@@ -368,6 +374,11 @@ final class _ControlledStatisticsRepository implements StatisticsRepository {
 
   @override
   Future<StatisticsContentInsights> getContentInsights() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
 }
@@ -407,6 +418,11 @@ final class _PeriodFailureStatisticsRepository implements StatisticsRepository {
   Future<StatisticsContentInsights> getContentInsights() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<StatisticsLibrary> getLibraryStatistics() {
+    throw UnimplementedError();
+  }
 }
 
 final class _AlwaysFailingStatisticsRepository implements StatisticsRepository {
@@ -434,6 +450,11 @@ final class _AlwaysFailingStatisticsRepository implements StatisticsRepository {
 
   @override
   Future<StatisticsContentInsights> getContentInsights() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
 }
@@ -476,6 +497,11 @@ final class _RetryStatisticsRepository implements StatisticsRepository {
 
   @override
   Future<StatisticsContentInsights> getContentInsights() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<StatisticsLibrary> getLibraryStatistics() {
     throw UnimplementedError();
   }
 }

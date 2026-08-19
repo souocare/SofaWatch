@@ -1,13 +1,11 @@
+from collections.abc import Collection
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.enums import LibraryStatus
 from app.models.library import LibraryEntry
-from collections.abc import Collection
-from uuid import UUID
-
 from app.models.movie import Movie
 from app.models.show import Show
 
@@ -154,6 +152,73 @@ class LibraryRepository:
         return list(
             self._session.scalars(statement).all()
         )
+
+    def count_shows_by_user(
+        self,
+        *,
+        user_id: UUID,
+    ) -> int:
+        """Return the number of Shows currently in a user's library."""
+
+        statement = (
+            select(
+                func.count(),
+            )
+            .select_from(
+                LibraryEntry,
+            )
+            .where(
+                LibraryEntry.user_id == user_id,
+                LibraryEntry.show_id.is_not(None),
+            )
+        )
+
+        return self._session.scalar(statement) or 0
+
+    def count_movies_by_user(
+        self,
+        *,
+        user_id: UUID,
+    ) -> int:
+        """Return the number of Movies currently in a user's library."""
+
+        statement = (
+            select(
+                func.count(),
+            )
+            .select_from(
+                LibraryEntry,
+            )
+            .where(
+                LibraryEntry.user_id == user_id,
+                LibraryEntry.movie_id.is_not(None),
+            )
+        )
+
+        return self._session.scalar(statement) or 0
+
+    def count_completed_shows_by_user(
+        self,
+        *,
+        user_id: UUID,
+    ) -> int:
+        """Return the number of completed Shows in a user's library."""
+
+        statement = (
+            select(
+                func.count(),
+            )
+            .select_from(
+                LibraryEntry,
+            )
+            .where(
+                LibraryEntry.user_id == user_id,
+                LibraryEntry.show_id.is_not(None),
+                LibraryEntry.status == LibraryStatus.COMPLETED,
+            )
+        )
+
+        return self._session.scalar(statement) or 0
 
     def add(
         self,

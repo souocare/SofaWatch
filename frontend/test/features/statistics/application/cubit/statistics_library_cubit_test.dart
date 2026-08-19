@@ -2,55 +2,52 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
-import 'package:sofawatch/features/statistics/application/cubit/statistics_content_insights_cubit.dart';
-import 'package:sofawatch/features/statistics/application/cubit/statistics_content_insights_state.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_library_cubit.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_library_state.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_activity.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_activity_period.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_habits.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
 
 void main() {
-  group('StatisticsContentInsightsCubit', () {
+  group('StatisticsLibraryCubit', () {
     test('starts in Initial', () {
-      final StatisticsContentInsightsCubit cubit =
-          StatisticsContentInsightsCubit(
-            repository: const _ContentInsightsRepository(),
-          );
+      final StatisticsLibraryCubit cubit = StatisticsLibraryCubit(
+        repository: const _LibraryRepository(),
+      );
 
       addTearDown(cubit.close);
 
-      expect(cubit.state, const StatisticsContentInsightsInitial());
+      expect(cubit.state, const StatisticsLibraryInitial());
     });
 
-    test('loads Content Insights successfully', () async {
-      final StatisticsContentInsightsCubit cubit =
-          StatisticsContentInsightsCubit(
-            repository: const _ContentInsightsRepository(),
-          );
+    test('loads Library Statistics successfully', () async {
+      final StatisticsLibraryCubit cubit = StatisticsLibraryCubit(
+        repository: const _LibraryRepository(),
+      );
 
       addTearDown(cubit.close);
 
-      final Future<List<StatisticsContentInsightsState>> states = cubit.stream
+      final Future<List<StatisticsLibraryState>> states = cubit.stream
           .take(2)
           .toList();
 
       await cubit.load();
 
-      expect(await states, <StatisticsContentInsightsState>[
-        const StatisticsContentInsightsLoading(),
-        const StatisticsContentInsightsSuccess(_insights),
+      expect(await states, <StatisticsLibraryState>[
+        const StatisticsLibraryLoading(),
+        const StatisticsLibrarySuccess(_statistics),
       ]);
     });
 
     test('maps AppException failure', () async {
-      final StatisticsContentInsightsCubit cubit =
-          StatisticsContentInsightsCubit(
-            repository: const _FailingContentInsightsRepository(),
-          );
+      final StatisticsLibraryCubit cubit = StatisticsLibraryCubit(
+        repository: const _FailingLibraryRepository(),
+      );
 
       addTearDown(cubit.close);
 
@@ -58,8 +55,8 @@ void main() {
 
       expect(
         cubit.state,
-        isA<StatisticsContentInsightsFailure>().having(
-          (StatisticsContentInsightsFailure state) => state.error.type,
+        isA<StatisticsLibraryFailure>().having(
+          (StatisticsLibraryFailure state) => state.error.type,
           'error.type',
           AppExceptionType.connection,
         ),
@@ -67,10 +64,9 @@ void main() {
     });
 
     test('maps unexpected failure to unknown', () async {
-      final StatisticsContentInsightsCubit cubit =
-          StatisticsContentInsightsCubit(
-            repository: const _UnexpectedFailureContentInsightsRepository(),
-          );
+      final StatisticsLibraryCubit cubit = StatisticsLibraryCubit(
+        repository: const _UnexpectedFailureLibraryRepository(),
+      );
 
       addTearDown(cubit.close);
 
@@ -78,8 +74,8 @@ void main() {
 
       expect(
         cubit.state,
-        isA<StatisticsContentInsightsFailure>().having(
-          (StatisticsContentInsightsFailure state) => state.error.type,
+        isA<StatisticsLibraryFailure>().having(
+          (StatisticsLibraryFailure state) => state.error.type,
           'error.type',
           AppExceptionType.unknown,
         ),
@@ -87,11 +83,12 @@ void main() {
     });
 
     test('ignores another load while loading', () async {
-      final _ControlledContentInsightsRepository repository =
-          _ControlledContentInsightsRepository();
+      final _ControlledLibraryRepository repository =
+          _ControlledLibraryRepository();
 
-      final StatisticsContentInsightsCubit cubit =
-          StatisticsContentInsightsCubit(repository: repository);
+      final StatisticsLibraryCubit cubit = StatisticsLibraryCubit(
+        repository: repository,
+      );
 
       addTearDown(cubit.close);
 
@@ -105,70 +102,48 @@ void main() {
 
       expect(repository.calls, 1);
 
-      repository.complete(_insights);
+      repository.complete(_statistics);
 
       await firstLoad;
 
-      expect(cubit.state, const StatisticsContentInsightsSuccess(_insights));
+      expect(cubit.state, const StatisticsLibrarySuccess(_statistics));
     });
 
-    test('retry loads Content Insights again', () async {
-      final _RetryContentInsightsRepository repository =
-          _RetryContentInsightsRepository();
+    test('retry loads Library Statistics again', () async {
+      final _RetryLibraryRepository repository = _RetryLibraryRepository();
 
-      final StatisticsContentInsightsCubit cubit =
-          StatisticsContentInsightsCubit(repository: repository);
+      final StatisticsLibraryCubit cubit = StatisticsLibraryCubit(
+        repository: repository,
+      );
 
       addTearDown(cubit.close);
 
       await cubit.load();
 
       expect(repository.calls, 1);
-      expect(cubit.state, isA<StatisticsContentInsightsFailure>());
+      expect(cubit.state, isA<StatisticsLibraryFailure>());
 
       await cubit.retry();
 
       expect(repository.calls, 2);
-      expect(cubit.state, const StatisticsContentInsightsSuccess(_insights));
+
+      expect(cubit.state, const StatisticsLibrarySuccess(_statistics));
     });
   });
 }
 
-const StatisticsContentInsights _insights = StatisticsContentInsights(
-  mostWatchedShows: <StatisticsShowInsight>[
-    StatisticsShowInsight(
-      showId: '11111111-1111-1111-1111-111111111111',
-      tmdbId: 95396,
-      title: 'Severance',
-      posterUrl: null,
-      watchCount: 12,
-      rewatchCount: 4,
-    ),
-  ],
-  mostRewatchedShows: <StatisticsShowInsight>[],
-  mostRewatchedEpisodes: <StatisticsEpisodeInsight>[],
-  mostRewatchedMovies: <StatisticsMovieInsight>[
-    StatisticsMovieInsight(
-      movieId: '33333333-3333-3333-3333-333333333333',
-      tmdbId: 438631,
-      title: 'Dune',
-      posterUrl: null,
-      watchCount: 3,
-      rewatchCount: 2,
-    ),
-  ],
-  topShowGenres: <StatisticsGenreInsight>[
-    StatisticsGenreInsight(genreId: 1, name: 'Drama', watchCount: 12),
-  ],
-  topMovieGenres: <StatisticsGenreInsight>[],
+const StatisticsLibrary _statistics = StatisticsLibrary(
+  showsAdded: 18,
+  moviesAdded: 42,
+  showsCompleted: 7,
 );
 
-final class _ContentInsightsRepository implements StatisticsRepository {
-  const _ContentInsightsRepository();
+final class _LibraryRepository implements StatisticsRepository {
+  const _LibraryRepository();
 
   @override
-  Future<StatisticsContentInsights> getContentInsights() async {
-    return _insights;
+  Future<StatisticsLibrary> getLibraryStatistics() async {
+    return _statistics;
   }
 
   @override
@@ -194,16 +169,16 @@ final class _ContentInsightsRepository implements StatisticsRepository {
   }
 
   @override
-  Future<StatisticsLibrary> getLibraryStatistics() {
+  Future<StatisticsContentInsights> getContentInsights() {
     throw UnimplementedError();
   }
 }
 
-final class _FailingContentInsightsRepository implements StatisticsRepository {
-  const _FailingContentInsightsRepository();
+final class _FailingLibraryRepository implements StatisticsRepository {
+  const _FailingLibraryRepository();
 
   @override
-  Future<StatisticsContentInsights> getContentInsights() {
+  Future<StatisticsLibrary> getLibraryStatistics() {
     throw const AppException.connection();
   }
 
@@ -230,18 +205,18 @@ final class _FailingContentInsightsRepository implements StatisticsRepository {
   }
 
   @override
-  Future<StatisticsLibrary> getLibraryStatistics() {
+  Future<StatisticsContentInsights> getContentInsights() {
     throw UnimplementedError();
   }
 }
 
-final class _UnexpectedFailureContentInsightsRepository
+final class _UnexpectedFailureLibraryRepository
     implements StatisticsRepository {
-  const _UnexpectedFailureContentInsightsRepository();
+  const _UnexpectedFailureLibraryRepository();
 
   @override
-  Future<StatisticsContentInsights> getContentInsights() {
-    throw StateError('Unexpected Content Insights failure.');
+  Future<StatisticsLibrary> getLibraryStatistics() {
+    throw StateError('Unexpected Library Statistics failure.');
   }
 
   @override
@@ -267,24 +242,22 @@ final class _UnexpectedFailureContentInsightsRepository
   }
 
   @override
-  Future<StatisticsLibrary> getLibraryStatistics() {
+  Future<StatisticsContentInsights> getContentInsights() {
     throw UnimplementedError();
   }
 }
 
-final class _ControlledContentInsightsRepository
-    implements StatisticsRepository {
-  final Completer<StatisticsContentInsights> _result =
-      Completer<StatisticsContentInsights>();
+final class _ControlledLibraryRepository implements StatisticsRepository {
+  final Completer<StatisticsLibrary> _result = Completer<StatisticsLibrary>();
 
   int calls = 0;
 
-  void complete(StatisticsContentInsights insights) {
-    _result.complete(insights);
+  void complete(StatisticsLibrary statistics) {
+    _result.complete(statistics);
   }
 
   @override
-  Future<StatisticsContentInsights> getContentInsights() {
+  Future<StatisticsLibrary> getLibraryStatistics() {
     calls += 1;
 
     return _result.future;
@@ -313,23 +286,23 @@ final class _ControlledContentInsightsRepository
   }
 
   @override
-  Future<StatisticsLibrary> getLibraryStatistics() {
+  Future<StatisticsContentInsights> getContentInsights() {
     throw UnimplementedError();
   }
 }
 
-final class _RetryContentInsightsRepository implements StatisticsRepository {
+final class _RetryLibraryRepository implements StatisticsRepository {
   int calls = 0;
 
   @override
-  Future<StatisticsContentInsights> getContentInsights() async {
+  Future<StatisticsLibrary> getLibraryStatistics() async {
     calls += 1;
 
     if (calls == 1) {
       throw const AppException.connection();
     }
 
-    return _insights;
+    return _statistics;
   }
 
   @override
@@ -355,7 +328,7 @@ final class _RetryContentInsightsRepository implements StatisticsRepository {
   }
 
   @override
-  Future<StatisticsLibrary> getLibraryStatistics() {
+  Future<StatisticsContentInsights> getContentInsights() {
     throw UnimplementedError();
   }
 }

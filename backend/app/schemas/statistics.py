@@ -215,3 +215,19 @@ class StatisticsContentInsightsResponse(BaseModel):
 
     top_show_genres: list[StatisticsGenreInsightResponse]
     top_movie_genres: list[StatisticsGenreInsightResponse]
+
+
+class StatisticsLibraryResponse(BaseModel):
+    """Current Library statistics for a SofaWatch user."""
+
+    shows_added: int = Field(
+        ge=0,
+    )
+
+    movies_added: int = Field(
+        ge=0,
+    )
+
+    shows_completed: int = Field(
+        ge=0,
+    )
