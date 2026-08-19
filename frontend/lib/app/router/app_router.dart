@@ -53,6 +53,10 @@ import 'package:sofawatch/features/statistics/presentation/pages/detailed_statis
 import 'package:sofawatch/features/statistics/application/cubit/statistics_habits_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_library_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_backlog_cubit.dart';
+import 'package:sofawatch/features/library/application/cubit/library_preview_cubit.dart';
+import 'package:sofawatch/features/library/data/repositories/api_library_repository.dart';
+import 'package:sofawatch/features/library/application/cubit/library_collection_cubit.dart';
+import 'package:sofawatch/features/library/presentation/pages/library_collection_page.dart';
 
 GoRouter createAppRouter({required ApiClient apiClient}) {
   final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -310,6 +314,15 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                           )..load();
                         },
                       ),
+                      BlocProvider<LibraryPreviewCubit>(
+                        create: (BuildContext context) {
+                          return LibraryPreviewCubit(
+                            repository: ApiLibraryRepository(
+                              context.read<ApiClient>(),
+                            ),
+                          )..load();
+                        },
+                      ),
                     ],
                     child: const ProfilePage(),
                   );
@@ -367,6 +380,30 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                           ),
                         ],
                         child: const DetailedStatisticsPage(),
+                      );
+                    },
+                  ),
+                  GoRoute(
+                    name: AppRoute.libraryCollection.name,
+                    path: RoutePaths.libraryCollection,
+                    builder: (BuildContext context, GoRouterState state) {
+                      final String? rawTab = state.uri.queryParameters['tab'];
+
+                      final LibraryCollectionTab initialTab = switch (rawTab) {
+                        'movies' => LibraryCollectionTab.movies,
+                        _ => LibraryCollectionTab.shows,
+                      };
+
+                      return BlocProvider<LibraryCollectionCubit>(
+                        create: (BuildContext context) {
+                          final ApiClient apiClient = context.read<ApiClient>();
+
+                          return LibraryCollectionCubit(
+                            showsRepository: ApiShowsRepository(apiClient),
+                            moviesRepository: ApiMoviesRepository(apiClient),
+                          )..load();
+                        },
+                        child: LibraryCollectionPage(initialTab: initialTab),
                       );
                     },
                   ),

@@ -13,6 +13,7 @@ import 'package:sofawatch/features/library/domain/repositories/library_repositor
 import 'package:sofawatch/features/search/domain/entities/search_media_type.dart';
 import 'package:sofawatch/features/search/domain/entities/search_result.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_library_results_section.dart';
+import 'package:sofawatch/features/library/domain/models/library_preview.dart';
 
 void main() {
   group('SearchLibraryResultsSection', () {
@@ -518,5 +519,10 @@ final class _FakeLibraryRepository implements LibraryRepository {
       createdAt: now,
       updatedAt: now,
     );
+  }
+
+  @override
+  Future<LibraryPreview> getPreview() {
+    throw UnimplementedError();
   }
 }

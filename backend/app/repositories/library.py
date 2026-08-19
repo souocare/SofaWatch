@@ -346,3 +346,66 @@ class LibraryRepository:
             int(row[0] or 0),
             int(row[1] or 0),
         )
+
+
+    def list_recent_shows_by_user(
+        self,
+        *,
+        user_id: UUID,
+        limit: int = 10,
+    ) -> list[LibraryEntry]:
+        """Return the most recently added Shows in a user's Library."""
+
+        if limit <= 0:
+            return []
+
+        statement = (
+            select(LibraryEntry)
+            .options(
+                joinedload(LibraryEntry.show),
+            )
+            .where(
+                LibraryEntry.user_id == user_id,
+                LibraryEntry.show_id.is_not(None),
+            )
+            .order_by(
+                LibraryEntry.created_at.desc(),
+                LibraryEntry.id.desc(),
+            )
+            .limit(limit)
+        )
+
+        return list(
+            self._session.scalars(statement).all()
+        )
+
+    def list_recent_movies_by_user(
+        self,
+        *,
+        user_id: UUID,
+        limit: int = 10,
+    ) -> list[LibraryEntry]:
+        """Return the most recently added Movies in a user's Library."""
+
+        if limit <= 0:
+            return []
+
+        statement = (
+            select(LibraryEntry)
+            .options(
+                joinedload(LibraryEntry.movie),
+            )
+            .where(
+                LibraryEntry.user_id == user_id,
+                LibraryEntry.movie_id.is_not(None),
+            )
+            .order_by(
+                LibraryEntry.created_at.desc(),
+                LibraryEntry.id.desc(),
+            )
+            .limit(limit)
+        )
+
+        return list(
+            self._session.scalars(statement).all()
+        )

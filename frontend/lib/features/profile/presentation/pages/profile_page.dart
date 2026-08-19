@@ -13,6 +13,9 @@ import 'package:sofawatch/features/statistics/domain/models/statistics_summary.d
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/features/statistics/presentation/formatters/statistics_watch_time_formatter.dart';
+import 'package:sofawatch/features/library/application/cubit/library_preview_cubit.dart';
+import 'package:sofawatch/features/library/application/cubit/library_preview_state.dart';
+import 'package:sofawatch/features/library/domain/models/library_preview.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -55,6 +58,10 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: AppSpacing.section),
 
                   const _ProfileStatisticsSection(),
+
+                  const SizedBox(height: AppSpacing.section),
+
+                  const _ProfileLibrarySection(),
                 ],
               ),
             ),
@@ -459,4 +466,373 @@ String formatProfileWatchTime(int totalMinutes) {
   }
 
   return '${minutes}m';
+}
+
+class _ProfileLibrarySection extends StatelessWidget {
+  const _ProfileLibrarySection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-library'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'Library',
+          key: const ValueKey<String>('profile-library-title'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        BlocBuilder<LibraryPreviewCubit, LibraryPreviewState>(
+          builder: (BuildContext context, LibraryPreviewState state) {
+            return switch (state) {
+              LibraryPreviewInitial() ||
+              LibraryPreviewLoading() => const _ProfileLibraryLoading(),
+
+              LibraryPreviewSuccess(:final preview) => _ProfileLibraryContent(
+                preview: preview,
+              ),
+
+              LibraryPreviewFailure(:final error) => SectionFailureCard(
+                failureKey: 'profile-library-failure',
+                error: error,
+                onRetry: context.read<LibraryPreviewCubit>().retry,
+              ),
+            };
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileLibraryContent extends StatelessWidget {
+  const _ProfileLibraryContent({required this.preview});
+
+  final LibraryPreview preview;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-library-content'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        _ProfileLibraryGroup(
+          groupKey: 'profile-library-shows',
+          title: 'Shows',
+          isEmpty: preview.shows.isEmpty,
+          emptyMessage: 'No Shows in your Library yet.',
+          onSeeAll: () {
+            context.pushNamed(
+              AppRoute.libraryCollection.name,
+              queryParameters: const <String, String>{'tab': 'shows'},
+            );
+          },
+          children: preview.shows
+              .map(
+                (LibraryPreviewShow show) => _ProfileLibraryPoster(
+                  posterKey: 'profile-library-show-${show.id}',
+                  title: show.title,
+                  posterUrl: show.posterUrl,
+                  icon: Icons.tv_rounded,
+                ),
+              )
+              .toList(growable: false),
+        ),
+
+        const SizedBox(height: AppSpacing.xl),
+
+        _ProfileLibraryGroup(
+          groupKey: 'profile-library-movies',
+          title: 'Movies',
+          isEmpty: preview.movies.isEmpty,
+          emptyMessage: 'No Movies in your Library yet.',
+          onSeeAll: () {
+            context.pushNamed(
+              AppRoute.libraryCollection.name,
+              queryParameters: const <String, String>{'tab': 'movies'},
+            );
+          },
+          children: preview.movies
+              .map(
+                (LibraryPreviewMovie movie) => _ProfileLibraryPoster(
+                  posterKey: 'profile-library-movie-${movie.id}',
+                  title: movie.title,
+                  posterUrl: movie.posterUrl,
+                  icon: Icons.movie_rounded,
+                ),
+              )
+              .toList(growable: false),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileLibraryGroup extends StatelessWidget {
+  const _ProfileLibraryGroup({
+    required this.groupKey,
+    required this.title,
+    required this.isEmpty,
+    required this.emptyMessage,
+    required this.children,
+    required this.onSeeAll,
+  });
+
+  final String groupKey;
+  final String title;
+  final bool isEmpty;
+  final String emptyMessage;
+  final List<Widget> children;
+  final VoidCallback onSeeAll;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: ValueKey<String>(groupKey),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                title,
+                key: ValueKey<String>('$groupKey-title'),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+
+            TextButton(
+              key: ValueKey<String>('$groupKey-see-all'),
+              onPressed: onSeeAll,
+              child: const Text('See All'),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: AppSpacing.sm),
+
+        if (isEmpty)
+          _ProfileLibraryEmpty(
+            emptyKey: '$groupKey-empty',
+            message: emptyMessage,
+          )
+        else ...<Widget>[
+          SizedBox(
+            key: ValueKey<String>('$groupKey-list'),
+            height: 200,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: children.length,
+              separatorBuilder: (BuildContext context, int index) {
+                return const SizedBox(width: AppSpacing.sm);
+              },
+              itemBuilder: (BuildContext context, int index) {
+                return children[index];
+              },
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.sm),
+
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              key: ValueKey<String>('$groupKey-see-all-footer'),
+              onPressed: onSeeAll,
+              icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+              label: const Text('See All'),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ProfileLibraryPoster extends StatelessWidget {
+  const _ProfileLibraryPoster({
+    required this.posterKey,
+    required this.title,
+    required this.posterUrl,
+    required this.icon,
+  });
+
+  final String posterKey;
+  final String title;
+  final String? posterUrl;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      key: ValueKey<String>(posterKey),
+      width: 108,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          AspectRatio(
+            aspectRatio: 2 / 3,
+            child: ClipRRect(
+              borderRadius: AppRadius.borderLarge,
+              child: _ProfileLibraryPosterImage(
+                posterUrl: posterUrl,
+                icon: icon,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.xs),
+
+          Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileLibraryPosterImage extends StatelessWidget {
+  const _ProfileLibraryPosterImage({
+    required this.posterUrl,
+    required this.icon,
+  });
+
+  final String? posterUrl;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final String? url = posterUrl?.trim();
+
+    if (url == null || url.isEmpty) {
+      return _ProfileLibraryPosterPlaceholder(icon: icon);
+    }
+
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder:
+          (BuildContext context, Object error, StackTrace? stackTrace) {
+            return _ProfileLibraryPosterPlaceholder(icon: icon);
+          },
+    );
+  }
+}
+
+class _ProfileLibraryPosterPlaceholder extends StatelessWidget {
+  const _ProfileLibraryPosterPlaceholder({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.surfaceHigh,
+      alignment: Alignment.center,
+      child: Icon(icon, size: 28, color: AppColors.textSecondary),
+    );
+  }
+}
+
+class _ProfileLibraryEmpty extends StatelessWidget {
+  const _ProfileLibraryEmpty({required this.emptyKey, required this.message});
+
+  final String emptyKey;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: ValueKey<String>(emptyKey),
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Text(
+        message,
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+      ),
+    );
+  }
+}
+
+class _ProfileLibraryLoading extends StatelessWidget {
+  const _ProfileLibraryLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-library-loading'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        const _ProfileLibraryLoadingGroup(),
+
+        const SizedBox(height: AppSpacing.xl),
+
+        const _ProfileLibraryLoadingGroup(),
+      ],
+    );
+  }
+}
+
+class _ProfileLibraryLoadingGroup extends StatelessWidget {
+  const _ProfileLibraryLoadingGroup();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Container(
+          width: 72,
+          height: 18,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceHigh,
+            borderRadius: AppRadius.borderLarge,
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.sm),
+
+        SizedBox(
+          height: 200,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 4,
+            separatorBuilder: (BuildContext context, int index) {
+              return const SizedBox(width: AppSpacing.sm);
+            },
+            itemBuilder: (BuildContext context, int index) {
+              return Container(
+                width: 108,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceHigh,
+                  borderRadius: AppRadius.borderLarge,
+                  border: Border.all(color: AppColors.outlineVariant),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
 }

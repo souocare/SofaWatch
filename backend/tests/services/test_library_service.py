@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import ANY, Mock
 from uuid import UUID, uuid4
 from datetime import UTC, datetime
 
@@ -1078,3 +1078,218 @@ def test_list_shows_for_user_only_requests_first_episode_for_planning_shows(
     assert result[0].first_available_episode is None
     assert result[1].first_available_episode is None
 
+
+
+def test_get_preview_for_user_returns_recent_shows_movies_and_progress(
+    library_service: LibraryService,
+    library_repository: Mock,
+    episode_repository: Mock,
+    episode_progress_repository: Mock,
+) -> None:
+    """Return recent Library media with current aired Show progress."""
+
+    user_id = uuid4()
+
+    first_show_id = uuid4()
+    second_show_id = uuid4()
+
+    first_show = make_show(
+        show_id=first_show_id,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    second_show = make_show(
+        show_id=second_show_id,
+        tmdb_id=1396,
+        title="Breaking Bad",
+    )
+
+    first_show_entry = SimpleNamespace(
+        show_id=first_show_id,
+        show=first_show,
+    )
+
+    second_show_entry = SimpleNamespace(
+        show_id=second_show_id,
+        show=second_show,
+    )
+
+    movie_id = uuid4()
+
+    movie = SimpleNamespace(
+        id=movie_id,
+        tmdb_id=438631,
+        title="Dune",
+        original_title="Dune",
+        release_date=None,
+        tmdb_poster_path=None,
+        local_poster_path=None,
+        poster_url=None,
+        backdrop_url=None,
+        status="Released",
+        vote_average=8.0,
+    )
+
+    movie_entry = SimpleNamespace(
+        movie_id=movie_id,
+        movie=movie,
+    )
+
+    library_repository.list_recent_shows_by_user.return_value = [
+        first_show_entry,
+        second_show_entry,
+    ]
+
+    library_repository.list_recent_movies_by_user.return_value = [
+        movie_entry,
+    ]
+
+    episode_repository.get_aired_counts_by_show_ids.return_value = {
+        first_show_id: 10,
+        second_show_id: 62,
+    }
+
+    episode_progress_repository.get_watched_aired_counts_by_show_ids.return_value = {
+        first_show_id: 4,
+        second_show_id: 62,
+    }
+
+    result = library_service.get_preview_for_user(
+        user_id=user_id,
+    )
+
+    assert len(result.shows) == 2
+    assert len(result.movies) == 1
+
+    assert result.shows[0].show.id == first_show_id
+    assert result.shows[0].show.tmdb_id == 95396
+    assert result.shows[0].show.title == "Severance"
+    assert result.shows[0].watched_episodes == 4
+    assert result.shows[0].aired_episodes == 10
+
+    assert result.shows[1].show.id == second_show_id
+    assert result.shows[1].show.tmdb_id == 1396
+    assert result.shows[1].show.title == "Breaking Bad"
+    assert result.shows[1].watched_episodes == 62
+    assert result.shows[1].aired_episodes == 62
+
+    assert result.movies[0].movie.id == movie_id
+    assert result.movies[0].movie.tmdb_id == 438631
+    assert result.movies[0].movie.title == "Dune"
+
+    library_repository.list_recent_shows_by_user.assert_called_once_with(
+        user_id=user_id,
+        limit=10,
+    )
+
+    library_repository.list_recent_movies_by_user.assert_called_once_with(
+        user_id=user_id,
+        limit=10,
+    )
+
+    episode_repository.get_aired_counts_by_show_ids.assert_called_once()
+
+    _, aired_kwargs = (
+        episode_repository
+        .get_aired_counts_by_show_ids
+        .call_args
+    )
+
+    assert aired_kwargs["show_ids"] == [
+        first_show_id,
+        second_show_id,
+    ]
+
+    episode_progress_repository.get_watched_aired_counts_by_show_ids.assert_called_once()
+
+    _, watched_kwargs = (
+        episode_progress_repository
+        .get_watched_aired_counts_by_show_ids
+        .call_args
+    )
+
+    assert watched_kwargs["user_id"] == user_id
+    assert watched_kwargs["show_ids"] == [
+        first_show_id,
+        second_show_id,
+    ]
+
+
+def test_get_preview_for_user_uses_zero_for_missing_show_progress(
+    library_service: LibraryService,
+    library_repository: Mock,
+    episode_repository: Mock,
+    episode_progress_repository: Mock,
+) -> None:
+    """Use explicit zero progress when no Episode aggregates exist."""
+
+    user_id = uuid4()
+    show_id = uuid4()
+
+    library_repository.list_recent_shows_by_user.return_value = [
+        SimpleNamespace(
+            show_id=show_id,
+            show=make_show(
+                show_id=show_id,
+            ),
+        ),
+    ]
+
+    library_repository.list_recent_movies_by_user.return_value = []
+
+    episode_repository.get_aired_counts_by_show_ids.return_value = {}
+    episode_progress_repository.get_watched_aired_counts_by_show_ids.return_value = {}
+
+    result = library_service.get_preview_for_user(
+        user_id=user_id,
+    )
+
+    assert len(result.shows) == 1
+
+    assert result.shows[0].watched_episodes == 0
+    assert result.shows[0].aired_episodes == 0
+
+    assert result.movies == []
+
+
+def test_get_preview_for_user_supports_empty_library(
+    library_service: LibraryService,
+    library_repository: Mock,
+    episode_repository: Mock,
+    episode_progress_repository: Mock,
+) -> None:
+    """Return usable empty preview collections without Library media."""
+
+    user_id = uuid4()
+
+    library_repository.list_recent_shows_by_user.return_value = []
+    library_repository.list_recent_movies_by_user.return_value = []
+
+    result = library_service.get_preview_for_user(
+        user_id=user_id,
+    )
+
+    assert result.shows == []
+    assert result.movies == []
+
+    library_repository.list_recent_shows_by_user.assert_called_once_with(
+        user_id=user_id,
+        limit=10,
+    )
+
+    library_repository.list_recent_movies_by_user.assert_called_once_with(
+        user_id=user_id,
+        limit=10,
+    )
+
+    episode_repository.get_aired_counts_by_show_ids.assert_called_once_with(
+        show_ids=[],
+        as_of=ANY,
+    )
+
+    episode_progress_repository.get_watched_aired_counts_by_show_ids.assert_called_once_with(
+        user_id=user_id,
+        show_ids=[],
+        as_of=ANY,
+    )

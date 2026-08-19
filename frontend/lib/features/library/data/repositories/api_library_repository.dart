@@ -8,6 +8,8 @@ import 'package:sofawatch/features/library/domain/models/library_entry.dart';
 import 'package:sofawatch/features/library/domain/models/library_media_type.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/library/domain/repositories/library_repository.dart';
+import 'package:sofawatch/features/library/data/models/library_preview_dto.dart';
+import 'package:sofawatch/features/library/domain/models/library_preview.dart';
 
 final class ApiLibraryRepository implements LibraryRepository {
   const ApiLibraryRepository(this._apiClient);
@@ -169,6 +171,32 @@ final class ApiLibraryRepository implements LibraryRepository {
       }
 
       return LibraryEntryDto.fromJson(data).toDomain();
+    } on AppException {
+      rethrow;
+    } on FormatException catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } on TypeError catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  @override
+  Future<LibraryPreview> getPreview() async {
+    try {
+      final Response<Map<String, dynamic>> response = await _apiClient
+          .get<Map<String, dynamic>>('/library/preview');
+
+      final Map<String, dynamic>? data = response.data;
+
+      if (data == null) {
+        throw const FormatException(
+          'The Library preview response body is missing.',
+        );
+      }
+
+      return LibraryPreviewDto.fromJson(
+        data,
+      ).toDomain(resolveUrl: _apiClient.resolveServerUrl);
     } on AppException {
       rethrow;
     } on FormatException catch (error) {

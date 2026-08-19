@@ -18,6 +18,7 @@ import 'package:sofawatch/features/library/domain/models/library_entry.dart';
 import 'package:sofawatch/features/library/domain/models/library_media_type.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/library/domain/repositories/library_repository.dart';
+import 'package:sofawatch/features/library/domain/models/library_preview.dart';
 
 void main() {
   group('Explore preview navigation', () {
@@ -407,6 +408,11 @@ final class _FakeLibraryRepository implements LibraryRepository {
       createdAt: now,
       updatedAt: now,
     );
+  }
+
+  @override
+  Future<LibraryPreview> getPreview() {
+    throw UnimplementedError();
   }
 }
 

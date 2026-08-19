@@ -12,6 +12,10 @@ from app.repositories.movie import MovieRepository
 from app.repositories.show import ShowRepository
 from app.schemas.library import (
     LibraryFirstEpisodeResponse,
+    LibraryMovieResponse,
+    LibraryPreviewMovieResponse,
+    LibraryPreviewResponse,
+    LibraryPreviewShowResponse,
     LibraryShowProgressResponse,
     LibraryShowResponse,
 )
@@ -409,4 +413,77 @@ class LibraryService:
         return self._library_repository.list_movies_by_user(
             user_id,
             status=status,
+        )
+
+    def get_preview_for_user(
+        self,
+        *,
+        user_id: UUID,
+        limit: int = 10,
+    ) -> LibraryPreviewResponse:
+        """Return recently added Shows and Movies for the Profile Library preview."""
+
+        show_entries = self._library_repository.list_recent_shows_by_user(
+            user_id=user_id,
+            limit=limit,
+        )
+
+        movie_entries = self._library_repository.list_recent_movies_by_user(
+            user_id=user_id,
+            limit=limit,
+        )
+
+        show_ids = [
+            entry.show_id
+            for entry in show_entries
+            if entry.show_id is not None
+        ]
+
+        today = date.today()
+
+        aired_counts = self._episode_repository.get_aired_counts_by_show_ids(
+            show_ids=show_ids,
+            as_of=today,
+        )
+
+        watched_counts = (
+            self._episode_progress_repository
+            .get_watched_aired_counts_by_show_ids(
+                user_id=user_id,
+                show_ids=show_ids,
+                as_of=today,
+            )
+        )
+
+        shows: list[LibraryPreviewShowResponse] = []
+
+        for entry in show_entries:
+            if entry.show is None or entry.show_id is None:
+                continue
+
+            shows.append(
+                LibraryPreviewShowResponse(
+                    show=entry.show,
+                    watched_episodes=watched_counts.get(
+                        entry.show_id,
+                        0,
+                    ),
+                    aired_episodes=aired_counts.get(
+                        entry.show_id,
+                        0,
+                    ),
+                )
+            )
+
+        movies = [
+            LibraryPreviewMovieResponse(
+                movie=entry.movie,
+            )
+            for entry in movie_entries
+            if entry.movie is not None
+        ]
+
+        return LibraryPreviewResponse(
+            shows=shows,
+            movies=movies,
         )

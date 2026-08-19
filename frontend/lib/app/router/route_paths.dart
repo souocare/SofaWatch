@@ -15,8 +15,12 @@ abstract final class RoutePaths {
   static const String explore = '/explore';
 
   static const String profile = '/profile';
+
   static const String detailedStatistics = 'statistics';
   static const String detailedStatisticsLocation = '/profile/statistics';
+
+  static const String libraryCollection = 'library';
+  static const String libraryCollectionLocation = '/profile/library';
 
   static const String episodeDetails = '/episodes/:episodeId';
 

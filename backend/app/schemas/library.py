@@ -111,6 +111,33 @@ class LibraryMovieResponse(BaseModel):
 
     movie: MovieSummaryResponse
 
+
+class LibraryPreviewShowResponse(BaseModel):
+    """TV series displayed in a compact Library preview."""
+
+    show: ShowSummaryResponse
+
+    watched_episodes: int = Field(
+        ge=0,
+    )
+
+    aired_episodes: int = Field(
+        ge=0,
+    )
+
+
+class LibraryPreviewMovieResponse(BaseModel):
+    """Movie displayed in a compact Library preview."""
+
+    movie: MovieSummaryResponse
+
+
+class LibraryPreviewResponse(BaseModel):
+    """Recently added media displayed in the Profile Library preview."""
+
+    shows: list[LibraryPreviewShowResponse]
+    movies: list[LibraryPreviewMovieResponse]
+
 class LibraryStatusUpdate(BaseModel):
     """Library tracking status update."""
 

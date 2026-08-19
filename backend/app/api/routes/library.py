@@ -25,6 +25,7 @@ from app.schemas.library import (
     LibraryMovieResponse,
     LibraryShowResponse,
     LibraryStatusUpdate,
+    LibraryPreviewResponse,
 )
 from app.schemas.stale_watching import StaleWatchingShowResponse
 from app.schemas.start_show import StartShowResponse
@@ -279,6 +280,26 @@ def list_watch_history(
             message="Invalid Watch History cursor.",
         ) from error
 
+
+@router.get(
+    "/preview",
+    response_model=LibraryPreviewResponse,
+    summary="Get Library preview",
+    description=(
+        "Return the most recently added Shows and Movies for the "
+        "current user's Profile Library preview."
+    ),
+)
+def get_library_preview(
+    current_user: CurrentUserDependency,
+    service: LibraryServiceDependency,
+) -> LibraryPreviewResponse:
+    """Return the compact Profile Library preview."""
+
+    return service.get_preview_for_user(
+        user_id=current_user.id,
+        limit=10,
+    )
 
 @router.post(
     "/shows/{show_id}",

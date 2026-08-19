@@ -13,6 +13,7 @@ import 'package:sofawatch/features/library/domain/models/library_media_type.dart
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/library/domain/repositories/library_repository.dart';
 import 'package:sofawatch/features/movie_details/presentation/widgets/movie_details_library_action.dart';
+import 'package:sofawatch/features/library/domain/models/library_preview.dart';
 
 void main() {
   group('MovieDetailsLibraryAction', () {
@@ -1025,6 +1026,11 @@ class _FakeLibraryRepository implements LibraryRepository {
   Future<LibraryEntry> updateShowStatus(String showId, LibraryStatus status) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<LibraryPreview> getPreview() {
+    throw UnimplementedError();
+  }
 }
 
 final class _RetryLibraryRepository extends _FakeLibraryRepository {
@@ -1113,6 +1119,11 @@ final class _ControlledLibraryRepository implements LibraryRepository {
 
   @override
   Future<LibraryEntry> updateShowStatus(String showId, LibraryStatus status) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<LibraryPreview> getPreview() {
     throw UnimplementedError();
   }
 }

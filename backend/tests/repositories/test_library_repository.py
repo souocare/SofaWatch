@@ -772,3 +772,291 @@ def test_count_library_statistics_returns_zero_without_entries(
     assert repository.count_completed_shows_by_user(
         user_id=user.id,
     ) == 0
+
+
+def test_list_recent_shows_by_user_returns_latest_added_first(
+    db_session: Session,
+) -> None:
+    """Return recent Shows ordered by Library creation time."""
+
+    user = create_user(
+        db_session,
+    )
+
+    first_show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    second_show = create_show(
+        db_session,
+        tmdb_id=1396,
+        title="Breaking Bad",
+    )
+
+    first_entry = LibraryEntry(
+        user_id=user.id,
+        show_id=first_show.id,
+        status=LibraryStatus.WATCHING,
+    )
+
+    db_session.add(first_entry)
+    db_session.commit()
+
+    second_entry = LibraryEntry(
+        user_id=user.id,
+        show_id=second_show.id,
+        status=LibraryStatus.PLANNING,
+    )
+
+    db_session.add(second_entry)
+    db_session.commit()
+
+    repository = LibraryRepository(
+        db_session,
+    )
+
+    result = repository.list_recent_shows_by_user(
+        user_id=user.id,
+        limit=10,
+    )
+
+    assert [
+        entry.show_id
+        for entry in result
+    ] == [
+        second_show.id,
+        first_show.id,
+    ]
+
+    assert result[0].show is not None
+    assert result[0].show.title == "Breaking Bad"
+
+
+def test_list_recent_shows_by_user_respects_limit(
+    db_session: Session,
+) -> None:
+    """Limit the number of recent Shows returned."""
+
+    user = create_user(
+        db_session,
+    )
+
+    shows = [
+        create_show(
+            db_session,
+            tmdb_id=1000 + index,
+            title=f"Show {index}",
+        )
+        for index in range(3)
+    ]
+
+    for show in shows:
+        db_session.add(
+            LibraryEntry(
+                user_id=user.id,
+                show_id=show.id,
+                status=LibraryStatus.PLANNING,
+            )
+        )
+
+        db_session.commit()
+
+    repository = LibraryRepository(
+        db_session,
+    )
+
+    result = repository.list_recent_shows_by_user(
+        user_id=user.id,
+        limit=2,
+    )
+
+    assert len(result) == 2
+
+
+def test_list_recent_shows_by_user_is_isolated_by_user(
+    db_session: Session,
+) -> None:
+    """Exclude Shows belonging to another user's Library."""
+
+    user = create_user(
+        db_session,
+        display_name="Requested User",
+    )
+
+    other_user = create_user(
+        db_session,
+        display_name="Other User",
+    )
+
+    requested_show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    other_show = create_show(
+        db_session,
+        tmdb_id=1396,
+        title="Breaking Bad",
+    )
+
+    db_session.add_all(
+        [
+            LibraryEntry(
+                user_id=user.id,
+                show_id=requested_show.id,
+                status=LibraryStatus.WATCHING,
+            ),
+            LibraryEntry(
+                user_id=other_user.id,
+                show_id=other_show.id,
+                status=LibraryStatus.WATCHING,
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    repository = LibraryRepository(
+        db_session,
+    )
+
+    result = repository.list_recent_shows_by_user(
+        user_id=user.id,
+    )
+
+    assert [
+        entry.show_id
+        for entry in result
+    ] == [
+        requested_show.id,
+    ]
+
+
+def test_list_recent_movies_by_user_returns_latest_added_first(
+    db_session: Session,
+) -> None:
+    """Return recent Movies ordered by Library creation time."""
+
+    user = create_user(
+        db_session,
+    )
+
+    first_movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    second_movie = create_movie(
+        db_session,
+        tmdb_id=603,
+        title="The Matrix",
+    )
+
+    db_session.add(
+        LibraryEntry(
+            user_id=user.id,
+            movie_id=first_movie.id,
+            status=LibraryStatus.COMPLETED,
+        )
+    )
+
+    db_session.commit()
+
+    db_session.add(
+        LibraryEntry(
+            user_id=user.id,
+            movie_id=second_movie.id,
+            status=LibraryStatus.PLANNING,
+        )
+    )
+
+    db_session.commit()
+
+    repository = LibraryRepository(
+        db_session,
+    )
+
+    result = repository.list_recent_movies_by_user(
+        user_id=user.id,
+        limit=10,
+    )
+
+    assert [
+        entry.movie_id
+        for entry in result
+    ] == [
+        second_movie.id,
+        first_movie.id,
+    ]
+
+    assert result[0].movie is not None
+    assert result[0].movie.title == "The Matrix"
+
+
+def test_list_recent_movies_by_user_respects_limit(
+    db_session: Session,
+) -> None:
+    """Limit the number of recent Movies returned."""
+
+    user = create_user(
+        db_session,
+    )
+
+    movies = [
+        create_movie(
+            db_session,
+            tmdb_id=5000 + index,
+            title=f"Movie {index}",
+        )
+        for index in range(3)
+    ]
+
+    for movie in movies:
+        db_session.add(
+            LibraryEntry(
+                user_id=user.id,
+                movie_id=movie.id,
+                status=LibraryStatus.PLANNING,
+            )
+        )
+
+        db_session.commit()
+
+    repository = LibraryRepository(
+        db_session,
+    )
+
+    result = repository.list_recent_movies_by_user(
+        user_id=user.id,
+        limit=2,
+    )
+
+    assert len(result) == 2
+
+
+def test_list_recent_library_methods_return_empty_for_non_positive_limit(
+    db_session: Session,
+) -> None:
+    """Avoid database work for invalid preview limits."""
+
+    user = create_user(
+        db_session,
+    )
+
+    repository = LibraryRepository(
+        db_session,
+    )
+
+    assert repository.list_recent_shows_by_user(
+        user_id=user.id,
+        limit=0,
+    ) == []
+
+    assert repository.list_recent_movies_by_user(
+        user_id=user.id,
+        limit=0,
+    ) == []

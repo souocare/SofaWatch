@@ -14,6 +14,7 @@ import 'package:sofawatch/features/movie_details/application/cubit/movie_details
 import 'package:sofawatch/features/movie_details/domain/models/movie_details.dart';
 import 'package:sofawatch/features/movie_details/domain/repositories/movie_details_repository.dart';
 import 'package:sofawatch/features/movie_details/presentation/pages/movie_details_page.dart';
+import 'package:sofawatch/features/library/domain/models/library_preview.dart';
 
 void main() {
   group('MovieDetailsPage', () {
@@ -1342,6 +1343,11 @@ final class _FakeMovieDetailsLibraryRepository implements LibraryRepository {
 
   @override
   Future<LibraryEntry> updateShowStatus(String showId, LibraryStatus status) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<LibraryPreview> getPreview() {
     throw UnimplementedError();
   }
 }

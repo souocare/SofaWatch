@@ -4290,3 +4290,368 @@ def test_list_upcoming_respects_limit(
     assert len(body) == 2
     assert body[0]["episode"]["episode_number"] == 1
     assert body[1]["episode"]["episode_number"] == 2
+
+def test_get_library_preview_returns_recent_shows_and_movies(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return recent Show and Movie additions for the Profile Library preview."""
+
+    user = create_local_user(
+        db_session,
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    show_entry = create_library_entry(
+        db_session,
+        user=user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    first_episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+        air_date=date.today() - timedelta(days=2),
+    )
+
+    create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2102,
+        episode_number=2,
+        title="Half Loop",
+        air_date=date.today() - timedelta(days=1),
+    )
+
+    create_episode_progress(
+        db_session,
+        user=user,
+        episode=first_episode,
+        is_watched=True,
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    movie_entry = create_movie_library_entry(
+        db_session,
+        user=user,
+        movie=movie,
+        status=LibraryStatus.PLANNING,
+    )
+
+    response = client.get(
+        "/api/v1/library/preview",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert set(body) == {
+        "shows",
+        "movies",
+    }
+
+    assert len(body["shows"]) == 1
+
+    show_item = body["shows"][0]
+
+
+    assert show_item["show"]["id"] == str(show.id)
+    assert show_item["show"]["tmdb_id"] == 95396
+    assert show_item["show"]["title"] == "Severance"
+
+
+    assert len(body["movies"]) == 1
+
+    movie_item = body["movies"][0]
+
+
+    assert movie_item["movie"]["id"] == str(movie.id)
+    assert movie_item["movie"]["tmdb_id"] == 438631
+    assert movie_item["movie"]["title"] == "Dune"
+
+
+def test_get_library_preview_returns_empty_collections_for_empty_library(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return usable empty preview collections when the Library is empty."""
+
+    create_local_user(
+        db_session,
+    )
+
+    response = client.get(
+        "/api/v1/library/preview",
+    )
+
+    assert response.status_code == 200
+
+    assert response.json() == {
+        "shows": [],
+        "movies": [],
+    }
+
+def test_get_library_preview_returns_ten_most_recent_shows_and_movies(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return at most the ten most recently added items of each media type."""
+
+    user = create_local_user(
+        db_session,
+    )
+
+    base_time = datetime(
+        2026,
+        8,
+        1,
+        12,
+        0,
+        tzinfo=UTC,
+    )
+
+    show_entries: list[LibraryEntry] = []
+    movie_entries: list[LibraryEntry] = []
+
+    for index in range(12):
+        show = create_show(
+            db_session,
+            tmdb_id=100000 + index,
+            title=f"Show {index}",
+        )
+
+        show_entry = create_library_entry(
+            db_session,
+            user=user,
+            show=show,
+        )
+
+        show_entry.created_at = base_time + timedelta(
+            minutes=index,
+        )
+
+        show_entries.append(
+            show_entry,
+        )
+
+        movie = create_movie(
+            db_session,
+            tmdb_id=200000 + index,
+            title=f"Movie {index}",
+        )
+
+        movie_entry = create_movie_library_entry(
+            db_session,
+            user=user,
+            movie=movie,
+        )
+
+        movie_entry.created_at = base_time + timedelta(
+            minutes=index,
+        )
+
+        movie_entries.append(
+            movie_entry,
+        )
+
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/library/preview",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body["shows"]) == 10
+    assert len(body["movies"]) == 10
+
+    assert [
+        item["show"]["tmdb_id"]
+        for item in body["shows"]
+    ] == [
+        100011,
+        100010,
+        100009,
+        100008,
+        100007,
+        100006,
+        100005,
+        100004,
+        100003,
+        100002,
+    ]
+
+    assert [
+        item["movie"]["tmdb_id"]
+        for item in body["movies"]
+    ] == [
+        200011,
+        200010,
+        200009,
+        200008,
+        200007,
+        200006,
+        200005,
+        200004,
+        200003,
+        200002,
+    ]
+
+
+def test_get_library_preview_is_isolated_to_current_user(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Exclude Library media belonging to another user."""
+
+    local_user = create_local_user(
+        db_session,
+    )
+
+    other_user = create_user(
+        db_session,
+        display_name="Other User",
+    )
+
+    local_show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    other_show = create_show(
+        db_session,
+        tmdb_id=1396,
+        title="Breaking Bad",
+    )
+
+    create_library_entry(
+        db_session,
+        user=local_user,
+        show=local_show,
+    )
+
+    create_library_entry(
+        db_session,
+        user=other_user,
+        show=other_show,
+    )
+
+    local_movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    other_movie = create_movie(
+        db_session,
+        tmdb_id=603,
+        title="The Matrix",
+    )
+
+    create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=local_movie,
+    )
+
+    create_movie_library_entry(
+        db_session,
+        user=other_user,
+        movie=other_movie,
+    )
+
+    response = client.get(
+        "/api/v1/library/preview",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert [
+        item["show"]["tmdb_id"]
+        for item in body["shows"]
+    ] == [
+        95396,
+    ]
+
+    assert [
+        item["movie"]["tmdb_id"]
+        for item in body["movies"]
+    ] == [
+        438631,
+    ]
+
+def test_get_library_preview_limits_shows_and_movies_independently(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Apply the preview limit independently to Shows and Movies."""
+
+    user = create_local_user(
+        db_session,
+    )
+
+    for index in range(12):
+        show = create_show(
+            db_session,
+            tmdb_id=300000 + index,
+            title=f"Show {index}",
+        )
+
+        create_library_entry(
+            db_session,
+            user=user,
+            show=show,
+        )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=400000,
+        title="Only Movie",
+    )
+
+    create_movie_library_entry(
+        db_session,
+        user=user,
+        movie=movie,
+    )
+
+    response = client.get(
+        "/api/v1/library/preview",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert len(body["shows"]) == 10
+    assert len(body["movies"]) == 1
+
+    assert body["movies"][0]["movie"]["tmdb_id"] == 400000

@@ -9,5 +9,6 @@ enum AppRoute {
   explore,
   profile,
   detailedStatistics,
+  libraryCollection,
   episodeDetails,
 }

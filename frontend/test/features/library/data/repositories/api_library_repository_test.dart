@@ -379,4 +379,231 @@ void main() {
     expect(entry.status, LibraryStatus.planning);
     expect(entry.completedAt, isNull);
   });
+  test('gets Library preview with recent Shows and Movies', () async {
+    final Dio dio = Dio();
+
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          expect(options.method, 'GET');
+          expect(options.path, '/library/preview');
+
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: <String, dynamic>{
+                'shows': <dynamic>[
+                  <String, dynamic>{
+                    'show': <String, dynamic>{
+                      'id': 'show-uuid',
+                      'tmdb_id': 95396,
+                      'title': 'Severance',
+                      'poster_url': '/api/v1/images/shows/show-uuid/poster',
+                    },
+                  },
+                ],
+                'movies': <dynamic>[
+                  <String, dynamic>{
+                    'movie': <String, dynamic>{
+                      'id': 'movie-uuid',
+                      'tmdb_id': 438631,
+                      'title': 'Dune',
+                      'poster_url': '/api/v1/images/movies/movie-uuid/poster',
+                    },
+                  },
+                ],
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final ApiLibraryRepository repository = ApiLibraryRepository(
+      ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+    );
+
+    final preview = await repository.getPreview();
+
+    expect(preview.shows, hasLength(1));
+    expect(preview.movies, hasLength(1));
+
+    expect(preview.shows.first.id, 'show-uuid');
+    expect(preview.shows.first.tmdbId, 95396);
+    expect(preview.shows.first.title, 'Severance');
+
+    expect(preview.movies.first.id, 'movie-uuid');
+    expect(preview.movies.first.tmdbId, 438631);
+    expect(preview.movies.first.title, 'Dune');
+  });
+
+  test('resolves Library preview poster URLs against the server', () async {
+    final Dio dio = Dio();
+
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: <String, dynamic>{
+                'shows': <dynamic>[
+                  <String, dynamic>{
+                    'show': <String, dynamic>{
+                      'id': 'show-uuid',
+                      'tmdb_id': 95396,
+                      'title': 'Severance',
+                      'poster_url': '/api/v1/images/shows/show-uuid/poster',
+                    },
+                  },
+                ],
+                'movies': <dynamic>[
+                  <String, dynamic>{
+                    'movie': <String, dynamic>{
+                      'id': 'movie-uuid',
+                      'tmdb_id': 438631,
+                      'title': 'Dune',
+                      'poster_url': '/api/v1/images/movies/movie-uuid/poster',
+                    },
+                  },
+                ],
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final ApiLibraryRepository repository = ApiLibraryRepository(
+      ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+    );
+
+    final preview = await repository.getPreview();
+
+    expect(
+      preview.shows.first.posterUrl,
+      'http://localhost:8000/api/v1/images/shows/show-uuid/poster',
+    );
+
+    expect(
+      preview.movies.first.posterUrl,
+      'http://localhost:8000/api/v1/images/movies/movie-uuid/poster',
+    );
+  });
+
+  test('supports Library preview items without posters', () async {
+    final Dio dio = Dio();
+
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: <String, dynamic>{
+                'shows': <dynamic>[
+                  <String, dynamic>{
+                    'show': <String, dynamic>{
+                      'id': 'show-uuid',
+                      'tmdb_id': 95396,
+                      'title': 'Severance',
+                      'poster_url': null,
+                    },
+                  },
+                ],
+                'movies': <dynamic>[
+                  <String, dynamic>{
+                    'movie': <String, dynamic>{
+                      'id': 'movie-uuid',
+                      'tmdb_id': 438631,
+                      'title': 'Dune',
+                      'poster_url': null,
+                    },
+                  },
+                ],
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final ApiLibraryRepository repository = ApiLibraryRepository(
+      ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+    );
+
+    final preview = await repository.getPreview();
+
+    expect(preview.shows.first.posterUrl, isNull);
+    expect(preview.movies.first.posterUrl, isNull);
+  });
+
+  test('supports an empty Library preview', () async {
+    final Dio dio = Dio();
+
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: <String, dynamic>{
+                'shows': <dynamic>[],
+                'movies': <dynamic>[],
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final ApiLibraryRepository repository = ApiLibraryRepository(
+      ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+    );
+
+    final preview = await repository.getPreview();
+
+    expect(preview.shows, isEmpty);
+    expect(preview.movies, isEmpty);
+  });
+
+  test('maps invalid Library preview response to invalidData', () async {
+    final Dio dio = Dio();
+
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: <String, dynamic>{
+                'shows': 'invalid',
+                'movies': <dynamic>[],
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final ApiLibraryRepository repository = ApiLibraryRepository(
+      ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+    );
+
+    expect(
+      repository.getPreview(),
+      throwsA(
+        isA<AppException>().having(
+          (AppException error) => error.type,
+          'type',
+          AppExceptionType.invalidData,
+        ),
+      ),
+    );
+  });
 }
