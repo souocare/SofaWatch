@@ -61,6 +61,8 @@ import 'package:sofawatch/features/history/application/cubit/history_preview_cub
 import 'package:sofawatch/features/history/data/repositories/api_history_repository.dart';
 import 'package:sofawatch/features/history/application/cubit/history_cubit.dart';
 import 'package:sofawatch/features/history/presentation/pages/history_page.dart';
+import 'package:sofawatch/features/server/data/repositories/api_server_repository.dart';
+import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
 
 GoRouter createAppRouter({required ApiClient apiClient}) {
   final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -298,46 +300,51 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                 name: AppRoute.profile.name,
                 path: RoutePaths.profile,
                 builder: (BuildContext context, GoRouterState state) {
-                  return MultiBlocProvider(
-                    providers: <BlocProvider<dynamic>>[
-                      BlocProvider<ProfileCubit>(
-                        create: (BuildContext context) {
-                          return ProfileCubit(
-                            repository: ApiProfileRepository(
-                              context.read<ApiClient>(),
-                            ),
-                          )..load();
-                        },
-                      ),
-                      BlocProvider<StatisticsSummaryCubit>(
-                        create: (BuildContext context) {
-                          return StatisticsSummaryCubit(
-                            repository: ApiStatisticsRepository(
-                              context.read<ApiClient>(),
-                            ),
-                          )..load();
-                        },
-                      ),
-                      BlocProvider<LibraryPreviewCubit>(
-                        create: (BuildContext context) {
-                          return LibraryPreviewCubit(
-                            repository: ApiLibraryRepository(
-                              context.read<ApiClient>(),
-                            ),
-                          )..load();
-                        },
-                      ),
-                      BlocProvider<HistoryPreviewCubit>(
-                        create: (BuildContext context) {
-                          return HistoryPreviewCubit(
-                            repository: ApiHistoryRepository(
-                              context.read<ApiClient>(),
-                            ),
-                          )..load();
-                        },
-                      ),
-                    ],
-                    child: const ProfilePage(),
+                  return RepositoryProvider<ServerRepository>(
+                    create: (BuildContext context) {
+                      return ApiServerRepository(context.read<ApiClient>());
+                    },
+                    child: MultiBlocProvider(
+                      providers: <BlocProvider<dynamic>>[
+                        BlocProvider<ProfileCubit>(
+                          create: (BuildContext context) {
+                            return ProfileCubit(
+                              repository: ApiProfileRepository(
+                                context.read<ApiClient>(),
+                              ),
+                            )..load();
+                          },
+                        ),
+                        BlocProvider<StatisticsSummaryCubit>(
+                          create: (BuildContext context) {
+                            return StatisticsSummaryCubit(
+                              repository: ApiStatisticsRepository(
+                                context.read<ApiClient>(),
+                              ),
+                            )..load();
+                          },
+                        ),
+                        BlocProvider<LibraryPreviewCubit>(
+                          create: (BuildContext context) {
+                            return LibraryPreviewCubit(
+                              repository: ApiLibraryRepository(
+                                context.read<ApiClient>(),
+                              ),
+                            )..load();
+                          },
+                        ),
+                        BlocProvider<HistoryPreviewCubit>(
+                          create: (BuildContext context) {
+                            return HistoryPreviewCubit(
+                              repository: ApiHistoryRepository(
+                                context.read<ApiClient>(),
+                              ),
+                            )..load();
+                          },
+                        ),
+                      ],
+                      child: const ProfilePage(),
+                    ),
                   );
                 },
                 routes: <RouteBase>[

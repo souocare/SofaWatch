@@ -31,6 +31,7 @@ def test_get_current_user_returns_local_user(
         "id": str(user.id),
         "display_name": "Local User",
         "is_local": True,
+        "is_admin": False,
     }
 
 def test_get_current_user_ignores_non_local_users(
@@ -69,6 +70,7 @@ def test_get_current_user_ignores_non_local_users(
     assert payload["id"] == str(local_user.id)
     assert payload["display_name"] == "Gonçalo"
     assert payload["is_local"] is True
+    assert payload["is_admin"] is False
 
 def test_get_current_user_returns_error_when_local_user_is_missing(
     client: TestClient,

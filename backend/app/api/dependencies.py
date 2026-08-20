@@ -3,7 +3,7 @@ from typing import Annotated
 
 from app.repositories.genre_provider_mapping import GenreProviderMappingRepository
 from app.services.genre_mapping import GenreMappingService
-from fastapi import Depends, status
+from fastapi import Depends, Request, status
 from app.core.exceptions import APIError
 
 from app.core.config import Settings, get_settings
@@ -61,6 +61,7 @@ from app.services.movie_watch_event import MovieWatchEventService
 from app.services.statistics import StatisticsService
 from app.services.missed_recently import MissedRecentlyService
 from app.services.history import HistoryService
+from app.services.server_health import ServerHealthService
 
 def get_genre_service(
     session: DatabaseSession,
@@ -402,6 +403,27 @@ def get_current_user(
 CurrentUserDependency = Annotated[
     User,
     Depends(get_current_user),
+]
+
+
+def require_admin(
+    current_user: CurrentUserDependency,
+) -> User:
+    """Require the current SofaWatch user to be an administrator."""
+
+    if not current_user.is_admin:
+        raise APIError(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="admin_required",
+            message="Administrator access is required.",
+        )
+
+    return current_user
+
+
+AdminUserDependency = Annotated[
+    User,
+    Depends(require_admin),
 ]
 
 
@@ -748,4 +770,39 @@ def get_statistics_service(
 StatisticsServiceDependency = Annotated[
     StatisticsService,
     Depends(get_statistics_service),
+]
+
+def get_server_health_service(
+    request: Request,
+    session: DatabaseSession,
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
+) -> ServerHealthService:
+    """Provide administrative Server health operations."""
+
+    started_at = getattr(
+        request.app.state,
+        "started_at",
+        None,
+    )
+
+    if started_at is None:
+        raise APIError(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            code="server_start_time_unavailable",
+            message="Server start time is unavailable.",
+        )
+
+    return ServerHealthService(
+        session=session,
+        settings=settings,
+        started_at=started_at,
+    )
+
+
+ServerHealthServiceDependency = Annotated[
+    ServerHealthService,
+    Depends(get_server_health_service),
 ]

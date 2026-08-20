@@ -13,22 +13,14 @@ from app.providers.tmdb.exceptions import (
     TMDBResponseError,
 )
 from app.providers.tmdb.schemas import (
-    TMDBMovieSearchResponse,
-    TMDBMultiSearchResponse,
-    TMDBSeasonDetails,
-    TMDBTVDetails,
-    TMDBTVSearchResponse,
-    TMDBMovieDetails,
-    TMDBGenreListResponse
-)
-from app.providers.tmdb.schemas import (
     TMDBGenreListResponse,
+    TMDBMovieDetails,
     TMDBMovieSearchResponse,
     TMDBMultiSearchResponse,
     TMDBSeasonDetails,
     TMDBTVDetails,
     TMDBTVSearchResponse,
-    TMDBMovieDetails,
+    TMDBHealthResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -477,6 +469,14 @@ class TMDBClient:
                 "include_adult": False,
                 "include_video": False,
             },
+        )
+
+    def check_health(self) -> None:
+        """Verify that the configured TMDB API is reachable."""
+
+        self.get(
+            "/configuration",
+            response_model=TMDBHealthResponse,
         )
 
     def close(self) -> None:

@@ -383,3 +383,8 @@ class TMDBGenreListResponse(BaseModel):
     model_config = ConfigDict(
         extra="ignore",
     )
+
+class TMDBHealthResponse(BaseModel):
+    """Minimal validation model used by the TMDB health check."""
+
+    pass

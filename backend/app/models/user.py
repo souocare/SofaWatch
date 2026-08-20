@@ -34,6 +34,12 @@ class User(TimestampMixin, Base):
         default=False,
     )
 
+    is_admin: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+
     library_entries: Mapped[list["LibraryEntry"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
@@ -46,5 +52,10 @@ class User(TimestampMixin, Base):
 
     def __repr__(self) -> str:
         return (
-            f"User(id={self.id!r}, display_name={self.display_name!r}, is_local={self.is_local!r})"
+            "User("
+            f"id={self.id!r}, "
+            f"display_name={self.display_name!r}, "
+            f"is_local={self.is_local!r}, "
+            f"is_admin={self.is_admin!r}"
+            ")"
         )

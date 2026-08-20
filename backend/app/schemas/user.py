@@ -11,3 +11,4 @@ class CurrentUserResponse(BaseModel):
     id: UUID
     display_name: str
     is_local: bool
+    is_admin: bool

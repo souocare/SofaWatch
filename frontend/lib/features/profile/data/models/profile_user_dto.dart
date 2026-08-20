@@ -5,12 +5,14 @@ final class ProfileUserDto {
     required this.id,
     required this.displayName,
     required this.isLocal,
+    required this.isAdmin,
   });
 
   factory ProfileUserDto.fromJson(Map<String, dynamic> json) {
     final Object? id = json['id'];
     final Object? displayName = json['display_name'];
     final Object? isLocal = json['is_local'];
+    final Object? isAdmin = json['is_admin'];
 
     if (id is! String || id.trim().isEmpty) {
       throw const FormatException(
@@ -30,18 +32,31 @@ final class ProfileUserDto {
       );
     }
 
+    if (isAdmin is! bool) {
+      throw const FormatException(
+        'The current user response contains an invalid admin flag.',
+      );
+    }
+
     return ProfileUserDto(
-      id: id,
+      id: id.trim(),
       displayName: displayName.trim(),
       isLocal: isLocal,
+      isAdmin: isAdmin,
     );
   }
 
   final String id;
   final String displayName;
   final bool isLocal;
+  final bool isAdmin;
 
   ProfileUser toDomain() {
-    return ProfileUser(id: id, displayName: displayName, isLocal: isLocal);
+    return ProfileUser(
+      id: id,
+      displayName: displayName,
+      isLocal: isLocal,
+      isAdmin: isAdmin,
+    );
   }
 }

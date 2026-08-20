@@ -31,6 +31,8 @@ import 'package:sofawatch/features/history/domain/models/history_movie_item.dart
 import 'package:sofawatch/features/history/domain/models/history_page.dart';
 import 'package:sofawatch/features/history/domain/models/history_preview.dart';
 import 'package:sofawatch/features/history/domain/repositories/history_repository.dart';
+import 'package:sofawatch/features/server/domain/models/server_health.dart';
+import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
 
 void main() {
   group('ProfilePage Statistics', () {
@@ -149,7 +151,7 @@ void main() {
         findsOneWidget,
       );
 
-      expect(find.text('Gonçalo'), findsOneWidget);
+      expect(find.text('TestDisplay'), findsOneWidget);
 
       expect(
         find.byKey(const ValueKey<String>('profile-statistics-loading')),
@@ -189,7 +191,7 @@ void main() {
         findsOneWidget,
       );
 
-      expect(find.text('Gonçalo'), findsOneWidget);
+      expect(find.text('TestDisplay'), findsOneWidget);
 
       expect(
         find.byKey(const ValueKey<String>('profile-statistics-failure')),
@@ -580,6 +582,7 @@ void main() {
       );
     });
   });
+
   group('ProfilePage History', () {
     testWidgets('shows recent Episode and Movie History', (
       WidgetTester tester,
@@ -943,6 +946,301 @@ void main() {
       );
     });
   });
+
+  group('ProfilePage Server', () {
+    testWidgets('loads Server health for administrators', (
+      WidgetTester tester,
+    ) async {
+      final _FakeServerRepository serverRepository = _FakeServerRepository(
+        health: _serverHealth,
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.healthCalls, 1);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-title')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Server'), findsOneWidget);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-health')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-health-status')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-overall-health')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-health-grid')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-checked-at')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-uptime')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-database')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-tmdb')),
+        findsOneWidget,
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('profile-server-health-status'),
+              ),
+            )
+            .data,
+        'Healthy',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey<String>('profile-server-uptime-value')),
+            )
+            .data,
+        '1h',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('profile-server-database-value'),
+              ),
+            )
+            .data,
+        'Healthy',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('profile-server-database-detail'),
+              ),
+            )
+            .data,
+        '3.5 ms',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey<String>('profile-server-tmdb-value')),
+            )
+            .data,
+        'Healthy',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey<String>('profile-server-tmdb-detail')),
+            )
+            .data,
+        '212 ms',
+      );
+    });
+    testWidgets('does not load Server health for non-administrators', (
+      WidgetTester tester,
+    ) async {
+      final _FakeServerRepository serverRepository = _FakeServerRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          profileRepository: const _FakeProfileRepository(user: _regularUser),
+          serverRepository: serverRepository,
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.healthCalls, 0);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server')),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-title')),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-health')),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-loading')),
+        findsNothing,
+      );
+    });
+    testWidgets(
+      'loads Server independently when another Profile section fails',
+      (WidgetTester tester) async {
+        final _FakeServerRepository serverRepository = _FakeServerRepository(
+          health: _serverHealth,
+        );
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            libraryRepository: const _FakeLibraryRepository(
+              error: AppException.connection(),
+            ),
+            serverRepository: serverRepository,
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('profile-library-failure')),
+          findsOneWidget,
+        );
+
+        expect(serverRepository.healthCalls, 1);
+
+        expect(
+          find.byKey(const ValueKey<String>('profile-server-health')),
+          findsOneWidget,
+        );
+
+        expect(
+          tester
+              .widget<Text>(
+                find.byKey(
+                  const ValueKey<String>('profile-server-health-status'),
+                ),
+              )
+              .data,
+          'Healthy',
+        );
+      },
+    );
+    testWidgets('Server failure does not hide other Profile sections', (
+      WidgetTester tester,
+    ) async {
+      final _FakeServerRepository serverRepository = _FakeServerRepository(
+        error: const AppException.connection(),
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          statisticsRepository: _FakeStatisticsRepository(summary: _summary),
+          libraryRepository: const _FakeLibraryRepository(
+            preview: _libraryPreview,
+          ),
+          historyRepository: _FakeHistoryRepository(preview: _historyPreview),
+          serverRepository: serverRepository,
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.healthCalls, 1);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-failure')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-user-card')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-statistics-grid')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-library-content')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-content')),
+        findsOneWidget,
+      );
+    });
+    testWidgets('retries only Server health after failure', (
+      WidgetTester tester,
+    ) async {
+      final _RetryServerRepository serverRepository = _RetryServerRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.healthCalls, 1);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-failure')),
+        findsOneWidget,
+      );
+
+      final Finder retryButton = find.byKey(
+        const ValueKey<String>('profile-server-failure-retry'),
+      );
+
+      await tester.ensureVisible(retryButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(retryButton);
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.healthCalls, 2);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-failure')),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-health')),
+        findsOneWidget,
+      );
+    });
+  });
 }
 
 Widget _buildTestApp({
@@ -950,6 +1248,7 @@ Widget _buildTestApp({
   StatisticsRepository? statisticsRepository,
   LibraryRepository? libraryRepository,
   HistoryRepository? historyRepository,
+  ServerRepository? serverRepository,
 }) {
   final ProfileCubit profileCubit = ProfileCubit(
     repository: profileRepository ?? _FakeProfileRepository(),
@@ -967,21 +1266,29 @@ Widget _buildTestApp({
     repository: historyRepository ?? const _FakeHistoryRepository(),
   )..load();
 
-  return MultiBlocProvider(
-    providers: <BlocProvider<dynamic>>[
-      BlocProvider<ProfileCubit>.value(value: profileCubit),
-      BlocProvider<StatisticsSummaryCubit>.value(value: statisticsSummaryCubit),
-      BlocProvider<LibraryPreviewCubit>.value(value: libraryPreviewCubit),
-      BlocProvider<HistoryPreviewCubit>.value(value: historyPreviewCubit),
-    ],
-    child: const MaterialApp(home: ProfilePage()),
+  return RepositoryProvider<ServerRepository>(
+    create: (BuildContext context) {
+      return serverRepository ?? _FakeServerRepository();
+    },
+    child: MultiBlocProvider(
+      providers: <BlocProvider<dynamic>>[
+        BlocProvider<ProfileCubit>.value(value: profileCubit),
+        BlocProvider<StatisticsSummaryCubit>.value(
+          value: statisticsSummaryCubit,
+        ),
+        BlocProvider<LibraryPreviewCubit>.value(value: libraryPreviewCubit),
+        BlocProvider<HistoryPreviewCubit>.value(value: historyPreviewCubit),
+      ],
+      child: const MaterialApp(home: ProfilePage()),
+    ),
   );
 }
 
 const ProfileUser _user = ProfileUser(
   id: 'user-1',
-  displayName: 'Gonçalo',
+  displayName: 'TestDisplay',
   isLocal: true,
+  isAdmin: true,
 );
 
 const StatisticsSummary _summary = StatisticsSummary(
@@ -1360,6 +1667,43 @@ class _FakeLibraryRepository implements LibraryRepository {
   }
 }
 
+class _FakeServerRepository implements ServerRepository {
+  _FakeServerRepository({this.health, this.error});
+
+  final ServerHealth? health;
+  final AppException? error;
+
+  int healthCalls = 0;
+
+  @override
+  Future<ServerHealth> getHealth() async {
+    healthCalls += 1;
+
+    final AppException? failure = error;
+
+    if (failure != null) {
+      throw failure;
+    }
+
+    return health ?? _serverHealth;
+  }
+}
+
+final class _RetryServerRepository implements ServerRepository {
+  int healthCalls = 0;
+
+  @override
+  Future<ServerHealth> getHealth() async {
+    healthCalls += 1;
+
+    if (healthCalls == 1) {
+      throw const AppException.connection();
+    }
+
+    return _serverHealth;
+  }
+}
+
 final class _ControlledLibraryRepository implements LibraryRepository {
   final Completer<LibraryPreview> _result = Completer<LibraryPreview>();
 
@@ -1491,3 +1835,25 @@ final class _RetryLibraryRepository implements LibraryRepository {
     throw UnimplementedError();
   }
 }
+
+const ProfileUser _regularUser = ProfileUser(
+  id: 'user-2',
+  displayName: 'Regular User',
+  isLocal: false,
+  isAdmin: false,
+);
+
+final ServerHealth _serverHealth = ServerHealth(
+  status: ServerHealthStatus.healthy,
+  checkedAt: DateTime.utc(2026, 8, 20, 12),
+  uptimeSeconds: 3600,
+  database: const ServerDatabaseHealth(
+    status: ServerComponentStatus.healthy,
+    latencyMs: 3.5,
+  ),
+  tmdb: const ServerTmdbHealth(
+    status: ServerComponentStatus.healthy,
+    configured: true,
+    latencyMs: 212,
+  ),
+);

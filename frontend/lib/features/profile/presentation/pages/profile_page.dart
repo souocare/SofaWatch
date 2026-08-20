@@ -21,6 +21,10 @@ import 'package:sofawatch/features/history/application/cubit/history_preview_sta
 import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
 import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
 import 'package:sofawatch/features/history/domain/models/history_preview.dart';
+import 'package:sofawatch/features/server/application/cubit/server_health_cubit.dart';
+import 'package:sofawatch/features/server/application/cubit/server_health_state.dart';
+import 'package:sofawatch/features/server/domain/models/server_health.dart';
+import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -71,6 +75,8 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: AppSpacing.section),
 
                   const _ProfileHistorySection(),
+
+                  const _ProfileServerGate(),
                 ],
               ),
             ),
@@ -1266,6 +1272,376 @@ class _ProfileHistoryLoadingRow extends StatelessWidget {
       ],
     );
   }
+}
+
+class _ProfileServerGate extends StatelessWidget {
+  const _ProfileServerGate();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ProfileCubit, ProfileState>(
+      buildWhen: (ProfileState previous, ProfileState current) {
+        final bool previousIsAdmin = switch (previous) {
+          ProfileSuccess(:final user) => user.isAdmin,
+          _ => false,
+        };
+
+        final bool currentIsAdmin = switch (current) {
+          ProfileSuccess(:final user) => user.isAdmin,
+          _ => false,
+        };
+
+        return previousIsAdmin != currentIsAdmin;
+      },
+      builder: (BuildContext context, ProfileState state) {
+        final bool isAdmin = switch (state) {
+          ProfileSuccess(:final user) => user.isAdmin,
+          _ => false,
+        };
+
+        if (!isAdmin) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            const SizedBox(height: AppSpacing.section),
+
+            BlocProvider<ServerHealthCubit>(
+              create: (BuildContext context) {
+                return ServerHealthCubit(
+                  repository: context.read<ServerRepository>(),
+                )..load();
+              },
+              child: const _ProfileServerSection(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ProfileServerSection extends StatelessWidget {
+  const _ProfileServerSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-server'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'Server',
+          key: const ValueKey<String>('profile-server-title'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        BlocBuilder<ServerHealthCubit, ServerHealthState>(
+          builder: (BuildContext context, ServerHealthState state) {
+            return switch (state) {
+              ServerHealthInitial() ||
+              ServerHealthLoading() => const _ProfileServerLoading(),
+
+              ServerHealthSuccess(:final health) => _ProfileServerHealthSummary(
+                health: health,
+              ),
+
+              ServerHealthFailure(:final error) => SectionFailureCard(
+                failureKey: 'profile-server-failure',
+                error: error,
+                onRetry: context.read<ServerHealthCubit>().retry,
+              ),
+            };
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileServerHealthSummary extends StatelessWidget {
+  const _ProfileServerHealthSummary({required this.health});
+
+  final ServerHealth health;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-server-health'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        _ProfileServerOverallHealthCard(health: health),
+
+        const SizedBox(height: AppSpacing.sm),
+
+        LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final bool useFourColumns = constraints.maxWidth >= 720;
+
+            return GridView.count(
+              key: const ValueKey<String>('profile-server-health-grid'),
+              crossAxisCount: useFourColumns ? 4 : 2,
+              crossAxisSpacing: AppSpacing.sm,
+              mainAxisSpacing: AppSpacing.sm,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: useFourColumns ? 1.2 : 1.3,
+              children: <Widget>[
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-checked-at',
+                  icon: Icons.update_rounded,
+                  value: _formatServerCheckedAt(health.checkedAt),
+                  label: 'Checked at',
+                ),
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-uptime',
+                  icon: Icons.timer_outlined,
+                  value: _formatServerUptime(health.uptimeSeconds),
+                  label: 'Uptime',
+                ),
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-database',
+                  icon: Icons.storage_rounded,
+                  value: _serverComponentStatusLabel(health.database.status),
+                  label: 'Database',
+                  detail: _formatServerLatency(health.database.latencyMs),
+                ),
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-tmdb',
+                  icon: Icons.cloud_outlined,
+                  value: _serverComponentStatusLabel(health.tmdb.status),
+                  label: 'TMDB',
+                  detail: _serverTmdbDetail(health.tmdb),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileServerOverallHealthCard extends StatelessWidget {
+  const _ProfileServerOverallHealthCard({required this.health});
+
+  final ServerHealth health;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey<String>('profile-server-overall-health'),
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(
+            health.isHealthy
+                ? Icons.check_circle_outline_rounded
+                : Icons.warning_amber_rounded,
+            color: AppColors.textSecondary,
+          ),
+
+          const SizedBox(width: AppSpacing.md),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'Health status',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+
+                const SizedBox(height: AppSpacing.xs),
+
+                Text(
+                  _serverHealthStatusLabel(health.status),
+                  key: const ValueKey<String>('profile-server-health-status'),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileServerMetricCard extends StatelessWidget {
+  const _ProfileServerMetricCard({
+    required this.cardKey,
+    required this.icon,
+    required this.value,
+    required this.label,
+    this.detail,
+  });
+
+  final String cardKey;
+  final IconData icon;
+  final String value;
+  final String label;
+  final String? detail;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: ValueKey<String>(cardKey),
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Icon(icon, size: 22, color: AppColors.textSecondary),
+
+          const SizedBox(height: AppSpacing.sm),
+
+          Text(
+            value,
+            key: ValueKey<String>('$cardKey-value'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+
+          const SizedBox(height: AppSpacing.xs),
+
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+
+          if (detail case final String detail) ...<Widget>[
+            const SizedBox(height: AppSpacing.xs),
+
+            Text(
+              detail,
+              key: ValueKey<String>('$cardKey-detail'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileServerLoading extends StatelessWidget {
+  const _ProfileServerLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey<String>('profile-server-loading'),
+      height: 88,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+    );
+  }
+}
+
+String _serverHealthStatusLabel(ServerHealthStatus status) {
+  return switch (status) {
+    ServerHealthStatus.healthy => 'Healthy',
+    ServerHealthStatus.degraded => 'Degraded',
+    ServerHealthStatus.unavailable => 'Unavailable',
+  };
+}
+
+String _serverComponentStatusLabel(ServerComponentStatus status) {
+  return switch (status) {
+    ServerComponentStatus.healthy => 'Healthy',
+    ServerComponentStatus.unavailable => 'Unavailable',
+  };
+}
+
+String _formatServerCheckedAt(DateTime value) {
+  final DateTime local = value.toLocal();
+
+  final String day = local.day.toString().padLeft(2, '0');
+  final String month = local.month.toString().padLeft(2, '0');
+  final String year = local.year.toString().padLeft(4, '0');
+
+  final String hour = local.hour.toString().padLeft(2, '0');
+  final String minute = local.minute.toString().padLeft(2, '0');
+
+  return '$day/$month/$year · $hour:$minute';
+}
+
+String _formatServerUptime(int seconds) {
+  final Duration duration = Duration(seconds: seconds);
+
+  final int days = duration.inDays;
+  final int hours = duration.inHours.remainder(24);
+  final int minutes = duration.inMinutes.remainder(60);
+
+  if (days > 0) {
+    return hours > 0 ? '${days}d ${hours}h' : '${days}d';
+  }
+
+  if (hours > 0) {
+    return minutes > 0 ? '${hours}h ${minutes}m' : '${hours}h';
+  }
+
+  if (minutes > 0) {
+    return '${minutes}m';
+  }
+
+  return '${duration.inSeconds}s';
+}
+
+String? _formatServerLatency(double? latencyMs) {
+  if (latencyMs == null) {
+    return null;
+  }
+
+  final String formatted = latencyMs == latencyMs.roundToDouble()
+      ? latencyMs.toStringAsFixed(0)
+      : latencyMs.toStringAsFixed(1);
+
+  return '$formatted ms';
+}
+
+String _serverTmdbDetail(ServerTmdbHealth tmdb) {
+  if (!tmdb.configured) {
+    return 'Not configured';
+  }
+
+  return _formatServerLatency(tmdb.latencyMs) ?? 'Configured';
 }
 
 String _formatProfileHistoryDate(DateTime value) {
