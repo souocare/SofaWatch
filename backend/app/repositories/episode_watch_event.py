@@ -164,6 +164,89 @@ class EpisodeWatchEventRepository:
             .limit(1)
         )
 
+    def list_all_for_user(
+        self,
+        *,
+        user_id: UUID,
+    ) -> list[WatchHistoryEvent]:
+        """Return every Episode watch event belonging to a user.
+
+        This unpaginated query is intended for complete data exports rather
+        than interactive History views.
+
+        Results are returned chronologically from oldest to newest and include
+        Specials so an export preserves every recorded viewing event.
+        """
+
+        rows = self._session.execute(
+            select(
+                EpisodeWatchEvent.id,
+                Show,
+                Season.season_number,
+                EpisodeWatchEvent.watched_at,
+                Episode,
+            )
+            .select_from(EpisodeWatchEvent)
+            .join(
+                Episode,
+                Episode.id == EpisodeWatchEvent.episode_id,
+            )
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .join(
+                Show,
+                Show.id == Season.show_id,
+            )
+            .where(
+                EpisodeWatchEvent.user_id == user_id,
+            )
+            .order_by(
+                EpisodeWatchEvent.watched_at.asc(),
+                EpisodeWatchEvent.id.asc(),
+            )
+        ).all()
+
+        return [
+            WatchHistoryEvent(
+                event_id=event_id,
+                show=show,
+                episode=episode,
+                season_number=season_number,
+                watched_at=watched_at,
+            )
+            for (
+                event_id,
+                show,
+                season_number,
+                watched_at,
+                episode,
+            ) in rows
+        ]
+
+    def exists_at(
+        self,
+        *,
+        user_id: UUID,
+        episode_id: UUID,
+        watched_at: datetime,
+    ) -> bool:
+        """Return whether the exact Episode viewing is already recorded."""
+
+        return (
+            self._session.scalar(
+                select(EpisodeWatchEvent.id)
+                .where(
+                    EpisodeWatchEvent.user_id == user_id,
+                    EpisodeWatchEvent.episode_id == episode_id,
+                    EpisodeWatchEvent.watched_at == watched_at,
+                )
+                .limit(1)
+            )
+            is not None
+        )
+
     def list_watch_history(
         self,
         *,

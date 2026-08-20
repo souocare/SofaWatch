@@ -63,6 +63,8 @@ from app.services.missed_recently import MissedRecentlyService
 from app.services.history import HistoryService
 from app.services.server_health import ServerHealthService
 from app.services.server_logs import ServerLogsService
+from app.services.data_export import DataExportService
+from app.services.data_import import DataImportService
 
 def get_genre_service(
     session: DatabaseSession,
@@ -825,4 +827,72 @@ def get_server_logs_service(
 ServerLogsServiceDependency = Annotated[
     ServerLogsService,
     Depends(get_server_logs_service),
+]
+
+def get_data_export_service(
+    session: DatabaseSession,
+) -> DataExportService:
+    """Provide portable SofaWatch data export operations."""
+
+    return DataExportService(
+        library_repository=LibraryRepository(
+            session,
+        ),
+        episode_watch_event_repository=EpisodeWatchEventRepository(
+            session,
+        ),
+        movie_watch_event_repository=MovieWatchEventRepository(
+            session,
+        ),
+    )
+
+
+DataExportServiceDependency = Annotated[
+    DataExportService,
+    Depends(get_data_export_service),
+]
+
+def get_data_import_service(
+    session: DatabaseSession,
+    show_import_service: ShowImportServiceDependency,
+    movie_import_service: MovieImportServiceDependency,
+    season_episode_sync_service: SeasonEpisodeSyncServiceDependency,
+) -> DataImportService:
+    """Provide portable SofaWatch data import operations."""
+
+    return DataImportService(
+        session=session,
+        library_repository=LibraryRepository(
+            session,
+        ),
+        show_repository=ShowRepository(
+            session,
+        ),
+        movie_repository=MovieRepository(
+            session,
+        ),
+        show_import_service=show_import_service,
+        movie_import_service=movie_import_service,
+        movie_watch_event_repository=MovieWatchEventRepository(
+            session,
+        ),
+        season_repository=SeasonRepository(
+            session,
+        ),
+        episode_repository=EpisodeRepository(
+            session,
+        ),
+        episode_watch_event_repository=EpisodeWatchEventRepository(
+            session,
+        ),
+        episode_progress_repository=EpisodeProgressRepository(
+            session,
+        ),
+        season_episode_sync_service=season_episode_sync_service,
+    )
+
+
+DataImportServiceDependency = Annotated[
+    DataImportService,
+    Depends(get_data_import_service),
 ]

@@ -2603,3 +2603,344 @@ def test_get_top_show_genres_counts_episode_watch_events_for_each_genre(
             1,
         ),
     ]
+
+def test_list_all_for_user_returns_complete_episode_history_in_chronological_order(
+    db_session: Session,
+) -> None:
+    """Return every Episode viewing from oldest to newest."""
+
+    user = create_user(
+        db_session,
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    older_event = create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            10,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    newer_event = create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.list_all_for_user(
+        user_id=user.id,
+    )
+
+    assert [
+        item.event_id
+        for item in result
+    ] == [
+        older_event.id,
+        newer_event.id,
+    ]
+
+    assert result[0].show.id == show.id
+    assert result[0].show.tmdb_id == 95396
+
+    assert result[0].season_number == 1
+
+    assert result[0].episode.id == episode.id
+    assert result[0].episode.tmdb_id == 2101
+    assert result[0].episode.episode_number == 1
+
+
+def test_list_all_for_user_preserves_specials_and_is_isolated_by_user(
+    db_session: Session,
+) -> None:
+    """Export only the user's Episode History, including Specials."""
+
+    user = create_user(
+        db_session,
+        display_name="First User",
+    )
+
+    other_user = create_user(
+        db_session,
+        display_name="Other User",
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    specials = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134791,
+        season_number=0,
+        title="Specials",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=specials,
+        tmdb_id=2100,
+        episode_number=1,
+        title="Special",
+    )
+
+    expected_event = create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            10,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=other_user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            11,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.list_all_for_user(
+        user_id=user.id,
+    )
+
+    assert len(result) == 1
+
+    assert result[0].event_id == expected_event.id
+    assert result[0].season_number == 0
+
+def test_list_all_for_user_returns_complete_episode_history(
+    db_session: Session,
+) -> None:
+    """Return every regular Episode watch event for a user."""
+
+    user = create_user(
+        db_session,
+    )
+
+    other_user = create_user(
+        db_session,
+        display_name="Other User",
+    )
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    older_event = create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            1,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    newer_event = create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=other_user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            15,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.list_all_for_user(
+        user_id=user.id,
+    )
+
+    assert [
+        item.event_id
+        for item in result
+    ] == [
+        older_event.id,
+        newer_event.id,
+    ]
+
+    assert all(
+        item.show.id == show.id
+        for item in result
+    )
+
+    assert all(
+        item.episode.id == episode.id
+        for item in result
+    )
+
+    assert all(
+        item.season_number == 1
+        for item in result
+    )
+
+
+def test_exists_at_finds_exact_episode_watch_event(
+    db_session: Session,
+) -> None:
+    """Detect an existing Episode viewing using media and timestamp."""
+
+    user = create_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    watched_at = datetime(
+        2026,
+        8,
+        14,
+        21,
+        30,
+        tzinfo=UTC,
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=watched_at,
+    )
+
+    repository = EpisodeWatchEventRepository(
+        db_session,
+    )
+
+    assert repository.exists_at(
+        user_id=user.id,
+        episode_id=episode.id,
+        watched_at=watched_at,
+    )
+
+    assert not repository.exists_at(
+        user_id=user.id,
+        episode_id=episode.id,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            22,
+            0,
+            tzinfo=UTC,
+        ),
+    )

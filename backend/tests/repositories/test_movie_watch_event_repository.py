@@ -2185,4 +2185,260 @@ def test_list_watch_history_returns_empty_page_for_non_positive_limit(
     assert page.has_more is False
 
 
+def test_list_all_for_user_returns_complete_movie_history_in_chronological_order(
+    db_session: Session,
+) -> None:
+    """Return every Movie viewing from oldest to newest."""
 
+    user = create_user(
+        db_session,
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    older_event = create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            1,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    newer_event = create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.list_all_for_user(
+        user_id=user.id,
+    )
+
+    assert [
+        item.event_id
+        for item in result
+    ] == [
+        older_event.id,
+        newer_event.id,
+    ]
+
+    assert result[0].movie.id == movie.id
+    assert result[0].movie.tmdb_id == 438631
+
+
+def test_list_all_for_user_is_isolated_by_user(
+    db_session: Session,
+) -> None:
+    """Return only Movie viewing events belonging to the requested user."""
+
+    user = create_user(
+        db_session,
+        display_name="First User",
+    )
+
+    other_user = create_user(
+        db_session,
+        display_name="Other User",
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    expected_event = create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            10,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=other_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            11,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.list_all_for_user(
+        user_id=user.id,
+    )
+
+    assert len(result) == 1
+    assert result[0].event_id == expected_event.id
+
+def test_list_all_for_user_returns_complete_movie_history(
+    db_session: Session,
+) -> None:
+    """Return every Movie watch event for a user."""
+
+    user = create_user(
+        db_session,
+    )
+
+    other_user = create_user(
+        db_session,
+        display_name="Other User",
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    older_event = create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            1,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    newer_event = create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    create_watch_event(
+        db_session,
+        user=other_user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            15,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    result = repository.list_all_for_user(
+        user_id=user.id,
+    )
+
+    assert [
+        item.event_id
+        for item in result
+    ] == [
+        older_event.id,
+        newer_event.id,
+    ]
+
+    assert all(
+        item.movie.id == movie.id
+        for item in result
+    )
+
+def test_exists_at_finds_exact_movie_watch_event(
+    db_session: Session,
+) -> None:
+    """Detect an existing Movie viewing using media and timestamp."""
+
+    user = create_user(db_session)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    watched_at = datetime(
+        2026,
+        8,
+        14,
+        21,
+        30,
+        tzinfo=UTC,
+    )
+
+    create_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=watched_at,
+    )
+
+    repository = MovieWatchEventRepository(
+        db_session,
+    )
+
+    assert repository.exists_at(
+        user_id=user.id,
+        movie_id=movie.id,
+        watched_at=watched_at,
+    )
+
+    assert not repository.exists_at(
+        user_id=user.id,
+        movie_id=movie.id,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            22,
+            0,
+            tzinfo=UTC,
+        ),
+    )

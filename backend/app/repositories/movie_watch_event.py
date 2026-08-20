@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
@@ -12,7 +13,6 @@ from app.repositories.statistics_insights import (
     GenreViewingInsight,
     MovieViewingInsight,
 )
-from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class MovieWatchHistoryEvent:
@@ -98,6 +98,52 @@ class MovieWatchEventRepository:
                 )
             ).all()
         )
+
+    def list_all_for_user(
+        self,
+        *,
+        user_id: UUID,
+    ) -> list[MovieWatchHistoryEvent]:
+        """Return every Movie watch event belonging to a user.
+
+        This unpaginated query is intended for complete data exports rather
+        than interactive History views.
+
+        Results are returned chronologically from oldest to newest.
+        """
+
+        rows = self._session.execute(
+            select(
+                MovieWatchEvent.id,
+                Movie,
+                MovieWatchEvent.watched_at,
+            )
+            .select_from(MovieWatchEvent)
+            .join(
+                Movie,
+                Movie.id == MovieWatchEvent.movie_id,
+            )
+            .where(
+                MovieWatchEvent.user_id == user_id,
+            )
+            .order_by(
+                MovieWatchEvent.watched_at.asc(),
+                MovieWatchEvent.id.asc(),
+            )
+        ).all()
+
+        return [
+            MovieWatchHistoryEvent(
+                event_id=event_id,
+                movie=movie,
+                watched_at=watched_at,
+            )
+            for (
+                event_id,
+                movie,
+                watched_at,
+            ) in rows
+        ]
 
     def list_watch_history(
         self,
@@ -190,6 +236,29 @@ class MovieWatchEventRepository:
         return MovieWatchHistoryEventPage(
             items=items,
             has_more=has_more,
+        )
+
+
+    def exists_at(
+        self,
+        *,
+        user_id: UUID,
+        movie_id: UUID,
+        watched_at: datetime,
+    ) -> bool:
+        """Return whether the exact Movie viewing is already recorded."""
+
+        return (
+            self._session.scalar(
+                select(MovieWatchEvent.id)
+                .where(
+                    MovieWatchEvent.user_id == user_id,
+                    MovieWatchEvent.movie_id == movie_id,
+                    MovieWatchEvent.watched_at == watched_at,
+                )
+                .limit(1)
+            )
+            is not None
         )
 
     def count_by_user_and_movie(
