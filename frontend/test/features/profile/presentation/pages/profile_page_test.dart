@@ -1184,6 +1184,154 @@ void main() {
             .data,
         'add admin flag to users',
       );
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-environment-title')),
+        findsOneWidget,
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('profile-server-environment-name-value'),
+              ),
+            )
+            .data,
+        'production',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-server-environment-debug-value',
+                ),
+              ),
+            )
+            .data,
+        'Disabled',
+      );
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-storage-title')),
+        findsOneWidget,
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('profile-server-storage-writable-value'),
+              ),
+            )
+            .data,
+        'Writable',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('profile-server-storage-used-detail'),
+              ),
+            )
+            .data,
+        '40%',
+      );
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-server-image-cache-total-files-value',
+                ),
+              ),
+            )
+            .data,
+        '4',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-server-image-cache-shows-detail',
+                ),
+              ),
+            )
+            .data,
+        '2 files',
+      );
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-runtime-title')),
+        findsOneWidget,
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('profile-server-runtime-python-value'),
+              ),
+            )
+            .data,
+        '3.12.11',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('profile-server-runtime-platform-value'),
+              ),
+            )
+            .data,
+        'Linux',
+      );
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-providers-title')),
+        findsOneWidget,
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-server-provider-tmdb-configured-value',
+                ),
+              ),
+            )
+            .data,
+        'Configured',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-server-provider-tmdb-reachable-value',
+                ),
+              ),
+            )
+            .data,
+        'Reachable',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-server-provider-tmdb-latency-value',
+                ),
+              ),
+            )
+            .data,
+        '212 ms',
+      );
     });
     testWidgets('does not load Server health for non-administrators', (
       WidgetTester tester,
@@ -1957,6 +2105,38 @@ final ServerHealth _serverHealth = ServerHealth(
   status: ServerHealthStatus.healthy,
   checkedAt: DateTime.utc(2026, 8, 20, 12),
   uptimeSeconds: 3600,
+  environment: const ServerEnvironment(
+    appName: 'SofaWatch',
+    environment: 'production',
+    debug: false,
+    apiHost: '0.0.0.0',
+    apiPort: 8000,
+    defaultLanguage: 'en-US',
+    supportedLanguages: <String>['en-US', 'pt-PT'],
+    metadataRefreshDays: 7,
+  ),
+  storage: const ServerStorage(
+    dataDirectory: './data',
+    writable: true,
+    totalSpaceBytes: 1_000_000,
+    usedSpaceBytes: 400_000,
+    freeSpaceBytes: 600_000,
+    usagePercentage: 40,
+    imageCache: ServerImageCache(
+      totalSizeBytes: 375,
+      totalFiles: 4,
+      breakdown: ServerImageCacheBreakdown(
+        shows: ServerImageCacheCategory(sizeBytes: 300, files: 2),
+        seasons: ServerImageCacheCategory(sizeBytes: 50, files: 1),
+        episodes: ServerImageCacheCategory(sizeBytes: 25, files: 1),
+      ),
+    ),
+  ),
+  runtime: ServerRuntime(
+    pythonVersion: '3.12.11',
+    platform: 'Linux',
+    startedAt: DateTime.utc(2026, 8, 20, 11),
+  ),
   database: const ServerDatabaseHealth(
     status: ServerComponentStatus.healthy,
     engine: 'sqlite',

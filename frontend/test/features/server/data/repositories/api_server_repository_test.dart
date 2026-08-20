@@ -5,6 +5,41 @@ import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/server/data/repositories/api_server_repository.dart';
 import 'package:sofawatch/features/server/domain/models/server_health.dart';
 
+const Map<String, dynamic> _environmentJson = <String, dynamic>{
+  'app_name': 'SofaWatch',
+  'environment': 'test',
+  'debug': false,
+  'api_host': '127.0.0.1',
+  'api_port': 8000,
+  'default_language': 'en-US',
+  'supported_languages': <String>['en-US', 'pt-PT'],
+  'metadata_refresh_days': 7,
+};
+
+const Map<String, dynamic> _storageJson = <String, dynamic>{
+  'data_directory': './data',
+  'writable': true,
+  'total_space_bytes': 1000000,
+  'used_space_bytes': 400000,
+  'free_space_bytes': 600000,
+  'usage_percentage': 40.0,
+  'image_cache': <String, dynamic>{
+    'total_size_bytes': 375,
+    'total_files': 4,
+    'breakdown': <String, dynamic>{
+      'shows': <String, dynamic>{'size_bytes': 300, 'files': 2},
+      'seasons': <String, dynamic>{'size_bytes': 50, 'files': 1},
+      'episodes': <String, dynamic>{'size_bytes': 25, 'files': 1},
+    },
+  },
+};
+
+const Map<String, dynamic> _runtimeJson = <String, dynamic>{
+  'python_version': '3.12.11',
+  'platform': 'Linux',
+  'started_at': '2026-08-20T14:30:00Z',
+};
+
 void main() {
   group('ApiServerRepository', () {
     test('loads Server health', () async {
@@ -24,6 +59,9 @@ void main() {
                       'status': 'healthy',
                       'checked_at': '2026-08-20T15:30:00+00:00',
                       'uptime_seconds': 86400,
+                      'environment': _environmentJson,
+                      'storage': _storageJson,
+                      'runtime': _runtimeJson,
                       'database': <String, dynamic>{
                         'status': 'healthy',
                         'engine': 'sqlite',
@@ -80,6 +118,38 @@ void main() {
       expect(health.database.foreignKeyCheck, ServerDatabaseCheckStatus.ok);
       expect(health.database.migration.revision, 'bb784a0a2cdc');
       expect(health.database.migration.message, 'add admin flag to users');
+
+      expect(health.environment.appName, 'SofaWatch');
+      expect(health.environment.environment, 'test');
+      expect(health.environment.debug, isFalse);
+      expect(health.environment.apiHost, '127.0.0.1');
+      expect(health.environment.apiPort, 8000);
+      expect(health.environment.defaultLanguage, 'en-US');
+      expect(health.environment.supportedLanguages, <String>['en-US', 'pt-PT']);
+      expect(health.environment.metadataRefreshDays, 7);
+
+      expect(health.storage.dataDirectory, './data');
+      expect(health.storage.writable, isTrue);
+      expect(health.storage.totalSpaceBytes, 1000000);
+      expect(health.storage.usedSpaceBytes, 400000);
+      expect(health.storage.freeSpaceBytes, 600000);
+      expect(health.storage.usagePercentage, 40.0);
+
+      expect(health.storage.imageCache.totalSizeBytes, 375);
+      expect(health.storage.imageCache.totalFiles, 4);
+
+      expect(health.storage.imageCache.breakdown.shows.sizeBytes, 300);
+      expect(health.storage.imageCache.breakdown.shows.files, 2);
+
+      expect(health.storage.imageCache.breakdown.seasons.sizeBytes, 50);
+      expect(health.storage.imageCache.breakdown.seasons.files, 1);
+
+      expect(health.storage.imageCache.breakdown.episodes.sizeBytes, 25);
+      expect(health.storage.imageCache.breakdown.episodes.files, 1);
+
+      expect(health.runtime.pythonVersion, '3.12.11');
+      expect(health.runtime.platform, 'Linux');
+      expect(health.runtime.startedAt, DateTime.parse('2026-08-20T14:30:00Z'));
     });
 
     test('loads degraded Server health', () async {
@@ -97,6 +167,9 @@ void main() {
                       'status': 'degraded',
                       'checked_at': '2026-08-20T15:30:00Z',
                       'uptime_seconds': 120,
+                      'environment': _environmentJson,
+                      'storage': _storageJson,
+                      'runtime': _runtimeJson,
                       'database': <String, dynamic>{
                         'status': 'healthy',
                         'engine': 'sqlite',
@@ -156,6 +229,9 @@ void main() {
                       'status': 'degraded',
                       'checked_at': '2026-08-20T15:30:00Z',
                       'uptime_seconds': 30,
+                      'environment': _environmentJson,
+                      'storage': _storageJson,
+                      'runtime': _runtimeJson,
                       'database': <String, dynamic>{
                         'status': 'healthy',
                         'engine': 'sqlite',
@@ -241,6 +317,9 @@ void main() {
                       'status': 'broken',
                       'checked_at': '2026-08-20T15:30:00Z',
                       'uptime_seconds': 30,
+                      'environment': _environmentJson,
+                      'storage': _storageJson,
+                      'runtime': _runtimeJson,
                       'database': <String, dynamic>{
                         'status': 'healthy',
                         'engine': 'sqlite',
@@ -297,6 +376,9 @@ void main() {
                       'status': 'healthy',
                       'checked_at': '2026-08-20T15:30:00Z',
                       'uptime_seconds': 30,
+                      'environment': _environmentJson,
+                      'storage': _storageJson,
+                      'runtime': _runtimeJson,
                       'database': <String, dynamic>{
                         'status': 'healthy',
                         'engine': 'sqlite',
@@ -352,6 +434,9 @@ void main() {
                       'status': 'degraded',
                       'checked_at': '2026-08-20T15:30:00Z',
                       'uptime_seconds': 30,
+                      'environment': _environmentJson,
+                      'storage': _storageJson,
+                      'runtime': _runtimeJson,
                       'database': <String, dynamic>{
                         'status': 'healthy',
                         'engine': 'sqlite',
@@ -405,6 +490,9 @@ void main() {
                       'status': 'healthy',
                       'checked_at': '2026-08-20T15:30:00Z',
                       'uptime_seconds': 30,
+                      'environment': _environmentJson,
+                      'storage': _storageJson,
+                      'runtime': _runtimeJson,
                       'database': <String, dynamic>{
                         'status': 'healthy',
                         'engine': 'sqlite',
@@ -412,6 +500,128 @@ void main() {
                         'size_bytes': null,
                         'wal_size_bytes': null,
                         'integrity_check': 'broken',
+                        'foreign_key_check': 'ok',
+                        'migration': <String, dynamic>{
+                          'revision': null,
+                          'message': null,
+                        },
+                      },
+                      'tmdb': <String, dynamic>{
+                        'status': 'healthy',
+                        'configured': true,
+                        'latency_ms': 200,
+                      },
+                    },
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiServerRepository repository = ApiServerRepository(
+        ApiClient(baseUrl: Uri.parse('https://server.example.com'), dio: dio),
+      );
+
+      expect(
+        repository.getHealth(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
+    test('maps invalid storage usage percentage to invalid data', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <String, dynamic>{
+                      'status': 'healthy',
+                      'checked_at': '2026-08-20T15:30:00Z',
+                      'uptime_seconds': 30,
+                      'environment': _environmentJson,
+                      'storage': <String, dynamic>{
+                        ..._storageJson,
+                        'usage_percentage': 101,
+                      },
+                      'runtime': _runtimeJson,
+                      'database': <String, dynamic>{
+                        'status': 'healthy',
+                        'engine': 'sqlite',
+                        'latency_ms': 1,
+                        'size_bytes': null,
+                        'wal_size_bytes': null,
+                        'integrity_check': 'ok',
+                        'foreign_key_check': 'ok',
+                        'migration': <String, dynamic>{
+                          'revision': null,
+                          'message': null,
+                        },
+                      },
+                      'tmdb': <String, dynamic>{
+                        'status': 'healthy',
+                        'configured': true,
+                        'latency_ms': 200,
+                      },
+                    },
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiServerRepository repository = ApiServerRepository(
+        ApiClient(baseUrl: Uri.parse('https://server.example.com'), dio: dio),
+      );
+
+      expect(
+        repository.getHealth(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
+    test('maps invalid supported languages to invalid data', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <String, dynamic>{
+                      'status': 'healthy',
+                      'checked_at': '2026-08-20T15:30:00Z',
+                      'uptime_seconds': 30,
+                      'environment': <String, dynamic>{
+                        ..._environmentJson,
+                        'supported_languages': <Object?>['en-US', 123],
+                      },
+                      'storage': _storageJson,
+                      'runtime': _runtimeJson,
+                      'database': <String, dynamic>{
+                        'status': 'healthy',
+                        'engine': 'sqlite',
+                        'latency_ms': 1,
+                        'size_bytes': null,
+                        'wal_size_bytes': null,
+                        'integrity_check': 'ok',
                         'foreign_key_check': 'ok',
                         'migration': <String, dynamic>{
                           'revision': null,

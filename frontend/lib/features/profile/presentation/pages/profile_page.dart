@@ -1436,6 +1436,50 @@ class _ProfileServerHealthSummary extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
 
         _ProfileServerDatabaseStatus(database: health.database),
+
+        const SizedBox(height: AppSpacing.section),
+
+        _ProfileServerSubsectionTitle(
+          title: 'Environment',
+          titleKey: 'profile-server-environment-title',
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        _ProfileServerEnvironmentStatus(environment: health.environment),
+
+        const SizedBox(height: AppSpacing.section),
+
+        _ProfileServerSubsectionTitle(
+          title: 'Storage',
+          titleKey: 'profile-server-storage-title',
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        _ProfileServerStorageStatus(storage: health.storage),
+
+        const SizedBox(height: AppSpacing.section),
+
+        _ProfileServerSubsectionTitle(
+          title: 'Runtime',
+          titleKey: 'profile-server-runtime-title',
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        _ProfileServerRuntimeStatus(health: health),
+
+        const SizedBox(height: AppSpacing.section),
+
+        _ProfileServerSubsectionTitle(
+          title: 'Providers',
+          titleKey: 'profile-server-providers-title',
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        _ProfileServerProvidersStatus(tmdb: health.tmdb),
       ],
     );
   }
@@ -1566,6 +1610,348 @@ class _ProfileServerMetricCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _ProfileServerSubsectionTitle extends StatelessWidget {
+  const _ProfileServerSubsectionTitle({
+    required this.title,
+    required this.titleKey,
+  });
+
+  final String title;
+  final String titleKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      key: ValueKey<String>(titleKey),
+      style: Theme.of(
+        context,
+      ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+    );
+  }
+}
+
+class _ProfileServerEnvironmentStatus extends StatelessWidget {
+  const _ProfileServerEnvironmentStatus({required this.environment});
+
+  final ServerEnvironment environment;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool useFourColumns = constraints.maxWidth >= 720;
+
+        return GridView.count(
+          key: const ValueKey<String>('profile-server-environment-status'),
+          crossAxisCount: useFourColumns ? 4 : 2,
+          crossAxisSpacing: AppSpacing.sm,
+          mainAxisSpacing: AppSpacing.sm,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: useFourColumns ? 1.2 : 1.3,
+          children: <Widget>[
+            _ProfileServerMetricCard(
+              cardKey: 'profile-server-environment-name',
+              icon: Icons.layers_outlined,
+              value: environment.environment,
+              label: 'Environment',
+            ),
+            _ProfileServerMetricCard(
+              cardKey: 'profile-server-environment-debug',
+              icon: Icons.bug_report_outlined,
+              value: environment.debug ? 'Enabled' : 'Disabled',
+              label: 'Debug',
+            ),
+            _ProfileServerMetricCard(
+              cardKey: 'profile-server-environment-api',
+              icon: Icons.lan_outlined,
+              value: '${environment.apiHost}:${environment.apiPort}',
+              label: 'API',
+            ),
+            _ProfileServerMetricCard(
+              cardKey: 'profile-server-environment-language',
+              icon: Icons.language_outlined,
+              value: environment.defaultLanguage,
+              label: 'Default language',
+              detail: environment.supportedLanguages.join(', '),
+            ),
+            _ProfileServerMetricCard(
+              cardKey: 'profile-server-environment-refresh',
+              icon: Icons.sync_outlined,
+              value: '${environment.metadataRefreshDays}d',
+              label: 'Metadata refresh',
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ProfileServerStorageStatus extends StatelessWidget {
+  const _ProfileServerStorageStatus({required this.storage});
+
+  final ServerStorage storage;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-server-storage-status'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final bool useFourColumns = constraints.maxWidth >= 720;
+
+            return GridView.count(
+              key: const ValueKey<String>('profile-server-storage-grid'),
+              crossAxisCount: useFourColumns ? 4 : 2,
+              crossAxisSpacing: AppSpacing.sm,
+              mainAxisSpacing: AppSpacing.sm,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: useFourColumns ? 1.2 : 1.3,
+              children: <Widget>[
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-storage-directory',
+                  icon: Icons.folder_outlined,
+                  value: storage.dataDirectory,
+                  label: 'Data directory',
+                ),
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-storage-writable',
+                  icon: Icons.edit_outlined,
+                  value: storage.writable ? 'Writable' : 'Read only',
+                  label: 'Access',
+                ),
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-storage-total',
+                  icon: Icons.sd_storage_outlined,
+                  value: _formatBytes(storage.totalSpaceBytes),
+                  label: 'Total space',
+                ),
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-storage-used',
+                  icon: Icons.pie_chart_outline_rounded,
+                  value: _formatBytes(storage.usedSpaceBytes),
+                  label: 'Used space',
+                  detail: _formatPercentage(storage.usagePercentage),
+                ),
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-storage-free',
+                  icon: Icons.space_bar_rounded,
+                  value: _formatBytes(storage.freeSpaceBytes),
+                  label: 'Free space',
+                ),
+              ],
+            );
+          },
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        _ProfileServerImageCacheStatus(cache: storage.imageCache),
+      ],
+    );
+  }
+}
+
+class _ProfileServerImageCacheStatus extends StatelessWidget {
+  const _ProfileServerImageCacheStatus({required this.cache});
+
+  final ServerImageCache cache;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-server-image-cache'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'Image cache',
+          key: const ValueKey<String>('profile-server-image-cache-title'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+
+        const SizedBox(height: AppSpacing.sm),
+
+        LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final bool useFourColumns = constraints.maxWidth >= 720;
+
+            return GridView.count(
+              key: const ValueKey<String>('profile-server-image-cache-grid'),
+              crossAxisCount: useFourColumns ? 4 : 2,
+              crossAxisSpacing: AppSpacing.sm,
+              mainAxisSpacing: AppSpacing.sm,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: useFourColumns ? 1.2 : 1.3,
+              children: <Widget>[
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-image-cache-total-size',
+                  icon: Icons.photo_library_outlined,
+                  value: _formatBytes(cache.totalSizeBytes),
+                  label: 'Cache size',
+                ),
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-image-cache-total-files',
+                  icon: Icons.insert_drive_file_outlined,
+                  value: cache.totalFiles.toString(),
+                  label: 'Files',
+                ),
+                _ProfileServerCacheCategoryCard(
+                  cardKey: 'profile-server-image-cache-shows',
+                  label: 'Shows',
+                  category: cache.breakdown.shows,
+                ),
+                _ProfileServerCacheCategoryCard(
+                  cardKey: 'profile-server-image-cache-seasons',
+                  label: 'Seasons',
+                  category: cache.breakdown.seasons,
+                ),
+                _ProfileServerCacheCategoryCard(
+                  cardKey: 'profile-server-image-cache-episodes',
+                  label: 'Episodes',
+                  category: cache.breakdown.episodes,
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileServerCacheCategoryCard extends StatelessWidget {
+  const _ProfileServerCacheCategoryCard({
+    required this.cardKey,
+    required this.label,
+    required this.category,
+  });
+
+  final String cardKey;
+  final String label;
+  final ServerImageCacheCategory category;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ProfileServerMetricCard(
+      cardKey: cardKey,
+      icon: Icons.image_outlined,
+      value: _formatBytes(category.sizeBytes),
+      label: label,
+      detail: '${category.files} files',
+    );
+  }
+}
+
+class _ProfileServerRuntimeStatus extends StatelessWidget {
+  const _ProfileServerRuntimeStatus({required this.health});
+
+  final ServerHealth health;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool useFourColumns = constraints.maxWidth >= 720;
+
+        return GridView.count(
+          key: const ValueKey<String>('profile-server-runtime-status'),
+          crossAxisCount: useFourColumns ? 4 : 2,
+          crossAxisSpacing: AppSpacing.sm,
+          mainAxisSpacing: AppSpacing.sm,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: useFourColumns ? 1.2 : 1.3,
+          children: <Widget>[
+            _ProfileServerMetricCard(
+              cardKey: 'profile-server-runtime-python',
+              icon: Icons.code_rounded,
+              value: health.runtime.pythonVersion,
+              label: 'Python',
+            ),
+            _ProfileServerMetricCard(
+              cardKey: 'profile-server-runtime-platform',
+              icon: Icons.computer_outlined,
+              value: health.runtime.platform,
+              label: 'Platform',
+            ),
+            _ProfileServerMetricCard(
+              cardKey: 'profile-server-runtime-uptime',
+              icon: Icons.timer_outlined,
+              value: _formatServerUptime(health.uptimeSeconds),
+              label: 'Process uptime',
+            ),
+            _ProfileServerMetricCard(
+              cardKey: 'profile-server-runtime-started-at',
+              icon: Icons.play_circle_outline_rounded,
+              value: _formatServerCheckedAt(health.runtime.startedAt),
+              label: 'Started at',
+            ),
+            _ProfileServerMetricCard(
+              cardKey: 'profile-server-runtime-current-time',
+              icon: Icons.schedule_rounded,
+              value: _formatServerCheckedAt(health.checkedAt),
+              label: 'Server current time',
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ProfileServerProvidersStatus extends StatelessWidget {
+  const _ProfileServerProvidersStatus({required this.tmdb});
+
+  final ServerTmdbHealth tmdb;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool useFourColumns = constraints.maxWidth >= 720;
+
+        return GridView.count(
+          key: const ValueKey<String>('profile-server-providers-status'),
+          crossAxisCount: useFourColumns ? 4 : 2,
+          crossAxisSpacing: AppSpacing.sm,
+          mainAxisSpacing: AppSpacing.sm,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: useFourColumns ? 1.2 : 1.3,
+          children: <Widget>[
+            _ProfileServerMetricCard(
+              cardKey: 'profile-server-provider-tmdb-configured',
+              icon: Icons.settings_outlined,
+              value: tmdb.configured ? 'Configured' : 'Not configured',
+              label: 'TMDB configuration',
+            ),
+            _ProfileServerMetricCard(
+              cardKey: 'profile-server-provider-tmdb-reachable',
+              icon: Icons.cloud_done_outlined,
+              value: tmdb.isHealthy ? 'Reachable' : 'Unavailable',
+              label: 'TMDB connectivity',
+            ),
+            _ProfileServerMetricCard(
+              cardKey: 'profile-server-provider-tmdb-latency',
+              icon: Icons.speed_rounded,
+              value: _formatServerLatency(tmdb.latencyMs) ?? 'Unavailable',
+              label: 'TMDB latency',
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -1862,4 +2248,16 @@ String _formatBytes(int? bytes) {
   }
 
   return '$bytes B';
+}
+
+String _formatPercentage(double? value) {
+  if (value == null) {
+    return 'Unavailable';
+  }
+
+  final String formatted = value == value.roundToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(1);
+
+  return '$formatted%';
 }

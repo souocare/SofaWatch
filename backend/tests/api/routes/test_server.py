@@ -14,6 +14,12 @@ from app.schemas.server import (
     ServerDatabaseMigrationResponse,
     ServerHealthResponse,
     ServerTMDBHealthResponse,
+    ServerEnvironmentResponse,
+    ServerImageCacheBreakdownResponse,
+    ServerImageCacheCategoryResponse,
+    ServerImageCacheResponse,
+    ServerRuntimeResponse,
+    ServerStorageResponse,
 )
 
 
@@ -60,37 +66,91 @@ def test_get_server_health_returns_admin_health_summary(
 
     service = Mock()
 
-    service.get_health.return_value = (
-        ServerHealthResponse(
-            status="healthy",
-            checked_at=datetime(
+    service.get_health.return_value = ServerHealthResponse(
+        status="healthy",
+        checked_at=datetime(
+            2026,
+            8,
+            20,
+            12,
+            0,
+            tzinfo=UTC,
+        ),
+        uptime_seconds=3600,
+
+        environment=ServerEnvironmentResponse(
+            app_name="SofaWatch",
+            environment="production",
+            debug=False,
+            api_host="0.0.0.0",
+            api_port=8000,
+            default_language="en-US",
+            supported_languages=[
+                "en-US",
+                "pt-PT",
+            ],
+            metadata_refresh_days=7,
+        ),
+
+        storage=ServerStorageResponse(
+            data_directory="./data",
+            writable=True,
+            total_space_bytes=1_000_000,
+            used_space_bytes=400_000,
+            free_space_bytes=600_000,
+            usage_percentage=40.0,
+            image_cache=ServerImageCacheResponse(
+                total_size_bytes=375,
+                total_files=4,
+                breakdown=ServerImageCacheBreakdownResponse(
+                    shows=ServerImageCacheCategoryResponse(
+                        size_bytes=300,
+                        files=2,
+                    ),
+                    seasons=ServerImageCacheCategoryResponse(
+                        size_bytes=50,
+                        files=1,
+                    ),
+                    episodes=ServerImageCacheCategoryResponse(
+                        size_bytes=25,
+                        files=1,
+                    ),
+                ),
+            ),
+        ),
+
+        runtime=ServerRuntimeResponse(
+            python_version="3.12.11",
+            platform="Linux",
+            started_at=datetime(
                 2026,
                 8,
                 20,
-                12,
+                11,
                 0,
                 tzinfo=UTC,
             ),
-            uptime_seconds=3600,
-            database=ServerDatabaseHealthResponse(
-                status="healthy",
-                engine="sqlite",
-                latency_ms=1.25,
-                size_bytes=1_048_576,
-                wal_size_bytes=8_192,
-                integrity_check="ok",
-                foreign_key_check="ok",
-                migration=ServerDatabaseMigrationResponse(
-                    revision="bb784a0a2cdc",
-                    message="add admin flag to users",
-                ),
+        ),
+
+        database=ServerDatabaseHealthResponse(
+            status="healthy",
+            engine="sqlite",
+            latency_ms=1.25,
+            size_bytes=1_048_576,
+            wal_size_bytes=8_192,
+            integrity_check="ok",
+            foreign_key_check="ok",
+            migration=ServerDatabaseMigrationResponse(
+                revision="bb784a0a2cdc",
+                message="add admin flag to users",
             ),
-            tmdb=ServerTMDBHealthResponse(
-                status="healthy",
-                configured=True,
-                latency_ms=212.4,
-            ),
-        )
+        ),
+
+        tmdb=ServerTMDBHealthResponse(
+            status="healthy",
+            configured=True,
+            latency_ms=212.4,
+        ),
     )
 
     app.dependency_overrides[
@@ -134,5 +194,53 @@ def test_get_server_health_returns_admin_health_summary(
         "configured": True,
         "latency_ms": 212.4,
     }
+
+    assert payload["environment"] == {
+        "app_name": "SofaWatch",
+        "environment": "production",
+        "debug": False,
+        "api_host": "0.0.0.0",
+        "api_port": 8000,
+        "default_language": "en-US",
+        "supported_languages": [
+            "en-US",
+            "pt-PT",
+        ],
+        "metadata_refresh_days": 7,
+    }
+
+    assert payload["storage"]["data_directory"] == "./data"
+    assert payload["storage"]["writable"] is True
+
+    assert payload["storage"]["total_space_bytes"] == 1_000_000
+    assert payload["storage"]["used_space_bytes"] == 400_000
+    assert payload["storage"]["free_space_bytes"] == 600_000
+    assert payload["storage"]["usage_percentage"] == 40.0
+
+    assert payload["storage"]["image_cache"]["total_size_bytes"] == 375
+    assert payload["storage"]["image_cache"]["total_files"] == 4
+
+    assert (
+        payload["storage"]["image_cache"]["breakdown"]["shows"]["files"]
+        == 2
+    )
+
+    assert payload["runtime"]["python_version"] == "3.12.11"
+    assert payload["runtime"]["platform"] == "Linux"
+    assert payload["runtime"]["started_at"] == "2026-08-20T11:00:00Z"
+
+    assert datetime.fromisoformat(
+        payload["runtime"]["started_at"].replace(
+            "Z",
+            "+00:00",
+        )
+    ) == datetime(
+        2026,
+        8,
+        20,
+        11,
+        0,
+        tzinfo=UTC,
+    )
 
     service.get_health.assert_called_once_with()

@@ -1,3 +1,6 @@
+import os
+import platform
+import shutil
 from datetime import UTC, datetime
 from time import perf_counter
 from pathlib import Path
@@ -18,6 +21,12 @@ from app.schemas.server import (
     ServerHealthResponse,
     ServerTMDBHealthResponse,
     ServerDatabaseMigrationResponse,
+    ServerEnvironmentResponse,
+    ServerImageCacheBreakdownResponse,
+    ServerImageCacheCategoryResponse,
+    ServerImageCacheResponse,
+    ServerRuntimeResponse,
+    ServerStorageResponse,
 )
 from alembic.config import Config
 from alembic.migration import MigrationContext
@@ -43,6 +52,9 @@ class ServerHealthService:
         """Return the current operational state of SofaWatch dependencies."""
 
         checked_at = datetime.now(UTC)
+        environment = self._environment()
+        storage = self._storage()
+        runtime = self._runtime()
 
         database = self._check_database()
         tmdb = self._check_tmdb()
@@ -53,6 +65,7 @@ class ServerHealthService:
                 database.status == "healthy"
                 and database.integrity_check == "ok"
                 and database.foreign_key_check == "ok"
+                and storage.writable
                 and tmdb.status == "healthy"
             )
             else "degraded"
@@ -72,6 +85,9 @@ class ServerHealthService:
             status=status,
             checked_at=checked_at,
             uptime_seconds=uptime_seconds,
+            environment=environment,
+            storage=storage,
+            runtime=runtime,
             database=database,
             tmdb=tmdb,
         )
@@ -218,6 +234,57 @@ class ServerHealthService:
             latency_ms=self._elapsed_milliseconds(started),
         )
 
+    def _environment(
+        self,
+    ) -> ServerEnvironmentResponse:
+        return ServerEnvironmentResponse(
+            app_name=self._settings.app_name,
+            environment=self._settings.environment,
+            debug=self._settings.debug,
+            api_host=self._settings.api_host,
+            api_port=self._settings.api_port,
+            default_language=self._settings.default_language,
+            supported_languages=self._settings.supported_language_list,
+            metadata_refresh_days=self._settings.metadata_refresh_days,
+        )
+
+    def _runtime(
+        self,
+    ) -> ServerRuntimeResponse:
+        return ServerRuntimeResponse(
+            python_version=platform.python_version(),
+            platform=platform.system(),
+            started_at=self._normalized_started_at(),
+        )
+
+    def _storage(
+        self,
+    ) -> ServerStorageResponse:
+        data_path = Path(
+            self._settings.data_storage_path,
+        ).resolve()
+
+        writable = self._storage_path_is_writable(
+            data_path,
+        )
+
+        (
+            total_space_bytes,
+            used_space_bytes,
+            free_space_bytes,
+            usage_percentage,
+        ) = self._disk_usage(data_path)
+
+        return ServerStorageResponse(
+            data_directory=self._settings.data_storage_path,
+            writable=writable,
+            total_space_bytes=total_space_bytes,
+            used_space_bytes=used_space_bytes,
+            free_space_bytes=free_space_bytes,
+            usage_percentage=usage_percentage,
+            image_cache=self._image_cache_usage(),
+        )
+
     def _database_migration(
         self,
     ) -> ServerDatabaseMigrationResponse:
@@ -275,6 +342,138 @@ class ServerHealthService:
         return round(
             (perf_counter() - started) * 1000,
             2,
+        )
+
+    @staticmethod
+    def _storage_path_is_writable(
+        path: Path,
+    ) -> bool:
+        probe_path = ServerHealthService._existing_storage_path(
+            path,
+        )
+
+        return os.access(
+            probe_path,
+            os.W_OK,
+        )
+
+    @staticmethod
+    def _existing_storage_path(
+        path: Path,
+    ) -> Path:
+        current = path
+
+        while not current.exists():
+            parent = current.parent
+
+            if parent == current:
+                return current
+
+            current = parent
+
+        return current
+
+    @staticmethod
+    def _disk_usage(
+        path: Path,
+    ) -> tuple[
+        int | None,
+        int | None,
+        int | None,
+        float | None,
+    ]:
+        probe_path = ServerHealthService._existing_storage_path(
+            path,
+        )
+
+        try:
+            usage = shutil.disk_usage(
+                probe_path,
+            )
+        except OSError:
+            return None, None, None, None
+
+        usage_percentage = (
+            0.0
+            if usage.total == 0
+            else round(
+                (usage.used / usage.total) * 100,
+                2,
+            )
+        )
+
+        return (
+            usage.total,
+            usage.used,
+            usage.free,
+            usage_percentage,
+        )
+
+    @staticmethod
+    def _image_cache_category_usage(
+        path: Path,
+    ) -> ServerImageCacheCategoryResponse:
+        if not path.is_dir():
+            return ServerImageCacheCategoryResponse(
+                size_bytes=0,
+                files=0,
+            )
+
+        size_bytes = 0
+        files = 0
+
+        try:
+            for candidate in path.rglob("*"):
+                if not candidate.is_file():
+                    continue
+
+                size_bytes += candidate.stat().st_size
+                files += 1
+
+        except OSError:
+            return ServerImageCacheCategoryResponse(
+                size_bytes=0,
+                files=0,
+            )
+
+        return ServerImageCacheCategoryResponse(
+            size_bytes=size_bytes,
+            files=files,
+        )
+
+    def _image_cache_usage(
+        self,
+    ) -> ServerImageCacheResponse:
+        base_path = Path(
+            self._settings.image_storage_path,
+        ).resolve()
+
+        shows = self._image_cache_category_usage(
+            base_path / "shows",
+        )
+        seasons = self._image_cache_category_usage(
+            base_path / "seasons",
+        )
+        episodes = self._image_cache_category_usage(
+            base_path / "episodes",
+        )
+
+        return ServerImageCacheResponse(
+            total_size_bytes=(
+                shows.size_bytes
+                + seasons.size_bytes
+                + episodes.size_bytes
+            ),
+            total_files=(
+                shows.files
+                + seasons.files
+                + episodes.files
+            ),
+            breakdown=ServerImageCacheBreakdownResponse(
+                shows=shows,
+                seasons=seasons,
+                episodes=episodes,
+            ),
         )
 
 

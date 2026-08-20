@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     api_port: int = 8000
 
     database_url: str = "sqlite:///./data/sofawatch.db"
-
+    data_storage_path: str = "./data"
     image_storage_path: str = "./data/images"
 
     secret_key: SecretStr = Field(min_length=32)

@@ -130,6 +130,38 @@ final ServerHealth _health = ServerHealth(
   status: ServerHealthStatus.healthy,
   checkedAt: DateTime.utc(2026, 8, 20, 15, 30),
   uptimeSeconds: 86400,
+  environment: const ServerEnvironment(
+    appName: 'SofaWatch',
+    environment: 'test',
+    debug: false,
+    apiHost: '127.0.0.1',
+    apiPort: 8000,
+    defaultLanguage: 'en-US',
+    supportedLanguages: <String>['en-US', 'pt-PT'],
+    metadataRefreshDays: 7,
+  ),
+  storage: const ServerStorage(
+    dataDirectory: './data',
+    writable: true,
+    totalSpaceBytes: 1_000_000,
+    usedSpaceBytes: 400_000,
+    freeSpaceBytes: 600_000,
+    usagePercentage: 40,
+    imageCache: ServerImageCache(
+      totalSizeBytes: 375,
+      totalFiles: 4,
+      breakdown: ServerImageCacheBreakdown(
+        shows: ServerImageCacheCategory(sizeBytes: 300, files: 2),
+        seasons: ServerImageCacheCategory(sizeBytes: 50, files: 1),
+        episodes: ServerImageCacheCategory(sizeBytes: 25, files: 1),
+      ),
+    ),
+  ),
+  runtime: ServerRuntime(
+    pythonVersion: '3.12.11',
+    platform: 'Linux',
+    startedAt: DateTime.utc(2026, 8, 20, 14, 30),
+  ),
   database: const ServerDatabaseHealth(
     status: ServerComponentStatus.healthy,
     engine: 'sqlite',
