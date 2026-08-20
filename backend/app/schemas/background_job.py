@@ -1,10 +1,26 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.enums import BackgroundJobStatus
 
+
+class BackgroundJobResultSummaryResponse(BaseModel):
+    """Summary metrics from the latest background job execution."""
+
+    checked: int = Field(
+        ge=0,
+    )
+    refreshed: int = Field(
+        ge=0,
+    )
+    skipped: int = Field(
+        ge=0,
+    )
+    failed: int = Field(
+        ge=0,
+    )
 
 class BackgroundJobResponse(BaseModel):
     """Current state of a background job."""
@@ -22,6 +38,7 @@ class BackgroundJobResponse(BaseModel):
     last_duration_ms: int | None
     last_error: str | None
     next_run_at: datetime | None
+    last_result: BackgroundJobResultSummaryResponse | None = None
 
 
 class BackgroundJobRunResponse(BaseModel):
@@ -41,7 +58,6 @@ class BackgroundJobRunResponse(BaseModel):
 
 
 class BackgroundJobRunNowResponse(BaseModel):
-    """Result of manually executing a background job."""
+    """Accepted manual background job execution."""
 
     job: BackgroundJobResponse
-    run: BackgroundJobRunResponse

@@ -61,6 +61,24 @@ class BackgroundJobRepository:
 
         return run
 
+    def get_latest_run(
+        self,
+        *,
+        job_id: UUID,
+    ) -> BackgroundJobRun | None:
+        """Return the most recent execution for a background job."""
+
+        return self._session.scalar(
+            select(BackgroundJobRun)
+            .where(
+                BackgroundJobRun.job_id == job_id,
+            )
+            .order_by(
+                BackgroundJobRun.started_at.desc(),
+            )
+            .limit(1)
+        )
+
     def list_runs(
         self,
         *,

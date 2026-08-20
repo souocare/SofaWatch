@@ -25,6 +25,9 @@ import 'package:sofawatch/features/server/application/cubit/server_health_cubit.
 import 'package:sofawatch/features/server/application/cubit/server_health_state.dart';
 import 'package:sofawatch/features/server/domain/models/server_health.dart';
 import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
+import 'package:sofawatch/features/server/application/cubit/background_jobs_cubit.dart';
+import 'package:sofawatch/features/server/application/cubit/background_jobs_state.dart';
+import 'package:sofawatch/features/server/domain/models/background_job.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -1308,12 +1311,23 @@ class _ProfileServerGate extends StatelessWidget {
           children: <Widget>[
             const SizedBox(height: AppSpacing.section),
 
-            BlocProvider<ServerHealthCubit>(
-              create: (BuildContext context) {
-                return ServerHealthCubit(
-                  repository: context.read<ServerRepository>(),
-                )..load();
-              },
+            MultiBlocProvider(
+              providers: <BlocProvider<dynamic>>[
+                BlocProvider<ServerHealthCubit>(
+                  create: (BuildContext context) {
+                    return ServerHealthCubit(
+                      repository: context.read<ServerRepository>(),
+                    )..load();
+                  },
+                ),
+                BlocProvider<BackgroundJobsCubit>(
+                  create: (BuildContext context) {
+                    return BackgroundJobsCubit(
+                      repository: context.read<ServerRepository>(),
+                    )..load();
+                  },
+                ),
+              ],
               child: const _ProfileServerSection(),
             ),
           ],
@@ -1360,6 +1374,9 @@ class _ProfileServerSection extends StatelessWidget {
             };
           },
         ),
+        const SizedBox(height: AppSpacing.section),
+
+        const _ProfileBackgroundJobsSection(),
       ],
     );
   }
@@ -2111,6 +2128,456 @@ class _ProfileServerMigrationCard extends StatelessWidget {
   }
 }
 
+class _ProfileBackgroundJobsSection extends StatelessWidget {
+  const _ProfileBackgroundJobsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-background-jobs'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        const _ProfileServerSubsectionTitle(
+          title: 'Background jobs',
+          titleKey: 'profile-background-jobs-title',
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        BlocBuilder<BackgroundJobsCubit, BackgroundJobsState>(
+          builder: (BuildContext context, BackgroundJobsState state) {
+            return switch (state) {
+              BackgroundJobsInitial() ||
+              BackgroundJobsLoading() => const _ProfileBackgroundJobsLoading(),
+
+              BackgroundJobsSuccess(
+                :final jobs,
+                :final runningJobKeys,
+                :final runFailures,
+              ) =>
+                _ProfileBackgroundJobsContent(
+                  jobs: jobs,
+                  runningJobKeys: runningJobKeys,
+                  runFailures: runFailures,
+                ),
+
+              BackgroundJobsFailure(:final error) => SectionFailureCard(
+                failureKey: 'profile-background-jobs-failure',
+                error: error,
+                onRetry: context.read<BackgroundJobsCubit>().retry,
+              ),
+            };
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileBackgroundJobsContent extends StatelessWidget {
+  const _ProfileBackgroundJobsContent({
+    required this.jobs,
+    required this.runningJobKeys,
+    required this.runFailures,
+  });
+
+  final List<BackgroundJob> jobs;
+  final Set<String> runningJobKeys;
+  final Map<String, AppException> runFailures;
+
+  @override
+  Widget build(BuildContext context) {
+    if (jobs.isEmpty) {
+      return Container(
+        key: const ValueKey<String>('profile-background-jobs-empty'),
+        padding: AppSpacing.cardPadding,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceHigh,
+          borderRadius: AppRadius.borderLarge,
+          border: Border.all(color: AppColors.outlineVariant),
+        ),
+        child: Text(
+          'No background jobs are registered.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+        ),
+      );
+    }
+
+    return Column(
+      key: const ValueKey<String>('profile-background-jobs-content'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        for (int index = 0; index < jobs.length; index++) ...<Widget>[
+          if (index > 0) const SizedBox(height: AppSpacing.sm),
+
+          _ProfileBackgroundJobCard(
+            job: jobs[index],
+            isSubmitting: runningJobKeys.contains(jobs[index].key),
+            runFailure: runFailures[jobs[index].key],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ProfileBackgroundJobCard extends StatelessWidget {
+  const _ProfileBackgroundJobCard({
+    required this.job,
+    required this.isSubmitting,
+    required this.runFailure,
+  });
+
+  final BackgroundJob job;
+  final bool isSubmitting;
+  final AppException? runFailure;
+
+  @override
+  Widget build(BuildContext context) {
+    final BackgroundJobResultSummary? result = job.lastResult;
+
+    return Container(
+      key: ValueKey<String>('profile-background-job-${job.key}'),
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      job.name,
+                      key: ValueKey<String>(
+                        'profile-background-job-${job.key}-name',
+                      ),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.xs),
+
+                    Text(
+                      job.schedule,
+                      key: ValueKey<String>(
+                        'profile-background-job-${job.key}-schedule',
+                      ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: AppSpacing.md),
+
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  _ProfileBackgroundJobStatus(job: job),
+
+                  const SizedBox(height: AppSpacing.sm),
+
+                  _ProfileBackgroundJobRunAction(
+                    job: job,
+                    isSubmitting: isSubmitting,
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final bool useFourColumns = constraints.maxWidth >= 720;
+
+              return GridView.count(
+                key: ValueKey<String>(
+                  'profile-background-job-${job.key}-timing-grid',
+                ),
+                crossAxisCount: useFourColumns ? 4 : 2,
+                crossAxisSpacing: AppSpacing.sm,
+                mainAxisSpacing: AppSpacing.sm,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                childAspectRatio: useFourColumns ? 1.35 : 1.4,
+                children: <Widget>[
+                  _ProfileServerMetricCard(
+                    cardKey: 'profile-background-job-${job.key}-last-run',
+                    icon: Icons.history_rounded,
+                    value: _formatBackgroundJobDate(job.lastStartedAt),
+                    label: 'Last run',
+                  ),
+                  _ProfileServerMetricCard(
+                    cardKey: 'profile-background-job-${job.key}-next-run',
+                    icon: Icons.schedule_rounded,
+                    value: _formatBackgroundJobDate(job.nextRunAt),
+                    label: 'Next run',
+                  ),
+                  _ProfileServerMetricCard(
+                    cardKey: 'profile-background-job-${job.key}-duration',
+                    icon: Icons.timer_outlined,
+                    value: _formatBackgroundJobDuration(job.lastDurationMs),
+                    label: 'Duration',
+                  ),
+                ],
+              );
+            },
+          ),
+
+          if (result != null) ...<Widget>[
+            const SizedBox(height: AppSpacing.md),
+
+            _ProfileBackgroundJobResultSummary(jobKey: job.key, result: result),
+          ],
+
+          if (job.lastError case final String error) ...<Widget>[
+            const SizedBox(height: AppSpacing.md),
+
+            Container(
+              key: ValueKey<String>(
+                'profile-background-job-${job.key}-last-error',
+              ),
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: AppRadius.borderMedium,
+                border: Border.all(color: AppColors.outlineVariant),
+              ),
+              child: Text(
+                error,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              ),
+            ),
+          ],
+          if (runFailure case final AppException error) ...<Widget>[
+            const SizedBox(height: AppSpacing.md),
+
+            Container(
+              key: ValueKey<String>(
+                'profile-background-job-${job.key}-run-failure',
+              ),
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: AppRadius.borderMedium,
+                border: Border.all(color: AppColors.outlineVariant),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    size: 18,
+                    color: AppColors.textSecondary,
+                  ),
+
+                  const SizedBox(width: AppSpacing.sm),
+
+                  Expanded(
+                    child: Text(
+                      AppErrorMessageMapper.map(error),
+                      key: ValueKey<String>(
+                        'profile-background-job-${job.key}-run-failure-message',
+                      ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileBackgroundJobStatus extends StatelessWidget {
+  const _ProfileBackgroundJobStatus({required this.job});
+
+  final BackgroundJob job;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      key: ValueKey<String>('profile-background-job-${job.key}-status'),
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        if (job.isRunning) ...<Widget>[
+          const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+
+          const SizedBox(width: AppSpacing.sm),
+        ] else
+          Icon(
+            job.isHealthy
+                ? Icons.check_circle_outline_rounded
+                : Icons.warning_amber_rounded,
+            size: 18,
+            color: AppColors.textSecondary,
+          ),
+
+        if (!job.isRunning) const SizedBox(width: AppSpacing.sm),
+
+        Text(
+          _backgroundJobStatusLabel(job.status),
+          key: ValueKey<String>(
+            'profile-background-job-${job.key}-status-value',
+          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileBackgroundJobRunAction extends StatelessWidget {
+  const _ProfileBackgroundJobRunAction({
+    required this.job,
+    required this.isSubmitting,
+  });
+
+  final BackgroundJob job;
+  final bool isSubmitting;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isBusy = isSubmitting || job.isRunning;
+
+    return SizedBox(
+      key: ValueKey<String>('profile-background-job-${job.key}-run-action'),
+      height: 36,
+      child: OutlinedButton(
+        key: ValueKey<String>('profile-background-job-${job.key}-run-now'),
+        onPressed: isBusy
+            ? null
+            : () {
+                context.read<BackgroundJobsCubit>().runNow(job.key);
+              },
+        child: isBusy
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+
+                  const SizedBox(width: AppSpacing.sm),
+
+                  Text(
+                    job.isRunning ? 'Running' : 'Starting',
+                    key: ValueKey<String>(
+                      'profile-background-job-${job.key}-run-state',
+                    ),
+                  ),
+                ],
+              )
+            : const Text('Run now'),
+      ),
+    );
+  }
+}
+
+class _ProfileBackgroundJobResultSummary extends StatelessWidget {
+  const _ProfileBackgroundJobResultSummary({
+    required this.jobKey,
+    required this.result,
+  });
+
+  final String jobKey;
+  final BackgroundJobResultSummary result;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool useFourColumns = constraints.maxWidth >= 720;
+
+        return GridView.count(
+          key: ValueKey<String>('profile-background-job-$jobKey-result-grid'),
+          crossAxisCount: useFourColumns ? 4 : 2,
+          crossAxisSpacing: AppSpacing.sm,
+          mainAxisSpacing: AppSpacing.sm,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: useFourColumns ? 1.4 : 1.45,
+          children: <Widget>[
+            _ProfileServerMetricCard(
+              cardKey: 'profile-background-job-$jobKey-checked',
+              icon: Icons.fact_check_outlined,
+              value: result.checked.toString(),
+              label: 'Checked',
+            ),
+            _ProfileServerMetricCard(
+              cardKey: 'profile-background-job-$jobKey-refreshed',
+              icon: Icons.refresh_rounded,
+              value: result.refreshed.toString(),
+              label: 'Refreshed',
+            ),
+            _ProfileServerMetricCard(
+              cardKey: 'profile-background-job-$jobKey-skipped',
+              icon: Icons.skip_next_outlined,
+              value: result.skipped.toString(),
+              label: 'Skipped',
+            ),
+            _ProfileServerMetricCard(
+              cardKey: 'profile-background-job-$jobKey-failed',
+              icon: Icons.error_outline_rounded,
+              value: result.failed.toString(),
+              label: 'Failed',
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ProfileBackgroundJobsLoading extends StatelessWidget {
+  const _ProfileBackgroundJobsLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey<String>('profile-background-jobs-loading'),
+      height: 180,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+    );
+  }
+}
+
 class _ProfileServerLoading extends StatelessWidget {
   const _ProfileServerLoading();
 
@@ -2260,4 +2727,52 @@ String _formatPercentage(double? value) {
       : value.toStringAsFixed(1);
 
   return '$formatted%';
+}
+
+String _backgroundJobStatusLabel(BackgroundJobStatus status) {
+  return switch (status) {
+    BackgroundJobStatus.idle => 'Idle',
+    BackgroundJobStatus.running => 'Running',
+    BackgroundJobStatus.success => 'Success',
+    BackgroundJobStatus.failed => 'Failed',
+  };
+}
+
+String _formatBackgroundJobDate(DateTime? value) {
+  if (value == null) {
+    return '—';
+  }
+
+  return _formatServerCheckedAt(value);
+}
+
+String _formatBackgroundJobDuration(int? milliseconds) {
+  if (milliseconds == null) {
+    return '—';
+  }
+
+  if (milliseconds < 1000) {
+    return '${milliseconds}ms';
+  }
+
+  final double seconds = milliseconds / 1000;
+
+  if (seconds < 60) {
+    final String formatted = seconds >= 10
+        ? seconds.toStringAsFixed(0)
+        : seconds.toStringAsFixed(1);
+
+    return '${formatted}s';
+  }
+
+  final Duration duration = Duration(milliseconds: milliseconds);
+
+  final int minutes = duration.inMinutes;
+  final int secondsRemaining = duration.inSeconds.remainder(60);
+
+  if (secondsRemaining == 0) {
+    return '${minutes}m';
+  }
+
+  return '${minutes}m ${secondsRemaining}s';
 }

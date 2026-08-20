@@ -278,3 +278,84 @@ def test_list_runs_respects_limit(
     )
 
     assert len(result) == 2
+
+def test_get_latest_run_returns_most_recent_execution(
+    db_session: Session,
+) -> None:
+    """Return only the most recent execution for a background job."""
+
+    repository = BackgroundJobRepository(
+        db_session,
+    )
+
+    job = BackgroundJob(
+        key="metadata_sync",
+        name="Metadata sync",
+        schedule="Every 8h",
+        status=BackgroundJobStatus.SUCCESS,
+    )
+
+    repository.add(job)
+    repository.commit()
+
+    now = datetime.now(UTC)
+
+    old_run = BackgroundJobRun(
+        job_id=job.id,
+        status=BackgroundJobStatus.SUCCESS,
+        started_at=now - timedelta(hours=8),
+        result={
+            "checked": 5,
+            "refreshed": 1,
+            "skipped": 4,
+            "failed": 0,
+        },
+    )
+
+    latest_run = BackgroundJobRun(
+        job_id=job.id,
+        status=BackgroundJobStatus.SUCCESS,
+        started_at=now,
+        result={
+            "checked": 10,
+            "refreshed": 4,
+            "skipped": 6,
+            "failed": 0,
+        },
+    )
+
+    repository.add_run(old_run)
+    repository.add_run(latest_run)
+    repository.commit()
+
+    result = repository.get_latest_run(
+        job_id=job.id,
+    )
+
+    assert result is not None
+    assert result.id == latest_run.id
+
+def test_get_latest_run_returns_none_without_executions(
+    db_session: Session,
+) -> None:
+    """Return None when a background job has never executed."""
+
+    repository = BackgroundJobRepository(
+        db_session,
+    )
+
+    job = BackgroundJob(
+        key="metadata_sync",
+        name="Metadata sync",
+        schedule="Every 8h",
+        status=BackgroundJobStatus.IDLE,
+    )
+
+    repository.add(job)
+    repository.commit()
+
+    result = repository.get_latest_run(
+        job_id=job.id,
+    )
+
+    assert result is None

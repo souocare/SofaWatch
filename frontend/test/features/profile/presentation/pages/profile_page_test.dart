@@ -33,6 +33,8 @@ import 'package:sofawatch/features/history/domain/models/history_preview.dart';
 import 'package:sofawatch/features/history/domain/repositories/history_repository.dart';
 import 'package:sofawatch/features/server/domain/models/server_health.dart';
 import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
+import 'package:sofawatch/features/server/domain/models/background_job.dart';
+import 'package:sofawatch/features/server/domain/models/background_job.dart';
 
 void main() {
   group('ProfilePage Statistics', () {
@@ -1348,6 +1350,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(serverRepository.healthCalls, 0);
+      expect(serverRepository.backgroundJobsCalls, 0);
+      expect(serverRepository.runBackgroundJobCalls, 0);
 
       expect(
         find.byKey(const ValueKey<String>('profile-server')),
@@ -1415,7 +1419,7 @@ void main() {
       WidgetTester tester,
     ) async {
       final _FakeServerRepository serverRepository = _FakeServerRepository(
-        error: const AppException.connection(),
+        healthError: const AppException.connection(),
       );
 
       await tester.pumpWidget(
@@ -1496,6 +1500,430 @@ void main() {
       expect(
         find.byKey(const ValueKey<String>('profile-server-health')),
         findsOneWidget,
+      );
+    });
+    testWidgets('shows Background Jobs for administrators', (
+      WidgetTester tester,
+    ) async {
+      final _FakeServerRepository serverRepository = _FakeServerRepository(
+        health: _serverHealth,
+        backgroundJobs: <BackgroundJob>[_metadataSyncJob],
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.backgroundJobsCalls, 1);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-background-jobs')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-background-jobs-title')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-background-jobs-content')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-background-job-metadata_sync'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-background-job-metadata_sync-name',
+                ),
+              ),
+            )
+            .data,
+        'Metadata sync',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-background-job-metadata_sync-schedule',
+                ),
+              ),
+            )
+            .data,
+        'Every 8h',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-background-job-metadata_sync-status-value',
+                ),
+              ),
+            )
+            .data,
+        'Success',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-background-job-metadata_sync-duration-value',
+                ),
+              ),
+            )
+            .data,
+        '11s',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-background-job-metadata_sync-checked-value',
+                ),
+              ),
+            )
+            .data,
+        '140',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-background-job-metadata_sync-refreshed-value',
+                ),
+              ),
+            )
+            .data,
+        '23',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-background-job-metadata_sync-skipped-value',
+                ),
+              ),
+            )
+            .data,
+        '117',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-background-job-metadata_sync-failed-value',
+                ),
+              ),
+            )
+            .data,
+        '0',
+      );
+    });
+    testWidgets('shows empty Background Jobs state', (
+      WidgetTester tester,
+    ) async {
+      final _FakeServerRepository serverRepository = _FakeServerRepository(
+        health: _serverHealth,
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.backgroundJobsCalls, 1);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-background-jobs-empty')),
+        findsOneWidget,
+      );
+
+      expect(find.text('No background jobs are registered.'), findsOneWidget);
+    });
+    testWidgets('retries only Background Jobs after failure', (
+      WidgetTester tester,
+    ) async {
+      final _RetryBackgroundJobsServerRepository serverRepository =
+          _RetryBackgroundJobsServerRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.healthCalls, 1);
+
+      expect(serverRepository.backgroundJobsCalls, 1);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-background-jobs-failure')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-health')),
+        findsOneWidget,
+      );
+
+      final Finder retryButton = find.byKey(
+        const ValueKey<String>('profile-background-jobs-failure-retry'),
+      );
+
+      await tester.ensureVisible(retryButton);
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(retryButton);
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.healthCalls, 1);
+
+      expect(serverRepository.backgroundJobsCalls, 2);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-background-jobs-failure')),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-background-job-metadata_sync'),
+        ),
+        findsOneWidget,
+      );
+    });
+    testWidgets('loads Background Jobs independently from Server health', (
+      WidgetTester tester,
+    ) async {
+      final _ControlledBackgroundJobsServerRepository serverRepository =
+          _ControlledBackgroundJobsServerRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pump();
+
+      expect(serverRepository.healthCalls, 1);
+
+      expect(serverRepository.backgroundJobsCalls, 1);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-health')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-background-jobs-loading')),
+        findsOneWidget,
+      );
+
+      serverRepository.complete(<BackgroundJob>[_metadataSyncJob]);
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-background-jobs-loading')),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-background-job-metadata_sync'),
+        ),
+        findsOneWidget,
+      );
+    });
+    testWidgets('runs Background Job now', (WidgetTester tester) async {
+      final _FakeServerRepository serverRepository = _FakeServerRepository(
+        health: _serverHealth,
+        backgroundJobs: <BackgroundJob>[_metadataSyncJob],
+        runBackgroundJobResult: _runningMetadataSyncJob,
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder runButton = find.byKey(
+        const ValueKey<String>('profile-background-job-metadata_sync-run-now'),
+      );
+
+      await tester.ensureVisible(runButton);
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(runButton);
+
+      await tester.pump();
+      await tester.pump();
+
+      expect(serverRepository.runBackgroundJobCalls, 1);
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-background-job-metadata_sync-status-value',
+                ),
+              ),
+            )
+            .data,
+        'Running',
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-background-job-metadata_sync-run-state',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-background-job-metadata_sync-run-state',
+                ),
+              ),
+            )
+            .data,
+        'Running',
+      );
+    });
+    testWidgets('shows isolated Background Job Run Now failure', (
+      WidgetTester tester,
+    ) async {
+      final _FakeServerRepository serverRepository = _FakeServerRepository(
+        health: _serverHealth,
+        backgroundJobs: <BackgroundJob>[_metadataSyncJob],
+        runBackgroundJobError: const AppException.connection(),
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder runButton = find.byKey(
+        const ValueKey<String>('profile-background-job-metadata_sync-run-now'),
+      );
+
+      await tester.ensureVisible(runButton);
+
+      await tester.tap(runButton);
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.runBackgroundJobCalls, 1);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-background-job-metadata_sync-run-failure',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-background-job-metadata_sync-run-failure-message',
+                ),
+              ),
+            )
+            .data,
+        'Could not connect to the server. Check the address and your network connection.',
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-background-job-metadata_sync'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-health')),
+        findsOneWidget,
+      );
+    });
+    testWidgets('disables Run Now while Background Job is running', (
+      WidgetTester tester,
+    ) async {
+      final _FakeServerRepository serverRepository = _FakeServerRepository(
+        health: _serverHealth,
+        backgroundJobs: <BackgroundJob>[_runningMetadataSyncJob],
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pump();
+      await tester.pump();
+
+      final OutlinedButton button = tester.widget<OutlinedButton>(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-background-job-metadata_sync-run-now',
+          ),
+        ),
+      );
+
+      expect(button.onPressed, isNull);
+
+      expect(serverRepository.runBackgroundJobCalls, 0);
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-background-job-metadata_sync-run-state',
+                ),
+              ),
+            )
+            .data,
+        'Running',
       );
     });
   });
@@ -1926,18 +2354,32 @@ class _FakeLibraryRepository implements LibraryRepository {
 }
 
 class _FakeServerRepository implements ServerRepository {
-  _FakeServerRepository({this.health, this.error});
+  _FakeServerRepository({
+    this.health,
+    this.healthError,
+    this.backgroundJobs = const <BackgroundJob>[],
+    this.backgroundJobsError,
+    this.runBackgroundJobResult,
+    this.runBackgroundJobError,
+  });
 
   final ServerHealth? health;
-  final AppException? error;
+  final AppException? healthError;
+
+  final List<BackgroundJob> backgroundJobs;
+  final AppException? backgroundJobsError;
+  final BackgroundJob? runBackgroundJobResult;
+  final AppException? runBackgroundJobError;
 
   int healthCalls = 0;
+  int backgroundJobsCalls = 0;
+  int runBackgroundJobCalls = 0;
 
   @override
   Future<ServerHealth> getHealth() async {
     healthCalls += 1;
 
-    final AppException? failure = error;
+    final AppException? failure = healthError;
 
     if (failure != null) {
       throw failure;
@@ -1945,10 +2387,44 @@ class _FakeServerRepository implements ServerRepository {
 
     return health ?? _serverHealth;
   }
+
+  @override
+  Future<List<BackgroundJob>> getBackgroundJobs() async {
+    backgroundJobsCalls += 1;
+
+    final AppException? failure = backgroundJobsError;
+
+    if (failure != null) {
+      throw failure;
+    }
+
+    return backgroundJobs;
+  }
+
+  @override
+  Future<BackgroundJob> runBackgroundJob(String jobKey) async {
+    runBackgroundJobCalls += 1;
+
+    final AppException? failure = runBackgroundJobError;
+
+    if (failure != null) {
+      throw failure;
+    }
+
+    final BackgroundJob? result = runBackgroundJobResult;
+
+    if (result == null) {
+      throw UnimplementedError();
+    }
+
+    return result;
+  }
 }
 
 final class _RetryServerRepository implements ServerRepository {
   int healthCalls = 0;
+  int backgroundJobsCalls = 0;
+  int runBackgroundJobCalls = 0;
 
   @override
   Future<ServerHealth> getHealth() async {
@@ -1959,6 +2435,20 @@ final class _RetryServerRepository implements ServerRepository {
     }
 
     return _serverHealth;
+  }
+
+  @override
+  Future<List<BackgroundJob>> getBackgroundJobs() async {
+    backgroundJobsCalls += 1;
+
+    return const <BackgroundJob>[];
+  }
+
+  @override
+  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+    runBackgroundJobCalls += 1;
+
+    throw UnimplementedError();
   }
 }
 
@@ -2094,6 +2584,76 @@ final class _RetryLibraryRepository implements LibraryRepository {
   }
 }
 
+final class _RetryBackgroundJobsServerRepository implements ServerRepository {
+  int healthCalls = 0;
+  int backgroundJobsCalls = 0;
+  int runBackgroundJobCalls = 0;
+
+  @override
+  Future<ServerHealth> getHealth() async {
+    healthCalls += 1;
+
+    return _serverHealth;
+  }
+
+  @override
+  Future<List<BackgroundJob>> getBackgroundJobs() async {
+    backgroundJobsCalls += 1;
+
+    if (backgroundJobsCalls == 1) {
+      throw const AppException.connection();
+    }
+
+    return <BackgroundJob>[_metadataSyncJob];
+  }
+
+  @override
+  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+    runBackgroundJobCalls += 1;
+
+    throw UnimplementedError();
+  }
+}
+
+final class _ControlledBackgroundJobsServerRepository
+    implements ServerRepository {
+  final Completer<List<BackgroundJob>> _result =
+      Completer<List<BackgroundJob>>();
+
+  int healthCalls = 0;
+  int backgroundJobsCalls = 0;
+  int runBackgroundJobCalls = 0;
+
+  void complete(List<BackgroundJob> jobs) {
+    if (_result.isCompleted) {
+      return;
+    }
+
+    _result.complete(jobs);
+  }
+
+  @override
+  Future<ServerHealth> getHealth() async {
+    healthCalls += 1;
+
+    return _serverHealth;
+  }
+
+  @override
+  Future<List<BackgroundJob>> getBackgroundJobs() {
+    backgroundJobsCalls += 1;
+
+    return _result.future;
+  }
+
+  @override
+  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+    runBackgroundJobCalls += 1;
+
+    throw UnimplementedError();
+  }
+}
+
 const ProfileUser _regularUser = ProfileUser(
   id: 'user-2',
   displayName: 'Regular User',
@@ -2155,4 +2715,37 @@ final ServerHealth _serverHealth = ServerHealth(
     configured: true,
     latencyMs: 212,
   ),
+);
+
+final BackgroundJob _metadataSyncJob = BackgroundJob(
+  id: 'job-1',
+  key: 'metadata_sync',
+  name: 'Metadata sync',
+  schedule: 'Every 8h',
+  status: BackgroundJobStatus.success,
+  lastStartedAt: DateTime.utc(2026, 8, 20, 12),
+  lastFinishedAt: DateTime.utc(2026, 8, 20, 12, 0, 11),
+  lastDurationMs: 11000,
+  lastError: null,
+  nextRunAt: DateTime.utc(2026, 8, 20, 20),
+  lastResult: const BackgroundJobResultSummary(
+    checked: 140,
+    refreshed: 23,
+    skipped: 117,
+    failed: 0,
+  ),
+);
+
+final BackgroundJob _runningMetadataSyncJob = BackgroundJob(
+  id: 'job-1',
+  key: 'metadata_sync',
+  name: 'Metadata sync',
+  schedule: 'Every 8h',
+  status: BackgroundJobStatus.running,
+  lastStartedAt: DateTime.utc(2026, 8, 20, 15),
+  lastFinishedAt: null,
+  lastDurationMs: null,
+  lastError: null,
+  nextRunAt: null,
+  lastResult: null,
 );

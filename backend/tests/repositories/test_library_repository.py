@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from datetime import UTC, datetime, timedelta
 
 from app.models.enums import LibraryStatus
 from app.models.library import LibraryEntry
@@ -795,10 +796,13 @@ def test_list_recent_shows_by_user_returns_latest_added_first(
         title="Breaking Bad",
     )
 
+    now = datetime.now(UTC)
+
     first_entry = LibraryEntry(
         user_id=user.id,
         show_id=first_show.id,
         status=LibraryStatus.WATCHING,
+        created_at=now - timedelta(minutes=1),
     )
 
     db_session.add(first_entry)
@@ -808,6 +812,7 @@ def test_list_recent_shows_by_user_returns_latest_added_first(
         user_id=user.id,
         show_id=second_show.id,
         status=LibraryStatus.PLANNING,
+        created_at=now,
     )
 
     db_session.add(second_entry)
@@ -944,6 +949,8 @@ def test_list_recent_movies_by_user_returns_latest_added_first(
         db_session,
     )
 
+    now = datetime.now(UTC)
+
     first_movie = create_movie(
         db_session,
         tmdb_id=438631,
@@ -961,6 +968,7 @@ def test_list_recent_movies_by_user_returns_latest_added_first(
             user_id=user.id,
             movie_id=first_movie.id,
             status=LibraryStatus.COMPLETED,
+            created_at=now - timedelta(minutes=1),
         )
     )
 
@@ -971,6 +979,7 @@ def test_list_recent_movies_by_user_returns_latest_added_first(
             user_id=user.id,
             movie_id=second_movie.id,
             status=LibraryStatus.PLANNING,
+            created_at=now,
         )
     )
 

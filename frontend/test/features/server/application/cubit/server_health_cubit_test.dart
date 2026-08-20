@@ -6,6 +6,7 @@ import 'package:sofawatch/features/server/application/cubit/server_health_cubit.
 import 'package:sofawatch/features/server/application/cubit/server_health_state.dart';
 import 'package:sofawatch/features/server/domain/models/server_health.dart';
 import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
+import 'package:sofawatch/features/server/domain/models/background_job.dart';
 
 void main() {
   group('ServerHealthCubit', () {
@@ -198,6 +199,16 @@ class _ServerRepository implements ServerRepository {
 
     return health ?? _health;
   }
+
+  @override
+  Future<List<BackgroundJob>> getBackgroundJobs() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+    throw UnimplementedError();
+  }
 }
 
 final class _UnexpectedServerRepository extends _ServerRepository {
@@ -228,6 +239,16 @@ final class _ControlledServerRepository implements ServerRepository {
 
     return _result.future;
   }
+
+  @override
+  Future<List<BackgroundJob>> getBackgroundJobs() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+    throw UnimplementedError();
+  }
 }
 
 final class _RetryServerRepository implements ServerRepository {
@@ -242,5 +263,15 @@ final class _RetryServerRepository implements ServerRepository {
     }
 
     return _health;
+  }
+
+  @override
+  Future<List<BackgroundJob>> getBackgroundJobs() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+    throw UnimplementedError();
   }
 }
