@@ -21,6 +21,19 @@ ServerDatabaseCheckStatus = Literal[
     "unavailable",
 ]
 
+ServerLogLevel = Literal[
+    "DEBUG",
+    "INFO",
+    "WARNING",
+    "ERROR",
+    "CRITICAL",
+]
+
+ServerLogComponent = Literal[
+    "api",
+    "worker",
+]
+
 
 class ServerDatabaseMigrationResponse(BaseModel):
     """Applied Alembic migration information."""
@@ -172,3 +185,33 @@ class ServerHealthResponse(BaseModel):
     environment: ServerEnvironmentResponse
     storage: ServerStorageResponse
     runtime: ServerRuntimeResponse
+
+
+class ServerLogEntryResponse(BaseModel):
+    """Safe structured Server log entry."""
+
+    timestamp: datetime
+    level: ServerLogLevel
+    logger: str
+    message: str
+    component: ServerLogComponent
+
+
+class ServerLogsResponse(BaseModel):
+    """Paginated administrative Server logs."""
+
+    items: list[ServerLogEntryResponse]
+
+    offset: int = Field(
+        ge=0,
+    )
+
+    limit: int = Field(
+        gt=0,
+    )
+
+    total: int = Field(
+        ge=0,
+    )
+
+    has_next: bool

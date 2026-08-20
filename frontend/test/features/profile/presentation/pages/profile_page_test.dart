@@ -9,6 +9,7 @@ import 'package:sofawatch/features/profile/application/cubit/profile_cubit.dart'
 import 'package:sofawatch/features/profile/domain/models/profile_user.dart';
 import 'package:sofawatch/features/profile/domain/repositories/profile_repository.dart';
 import 'package:sofawatch/features/profile/presentation/pages/profile_page.dart';
+import 'package:sofawatch/features/server/domain/models/server_logs.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
@@ -35,6 +36,7 @@ import 'package:sofawatch/features/server/domain/models/server_health.dart';
 import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
 import 'package:sofawatch/features/server/domain/models/background_job.dart';
 import 'package:sofawatch/features/server/domain/models/background_job.dart';
+import 'package:sofawatch/features/server/domain/models/server_logs.dart';
 
 void main() {
   group('ProfilePage Statistics', () {
@@ -1926,6 +1928,358 @@ void main() {
         'Running',
       );
     });
+    testWidgets('loads Server Logs for administrators', (
+      WidgetTester tester,
+    ) async {
+      final _FakeServerRepository serverRepository = _FakeServerRepository(
+        health: _serverHealth,
+        logsPage: _serverLogsPage,
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.logsCalls, 1);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-logs')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-logs-title')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-logs-filter')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-logs-list')),
+        findsOneWidget,
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey<String>('profile-server-log-0-logger')),
+            )
+            .data,
+        'app.jobs.executor',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('profile-server-log-0-message'),
+              ),
+            )
+            .data,
+        'Metadata sync failed.',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('profile-server-log-0-component'),
+              ),
+            )
+            .data,
+        'Worker',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey<String>('profile-server-logs-count')),
+            )
+            .data,
+        '2 of 2 logs',
+      );
+    });
+    testWidgets('filters Server Logs by level', (WidgetTester tester) async {
+      final _FakeServerRepository serverRepository = _FakeServerRepository(
+        health: _serverHealth,
+        logsPage: _serverLogsPage,
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder errorFilter = find.byKey(
+        const ValueKey<String>('profile-server-logs-filter-error'),
+      );
+
+      await tester.ensureVisible(errorFilter);
+
+      await tester.tap(errorFilter);
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.logsCalls, 2);
+
+      expect(serverRepository.logLevelRequests.last, ServerLogLevel.error);
+
+      expect(serverRepository.logOffsetRequests.last, 0);
+    });
+    testWidgets('refreshes Server Logs independently', (
+      WidgetTester tester,
+    ) async {
+      final _FakeServerRepository serverRepository = _FakeServerRepository(
+        health: _serverHealth,
+        logsPage: _serverLogsPage,
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.healthCalls, 1);
+
+      expect(serverRepository.backgroundJobsCalls, 1);
+
+      expect(serverRepository.logsCalls, 1);
+
+      final Finder refreshButton = find.byKey(
+        const ValueKey<String>('profile-server-logs-refresh'),
+      );
+
+      await tester.ensureVisible(refreshButton);
+
+      await tester.tap(refreshButton);
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.logsCalls, 2);
+
+      expect(serverRepository.healthCalls, 1);
+
+      expect(serverRepository.backgroundJobsCalls, 1);
+    });
+    testWidgets('shows Server Logs failure independently', (
+      WidgetTester tester,
+    ) async {
+      final _FakeServerRepository serverRepository = _FakeServerRepository(
+        health: _serverHealth,
+        logsError: const AppException.connection(),
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-logs-failure')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-health')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-background-jobs')),
+        findsOneWidget,
+      );
+    });
+    testWidgets('loads more Server Logs', (WidgetTester tester) async {
+      final _PaginatedLogsServerRepository serverRepository =
+          _PaginatedLogsServerRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.logsCalls, 1);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-logs-load-more')),
+        findsOneWidget,
+      );
+
+      final Finder loadMoreButton = find.byKey(
+        const ValueKey<String>('profile-server-logs-load-more'),
+      );
+
+      await tester.ensureVisible(loadMoreButton);
+
+      await tester.tap(loadMoreButton);
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.logsCalls, 2);
+
+      expect(serverRepository.offsetRequests, <int>[0, 2]);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-log-2')),
+        findsOneWidget,
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('profile-server-log-2-message'),
+              ),
+            )
+            .data,
+        'TMDB request retry.',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey<String>('profile-server-logs-count')),
+            )
+            .data,
+        '3 of 3 logs',
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-logs-load-more')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('preserves Server Logs after pagination failure', (
+      WidgetTester tester,
+    ) async {
+      final _PaginationFailureLogsServerRepository serverRepository =
+          _PaginationFailureLogsServerRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder loadMoreButton = find.byKey(
+        const ValueKey<String>('profile-server-logs-load-more'),
+      );
+
+      await tester.ensureVisible(loadMoreButton);
+
+      await tester.tap(loadMoreButton);
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.logsCalls, 2);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-server-logs-pagination-failure'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-log-0')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-log-1')),
+        findsOneWidget,
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-server-logs-pagination-failure-message',
+                ),
+              ),
+            )
+            .data,
+        'Could not connect to the server. Check the address and your network connection.',
+      );
+    });
+
+    testWidgets('retries failed Server Logs pagination', (
+      WidgetTester tester,
+    ) async {
+      final _RetryPaginationLogsServerRepository serverRepository =
+          _RetryPaginationLogsServerRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder loadMoreButton = find.byKey(
+        const ValueKey<String>('profile-server-logs-load-more'),
+      );
+
+      await tester.ensureVisible(loadMoreButton);
+
+      await tester.tap(loadMoreButton);
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.logsCalls, 2);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-server-logs-pagination-failure'),
+        ),
+        findsOneWidget,
+      );
+
+      final Finder retryButton = find.byKey(
+        const ValueKey<String>('profile-server-logs-pagination-failure-retry'),
+      );
+
+      await tester.ensureVisible(retryButton);
+
+      await tester.tap(retryButton);
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.logsCalls, 3);
+
+      expect(serverRepository.offsetRequests, <int>[0, 2, 2]);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-server-logs-pagination-failure'),
+        ),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-log-2')),
+        findsOneWidget,
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey<String>('profile-server-logs-count')),
+            )
+            .data,
+        '3 of 3 logs',
+      );
+    });
   });
 }
 
@@ -2037,6 +2391,30 @@ final HistoryMovieItem _historyMovieItem = HistoryMovieItem(
   movieId: 'movie-1',
   movieTmdbId: 438631,
   movieTitle: 'Dune',
+);
+
+final ServerLogEntry _serverLogError = ServerLogEntry(
+  timestamp: DateTime.utc(2026, 8, 20, 15, 30),
+  level: ServerLogLevel.error,
+  logger: 'app.jobs.executor',
+  message: 'Metadata sync failed.',
+  component: ServerLogComponent.worker,
+);
+
+final ServerLogEntry _serverLogInfo = ServerLogEntry(
+  timestamp: DateTime.utc(2026, 8, 20, 15),
+  level: ServerLogLevel.info,
+  logger: 'app.main',
+  message: 'SofaWatch API starting',
+  component: ServerLogComponent.api,
+);
+
+final ServerLogsPage _serverLogsPage = ServerLogsPage(
+  items: <ServerLogEntry>[_serverLogError, _serverLogInfo],
+  offset: 0,
+  limit: 50,
+  total: 2,
+  hasNext: false,
 );
 
 final HistoryPreview _historyPreview = HistoryPreview(
@@ -2361,7 +2739,9 @@ class _FakeServerRepository implements ServerRepository {
     this.backgroundJobsError,
     this.runBackgroundJobResult,
     this.runBackgroundJobError,
-  });
+    ServerLogsPage? logsPage,
+    this.logsError,
+  }) : logsPage = logsPage ?? _serverLogsPage;
 
   final ServerHealth? health;
   final AppException? healthError;
@@ -2370,6 +2750,14 @@ class _FakeServerRepository implements ServerRepository {
   final AppException? backgroundJobsError;
   final BackgroundJob? runBackgroundJobResult;
   final AppException? runBackgroundJobError;
+  final ServerLogsPage logsPage;
+  final AppException? logsError;
+
+  int logsCalls = 0;
+
+  final List<ServerLogLevel?> logLevelRequests = <ServerLogLevel?>[];
+
+  final List<int> logOffsetRequests = <int>[];
 
   int healthCalls = 0;
   int backgroundJobsCalls = 0;
@@ -2419,6 +2807,27 @@ class _FakeServerRepository implements ServerRepository {
 
     return result;
   }
+
+  @override
+  Future<ServerLogsPage> getLogs({
+    ServerLogLevel? level,
+    int offset = 0,
+    int limit = 50,
+  }) async {
+    logsCalls += 1;
+
+    logLevelRequests.add(level);
+
+    logOffsetRequests.add(offset);
+
+    final AppException? failure = logsError;
+
+    if (failure != null) {
+      throw failure;
+    }
+
+    return logsPage;
+  }
 }
 
 final class _RetryServerRepository implements ServerRepository {
@@ -2448,6 +2857,15 @@ final class _RetryServerRepository implements ServerRepository {
   Future<BackgroundJob> runBackgroundJob(String jobKey) {
     runBackgroundJobCalls += 1;
 
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<ServerLogsPage> getLogs({
+    ServerLogLevel? level,
+    int offset = 0,
+    int limit = 50,
+  }) {
     throw UnimplementedError();
   }
 }
@@ -2613,6 +3031,15 @@ final class _RetryBackgroundJobsServerRepository implements ServerRepository {
 
     throw UnimplementedError();
   }
+
+  @override
+  Future<ServerLogsPage> getLogs({
+    ServerLogLevel? level,
+    int offset = 0,
+    int limit = 50,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 final class _ControlledBackgroundJobsServerRepository
@@ -2651,6 +3078,133 @@ final class _ControlledBackgroundJobsServerRepository
     runBackgroundJobCalls += 1;
 
     throw UnimplementedError();
+  }
+
+  @override
+  Future<ServerLogsPage> getLogs({
+    ServerLogLevel? level,
+    int offset = 0,
+    int limit = 50,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
+final class _PaginatedLogsServerRepository implements ServerRepository {
+  int healthCalls = 0;
+  int backgroundJobsCalls = 0;
+  int logsCalls = 0;
+
+  final List<int> offsetRequests = <int>[];
+
+  @override
+  Future<ServerHealth> getHealth() async {
+    healthCalls += 1;
+
+    return _serverHealth;
+  }
+
+  @override
+  Future<List<BackgroundJob>> getBackgroundJobs() async {
+    backgroundJobsCalls += 1;
+
+    return const <BackgroundJob>[];
+  }
+
+  @override
+  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<ServerLogsPage> getLogs({
+    ServerLogLevel? level,
+    int offset = 0,
+    int limit = 50,
+  }) async {
+    logsCalls += 1;
+    offsetRequests.add(offset);
+
+    if (offset == 0) {
+      return _paginatedServerLogsFirstPage;
+    }
+
+    return _paginatedServerLogsSecondPage;
+  }
+}
+
+final class _PaginationFailureLogsServerRepository implements ServerRepository {
+  int logsCalls = 0;
+
+  @override
+  Future<ServerHealth> getHealth() async {
+    return _serverHealth;
+  }
+
+  @override
+  Future<List<BackgroundJob>> getBackgroundJobs() async {
+    return const <BackgroundJob>[];
+  }
+
+  @override
+  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<ServerLogsPage> getLogs({
+    ServerLogLevel? level,
+    int offset = 0,
+    int limit = 50,
+  }) async {
+    logsCalls += 1;
+
+    if (offset == 0) {
+      return _paginatedServerLogsFirstPage;
+    }
+
+    throw const AppException.connection();
+  }
+}
+
+final class _RetryPaginationLogsServerRepository implements ServerRepository {
+  int logsCalls = 0;
+
+  final List<int> offsetRequests = <int>[];
+
+  @override
+  Future<ServerHealth> getHealth() async {
+    return _serverHealth;
+  }
+
+  @override
+  Future<List<BackgroundJob>> getBackgroundJobs() async {
+    return const <BackgroundJob>[];
+  }
+
+  @override
+  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<ServerLogsPage> getLogs({
+    ServerLogLevel? level,
+    int offset = 0,
+    int limit = 50,
+  }) async {
+    logsCalls += 1;
+    offsetRequests.add(offset);
+
+    if (offset == 0) {
+      return _paginatedServerLogsFirstPage;
+    }
+
+    if (logsCalls == 2) {
+      throw const AppException.connection();
+    }
+
+    return _paginatedServerLogsSecondPage;
   }
 }
 
@@ -2748,4 +3302,28 @@ final BackgroundJob _runningMetadataSyncJob = BackgroundJob(
   lastError: null,
   nextRunAt: null,
   lastResult: null,
+);
+
+final ServerLogEntry _serverLogWarning = ServerLogEntry(
+  timestamp: DateTime.utc(2026, 8, 20, 14, 30),
+  level: ServerLogLevel.warning,
+  logger: 'app.providers.tmdb.client',
+  message: 'TMDB request retry.',
+  component: ServerLogComponent.api,
+);
+
+final ServerLogsPage _paginatedServerLogsFirstPage = ServerLogsPage(
+  items: <ServerLogEntry>[_serverLogError, _serverLogInfo],
+  offset: 0,
+  limit: 50,
+  total: 3,
+  hasNext: true,
+);
+
+final ServerLogsPage _paginatedServerLogsSecondPage = ServerLogsPage(
+  items: <ServerLogEntry>[_serverLogWarning],
+  offset: 2,
+  limit: 50,
+  total: 3,
+  hasNext: false,
 );

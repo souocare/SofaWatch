@@ -6,6 +6,7 @@ import 'package:sofawatch/features/server/application/cubit/background_jobs_cubi
 import 'package:sofawatch/features/server/application/cubit/background_jobs_state.dart';
 import 'package:sofawatch/features/server/domain/models/background_job.dart';
 import 'package:sofawatch/features/server/domain/models/server_health.dart';
+import 'package:sofawatch/features/server/domain/models/server_logs.dart';
 import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
 
 void main() {
@@ -265,6 +266,15 @@ class _BackgroundJobsRepository implements ServerRepository {
   }
 
   @override
+  Future<ServerLogsPage> getLogs({
+    ServerLogLevel? level,
+    int offset = 0,
+    int limit = 50,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<ServerHealth> getHealth() {
     throw UnimplementedError();
   }
@@ -293,6 +303,15 @@ final class _RetryBackgroundJobsRepository implements ServerRepository {
   Future<ServerHealth> getHealth() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<ServerLogsPage> getLogs({
+    ServerLogLevel? level,
+    int offset = 0,
+    int limit = 50,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 final class _PollingBackgroundJobsRepository implements ServerRepository {
@@ -318,6 +337,15 @@ final class _PollingBackgroundJobsRepository implements ServerRepository {
   Future<ServerHealth> getHealth() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<ServerLogsPage> getLogs({
+    ServerLogLevel? level,
+    int offset = 0,
+    int limit = 50,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 final class _PollingFailureRepository implements ServerRepository {
@@ -341,6 +369,15 @@ final class _PollingFailureRepository implements ServerRepository {
 
   @override
   Future<ServerHealth> getHealth() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<ServerLogsPage> getLogs({
+    ServerLogLevel? level,
+    int offset = 0,
+    int limit = 50,
+  }) {
     throw UnimplementedError();
   }
 }

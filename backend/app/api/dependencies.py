@@ -62,6 +62,7 @@ from app.services.statistics import StatisticsService
 from app.services.missed_recently import MissedRecentlyService
 from app.services.history import HistoryService
 from app.services.server_health import ServerHealthService
+from app.services.server_logs import ServerLogsService
 
 def get_genre_service(
     session: DatabaseSession,
@@ -805,4 +806,23 @@ def get_server_health_service(
 ServerHealthServiceDependency = Annotated[
     ServerHealthService,
     Depends(get_server_health_service),
+]
+
+
+def get_server_logs_service(
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
+) -> ServerLogsService:
+    """Provide administrative Server log operations."""
+
+    return ServerLogsService(
+        settings=settings,
+    )
+
+
+ServerLogsServiceDependency = Annotated[
+    ServerLogsService,
+    Depends(get_server_logs_service),
 ]

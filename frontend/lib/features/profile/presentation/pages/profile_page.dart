@@ -28,6 +28,9 @@ import 'package:sofawatch/features/server/domain/repositories/server_repository.
 import 'package:sofawatch/features/server/application/cubit/background_jobs_cubit.dart';
 import 'package:sofawatch/features/server/application/cubit/background_jobs_state.dart';
 import 'package:sofawatch/features/server/domain/models/background_job.dart';
+import 'package:sofawatch/features/server/application/cubit/server_logs_cubit.dart';
+import 'package:sofawatch/features/server/application/cubit/server_logs_state.dart';
+import 'package:sofawatch/features/server/domain/models/server_logs.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -1327,6 +1330,13 @@ class _ProfileServerGate extends StatelessWidget {
                     )..load();
                   },
                 ),
+                BlocProvider<ServerLogsCubit>(
+                  create: (BuildContext context) {
+                    return ServerLogsCubit(
+                      repository: context.read<ServerRepository>(),
+                    )..load();
+                  },
+                ),
               ],
               child: const _ProfileServerSection(),
             ),
@@ -1377,6 +1387,10 @@ class _ProfileServerSection extends StatelessWidget {
         const SizedBox(height: AppSpacing.section),
 
         const _ProfileBackgroundJobsSection(),
+
+        const SizedBox(height: AppSpacing.section),
+
+        const _ProfileServerLogsSection(),
       ],
     );
   }
@@ -2595,6 +2609,460 @@ class _ProfileServerLoading extends StatelessWidget {
   }
 }
 
+class _ProfileServerLogsSection extends StatelessWidget {
+  const _ProfileServerLogsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-server-logs'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            const Expanded(
+              child: _ProfileServerSubsectionTitle(
+                title: 'Logs',
+                titleKey: 'profile-server-logs-title',
+              ),
+            ),
+
+            BlocBuilder<ServerLogsCubit, ServerLogsState>(
+              buildWhen: (ServerLogsState previous, ServerLogsState current) {
+                return previous != current;
+              },
+              builder: (BuildContext context, ServerLogsState state) {
+                final bool isRefreshing = switch (state) {
+                  ServerLogsSuccess(:final isRefreshing) => isRefreshing,
+                  _ => false,
+                };
+
+                return IconButton(
+                  key: const ValueKey<String>('profile-server-logs-refresh'),
+                  tooltip: 'Refresh logs',
+                  onPressed: isRefreshing
+                      ? null
+                      : () {
+                          context.read<ServerLogsCubit>().refresh();
+                        },
+                  icon: isRefreshing
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh_rounded),
+                );
+              },
+            ),
+          ],
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        BlocBuilder<ServerLogsCubit, ServerLogsState>(
+          builder: (BuildContext context, ServerLogsState state) {
+            return switch (state) {
+              ServerLogsInitial() ||
+              ServerLogsLoading() => const _ProfileServerLogsLoading(),
+
+              ServerLogsSuccess() => _ProfileServerLogsContent(state: state),
+
+              ServerLogsFailure(:final error) => SectionFailureCard(
+                failureKey: 'profile-server-logs-failure',
+                error: error,
+                onRetry: context.read<ServerLogsCubit>().retry,
+              ),
+            };
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileServerLogsContent extends StatelessWidget {
+  const _ProfileServerLogsContent({required this.state});
+
+  final ServerLogsSuccess state;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-server-logs-content'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        _ProfileServerLogsFilter(selectedLevel: state.level),
+
+        const SizedBox(height: AppSpacing.md),
+
+        if (state.refreshError case final AppException error) ...<Widget>[
+          _ProfileServerLogsInlineFailure(
+            failureKey: 'profile-server-logs-refresh-failure',
+            error: error,
+            onRetry: context.read<ServerLogsCubit>().refresh,
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+        ],
+
+        if (state.page.items.isEmpty)
+          const _ProfileServerLogsEmpty()
+        else
+          _ProfileServerLogsList(logs: state.page.items),
+
+        if (state.page.items.isNotEmpty) ...<Widget>[
+          const SizedBox(height: AppSpacing.md),
+
+          _ProfileServerLogsFooter(state: state),
+        ],
+      ],
+    );
+  }
+}
+
+class _ProfileServerLogsFilter extends StatelessWidget {
+  const _ProfileServerLogsFilter({required this.selectedLevel});
+
+  final ServerLogLevel? selectedLevel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      key: const ValueKey<String>('profile-server-logs-filter'),
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
+      children: <Widget>[
+        _ProfileServerLogFilterChip(
+          filterKey: 'all',
+          label: 'All',
+          selected: selectedLevel == null,
+          onSelected: () {
+            context.read<ServerLogsCubit>().setLevel(null);
+          },
+        ),
+        for (final ServerLogLevel level in ServerLogLevel.values)
+          _ProfileServerLogFilterChip(
+            filterKey: level.name,
+            label: _serverLogLevelLabel(level),
+            selected: selectedLevel == level,
+            onSelected: () {
+              context.read<ServerLogsCubit>().setLevel(level);
+            },
+          ),
+      ],
+    );
+  }
+}
+
+class _ProfileServerLogFilterChip extends StatelessWidget {
+  const _ProfileServerLogFilterChip({
+    required this.filterKey,
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String filterKey;
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilterChip(
+      key: ValueKey<String>('profile-server-logs-filter-$filterKey'),
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) {
+        onSelected();
+      },
+    );
+  }
+}
+
+class _ProfileServerLogsList extends StatelessWidget {
+  const _ProfileServerLogsList({required this.logs});
+
+  final List<ServerLogEntry> logs;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-server-logs-list'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        for (int index = 0; index < logs.length; index++) ...<Widget>[
+          if (index > 0) const SizedBox(height: AppSpacing.sm),
+
+          _ProfileServerLogEntryCard(entry: logs[index], index: index),
+        ],
+      ],
+    );
+  }
+}
+
+class _ProfileServerLogEntryCard extends StatelessWidget {
+  const _ProfileServerLogEntryCard({required this.entry, required this.index});
+
+  final ServerLogEntry entry;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: ValueKey<String>('profile-server-log-$index'),
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              _ProfileServerLogLevelBadge(level: entry.level),
+
+              const SizedBox(width: AppSpacing.sm),
+
+              Expanded(
+                child: Text(
+                  entry.logger,
+                  key: ValueKey<String>('profile-server-log-$index-logger'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: AppSpacing.md),
+
+              Text(
+                _formatServerLogDate(entry.timestamp),
+                key: ValueKey<String>('profile-server-log-$index-timestamp'),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: AppSpacing.sm),
+
+          Text(
+            entry.message,
+            key: ValueKey<String>('profile-server-log-$index-message'),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+
+          const SizedBox(height: AppSpacing.sm),
+
+          Text(
+            _serverLogComponentLabel(entry.component),
+            key: ValueKey<String>('profile-server-log-$index-component'),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileServerLogLevelBadge extends StatelessWidget {
+  const _ProfileServerLogLevelBadge({required this.level});
+
+  final ServerLogLevel level;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: ValueKey<String>('profile-server-log-level-${level.name}'),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.borderMedium,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Text(
+        _serverLogLevelLabel(level),
+        style: Theme.of(
+          context,
+        ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+}
+
+class _ProfileServerLogsEmpty extends StatelessWidget {
+  const _ProfileServerLogsEmpty();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey<String>('profile-server-logs-empty'),
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Text(
+        'No logs match the selected filter.',
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+      ),
+    );
+  }
+}
+
+class _ProfileServerLogsFooter extends StatelessWidget {
+  const _ProfileServerLogsFooter({required this.state});
+
+  final ServerLogsSuccess state;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                '${state.page.items.length} of ${state.page.total} logs',
+                key: const ValueKey<String>('profile-server-logs-count'),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              ),
+            ),
+
+            if (state.page.hasNext)
+              OutlinedButton(
+                key: const ValueKey<String>('profile-server-logs-load-more'),
+                onPressed: state.isLoadingMore
+                    ? null
+                    : () {
+                        context.read<ServerLogsCubit>().loadMore();
+                      },
+                child: state.isLoadingMore
+                    ? const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+
+                          SizedBox(width: AppSpacing.sm),
+
+                          Text('Loading'),
+                        ],
+                      )
+                    : const Text('Load more'),
+              ),
+          ],
+        ),
+
+        if (state.paginationError case final AppException error) ...<Widget>[
+          const SizedBox(height: AppSpacing.md),
+
+          _ProfileServerLogsInlineFailure(
+            failureKey: 'profile-server-logs-pagination-failure',
+            error: error,
+            onRetry: context.read<ServerLogsCubit>().retryPagination,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ProfileServerLogsInlineFailure extends StatelessWidget {
+  const _ProfileServerLogsInlineFailure({
+    required this.failureKey,
+    required this.error,
+    required this.onRetry,
+  });
+
+  final String failureKey;
+  final AppException error;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: ValueKey<String>(failureKey),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderMedium,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Row(
+        children: <Widget>[
+          const Icon(
+            Icons.error_outline_rounded,
+            size: 18,
+            color: AppColors.textSecondary,
+          ),
+
+          const SizedBox(width: AppSpacing.sm),
+
+          Expanded(
+            child: Text(
+              AppErrorMessageMapper.map(error),
+              key: ValueKey<String>('$failureKey-message'),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            ),
+          ),
+
+          const SizedBox(width: AppSpacing.sm),
+
+          TextButton(
+            key: ValueKey<String>('$failureKey-retry'),
+            onPressed: () {
+              onRetry();
+            },
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileServerLogsLoading extends StatelessWidget {
+  const _ProfileServerLogsLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey<String>('profile-server-logs-loading'),
+      height: 180,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+    );
+  }
+}
+
 String _serverHealthStatusLabel(ServerHealthStatus status) {
   return switch (status) {
     ServerHealthStatus.healthy => 'Healthy',
@@ -2775,4 +3243,37 @@ String _formatBackgroundJobDuration(int? milliseconds) {
   }
 
   return '${minutes}m ${secondsRemaining}s';
+}
+
+String _serverLogLevelLabel(ServerLogLevel level) {
+  return switch (level) {
+    ServerLogLevel.debug => 'Debug',
+    ServerLogLevel.info => 'Info',
+    ServerLogLevel.warning => 'Warning',
+    ServerLogLevel.error => 'Error',
+    ServerLogLevel.critical => 'Critical',
+  };
+}
+
+String _serverLogComponentLabel(ServerLogComponent component) {
+  return switch (component) {
+    ServerLogComponent.api => 'API',
+    ServerLogComponent.worker => 'Worker',
+  };
+}
+
+String _formatServerLogDate(DateTime value) {
+  final DateTime local = value.toLocal();
+
+  final String day = local.day.toString().padLeft(2, '0');
+
+  final String month = local.month.toString().padLeft(2, '0');
+
+  final String hour = local.hour.toString().padLeft(2, '0');
+
+  final String minute = local.minute.toString().padLeft(2, '0');
+
+  final String second = local.second.toString().padLeft(2, '0');
+
+  return '$day/$month · $hour:$minute:$second';
 }

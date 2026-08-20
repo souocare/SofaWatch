@@ -6,6 +6,8 @@ import 'package:sofawatch/features/server/domain/models/server_health.dart';
 import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
 import 'package:sofawatch/features/server/data/models/background_job_dto.dart';
 import 'package:sofawatch/features/server/domain/models/background_job.dart';
+import 'package:sofawatch/features/server/data/models/server_logs_dto.dart';
+import 'package:sofawatch/features/server/domain/models/server_logs.dart';
 
 final class ApiServerRepository implements ServerRepository {
   const ApiServerRepository(this._apiClient);
@@ -103,4 +105,64 @@ final class ApiServerRepository implements ServerRepository {
       throw AppException.invalidData(originalError: error);
     }
   }
+
+  @override
+  Future<ServerLogsPage> getLogs({
+    ServerLogLevel? level,
+    int offset = 0,
+    int limit = 50,
+  }) async {
+    try {
+      if (offset < 0) {
+        throw const FormatException(
+          'The Server Logs offset cannot be negative.',
+        );
+      }
+
+      if (limit <= 0 || limit > 200) {
+        throw const FormatException('The Server Logs limit is invalid.');
+      }
+
+      final Map<String, dynamic> queryParameters = <String, dynamic>{
+        'offset': offset,
+        'limit': limit,
+      };
+
+      if (level != null) {
+        queryParameters['level'] = _serverLogLevelApiValue(level);
+      }
+
+      final Response<Map<String, dynamic>> response = await _apiClient
+          .get<Map<String, dynamic>>(
+            '/server/logs',
+            queryParameters: queryParameters,
+          );
+
+      final Map<String, dynamic>? data = response.data;
+
+      if (data == null) {
+        throw const FormatException(
+          'The Server Logs response body is missing.',
+        );
+      }
+
+      return ServerLogsPageDto.fromJson(data).toDomain();
+    } on AppException {
+      rethrow;
+    } on FormatException catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } on TypeError catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+}
+
+String _serverLogLevelApiValue(ServerLogLevel level) {
+  return switch (level) {
+    ServerLogLevel.debug => 'DEBUG',
+    ServerLogLevel.info => 'INFO',
+    ServerLogLevel.warning => 'WARNING',
+    ServerLogLevel.error => 'ERROR',
+    ServerLogLevel.critical => 'CRITICAL',
+  };
 }

@@ -5,7 +5,9 @@ from app.jobs.scheduler import BackgroundJobScheduler
 def main() -> None:
     """Run the SofaWatch background job worker."""
 
-    configure_logging()
+    configure_logging(
+        component="worker",
+    )
 
     scheduler = BackgroundJobScheduler()
 

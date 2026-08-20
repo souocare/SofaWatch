@@ -26,7 +26,9 @@ from app.api.error_handlers import (
 )
 from app.core.exceptions import APIError
 
-configure_logging()
+configure_logging(
+    component="api",
+)
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
