@@ -42,24 +42,87 @@ final class ServerHealthDto {
 final class ServerDatabaseHealthDto {
   const ServerDatabaseHealthDto({
     required this.status,
+    required this.engine,
+    required this.integrityCheck,
+    required this.foreignKeyCheck,
+    required this.migration,
     required this.latencyMs,
+    required this.sizeBytes,
+    required this.walSizeBytes,
   });
 
   factory ServerDatabaseHealthDto.fromJson(Map<String, dynamic> json) {
     return ServerDatabaseHealthDto(
       status: _parseComponentStatus(_requiredString(json, 'status')),
+      engine: _requiredString(json, 'engine'),
       latencyMs: _optionalNonNegativeDouble(
         json['latency_ms'],
         fieldName: 'latency_ms',
+      ),
+      sizeBytes: _optionalNonNegativeInt(
+        json['size_bytes'],
+        fieldName: 'size_bytes',
+      ),
+      walSizeBytes: _optionalNonNegativeInt(
+        json['wal_size_bytes'],
+        fieldName: 'wal_size_bytes',
+      ),
+      integrityCheck: _parseDatabaseCheckStatus(
+        _requiredString(json, 'integrity_check'),
+      ),
+      foreignKeyCheck: _parseDatabaseCheckStatus(
+        _requiredString(json, 'foreign_key_check'),
+      ),
+      migration: ServerDatabaseMigrationDto.fromJson(
+        _requiredMap(json, 'migration'),
       ),
     );
   }
 
   final ServerComponentStatus status;
+  final String engine;
+
   final double? latencyMs;
+  final int? sizeBytes;
+  final int? walSizeBytes;
+
+  final ServerDatabaseCheckStatus integrityCheck;
+  final ServerDatabaseCheckStatus foreignKeyCheck;
+
+  final ServerDatabaseMigrationDto migration;
 
   ServerDatabaseHealth toDomain() {
-    return ServerDatabaseHealth(status: status, latencyMs: latencyMs);
+    return ServerDatabaseHealth(
+      status: status,
+      engine: engine,
+      latencyMs: latencyMs,
+      sizeBytes: sizeBytes,
+      walSizeBytes: walSizeBytes,
+      integrityCheck: integrityCheck,
+      foreignKeyCheck: foreignKeyCheck,
+      migration: migration.toDomain(),
+    );
+  }
+}
+
+final class ServerDatabaseMigrationDto {
+  const ServerDatabaseMigrationDto({
+    required this.revision,
+    required this.message,
+  });
+
+  factory ServerDatabaseMigrationDto.fromJson(Map<String, dynamic> json) {
+    return ServerDatabaseMigrationDto(
+      revision: _optionalString(json['revision'], fieldName: 'revision'),
+      message: _optionalString(json['message'], fieldName: 'message'),
+    );
+  }
+
+  final String? revision;
+  final String? message;
+
+  ServerDatabaseMigration toDomain() {
+    return ServerDatabaseMigration(revision: revision, message: message);
   }
 }
 
@@ -172,5 +235,40 @@ ServerComponentStatus _parseComponentStatus(String value) {
     'healthy' => ServerComponentStatus.healthy,
     'unavailable' => ServerComponentStatus.unavailable,
     _ => throw FormatException('Invalid Server component status: $value.'),
+  };
+}
+
+int? _optionalNonNegativeInt(Object? value, {required String fieldName}) {
+  if (value == null) {
+    return null;
+  }
+
+  if (value is! int || value < 0) {
+    throw FormatException('Invalid $fieldName.');
+  }
+
+  return value;
+}
+
+String? _optionalString(Object? value, {required String fieldName}) {
+  if (value == null) {
+    return null;
+  }
+
+  if (value is! String) {
+    throw FormatException('Invalid $fieldName.');
+  }
+
+  final String trimmed = value.trim();
+
+  return trimmed.isEmpty ? null : trimmed;
+}
+
+ServerDatabaseCheckStatus _parseDatabaseCheckStatus(String value) {
+  return switch (value) {
+    'ok' => ServerDatabaseCheckStatus.ok,
+    'failed' => ServerDatabaseCheckStatus.failed,
+    'unavailable' => ServerDatabaseCheckStatus.unavailable,
+    _ => throw FormatException('Invalid Server database check status: $value.'),
   };
 }

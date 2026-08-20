@@ -1,10 +1,11 @@
 from datetime import UTC, datetime
 from time import perf_counter
-
+from pathlib import Path
 from sqlalchemy import text
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
-from app.core.config import Settings
+from app.core.config import BACKEND_DIR, Settings
 from app.providers.tmdb.client import TMDBClient
 from app.providers.tmdb.exceptions import (
     TMDBConfigurationError,
@@ -12,10 +13,16 @@ from app.providers.tmdb.exceptions import (
     TMDBResponseError,
 )
 from app.schemas.server import (
+    ServerDatabaseCheckStatus,
     ServerDatabaseHealthResponse,
     ServerHealthResponse,
     ServerTMDBHealthResponse,
+    ServerDatabaseMigrationResponse,
 )
+from alembic.config import Config
+from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
+
 
 
 class ServerHealthService:
@@ -44,6 +51,8 @@ class ServerHealthService:
             "healthy"
             if (
                 database.status == "healthy"
+                and database.integrity_check == "ok"
+                and database.foreign_key_check == "ok"
                 and tmdb.status == "healthy"
             )
             else "degraded"
@@ -70,6 +79,10 @@ class ServerHealthService:
     def _check_database(
         self,
     ) -> ServerDatabaseHealthResponse:
+        engine = self._database_engine()
+        size_bytes, wal_size_bytes = self._database_file_sizes()
+        migration = self._database_migration()
+
         started = perf_counter()
 
         try:
@@ -80,13 +93,95 @@ class ServerHealthService:
         except Exception:
             return ServerDatabaseHealthResponse(
                 status="unavailable",
+                engine=engine,
                 latency_ms=None,
+                size_bytes=size_bytes,
+                wal_size_bytes=wal_size_bytes,
+                integrity_check="unavailable",
+                foreign_key_check="unavailable",
+                migration=migration,
             )
+
+        latency_ms = self._elapsed_milliseconds(started)
 
         return ServerDatabaseHealthResponse(
             status="healthy",
-            latency_ms=self._elapsed_milliseconds(started),
+            engine=engine,
+            latency_ms=latency_ms,
+            size_bytes=size_bytes,
+            wal_size_bytes=wal_size_bytes,
+            integrity_check=self._check_database_integrity(),
+            foreign_key_check=self._check_database_foreign_keys(),
+            migration=migration,
         )
+
+    def _database_engine(self) -> str:
+        return make_url(
+            self._settings.database_url,
+        ).get_backend_name()
+
+    def _database_file_sizes(
+        self,
+    ) -> tuple[int | None, int | None]:
+        database_url = make_url(
+            self._settings.database_url,
+        )
+
+        if database_url.get_backend_name() != "sqlite":
+            return None, None
+
+        database = database_url.database
+
+        if database is None or database == ":memory:":
+            return None, None
+
+        database_path = Path(database)
+
+        try:
+            size_bytes = (
+                database_path.stat().st_size
+                if database_path.is_file()
+                else None
+            )
+
+            wal_path = Path(f"{database_path}-wal")
+
+            wal_size_bytes = (
+                wal_path.stat().st_size
+                if wal_path.is_file()
+                else 0
+            )
+        except OSError:
+            return None, None
+
+        return size_bytes, wal_size_bytes
+
+
+    def _check_database_integrity(
+        self,
+    ) -> ServerDatabaseCheckStatus:
+        try:
+            result = self._session.execute(
+                text("PRAGMA integrity_check"),
+            ).scalar_one()
+
+        except Exception:
+            return "unavailable"
+
+        return "ok" if result == "ok" else "failed"
+
+    def _check_database_foreign_keys(
+        self,
+    ) -> ServerDatabaseCheckStatus:
+        try:
+            violation = self._session.execute(
+                text("PRAGMA foreign_key_check"),
+            ).first()
+
+        except Exception:
+            return "unavailable"
+
+        return "ok" if violation is None else "failed"
 
     def _check_tmdb(
         self,
@@ -122,6 +217,41 @@ class ServerHealthService:
             configured=True,
             latency_ms=self._elapsed_milliseconds(started),
         )
+
+    def _database_migration(
+        self,
+    ) -> ServerDatabaseMigrationResponse:
+        try:
+            connection = self._session.connection()
+
+            migration_context = MigrationContext.configure(
+                connection,
+            )
+
+            revision = migration_context.get_current_revision()
+
+            if revision is None:
+                return ServerDatabaseMigrationResponse()
+
+            alembic_config = Config(
+                str(BACKEND_DIR / "alembic.ini"),
+            )
+
+            script_directory = ScriptDirectory.from_config(
+                alembic_config,
+            )
+
+            script = script_directory.get_revision(
+                revision,
+            )
+
+            return ServerDatabaseMigrationResponse(
+                revision=revision,
+                message=script.doc,
+            )
+
+        except Exception:
+            return ServerDatabaseMigrationResponse()
 
     def _tmdb_client(
         self,

@@ -1074,6 +1074,116 @@ void main() {
             .data,
         '212 ms',
       );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-database-title')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-server-database-status')),
+        findsOneWidget,
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('profile-server-database-engine-value'),
+              ),
+            )
+            .data,
+        'SQLite',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('profile-server-database-size-value'),
+              ),
+            )
+            .data,
+        '1.0 MB',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-server-database-wal-size-value',
+                ),
+              ),
+            )
+            .data,
+        '8.0 KB',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-server-database-connectivity-value',
+                ),
+              ),
+            )
+            .data,
+        'Healthy',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-server-database-integrity-value',
+                ),
+              ),
+            )
+            .data,
+        'OK',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-server-database-foreign-keys-value',
+                ),
+              ),
+            )
+            .data,
+        'OK',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-server-database-migration-revision',
+                ),
+              ),
+            )
+            .data,
+        'bb784a0a2cdc',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>(
+                  'profile-server-database-migration-message',
+                ),
+              ),
+            )
+            .data,
+        'add admin flag to users',
+      );
     });
     testWidgets('does not load Server health for non-administrators', (
       WidgetTester tester,
@@ -1849,7 +1959,16 @@ final ServerHealth _serverHealth = ServerHealth(
   uptimeSeconds: 3600,
   database: const ServerDatabaseHealth(
     status: ServerComponentStatus.healthy,
+    engine: 'sqlite',
     latencyMs: 3.5,
+    sizeBytes: 1_048_576,
+    walSizeBytes: 8_192,
+    integrityCheck: ServerDatabaseCheckStatus.ok,
+    foreignKeyCheck: ServerDatabaseCheckStatus.ok,
+    migration: ServerDatabaseMigration(
+      revision: 'bb784a0a2cdc',
+      message: 'add admin flag to users',
+    ),
   ),
   tmdb: const ServerTmdbHealth(
     status: ServerComponentStatus.healthy,

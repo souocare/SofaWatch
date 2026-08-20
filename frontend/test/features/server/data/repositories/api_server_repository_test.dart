@@ -26,7 +26,16 @@ void main() {
                       'uptime_seconds': 86400,
                       'database': <String, dynamic>{
                         'status': 'healthy',
+                        'engine': 'sqlite',
                         'latency_ms': 1.42,
+                        'size_bytes': 1048576,
+                        'wal_size_bytes': 8192,
+                        'integrity_check': 'ok',
+                        'foreign_key_check': 'ok',
+                        'migration': <String, dynamic>{
+                          'revision': 'bb784a0a2cdc',
+                          'message': 'add admin flag to users',
+                        },
                       },
                       'tmdb': <String, dynamic>{
                         'status': 'healthy',
@@ -63,6 +72,14 @@ void main() {
       expect(health.tmdb.latencyMs, 212.5);
 
       expect(health.isHealthy, isTrue);
+
+      expect(health.database.engine, 'sqlite');
+      expect(health.database.sizeBytes, 1048576);
+      expect(health.database.walSizeBytes, 8192);
+      expect(health.database.integrityCheck, ServerDatabaseCheckStatus.ok);
+      expect(health.database.foreignKeyCheck, ServerDatabaseCheckStatus.ok);
+      expect(health.database.migration.revision, 'bb784a0a2cdc');
+      expect(health.database.migration.message, 'add admin flag to users');
     });
 
     test('loads degraded Server health', () async {
@@ -82,7 +99,16 @@ void main() {
                       'uptime_seconds': 120,
                       'database': <String, dynamic>{
                         'status': 'healthy',
+                        'engine': 'sqlite',
                         'latency_ms': 0.8,
+                        'size_bytes': null,
+                        'wal_size_bytes': null,
+                        'integrity_check': 'ok',
+                        'foreign_key_check': 'ok',
+                        'migration': <String, dynamic>{
+                          'revision': null,
+                          'message': null,
+                        },
                       },
                       'tmdb': <String, dynamic>{
                         'status': 'unavailable',
@@ -132,7 +158,16 @@ void main() {
                       'uptime_seconds': 30,
                       'database': <String, dynamic>{
                         'status': 'healthy',
+                        'engine': 'sqlite',
                         'latency_ms': 1,
+                        'size_bytes': null,
+                        'wal_size_bytes': null,
+                        'integrity_check': 'ok',
+                        'foreign_key_check': 'ok',
+                        'migration': <String, dynamic>{
+                          'revision': null,
+                          'message': null,
+                        },
                       },
                       'tmdb': <String, dynamic>{
                         'status': 'unavailable',
@@ -208,7 +243,16 @@ void main() {
                       'uptime_seconds': 30,
                       'database': <String, dynamic>{
                         'status': 'healthy',
+                        'engine': 'sqlite',
                         'latency_ms': 1,
+                        'size_bytes': null,
+                        'wal_size_bytes': null,
+                        'integrity_check': 'ok',
+                        'foreign_key_check': 'ok',
+                        'migration': <String, dynamic>{
+                          'revision': null,
+                          'message': null,
+                        },
                       },
                       'tmdb': <String, dynamic>{
                         'status': 'healthy',
@@ -255,7 +299,124 @@ void main() {
                       'uptime_seconds': 30,
                       'database': <String, dynamic>{
                         'status': 'healthy',
+                        'engine': 'sqlite',
                         'latency_ms': -1,
+                        'size_bytes': null,
+                        'wal_size_bytes': null,
+                        'integrity_check': 'ok',
+                        'foreign_key_check': 'ok',
+                        'migration': <String, dynamic>{
+                          'revision': null,
+                          'message': null,
+                        },
+                      },
+                      'tmdb': <String, dynamic>{
+                        'status': 'healthy',
+                        'configured': true,
+                        'latency_ms': 200,
+                      },
+                    },
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiServerRepository repository = ApiServerRepository(
+        ApiClient(baseUrl: Uri.parse('https://server.example.com'), dio: dio),
+      );
+
+      expect(
+        repository.getHealth(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
+    test('loads failed Database checks', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: const <String, dynamic>{
+                      'status': 'degraded',
+                      'checked_at': '2026-08-20T15:30:00Z',
+                      'uptime_seconds': 30,
+                      'database': <String, dynamic>{
+                        'status': 'healthy',
+                        'engine': 'sqlite',
+                        'latency_ms': 1,
+                        'size_bytes': 1024,
+                        'wal_size_bytes': 0,
+                        'integrity_check': 'failed',
+                        'foreign_key_check': 'unavailable',
+                        'migration': <String, dynamic>{
+                          'revision': null,
+                          'message': null,
+                        },
+                      },
+                      'tmdb': <String, dynamic>{
+                        'status': 'healthy',
+                        'configured': true,
+                        'latency_ms': 200,
+                      },
+                    },
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiServerRepository repository = ApiServerRepository(
+        ApiClient(baseUrl: Uri.parse('https://server.example.com'), dio: dio),
+      );
+
+      final ServerHealth health = await repository.getHealth();
+
+      expect(health.database.integrityCheck, ServerDatabaseCheckStatus.failed);
+
+      expect(
+        health.database.foreignKeyCheck,
+        ServerDatabaseCheckStatus.unavailable,
+      );
+    });
+    test('maps invalid Database check status to invalid data', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: const <String, dynamic>{
+                      'status': 'healthy',
+                      'checked_at': '2026-08-20T15:30:00Z',
+                      'uptime_seconds': 30,
+                      'database': <String, dynamic>{
+                        'status': 'healthy',
+                        'engine': 'sqlite',
+                        'latency_ms': 1,
+                        'size_bytes': null,
+                        'wal_size_bytes': null,
+                        'integrity_check': 'broken',
+                        'foreign_key_check': 'ok',
+                        'migration': <String, dynamic>{
+                          'revision': null,
+                          'message': null,
+                        },
                       },
                       'tmdb': <String, dynamic>{
                         'status': 'healthy',

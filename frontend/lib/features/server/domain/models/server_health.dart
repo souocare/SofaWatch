@@ -4,18 +4,47 @@ enum ServerHealthStatus { healthy, degraded, unavailable }
 
 enum ServerComponentStatus { healthy, unavailable }
 
+enum ServerDatabaseCheckStatus { ok, failed, unavailable }
+
 final class ServerDatabaseHealth extends Equatable {
-  const ServerDatabaseHealth({required this.status, this.latencyMs});
+  const ServerDatabaseHealth({
+    required this.status,
+    required this.engine,
+    required this.integrityCheck,
+    required this.foreignKeyCheck,
+    required this.migration,
+    this.latencyMs,
+    this.sizeBytes,
+    this.walSizeBytes,
+  });
 
   final ServerComponentStatus status;
+  final String engine;
+
   final double? latencyMs;
+  final int? sizeBytes;
+  final int? walSizeBytes;
+
+  final ServerDatabaseCheckStatus integrityCheck;
+  final ServerDatabaseCheckStatus foreignKeyCheck;
+
+  final ServerDatabaseMigration migration;
 
   bool get isHealthy {
     return status == ServerComponentStatus.healthy;
   }
 
   @override
-  List<Object?> get props => <Object?>[status, latencyMs];
+  List<Object?> get props => <Object?>[
+    status,
+    engine,
+    latencyMs,
+    sizeBytes,
+    walSizeBytes,
+    integrityCheck,
+    foreignKeyCheck,
+    migration,
+  ];
 }
 
 final class ServerTmdbHealth extends Equatable {
@@ -67,4 +96,17 @@ final class ServerHealth extends Equatable {
     database,
     tmdb,
   ];
+}
+
+final class ServerDatabaseMigration extends Equatable {
+  const ServerDatabaseMigration({
+    required this.revision,
+    required this.message,
+  });
+
+  final String? revision;
+  final String? message;
+
+  @override
+  List<Object?> get props => <Object?>[revision, message];
 }

@@ -1423,6 +1423,19 @@ class _ProfileServerHealthSummary extends StatelessWidget {
             );
           },
         ),
+        const SizedBox(height: AppSpacing.section),
+
+        Text(
+          'Database status',
+          key: const ValueKey<String>('profile-server-database-title'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        _ProfileServerDatabaseStatus(database: health.database),
       ],
     );
   }
@@ -1557,6 +1570,161 @@ class _ProfileServerMetricCard extends StatelessWidget {
   }
 }
 
+class _ProfileServerDatabaseStatus extends StatelessWidget {
+  const _ProfileServerDatabaseStatus({required this.database});
+
+  final ServerDatabaseHealth database;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool useFourColumns = constraints.maxWidth >= 720;
+
+        return Column(
+          key: const ValueKey<String>('profile-server-database-status'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            GridView.count(
+              key: const ValueKey<String>(
+                'profile-server-database-status-grid',
+              ),
+              crossAxisCount: useFourColumns ? 4 : 2,
+              crossAxisSpacing: AppSpacing.sm,
+              mainAxisSpacing: AppSpacing.sm,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: useFourColumns ? 1.2 : 1.3,
+              children: <Widget>[
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-database-engine',
+                  icon: Icons.dns_rounded,
+                  value: _formatDatabaseEngine(database.engine),
+                  label: 'Engine',
+                ),
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-database-size',
+                  icon: Icons.data_usage_rounded,
+                  value: _formatBytes(database.sizeBytes),
+                  label: 'Database size',
+                ),
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-database-wal-size',
+                  icon: Icons.article_outlined,
+                  value: _formatBytes(database.walSizeBytes),
+                  label: 'WAL size',
+                ),
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-database-connectivity',
+                  icon: Icons.link_rounded,
+                  value: _serverComponentStatusLabel(database.status),
+                  label: 'Connectivity',
+                  detail: _formatServerLatency(database.latencyMs),
+                ),
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-database-integrity',
+                  icon: Icons.verified_outlined,
+                  value: _serverDatabaseCheckStatusLabel(
+                    database.integrityCheck,
+                  ),
+                  label: 'Integrity check',
+                ),
+                _ProfileServerMetricCard(
+                  cardKey: 'profile-server-database-foreign-keys',
+                  icon: Icons.account_tree_outlined,
+                  value: _serverDatabaseCheckStatusLabel(
+                    database.foreignKeyCheck,
+                  ),
+                  label: 'Foreign key check',
+                ),
+              ],
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            _ProfileServerMigrationCard(migration: database.migration),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ProfileServerMigrationCard extends StatelessWidget {
+  const _ProfileServerMigrationCard({required this.migration});
+
+  final ServerDatabaseMigration migration;
+
+  @override
+  Widget build(BuildContext context) {
+    final String revision = migration.revision ?? 'Unavailable';
+    final String? message = migration.message;
+
+    return Container(
+      key: const ValueKey<String>('profile-server-database-migration'),
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Icon(
+            Icons.schema_outlined,
+            size: 22,
+            color: AppColors.textSecondary,
+          ),
+
+          const SizedBox(width: AppSpacing.md),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  revision,
+                  key: const ValueKey<String>(
+                    'profile-server-database-migration-revision',
+                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+
+                const SizedBox(height: AppSpacing.xs),
+
+                Text(
+                  'Migration revision',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+
+                if (message != null) ...<Widget>[
+                  const SizedBox(height: AppSpacing.xs),
+
+                  Text(
+                    message,
+                    key: const ValueKey<String>(
+                      'profile-server-database-migration-message',
+                    ),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ProfileServerLoading extends StatelessWidget {
   const _ProfileServerLoading();
 
@@ -1655,4 +1823,43 @@ String _formatProfileHistoryDate(DateTime value) {
   final String minute = local.minute.toString().padLeft(2, '0');
 
   return '$day/$month/$year · $hour:$minute';
+}
+
+String _serverDatabaseCheckStatusLabel(ServerDatabaseCheckStatus status) {
+  return switch (status) {
+    ServerDatabaseCheckStatus.ok => 'OK',
+    ServerDatabaseCheckStatus.failed => 'Failed',
+    ServerDatabaseCheckStatus.unavailable => 'Unavailable',
+  };
+}
+
+String _formatDatabaseEngine(String engine) {
+  return switch (engine.toLowerCase()) {
+    'sqlite' => 'SQLite',
+    _ => engine,
+  };
+}
+
+String _formatBytes(int? bytes) {
+  if (bytes == null) {
+    return 'Unavailable';
+  }
+
+  const int kilobyte = 1024;
+  const int megabyte = kilobyte * 1024;
+  const int gigabyte = megabyte * 1024;
+
+  if (bytes >= gigabyte) {
+    return '${(bytes / gigabyte).toStringAsFixed(1)} GB';
+  }
+
+  if (bytes >= megabyte) {
+    return '${(bytes / megabyte).toStringAsFixed(1)} MB';
+  }
+
+  if (bytes >= kilobyte) {
+    return '${(bytes / kilobyte).toStringAsFixed(1)} KB';
+  }
+
+  return '$bytes B';
 }

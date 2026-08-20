@@ -11,6 +11,7 @@ from app.main import app
 from app.models.user import User
 from app.schemas.server import (
     ServerDatabaseHealthResponse,
+    ServerDatabaseMigrationResponse,
     ServerHealthResponse,
     ServerTMDBHealthResponse,
 )
@@ -73,7 +74,16 @@ def test_get_server_health_returns_admin_health_summary(
             uptime_seconds=3600,
             database=ServerDatabaseHealthResponse(
                 status="healthy",
+                engine="sqlite",
                 latency_ms=1.25,
+                size_bytes=1_048_576,
+                wal_size_bytes=8_192,
+                integrity_check="ok",
+                foreign_key_check="ok",
+                migration=ServerDatabaseMigrationResponse(
+                    revision="bb784a0a2cdc",
+                    message="add admin flag to users",
+                ),
             ),
             tmdb=ServerTMDBHealthResponse(
                 status="healthy",
@@ -107,7 +117,16 @@ def test_get_server_health_returns_admin_health_summary(
 
     assert payload["database"] == {
         "status": "healthy",
+        "engine": "sqlite",
         "latency_ms": 1.25,
+        "size_bytes": 1_048_576,
+        "wal_size_bytes": 8_192,
+        "integrity_check": "ok",
+        "foreign_key_check": "ok",
+        "migration": {
+            "revision": "bb784a0a2cdc",
+            "message": "add admin flag to users",
+        },
     }
 
     assert payload["tmdb"] == {

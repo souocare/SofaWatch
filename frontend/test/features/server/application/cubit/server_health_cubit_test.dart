@@ -130,9 +130,18 @@ final ServerHealth _health = ServerHealth(
   status: ServerHealthStatus.healthy,
   checkedAt: DateTime.utc(2026, 8, 20, 15, 30),
   uptimeSeconds: 86400,
-  database: ServerDatabaseHealth(
+  database: const ServerDatabaseHealth(
     status: ServerComponentStatus.healthy,
+    engine: 'sqlite',
     latencyMs: 1.42,
+    sizeBytes: 1_048_576,
+    walSizeBytes: 8_192,
+    integrityCheck: ServerDatabaseCheckStatus.ok,
+    foreignKeyCheck: ServerDatabaseCheckStatus.ok,
+    migration: ServerDatabaseMigration(
+      revision: 'bb784a0a2cdc',
+      message: 'add admin flag to users',
+    ),
   ),
   tmdb: ServerTmdbHealth(
     status: ServerComponentStatus.healthy,
