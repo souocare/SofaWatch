@@ -7,14 +7,9 @@ from fastapi import FastAPI
 
 from app.api.router import api_router
 
-# from app.api.routes.search import router as search_router
 from app.core.config import get_settings
 from app.core.logging_config import configure_logging
-from app.db.session import SessionLocal
 
-# from backend.app.api.routes.genres import router as genres_router
-from app.repositories.user import UserRepository
-from app.services.local_user import LocalUserService
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -39,12 +34,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.started_at = datetime.now(UTC)
 
     logger.info("%s API starting", settings.app_name)
-
-    with SessionLocal() as session:
-        LocalUserService(
-            session=session,
-            user_repository=UserRepository(session),
-        ).get_or_create()
 
     yield
 

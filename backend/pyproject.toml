@@ -15,7 +15,9 @@ dependencies = [
     "alembic",
     "pydantic-settings",
     "httpx",
-    "httpx2"
+    "httpx2",
+    "pwdlib[argon2]",
+    "PyJWT",
 ]
 
 [project.optional-dependencies]

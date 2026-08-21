@@ -54,9 +54,14 @@ class UserService:
             normalized_email,
         )
 
-    def get_local(
-        self,
-    ) -> User | None:
-        """Return the local SofaWatch user."""
+    def requires_initial_setup(self) -> bool:
+        """Return whether the installation still needs its first user."""
 
-        return self._user_repository.get_local()
+        return not self._user_repository.exists_any()
+
+    # def get_local(
+    #     self,
+    # ) -> User | None:
+    #     """Return the local SofaWatch user."""
+
+    #     return self._user_repository.get_local()

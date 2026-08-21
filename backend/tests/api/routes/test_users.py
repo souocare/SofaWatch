@@ -91,20 +91,7 @@ def test_get_current_user_ignores_non_local_users(
     assert payload["is_local"] is True
     assert payload["is_admin"] is False
 
-def test_get_current_user_returns_error_when_local_user_is_missing(
-    client: TestClient,
-) -> None:
-    """Return a safe API error when no local user is configured."""
 
-    response = client.get(
-        "/api/v1/users/me",
-    )
-
-    assert response.status_code == 500
-
-    payload = response.json()
-
-    assert payload["error"]["code"] == "local_user_not_configured"
 
 def test_export_current_user_data_downloads_portable_export(
     client: TestClient,

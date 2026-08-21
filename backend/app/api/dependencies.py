@@ -4,6 +4,7 @@ from typing import Annotated
 from app.repositories.genre_provider_mapping import GenreProviderMappingRepository
 from app.services.genre_mapping import GenreMappingService
 from fastapi import Depends, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.core.exceptions import APIError
 
 from app.core.config import Settings, get_settings
@@ -65,6 +66,12 @@ from app.services.server_health import ServerHealthService
 from app.services.server_logs import ServerLogsService
 from app.services.data_export import DataExportService
 from app.services.data_import import DataImportService
+from app.core.security.tokens import (
+    AccessTokenService,
+    InvalidAccessTokenError,
+)
+from app.services.authentication import AuthenticationService
+from app.services.initial_setup import InitialSetupService
 
 def get_genre_service(
     session: DatabaseSession,
@@ -382,22 +389,98 @@ UserServiceDependency = Annotated[
 ]
 
 
+def get_authentication_service(
+    session: DatabaseSession,
+) -> AuthenticationService:
+    """Provide an authentication service for a single request."""
+
+    return AuthenticationService(
+        user_repository=UserRepository(session),
+    )
+
+
+AuthenticationServiceDependency = Annotated[
+    AuthenticationService,
+    Depends(get_authentication_service),
+]
+
+def get_initial_setup_service(
+    session: DatabaseSession,
+) -> InitialSetupService:
+    """Provide the initial authentication setup service."""
+
+    return InitialSetupService(
+        session=session,
+        user_repository=UserRepository(session),
+    )
+
+
+InitialSetupServiceDependency = Annotated[
+    InitialSetupService,
+    Depends(get_initial_setup_service),
+]
+
+
+def get_access_token_service(
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
+) -> AccessTokenService:
+    """Provide the SofaWatch access token service."""
+
+    return AccessTokenService(
+        secret_key=settings.secret_key.get_secret_value(),
+        expire_minutes=settings.access_token_expire_minutes,
+    )
+
+
+AccessTokenServiceDependency = Annotated[
+    AccessTokenService,
+    Depends(get_access_token_service),
+]
+
+_bearer_scheme = HTTPBearer(
+    auto_error=False,
+)
+
 def get_current_user(
     user_service: UserServiceDependency,
+    access_token_service: AccessTokenServiceDependency,
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(_bearer_scheme),
+    ],
 ) -> User:
-    """Return the current SofaWatch user.
+    """Resolve the authenticated SofaWatch user for the current request."""
 
-    The single local user acts as the current user until
-    authentication and multi-user support are introduced.
-    """
-
-    user = user_service.get_local()
-
-    if user is None:
+    if credentials is None:
         raise APIError(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            code="local_user_not_configured",
-            message="Local user is not configured.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="authentication_required",
+            message="Authentication is required.",
+        )
+
+    try:
+        claims = access_token_service.validate(
+            credentials.credentials,
+        )
+    except InvalidAccessTokenError as error:
+        raise APIError(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="invalid_access_token",
+            message="The access token is invalid or expired.",
+        ) from error
+
+    user = user_service.get_by_id(
+        claims.user_id,
+    )
+
+    if user is None or not user.is_active:
+        raise APIError(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="invalid_access_token",
+            message="The access token is invalid or expired.",
         )
 
     return user

@@ -50,16 +50,25 @@ class UserRepository:
             )
         )
 
-    def get_local(
-        self,
-    ) -> User | None:
-        """Return the local SofaWatch user."""
+    def exists_any(self) -> bool:
+        """Return whether at least one SofaWatch user exists."""
 
-        return self._session.scalar(
-            select(User).where(
-                User.is_local.is_(True),
-            )
+        user_id = self._session.scalar(
+            select(User.id).limit(1)
         )
+
+        return user_id is not None
+
+    # def get_local(
+    #     self,
+    # ) -> User | None:
+    #     """Return the legacy local SofaWatch user."""
+
+    #     return self._session.scalar(
+    #         select(User).where(
+    #             User.is_local.is_(True),
+    #         )
+    #     )
 
     def add(
         self,

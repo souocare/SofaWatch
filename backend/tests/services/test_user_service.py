@@ -84,39 +84,7 @@ def test_get_by_id_returns_none_when_missing(
     )
 
 
-def test_get_local_returns_local_user(
-    user_service: UserService,
-    user_repository: Mock,
-) -> None:
-    """Return the local SofaWatch user."""
 
-    user = make_user(
-        user_id=uuid4(),
-    )
-
-    user_repository.get_local.return_value = user
-
-    result = user_service.get_local()
-
-    assert result is user
-    assert result.is_local is True
-
-    user_repository.get_local.assert_called_once_with()
-
-
-def test_get_local_returns_none_when_missing(
-    user_service: UserService,
-    user_repository: Mock,
-) -> None:
-    """Return None when no local user exists."""
-
-    user_repository.get_local.return_value = None
-
-    result = user_service.get_local()
-
-    assert result is None
-
-    user_repository.get_local.assert_called_once_with()
 
 def test_get_by_username_normalizes_username(
     user_service,
@@ -180,3 +148,55 @@ def test_get_by_email_rejects_empty_email(
     assert result is None
 
     user_repository.get_by_email.assert_not_called()
+
+def test_requires_initial_setup_when_no_user_exists(
+    user_service: UserService,
+    user_repository: Mock,
+) -> None:
+    user_repository.exists_any.return_value = False
+
+    result = user_service.requires_initial_setup()
+
+    assert result is True
+
+    user_repository.exists_any.assert_called_once_with()
+
+
+def test_does_not_require_initial_setup_when_user_exists(
+    user_service: UserService,
+    user_repository: Mock,
+) -> None:
+    user_repository.exists_any.return_value = True
+
+    result = user_service.requires_initial_setup()
+
+    assert result is False
+
+    user_repository.exists_any.assert_called_once_with()
+
+
+def test_requires_initial_setup_when_no_user_exists(
+    user_service: UserService,
+    user_repository: Mock,
+) -> None:
+    user_repository.exists_any.return_value = False
+
+    result = user_service.requires_initial_setup()
+
+    assert result is True
+
+    user_repository.exists_any.assert_called_once_with()
+
+
+def test_does_not_require_initial_setup_when_user_exists(
+    user_service: UserService,
+    user_repository: Mock,
+) -> None:
+    user_repository.exists_any.return_value = True
+
+    result = user_service.requires_initial_setup()
+
+    assert result is False
+
+    user_repository.exists_any.assert_called_once_with()
+

@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     image_storage_path: str = "./data/images"
 
     secret_key: SecretStr = Field(min_length=32)
+    access_token_expire_minutes: int = Field(
+        default=15,
+        ge=1,
+        le=1440,
+    )
 
     default_language: str = "en-US"
     supported_languages: str = "en-US,pt-PT"

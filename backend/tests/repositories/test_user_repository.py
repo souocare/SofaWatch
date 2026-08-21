@@ -70,56 +70,7 @@ def test_get_by_id_returns_none_when_missing(
     assert result is None
 
 
-def test_get_local_returns_local_user(
-    db_session: Session,
-) -> None:
-    """Return the locally configured SofaWatch user."""
 
-    local_user = make_user(
-        display_name="Local User",
-        is_local=True,
-    )
-
-    other_user = make_user(
-        display_name="Other User",
-        is_local=False,
-    )
-
-    db_session.add_all(
-        [
-            local_user,
-            other_user,
-        ]
-    )
-    db_session.commit()
-
-    repository = UserRepository(db_session)
-
-    result = repository.get_local()
-
-    assert result is not None
-    assert result.id == local_user.id
-    assert result.is_local is True
-
-
-def test_get_local_returns_none_when_missing(
-    db_session: Session,
-) -> None:
-    """Return None when no local user exists."""
-
-    db_session.add(
-        make_user(
-            display_name="Other User",
-            is_local=False,
-        )
-    )
-    db_session.commit()
-
-    repository = UserRepository(db_session)
-
-    result = repository.get_local()
-
-    assert result is None
 
 def test_get_by_username_returns_user(
     db_session,
@@ -179,3 +130,28 @@ def test_get_by_email_returns_none_when_missing(
     repository = UserRepository(db_session)
 
     assert repository.get_by_email("missing@example.com") is None
+
+
+def test_exists_any_returns_false_when_no_users_exist(
+    db_session,
+) -> None:
+    repository = UserRepository(db_session)
+
+    assert repository.exists_any() is False
+
+
+def test_exists_any_returns_true_when_user_exists(
+    db_session,
+) -> None:
+    user = User(
+        username="souocare",
+        display_name="Gonçalo",
+        is_local=False,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+
+    repository = UserRepository(db_session)
+
+    assert repository.exists_any() is True
