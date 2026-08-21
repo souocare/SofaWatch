@@ -1,5 +1,6 @@
 from datetime import datetime
 from uuid import UUID
+import logging
 
 from sqlalchemy.orm import Session
 
@@ -35,6 +36,8 @@ from app.repositories.episode_watch_event import EpisodeWatchEventRepository
 from app.repositories.season import SeasonRepository
 from app.services.season_episode_sync import SeasonEpisodeSyncService
 from app.models.episode_progress import EpisodeProgress
+
+logger = logging.getLogger(__name__)
 
 class DataImportService:
     """Validate and import portable SofaWatch user data."""
@@ -133,17 +136,34 @@ class DataImportService:
         user_id: UUID,
         export: SofaWatchExportResponse,
     ) -> DataImportLibraryResultResponse:
-        """Merge portable Library data into the current user's Library."""
+        """Merge portable Library data into the current user's Library.
+
+        Individual media failures are isolated so one invalid or unavailable
+        item does not prevent the remaining Library data from being restored.
+        """
 
         show_created = 0
         show_updated = 0
         show_unchanged = 0
+        show_failed = 0
 
         for exported_show in export.library.shows:
-            outcome = self._import_library_show(
-                user_id=user_id,
-                exported_show=exported_show,
-            )
+            try:
+                outcome = self._import_library_show(
+                    user_id=user_id,
+                    exported_show=exported_show,
+                )
+            except Exception:
+                self._session.rollback()
+
+                show_failed += 1
+
+                logger.exception(
+                    "Failed to import Library Show with TMDB ID %s.",
+                    exported_show.tmdb_id,
+                )
+
+                continue
 
             if outcome == "created":
                 show_created += 1
@@ -155,12 +175,25 @@ class DataImportService:
         movie_created = 0
         movie_updated = 0
         movie_unchanged = 0
+        movie_failed = 0
 
         for exported_movie in export.library.movies:
-            outcome = self._import_library_movie(
-                user_id=user_id,
-                exported_movie=exported_movie,
-            )
+            try:
+                outcome = self._import_library_movie(
+                    user_id=user_id,
+                    exported_movie=exported_movie,
+                )
+            except Exception:
+                self._session.rollback()
+
+                movie_failed += 1
+
+                logger.exception(
+                    "Failed to import Library Movie with TMDB ID %s.",
+                    exported_movie.tmdb_id,
+                )
+
+                continue
 
             if outcome == "created":
                 movie_created += 1
@@ -174,11 +207,13 @@ class DataImportService:
                 created=show_created,
                 updated=show_updated,
                 unchanged=show_unchanged,
+                failed=show_failed,
             ),
             movies=DataImportMediaSummaryResponse(
                 created=movie_created,
                 updated=movie_updated,
                 unchanged=movie_unchanged,
+                failed=movie_failed,
             ),
         )
 
@@ -188,16 +223,36 @@ class DataImportService:
         user_id: UUID,
         export: SofaWatchExportResponse,
     ) -> DataImportHistoryResultResponse:
-        """Merge portable viewing History into the current user's History."""
+        """Merge portable viewing History into the current user's History.
+
+        Individual event failures are isolated so the remaining viewing History
+        can still be restored.
+        """
 
         episode_created = 0
         episode_skipped = 0
+        episode_failed = 0
 
         for exported_event in export.history.episodes:
-            created = self._import_episode_watch_event(
-                user_id=user_id,
-                exported_event=exported_event,
-            )
+            try:
+                created = self._import_episode_watch_event(
+                    user_id=user_id,
+                    exported_event=exported_event,
+                )
+            except Exception:
+                self._session.rollback()
+
+                episode_failed += 1
+
+                logger.exception(
+                    (
+                        "Failed to import Episode watch event "
+                        "for TMDB Episode ID %s."
+                    ),
+                    exported_event.episode_tmdb_id,
+                )
+
+                continue
 
             if created:
                 episode_created += 1
@@ -206,12 +261,25 @@ class DataImportService:
 
         movie_created = 0
         movie_skipped = 0
+        movie_failed = 0
 
         for exported_event in export.history.movies:
-            created = self._import_movie_watch_event(
-                user_id=user_id,
-                exported_event=exported_event,
-            )
+            try:
+                created = self._import_movie_watch_event(
+                    user_id=user_id,
+                    exported_event=exported_event,
+                )
+            except Exception:
+                self._session.rollback()
+
+                movie_failed += 1
+
+                logger.exception(
+                    "Failed to import Movie watch event for TMDB ID %s.",
+                    exported_event.movie_tmdb_id,
+                )
+
+                continue
 
             if created:
                 movie_created += 1
@@ -222,10 +290,12 @@ class DataImportService:
             episodes=DataImportHistoryMediaSummaryResponse(
                 created=episode_created,
                 skipped=episode_skipped,
+                failed=episode_failed,
             ),
             movies=DataImportHistoryMediaSummaryResponse(
                 created=movie_created,
                 skipped=movie_skipped,
+                failed=movie_failed,
             ),
         )
 

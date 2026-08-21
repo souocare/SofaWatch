@@ -38,6 +38,7 @@ class DataImportMediaSummaryResponse(BaseModel):
     created: int = Field(ge=0)
     updated: int = Field(ge=0)
     unchanged: int = Field(ge=0)
+    failed: int = Field(ge=0)
 
 
 class DataImportLibraryResultResponse(BaseModel):
@@ -52,6 +53,7 @@ class DataImportHistoryMediaSummaryResponse(BaseModel):
 
     created: int = Field(ge=0)
     skipped: int = Field(ge=0)
+    failed: int = Field(ge=0)
 
 
 class DataImportHistoryResultResponse(BaseModel):

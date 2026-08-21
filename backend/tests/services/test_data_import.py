@@ -1916,16 +1916,20 @@ def test_import_user_data_imports_library_and_history() -> None:
     assert result.library.shows.created == 0
     assert result.library.shows.updated == 0
     assert result.library.shows.unchanged == 0
+    assert result.library.shows.failed == 0
 
     assert result.library.movies.created == 0
     assert result.library.movies.updated == 0
     assert result.library.movies.unchanged == 0
+    assert result.library.movies.failed == 0
 
     assert result.history.episodes.created == 0
     assert result.history.episodes.skipped == 0
+    assert result.history.episodes.failed == 0
 
     assert result.history.movies.created == 0
     assert result.history.movies.skipped == 0
+    assert result.history.movies.failed == 0
 
 def test_import_user_data_restores_library_before_history() -> None:
     """Restore Library state before processing viewing History."""
@@ -1966,3 +1970,318 @@ def test_import_user_data_restores_library_before_history() -> None:
         "library",
         "history",
     ]
+
+def test_import_library_continues_after_show_failure() -> None:
+    """Continue importing Library Shows after one Show fails."""
+
+    user_id = uuid4()
+    imported_show_id = uuid4()
+
+    show_repository = Mock()
+    show_repository.get_by_tmdb_id.return_value = None
+
+    show_import_service = Mock()
+    show_import_service.import_show.side_effect = [
+        RuntimeError("TMDB unavailable"),
+        SimpleNamespace(
+            id=imported_show_id,
+            tmdb_id=1396,
+        ),
+    ]
+
+    library_repository = Mock()
+    library_repository.get_by_user_and_show.return_value = None
+
+    service, session, *_ = create_service(
+        library_repository=library_repository,
+        show_repository=show_repository,
+        show_import_service=show_import_service,
+    )
+
+    result = service.import_library(
+        user_id=user_id,
+        export=_create_export(
+            shows=[
+                ExportLibraryShowResponse(
+                    tmdb_id=95396,
+                    status=LibraryStatus.WATCHING,
+                ),
+                ExportLibraryShowResponse(
+                    tmdb_id=1396,
+                    status=LibraryStatus.COMPLETED,
+                ),
+            ],
+        ),
+    )
+
+    assert result.shows.created == 1
+    assert result.shows.updated == 0
+    assert result.shows.unchanged == 0
+    assert result.shows.failed == 1
+
+    assert show_import_service.import_show.call_count == 2
+    library_repository.add.assert_called_once()
+
+    session.rollback.assert_called_once()
+    session.commit.assert_called_once()
+
+
+def test_import_library_continues_after_movie_failure() -> None:
+    """Continue importing Library Movies after one Movie fails."""
+
+    user_id = uuid4()
+    imported_movie_id = uuid4()
+
+    movie_repository = Mock()
+    movie_repository.get_by_tmdb_id.return_value = None
+
+    movie_import_service = Mock()
+    movie_import_service.import_movie.side_effect = [
+        RuntimeError("TMDB unavailable"),
+        SimpleNamespace(
+            id=imported_movie_id,
+            tmdb_id=438631,
+        ),
+    ]
+
+    library_repository = Mock()
+    library_repository.get_by_user_and_movie.return_value = None
+
+    service, session, *_ = create_service(
+        library_repository=library_repository,
+        movie_repository=movie_repository,
+        movie_import_service=movie_import_service,
+    )
+
+    result = service.import_library(
+        user_id=user_id,
+        export=_create_export(
+            movies=[
+                ExportLibraryMovieResponse(
+                    tmdb_id=550,
+                    status=LibraryStatus.COMPLETED,
+                ),
+                ExportLibraryMovieResponse(
+                    tmdb_id=438631,
+                    status=LibraryStatus.COMPLETED,
+                ),
+            ],
+        ),
+    )
+
+    assert result.movies.created == 1
+    assert result.movies.updated == 0
+    assert result.movies.unchanged == 0
+    assert result.movies.failed == 1
+
+    assert movie_import_service.import_movie.call_count == 2
+    library_repository.add.assert_called_once()
+
+    session.rollback.assert_called_once()
+    session.commit.assert_called_once()
+
+
+def test_import_history_continues_after_episode_failure() -> None:
+    """Continue importing Episode History after one event fails."""
+
+    user_id = uuid4()
+    show_id = uuid4()
+    season_id = uuid4()
+    episode_id = uuid4()
+
+    show_repository = Mock()
+    show_repository.get_by_tmdb_id.side_effect = [
+        RuntimeError("Provider unavailable"),
+        SimpleNamespace(
+            id=show_id,
+            tmdb_id=95396,
+        ),
+    ]
+
+    season_repository = Mock()
+    season_repository.get_by_number.return_value = SimpleNamespace(
+        id=season_id,
+        show_id=show_id,
+        season_number=1,
+    )
+
+    episode_repository = Mock()
+    episode_repository.get_by_tmdb_id.return_value = SimpleNamespace(
+        id=episode_id,
+        season_id=season_id,
+        tmdb_id=2102,
+        episode_number=2,
+    )
+
+    episode_watch_event_repository = Mock()
+    episode_watch_event_repository.exists_at.return_value = False
+
+    episode_progress_repository = Mock()
+    episode_progress_repository.get_by_user_and_episode.return_value = None
+
+    service, session, *_ = create_service(
+        show_repository=show_repository,
+        season_repository=season_repository,
+        episode_repository=episode_repository,
+        episode_watch_event_repository=episode_watch_event_repository,
+        episode_progress_repository=episode_progress_repository,
+    )
+
+    first_watched_at = datetime(
+        2026,
+        8,
+        1,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+    second_watched_at = datetime(
+        2026,
+        8,
+        2,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+    export = SofaWatchExportResponse(
+        exported_at=datetime(
+            2026,
+            8,
+            20,
+            15,
+            30,
+            tzinfo=UTC,
+        ),
+        user=ExportUserResponse(
+            display_name="Gonçalo",
+        ),
+        library=ExportLibraryResponse(
+            shows=[],
+            movies=[],
+        ),
+        history=ExportWatchHistoryResponse(
+            episodes=[
+                ExportEpisodeWatchEventResponse(
+                    show_tmdb_id=95396,
+                    season_number=1,
+                    episode_number=1,
+                    episode_tmdb_id=2101,
+                    watched_at=first_watched_at,
+                ),
+                ExportEpisodeWatchEventResponse(
+                    show_tmdb_id=95396,
+                    season_number=1,
+                    episode_number=2,
+                    episode_tmdb_id=2102,
+                    watched_at=second_watched_at,
+                ),
+            ],
+            movies=[],
+        ),
+    )
+
+    result = service.import_history(
+        user_id=user_id,
+        export=export,
+    )
+
+    assert result.episodes.created == 1
+    assert result.episodes.skipped == 0
+    assert result.episodes.failed == 1
+
+    episode_watch_event_repository.add.assert_called_once()
+    episode_progress_repository.add.assert_called_once()
+
+    session.rollback.assert_called_once()
+    session.commit.assert_called_once()
+
+
+def test_import_history_continues_after_movie_failure() -> None:
+    """Continue importing Movie History after one event fails."""
+
+    user_id = uuid4()
+    movie_id = uuid4()
+
+    movie_repository = Mock()
+    movie_repository.get_by_tmdb_id.side_effect = [
+        RuntimeError("Provider unavailable"),
+        SimpleNamespace(
+            id=movie_id,
+            tmdb_id=438631,
+        ),
+    ]
+
+    movie_watch_event_repository = Mock()
+    movie_watch_event_repository.exists_at.return_value = False
+
+    service, session, *_ = create_service(
+        movie_repository=movie_repository,
+        movie_watch_event_repository=movie_watch_event_repository,
+    )
+
+    first_watched_at = datetime(
+        2026,
+        8,
+        1,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+    second_watched_at = datetime(
+        2026,
+        8,
+        2,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+    export = SofaWatchExportResponse(
+        exported_at=datetime(
+            2026,
+            8,
+            20,
+            15,
+            30,
+            tzinfo=UTC,
+        ),
+        user=ExportUserResponse(
+            display_name="Gonçalo",
+        ),
+        library=ExportLibraryResponse(
+            shows=[],
+            movies=[],
+        ),
+        history=ExportWatchHistoryResponse(
+            episodes=[],
+            movies=[
+                ExportMovieWatchEventResponse(
+                    movie_tmdb_id=550,
+                    watched_at=first_watched_at,
+                ),
+                ExportMovieWatchEventResponse(
+                    movie_tmdb_id=438631,
+                    watched_at=second_watched_at,
+                ),
+            ],
+        ),
+    )
+
+    result = service.import_history(
+        user_id=user_id,
+        export=export,
+    )
+
+    assert result.movies.created == 1
+    assert result.movies.skipped == 0
+    assert result.movies.failed == 1
+
+    movie_watch_event_repository.add.assert_called_once()
+
+    session.rollback.assert_called_once()
+    session.commit.assert_called_once()
+
+

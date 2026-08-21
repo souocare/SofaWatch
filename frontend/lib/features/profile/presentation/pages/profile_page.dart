@@ -4,6 +4,7 @@ import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_error_message_mapper.dart';
 import 'package:sofawatch/features/profile/application/cubit/profile_cubit.dart';
 import 'package:sofawatch/features/profile/application/cubit/profile_state.dart';
+import 'package:sofawatch/features/profile/domain/models/data_import_result.dart';
 import 'package:sofawatch/features/profile/domain/models/profile_user.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/core/widgets/section_failure_card.dart';
@@ -31,6 +32,12 @@ import 'package:sofawatch/features/server/domain/models/background_job.dart';
 import 'package:sofawatch/features/server/application/cubit/server_logs_cubit.dart';
 import 'package:sofawatch/features/server/application/cubit/server_logs_state.dart';
 import 'package:sofawatch/features/server/domain/models/server_logs.dart';
+import 'package:sofawatch/features/profile/application/cubit/data_transfer_cubit.dart';
+import 'package:sofawatch/features/profile/application/cubit/data_transfer_state.dart';
+import 'package:sofawatch/core/files/file_downloader.dart';
+import 'package:flutter/foundation.dart';
+import 'package:sofawatch/core/files/json_file_picker.dart';
+import 'package:sofawatch/features/profile/domain/models/data_import_preview.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -81,6 +88,13 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: AppSpacing.section),
 
                   const _ProfileHistorySection(),
+
+                  if (kIsWeb) ...<Widget>[
+                    const SizedBox(height: AppSpacing.xl),
+                    const _ProfileDataTransferSection(),
+                  ],
+
+                  const SizedBox(height: AppSpacing.xl),
 
                   const _ProfileServerGate(),
                 ],
@@ -1273,6 +1287,919 @@ class _ProfileHistoryLoadingRow extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+Future<void> _pickDataImportFile(BuildContext context) async {
+  try {
+    final PickedJsonFile? file = await const WebJsonFilePicker().pick();
+
+    if (file == null || !context.mounted) {
+      return;
+    }
+
+    await context.read<DataTransferCubit>().previewImport(
+      filename: file.name,
+      json: file.content,
+    );
+  } on FormatException {
+    if (!context.mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'The selected file could not be read as a valid JSON file.',
+        ),
+      ),
+    );
+  } on Object {
+    if (!context.mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('The selected file could not be opened.')),
+    );
+  }
+}
+
+class _ProfileDataTransferSection extends StatelessWidget {
+  const _ProfileDataTransferSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-data-transfer'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'Import / Export',
+          key: const ValueKey<String>('profile-data-transfer-title'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        Text(
+          'Back up your SofaWatch Library and viewing History, '
+          'or restore them from a previous export.',
+          key: const ValueKey<String>('profile-data-transfer-description'),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        const _ProfileDataExportCard(),
+
+        const SizedBox(height: AppSpacing.md),
+
+        const _ProfileDataImportCard(),
+      ],
+    );
+  }
+}
+
+class _ProfileDataExportCard extends StatelessWidget {
+  const _ProfileDataExportCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<DataTransferCubit, DataTransferState>(
+      builder: (BuildContext context, DataTransferState state) {
+        final bool isExporting = state is DataTransferExporting;
+
+        return Container(
+          key: const ValueKey<String>('profile-data-transfer-export-card'),
+          padding: AppSpacing.cardPadding,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceHigh,
+            borderRadius: AppRadius.borderLarge,
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Text(
+                'Export data',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+
+              const SizedBox(height: AppSpacing.xs),
+
+              Text(
+                'Create a portable JSON backup containing your '
+                'Library and viewing History.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.icon(
+                  key: const ValueKey<String>('profile-data-transfer-export'),
+                  onPressed: isExporting
+                      ? null
+                      : context.read<DataTransferCubit>().exportData,
+                  icon: isExporting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.download_rounded),
+                  label: Text(isExporting ? 'Exporting…' : 'Export data'),
+                ),
+              ),
+
+              if (state case DataTransferExportFailure(
+                :final error,
+              )) ...<Widget>[
+                const SizedBox(height: AppSpacing.md),
+
+                Text(
+                  AppErrorMessageMapper.map(error),
+                  key: const ValueKey<String>(
+                    'profile-data-transfer-export-error',
+                  ),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ProfileDataImportCard extends StatelessWidget {
+  const _ProfileDataImportCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<DataTransferCubit, DataTransferState>(
+      builder: (BuildContext context, DataTransferState state) {
+        final bool isPreviewLoading = state is DataTransferImportPreviewLoading;
+
+        final bool isImporting = state is DataTransferImporting;
+
+        return Container(
+          key: const ValueKey<String>('profile-data-transfer-import-card'),
+          padding: AppSpacing.cardPadding,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceHigh,
+            borderRadius: AppRadius.borderLarge,
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Text(
+                'Import data',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+
+              const SizedBox(height: AppSpacing.xs),
+
+              Text(
+                'Restore data from a SofaWatch JSON backup. '
+                'Nothing will be changed until you confirm the import.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+
+              switch (state) {
+                DataTransferImportPreviewReady(
+                  :final filename,
+                  :final json,
+                  :final preview,
+                ) =>
+                  _ProfileDataImportPreview(
+                    filename: filename,
+                    userDisplayName: preview.userDisplayName,
+                    format: preview.format,
+                    version: preview.version,
+                    libraryShows: preview.libraryShows,
+                    libraryMovies: preview.libraryMovies,
+                    episodeWatchEvents: preview.episodeWatchEvents,
+                    movieWatchEvents: preview.movieWatchEvents,
+                    onCancel: context.read<DataTransferCubit>().reset,
+                    onImport: () {
+                      context.read<DataTransferCubit>().importData(json);
+                    },
+                  ),
+
+                DataTransferImporting() => const _ProfileDataImportProgress(),
+
+                DataTransferImportSuccess(:final result) =>
+                  _ProfileDataImportSuccess(result: result),
+
+                DataTransferImportPreviewFailure(
+                  :final filename,
+                  :final error,
+                ) =>
+                  _ProfileDataImportSelectionFailure(
+                    filename: filename,
+                    error: error,
+                  ),
+
+                DataTransferImportFailure(:final error) =>
+                  _ProfileDataImportFailure(error: error),
+
+                _ => Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    key: const ValueKey<String>(
+                      'profile-data-transfer-import-select',
+                    ),
+                    onPressed: isPreviewLoading || isImporting
+                        ? null
+                        : () {
+                            _pickDataImportFile(context);
+                          },
+                    icon: isPreviewLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.upload_file_rounded),
+                    label: Text(
+                      isPreviewLoading ? 'Validating…' : 'Choose backup file',
+                    ),
+                  ),
+                ),
+              },
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ProfileDataImportSuccess extends StatelessWidget {
+  const _ProfileDataImportSuccess({required this.result});
+
+  final DataImportResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool hasFailures = result.hasFailures;
+
+    return Column(
+      key: const ValueKey<String>('profile-data-transfer-import-success'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: AppRadius.borderMedium,
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(
+                    hasFailures
+                        ? Icons.warning_amber_rounded
+                        : Icons.check_circle_outline_rounded,
+                    size: 22,
+                  ),
+
+                  const SizedBox(width: AppSpacing.sm),
+
+                  Expanded(
+                    child: Text(
+                      hasFailures
+                          ? 'Import completed with some issues'
+                          : 'Import completed',
+                      key: const ValueKey<String>(
+                        'profile-data-transfer-import-success-title',
+                      ),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: AppSpacing.xs),
+
+              Text(
+                hasFailures
+                    ? 'The supported data that could be restored was merged '
+                          'successfully. Some items could not be imported.'
+                    : 'Your SofaWatch data has been merged with the '
+                          'data already stored on this server.',
+                key: const ValueKey<String>(
+                  'profile-data-transfer-import-success-description',
+                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              ),
+
+              const SizedBox(height: AppSpacing.lg),
+
+              const _ProfileDataImportGroupTitle(title: 'Library'),
+
+              const SizedBox(height: AppSpacing.sm),
+
+              _ProfileDataImportMediaResult(
+                mediaKey: 'shows',
+                label: 'Shows',
+                result: result.library.shows,
+              ),
+
+              const SizedBox(height: AppSpacing.sm),
+
+              _ProfileDataImportMediaResult(
+                mediaKey: 'movies',
+                label: 'Movies',
+                result: result.library.movies,
+              ),
+
+              const SizedBox(height: AppSpacing.lg),
+
+              const _ProfileDataImportGroupTitle(title: 'Watch History'),
+
+              const SizedBox(height: AppSpacing.sm),
+
+              _ProfileDataImportHistoryResult(
+                mediaKey: 'episodes',
+                label: 'Episode viewings',
+                result: result.history.episodes,
+              ),
+
+              const SizedBox(height: AppSpacing.sm),
+
+              _ProfileDataImportHistoryResult(
+                mediaKey: 'movies',
+                label: 'Movie viewings',
+                result: result.history.movies,
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            key: const ValueKey<String>('profile-data-transfer-import-another'),
+            onPressed: context.read<DataTransferCubit>().reset,
+            icon: const Icon(Icons.upload_file_rounded),
+            label: const Text('Import another backup'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileDataImportMediaResult extends StatelessWidget {
+  const _ProfileDataImportMediaResult({
+    required this.mediaKey,
+    required this.label,
+    required this.result,
+  });
+
+  final String mediaKey;
+  final String label;
+  final DataImportMediaResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: ValueKey<String>(
+        'profile-data-transfer-import-result-library-$mediaKey',
+      ),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        borderRadius: AppRadius.borderMedium,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+
+          const SizedBox(height: AppSpacing.sm),
+
+          Wrap(
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.xs,
+            children: <Widget>[
+              _ProfileDataImportResultValue(
+                valueKey: 'library-$mediaKey-created',
+                label: 'Created',
+                value: result.created,
+              ),
+
+              _ProfileDataImportResultValue(
+                valueKey: 'library-$mediaKey-updated',
+                label: 'Updated',
+                value: result.updated,
+              ),
+
+              _ProfileDataImportResultValue(
+                valueKey: 'library-$mediaKey-unchanged',
+                label: 'Unchanged',
+                value: result.unchanged,
+              ),
+              if (result.failed > 0)
+                _ProfileDataImportResultValue(
+                  valueKey: 'library-$mediaKey-failed',
+                  label: 'Failed',
+                  value: result.failed,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileDataImportHistoryResult extends StatelessWidget {
+  const _ProfileDataImportHistoryResult({
+    required this.mediaKey,
+    required this.label,
+    required this.result,
+  });
+
+  final String mediaKey;
+  final String label;
+  final DataImportHistoryMediaResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: ValueKey<String>(
+        'profile-data-transfer-import-result-history-$mediaKey',
+      ),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        borderRadius: AppRadius.borderMedium,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+
+          const SizedBox(height: AppSpacing.sm),
+
+          Wrap(
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.xs,
+            children: <Widget>[
+              _ProfileDataImportResultValue(
+                valueKey: 'history-$mediaKey-created',
+                label: 'Imported',
+                value: result.created,
+              ),
+
+              _ProfileDataImportResultValue(
+                valueKey: 'history-$mediaKey-skipped',
+                label: 'Already present',
+                value: result.skipped,
+              ),
+
+              if (result.failed > 0)
+                _ProfileDataImportResultValue(
+                  valueKey: 'history-$mediaKey-failed',
+                  label: 'Failed',
+                  value: result.failed,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileDataImportResultValue extends StatelessWidget {
+  const _ProfileDataImportResultValue({
+    required this.valueKey,
+    required this.label,
+    required this.value,
+  });
+
+  final String valueKey;
+  final String label;
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      key: ValueKey<String>('profile-data-transfer-import-result-$valueKey'),
+      TextSpan(
+        children: <InlineSpan>[
+          TextSpan(
+            text: value.toString(),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          TextSpan(
+            text: ' $label',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileDataImportPreview extends StatelessWidget {
+  const _ProfileDataImportPreview({
+    required this.filename,
+    required this.userDisplayName,
+    required this.format,
+    required this.version,
+    required this.libraryShows,
+    required this.libraryMovies,
+    required this.episodeWatchEvents,
+    required this.movieWatchEvents,
+    required this.onCancel,
+    required this.onImport,
+  });
+
+  final String filename;
+  final String userDisplayName;
+  final String format;
+  final int version;
+
+  final int libraryShows;
+  final int libraryMovies;
+  final int episodeWatchEvents;
+  final int movieWatchEvents;
+
+  final VoidCallback onCancel;
+  final VoidCallback onImport;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-data-transfer-import-preview'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: AppRadius.borderMedium,
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.description_outlined, size: 20),
+
+                  const SizedBox(width: AppSpacing.sm),
+
+                  Expanded(
+                    child: Text(
+                      filename,
+                      key: const ValueKey<String>(
+                        'profile-data-transfer-import-filename',
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+
+              Text(
+                'Backup from $userDisplayName',
+                key: const ValueKey<String>(
+                  'profile-data-transfer-import-user',
+                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+
+              const SizedBox(height: AppSpacing.xs),
+
+              Text(
+                '$format · Version $version',
+                key: const ValueKey<String>(
+                  'profile-data-transfer-import-format',
+                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              ),
+
+              const SizedBox(height: AppSpacing.lg),
+
+              const _ProfileDataImportGroupTitle(title: 'Library'),
+
+              const SizedBox(height: AppSpacing.sm),
+
+              _ProfileDataImportSummaryRow(
+                label: 'Shows',
+                value: libraryShows,
+                rowKey: 'library-shows',
+              ),
+
+              const SizedBox(height: AppSpacing.xs),
+
+              _ProfileDataImportSummaryRow(
+                label: 'Movies',
+                value: libraryMovies,
+                rowKey: 'library-movies',
+              ),
+
+              const SizedBox(height: AppSpacing.lg),
+
+              const _ProfileDataImportGroupTitle(title: 'Watch History'),
+
+              const SizedBox(height: AppSpacing.sm),
+
+              _ProfileDataImportSummaryRow(
+                label: 'Episode viewings',
+                value: episodeWatchEvents,
+                rowKey: 'episode-watch-events',
+              ),
+
+              const SizedBox(height: AppSpacing.xs),
+
+              _ProfileDataImportSummaryRow(
+                label: 'Movie viewings',
+                value: movieWatchEvents,
+                rowKey: 'movie-watch-events',
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          alignment: WrapAlignment.end,
+          children: <Widget>[
+            TextButton(
+              key: const ValueKey<String>(
+                'profile-data-transfer-import-cancel',
+              ),
+              onPressed: onCancel,
+              child: const Text('Cancel'),
+            ),
+
+            FilledButton.icon(
+              key: const ValueKey<String>(
+                'profile-data-transfer-import-confirm',
+              ),
+              onPressed: onImport,
+              icon: const Icon(Icons.restore_rounded),
+              label: const Text('Import data'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileDataImportGroupTitle extends StatelessWidget {
+  const _ProfileDataImportGroupTitle({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: Theme.of(
+        context,
+      ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+    );
+  }
+}
+
+class _ProfileDataImportSummaryRow extends StatelessWidget {
+  const _ProfileDataImportSummaryRow({
+    required this.label,
+    required this.value,
+    required this.rowKey,
+  });
+
+  final String label;
+  final int value;
+  final String rowKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      key: ValueKey<String>('profile-data-transfer-import-preview-$rowKey'),
+      children: <Widget>[
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+        ),
+
+        const SizedBox(width: AppSpacing.md),
+
+        Text(
+          value.toString(),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileDataImportProgress extends StatelessWidget {
+  const _ProfileDataImportProgress();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey<String>('profile-data-transfer-import-progress'),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.borderMedium,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: const Row(
+        children: <Widget>[
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+
+          SizedBox(width: AppSpacing.md),
+
+          Expanded(child: Text('Importing your SofaWatch data…')),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileDataImportSelectionFailure extends StatelessWidget {
+  const _ProfileDataImportSelectionFailure({
+    required this.filename,
+    required this.error,
+  });
+
+  final String filename;
+  final AppException error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>(
+        'profile-data-transfer-import-preview-failure',
+      ),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: AppRadius.borderMedium,
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                filename,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+
+              const SizedBox(height: AppSpacing.sm),
+
+              Text(
+                AppErrorMessageMapper.map(error),
+                key: const ValueKey<String>(
+                  'profile-data-transfer-import-preview-error',
+                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            key: const ValueKey<String>(
+              'profile-data-transfer-import-select-again',
+            ),
+            onPressed: () {
+              _pickDataImportFile(context);
+            },
+            icon: const Icon(Icons.upload_file_rounded),
+            label: const Text('Choose another file'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileDataImportFailure extends StatelessWidget {
+  const _ProfileDataImportFailure({required this.error});
+
+  final AppException error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-data-transfer-import-failure'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          AppErrorMessageMapper.map(error),
+          key: const ValueKey<String>('profile-data-transfer-import-error'),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            key: const ValueKey<String>(
+              'profile-data-transfer-import-start-over',
+            ),
+            onPressed: context.read<DataTransferCubit>().reset,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Start again'),
           ),
         ),
       ],
@@ -3276,4 +4203,18 @@ String _formatServerLogDate(DateTime value) {
   final String second = local.second.toString().padLeft(2, '0');
 
   return '$day/$month · $hour:$minute:$second';
+}
+
+String _buildSofaWatchExportFilename() {
+  final DateTime now = DateTime.now();
+
+  final String year = now.year.toString().padLeft(4, '0');
+  final String month = now.month.toString().padLeft(2, '0');
+  final String day = now.day.toString().padLeft(2, '0');
+
+  final String hour = now.hour.toString().padLeft(2, '0');
+  final String minute = now.minute.toString().padLeft(2, '0');
+  final String second = now.second.toString().padLeft(2, '0');
+
+  return 'sofawatch-export-$year-$month-$day-$hour$minute$second.json';
 }

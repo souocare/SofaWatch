@@ -2771,7 +2771,7 @@ def test_list_upcoming_returns_future_episodes_for_watching_and_planning_shows(
         tmdb_id=300001,
         episode_number=3,
         title="Severance Future Episode",
-        air_date=date(2026, 8, 20),
+        air_date=date(2026, 9, 20),
     )
 
     planning_episode = create_episode(
@@ -2780,7 +2780,7 @@ def test_list_upcoming_returns_future_episodes_for_watching_and_planning_shows(
         tmdb_id=300002,
         episode_number=1,
         title="The Last of Us Future Episode",
-        air_date=date(2026, 8, 21),
+        air_date=date(2026, 9, 21),
     )
 
     response = client.get(
@@ -2801,7 +2801,7 @@ def test_list_upcoming_returns_future_episodes_for_watching_and_planning_shows(
     assert body[0]["episode"]["season_number"] == 2
     assert body[0]["episode"]["episode_number"] == 3
     assert body[0]["episode"]["title"] == "Severance Future Episode"
-    assert body[0]["episode"]["air_date"] == "2026-08-20"
+    assert body[0]["episode"]["air_date"] == "2026-09-20"
 
     assert body[1]["library_status"] == "planning"
     assert body[1]["show"]["id"] == str(planning_show.id)
@@ -2811,7 +2811,7 @@ def test_list_upcoming_returns_future_episodes_for_watching_and_planning_shows(
     assert body[1]["episode"]["season_number"] == 3
     assert body[1]["episode"]["episode_number"] == 1
     assert body[1]["episode"]["title"] == "The Last of Us Future Episode"
-    assert body[1]["episode"]["air_date"] == "2026-08-21"
+    assert body[1]["episode"]["air_date"] == "2026-09-21"
 
 
 def test_list_upcoming_returns_multiple_future_episodes_for_same_show(
@@ -2849,7 +2849,7 @@ def test_list_upcoming_returns_multiple_future_episodes_for_same_show(
         tmdb_id=300001,
         episode_number=1,
         title="Episode One",
-        air_date=date(2026, 8, 20),
+        air_date=date(2026, 9, 20),
     )
 
     second_episode = create_episode(
@@ -2858,7 +2858,7 @@ def test_list_upcoming_returns_multiple_future_episodes_for_same_show(
         tmdb_id=300002,
         episode_number=2,
         title="Episode Two",
-        air_date=date(2026, 8, 27),
+        air_date=date(2026, 9, 27),
     )
 
     response = client.get(

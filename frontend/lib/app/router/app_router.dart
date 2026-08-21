@@ -63,6 +63,8 @@ import 'package:sofawatch/features/history/application/cubit/history_cubit.dart'
 import 'package:sofawatch/features/history/presentation/pages/history_page.dart';
 import 'package:sofawatch/features/server/data/repositories/api_server_repository.dart';
 import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
+import 'package:sofawatch/features/profile/application/cubit/data_transfer_cubit.dart';
+import 'package:sofawatch/features/profile/data/repositories/api_data_transfer_repository.dart';
 
 GoRouter createAppRouter({required ApiClient apiClient}) {
   final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -315,6 +317,16 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                             )..load();
                           },
                         ),
+                        if (kIsWeb)
+                          BlocProvider<DataTransferCubit>(
+                            create: (BuildContext context) {
+                              return DataTransferCubit(
+                                repository: ApiDataTransferRepository(
+                                  context.read<ApiClient>(),
+                                ),
+                              );
+                            },
+                          ),
                         BlocProvider<StatisticsSummaryCubit>(
                           create: (BuildContext context) {
                             return StatisticsSummaryCubit(

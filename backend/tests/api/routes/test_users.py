@@ -517,21 +517,25 @@ def test_import_current_user_data_returns_import_summary(
                 "created": 0,
                 "updated": 0,
                 "unchanged": 0,
+                "failed": 0,
             },
             "movies": {
                 "created": 0,
                 "updated": 0,
                 "unchanged": 0,
+                "failed": 0,
             },
         },
         "history": {
             "episodes": {
                 "created": 0,
                 "skipped": 0,
+                "failed": 0,
             },
             "movies": {
                 "created": 0,
                 "skipped": 0,
+                "failed": 0,
             },
         },
     }
