@@ -28,6 +28,28 @@ class ApiClient {
     return _dio.options.baseUrl;
   }
 
+  Uri? get serverUri {
+    if (!isConfigured) {
+      return null;
+    }
+
+    final Uri apiUri = Uri.parse(baseUrl);
+
+    final String apiPrefix = ApiConfig.apiPrefix;
+
+    String path = apiUri.path;
+
+    if (path.endsWith(apiPrefix)) {
+      path = path.substring(0, path.length - apiPrefix.length);
+    }
+
+    return apiUri.replace(
+      path: path.isEmpty ? '/' : path,
+      query: null,
+      fragment: null,
+    );
+  }
+
   String? resolveServerUrl(String? value) {
     final String? normalizedValue = value?.trim();
 

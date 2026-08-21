@@ -4,6 +4,7 @@ import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_error_message_mapper.dart';
 import 'package:sofawatch/features/profile/application/cubit/profile_cubit.dart';
 import 'package:sofawatch/features/profile/application/cubit/profile_state.dart';
+import 'package:sofawatch/features/profile/application/services/open_web_app_service.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_result.dart';
 import 'package:sofawatch/features/profile/domain/models/profile_user.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
@@ -92,6 +93,9 @@ class ProfilePage extends StatelessWidget {
                   if (kIsWeb) ...<Widget>[
                     const SizedBox(height: AppSpacing.xl),
                     const _ProfileDataTransferSection(),
+                  ] else ...<Widget>[
+                    const SizedBox(height: AppSpacing.xl),
+                    const _ProfileWebAppSection(),
                   ],
 
                   const SizedBox(height: AppSpacing.xl),
@@ -1325,6 +1329,91 @@ Future<void> _pickDataImportFile(BuildContext context) async {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('The selected file could not be opened.')),
+    );
+  }
+}
+
+class _ProfileWebAppSection extends StatelessWidget {
+  const _ProfileWebAppSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-web-app'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'Web App',
+          key: const ValueKey<String>('profile-web-app-title'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        Container(
+          key: const ValueKey<String>('profile-web-app-card'),
+          padding: AppSpacing.cardPadding,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceHigh,
+            borderRadius: AppRadius.borderLarge,
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Icon(Icons.language_rounded, size: 24),
+
+                  const SizedBox(width: AppSpacing.md),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          'SofaWatch Web',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+
+                        const SizedBox(height: AppSpacing.xs),
+
+                        Text(
+                          'Open SofaWatch in your browser to access '
+                          'additional settings and Web-only features.',
+                          key: const ValueKey<String>(
+                            'profile-web-app-description',
+                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: AppSpacing.lg),
+
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.icon(
+                  key: const ValueKey<String>('profile-open-web-app'),
+                  onPressed: () {
+                    _openSofaWatchWeb(context);
+                  },
+                  icon: const Icon(Icons.open_in_new_rounded),
+                  label: const Text('Open SofaWatch Web'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -4217,4 +4306,16 @@ String _buildSofaWatchExportFilename() {
   final String second = now.second.toString().padLeft(2, '0');
 
   return 'sofawatch-export-$year-$month-$day-$hour$minute$second.json';
+}
+
+Future<void> _openSofaWatchWeb(BuildContext context) async {
+  final bool opened = await context.read<OpenWebAppService>().open();
+
+  if (!context.mounted || opened) {
+    return;
+  }
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('SofaWatch Web could not be opened.')),
+  );
 }

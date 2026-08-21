@@ -9,6 +9,7 @@ import 'package:sofawatch/app/router/not_found_page.dart';
 import 'package:sofawatch/app/router/route_paths.dart';
 import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/core/api/api_client.dart';
+import 'package:sofawatch/core/navigation/web_app_launcher.dart';
 import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
 import 'package:sofawatch/features/episode_details/application/cubit/episode_details_cubit.dart';
 import 'package:sofawatch/features/episode_details/data/repositories/api_episode_details_repository.dart';
@@ -27,6 +28,7 @@ import 'package:sofawatch/features/movie_details/presentation/pages/movie_detail
 import 'package:sofawatch/features/movies/application/cubit/movies_cubit.dart';
 import 'package:sofawatch/features/movies/data/repositories/api_movies_repository.dart';
 import 'package:sofawatch/features/movies/presentation/pages/movies_page.dart';
+import 'package:sofawatch/features/profile/application/services/open_web_app_service.dart';
 import 'package:sofawatch/features/profile/presentation/pages/profile_page.dart';
 import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
 import 'package:sofawatch/features/search/domain/repositories/search_repository.dart';
@@ -302,10 +304,24 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
                 name: AppRoute.profile.name,
                 path: RoutePaths.profile,
                 builder: (BuildContext context, GoRouterState state) {
-                  return RepositoryProvider<ServerRepository>(
-                    create: (BuildContext context) {
-                      return ApiServerRepository(context.read<ApiClient>());
-                    },
+                  final ApiClient apiClient = context.read<ApiClient>();
+
+                  return MultiRepositoryProvider(
+                    providers: <RepositoryProvider<dynamic>>[
+                      RepositoryProvider<ServerRepository>(
+                        create: (BuildContext context) {
+                          return ApiServerRepository(apiClient);
+                        },
+                      ),
+                      RepositoryProvider<OpenWebAppService>(
+                        create: (BuildContext context) {
+                          return OpenWebAppService(
+                            apiClient: apiClient,
+                            launcher: const ExternalWebAppLauncher(),
+                          );
+                        },
+                      ),
+                    ],
                     child: MultiBlocProvider(
                       providers: <BlocProvider<dynamic>>[
                         BlocProvider<ProfileCubit>(
