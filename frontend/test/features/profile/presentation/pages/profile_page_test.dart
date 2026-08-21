@@ -2280,6 +2280,109 @@ void main() {
         '3 of 3 logs',
       );
     });
+    testWidgets('adapts Profile layout to narrow mobile width', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 900);
+      tester.view.devicePixelRatio = 1;
+
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          serverRepository: _FakeServerRepository(
+            backgroundJobs: <BackgroundJob>[_metadataSyncJob],
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-page')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-user-card')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-statistics-grid')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-background-job-metadata_sync-stacked-header',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-background-job-metadata_sync-wide-header',
+          ),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('adapts Profile layout to desktop width', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(1200, 1000);
+      tester.view.devicePixelRatio = 1;
+
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          serverRepository: _FakeServerRepository(
+            backgroundJobs: <BackgroundJob>[_metadataSyncJob],
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-page')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-background-job-metadata_sync-wide-header',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-background-job-metadata_sync-stacked-header',
+          ),
+        ),
+        findsNothing,
+      );
+    });
   });
 }
 

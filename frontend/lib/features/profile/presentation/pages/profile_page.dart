@@ -40,6 +40,8 @@ import 'package:flutter/foundation.dart';
 import 'package:sofawatch/core/files/json_file_picker.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_preview.dart';
 
+const double _profileServerMetricCardExtent = 136;
+
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
@@ -259,19 +261,20 @@ class _ProfileStatisticsContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool useFourColumns = constraints.maxWidth >= 720;
+        final bool useWideLayout =
+            constraints.maxWidth >= AppBreakpoints.profileFourColumns;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             GridView.count(
               key: const ValueKey<String>('profile-statistics-grid'),
-              crossAxisCount: useFourColumns ? 4 : 2,
+              crossAxisCount: useWideLayout ? 3 : 2,
               crossAxisSpacing: AppSpacing.sm,
               mainAxisSpacing: AppSpacing.sm,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              childAspectRatio: useFourColumns ? 1.15 : 1.3,
+              mainAxisExtent: _profileServerMetricCardExtent,
               children: <Widget>[
                 _ProfileStatisticCard(
                   cardKey: 'profile-stat-shows',
@@ -383,20 +386,27 @@ class _ProfileStatisticsLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      key: const ValueKey<String>('profile-statistics-loading'),
-      crossAxisCount: 2,
-      crossAxisSpacing: AppSpacing.sm,
-      mainAxisSpacing: AppSpacing.sm,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.3,
-      children: const <Widget>[
-        _ProfileStatisticSkeleton(),
-        _ProfileStatisticSkeleton(),
-        _ProfileStatisticSkeleton(),
-        _ProfileStatisticSkeleton(),
-      ],
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool useWideLayout =
+            constraints.maxWidth >= AppBreakpoints.profileFourColumns;
+
+        return GridView.count(
+          key: const ValueKey<String>('profile-statistics-loading'),
+          crossAxisCount: useWideLayout ? 3 : 2,
+          crossAxisSpacing: AppSpacing.sm,
+          mainAxisSpacing: AppSpacing.sm,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisExtent: _profileServerMetricCardExtent,
+          children: const <Widget>[
+            _ProfileStatisticSkeleton(),
+            _ProfileStatisticSkeleton(),
+            _ProfileStatisticSkeleton(),
+            _ProfileStatisticSkeleton(),
+          ],
+        );
+      },
     );
   }
 }
@@ -2429,16 +2439,17 @@ class _ProfileServerHealthSummary extends StatelessWidget {
 
         LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
-            final bool useFourColumns = constraints.maxWidth >= 720;
+            final bool useWideLayout =
+                constraints.maxWidth >= AppBreakpoints.profileFourColumns;
 
             return GridView.count(
               key: const ValueKey<String>('profile-server-health-grid'),
-              crossAxisCount: useFourColumns ? 4 : 2,
+              crossAxisCount: useWideLayout ? 3 : 2,
               crossAxisSpacing: AppSpacing.sm,
               mainAxisSpacing: AppSpacing.sm,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              childAspectRatio: useFourColumns ? 1.2 : 1.3,
+              mainAxisExtent: _profileServerMetricCardExtent,
               children: <Widget>[
                 _ProfileServerMetricCard(
                   cardKey: 'profile-server-checked-at',
@@ -2691,16 +2702,17 @@ class _ProfileServerEnvironmentStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool useFourColumns = constraints.maxWidth >= 720;
+        final bool useWideLayout =
+            constraints.maxWidth >= AppBreakpoints.profileFourColumns;
 
         return GridView.count(
           key: const ValueKey<String>('profile-server-environment-status'),
-          crossAxisCount: useFourColumns ? 4 : 2,
+          crossAxisCount: useWideLayout ? 3 : 2,
           crossAxisSpacing: AppSpacing.sm,
           mainAxisSpacing: AppSpacing.sm,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: useFourColumns ? 1.2 : 1.3,
+          mainAxisExtent: _profileServerMetricCardExtent,
           children: <Widget>[
             _ProfileServerMetricCard(
               cardKey: 'profile-server-environment-name',
@@ -2753,16 +2765,17 @@ class _ProfileServerStorageStatus extends StatelessWidget {
       children: <Widget>[
         LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
-            final bool useFourColumns = constraints.maxWidth >= 720;
+            final bool useWideLayout =
+                constraints.maxWidth >= AppBreakpoints.profileFourColumns;
 
             return GridView.count(
               key: const ValueKey<String>('profile-server-storage-grid'),
-              crossAxisCount: useFourColumns ? 4 : 2,
+              crossAxisCount: useWideLayout ? 3 : 2,
               crossAxisSpacing: AppSpacing.sm,
               mainAxisSpacing: AppSpacing.sm,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              childAspectRatio: useFourColumns ? 1.2 : 1.3,
+              mainAxisExtent: _profileServerMetricCardExtent,
               children: <Widget>[
                 _ProfileServerMetricCard(
                   cardKey: 'profile-server-storage-directory',
@@ -2831,16 +2844,17 @@ class _ProfileServerImageCacheStatus extends StatelessWidget {
 
         LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
-            final bool useFourColumns = constraints.maxWidth >= 720;
+            final bool useWideLayout =
+                constraints.maxWidth >= AppBreakpoints.profileFourColumns;
 
             return GridView.count(
               key: const ValueKey<String>('profile-server-image-cache-grid'),
-              crossAxisCount: useFourColumns ? 4 : 2,
+              crossAxisCount: useWideLayout ? 3 : 2,
               crossAxisSpacing: AppSpacing.sm,
               mainAxisSpacing: AppSpacing.sm,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              childAspectRatio: useFourColumns ? 1.2 : 1.3,
+              mainAxisExtent: _profileServerMetricCardExtent,
               children: <Widget>[
                 _ProfileServerMetricCard(
                   cardKey: 'profile-server-image-cache-total-size',
@@ -2910,16 +2924,17 @@ class _ProfileServerRuntimeStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool useFourColumns = constraints.maxWidth >= 720;
+        final bool useWideLayout =
+            constraints.maxWidth >= AppBreakpoints.profileFourColumns;
 
         return GridView.count(
           key: const ValueKey<String>('profile-server-runtime-status'),
-          crossAxisCount: useFourColumns ? 4 : 2,
+          crossAxisCount: useWideLayout ? 3 : 2,
           crossAxisSpacing: AppSpacing.sm,
           mainAxisSpacing: AppSpacing.sm,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: useFourColumns ? 1.2 : 1.3,
+          mainAxisExtent: _profileServerMetricCardExtent,
           children: <Widget>[
             _ProfileServerMetricCard(
               cardKey: 'profile-server-runtime-python',
@@ -2967,16 +2982,17 @@ class _ProfileServerProvidersStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool useFourColumns = constraints.maxWidth >= 720;
+        final bool useWideLayout =
+            constraints.maxWidth >= AppBreakpoints.profileFourColumns;
 
         return GridView.count(
           key: const ValueKey<String>('profile-server-providers-status'),
-          crossAxisCount: useFourColumns ? 4 : 2,
+          crossAxisCount: useWideLayout ? 3 : 2,
           crossAxisSpacing: AppSpacing.sm,
           mainAxisSpacing: AppSpacing.sm,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: useFourColumns ? 1.2 : 1.3,
+          mainAxisExtent: _profileServerMetricCardExtent,
           children: <Widget>[
             _ProfileServerMetricCard(
               cardKey: 'profile-server-provider-tmdb-configured',
@@ -3012,7 +3028,8 @@ class _ProfileServerDatabaseStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool useFourColumns = constraints.maxWidth >= 720;
+        final bool useWideLayout =
+            constraints.maxWidth >= AppBreakpoints.profileFourColumns;
 
         return Column(
           key: const ValueKey<String>('profile-server-database-status'),
@@ -3022,12 +3039,12 @@ class _ProfileServerDatabaseStatus extends StatelessWidget {
               key: const ValueKey<String>(
                 'profile-server-database-status-grid',
               ),
-              crossAxisCount: useFourColumns ? 4 : 2,
+              crossAxisCount: useWideLayout ? 3 : 2,
               crossAxisSpacing: AppSpacing.sm,
               mainAxisSpacing: AppSpacing.sm,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              childAspectRatio: useFourColumns ? 1.2 : 1.3,
+              mainAxisExtent: _profileServerMetricCardExtent,
               children: <Widget>[
                 _ProfileServerMetricCard(
                   cardKey: 'profile-server-database-engine',
@@ -3279,72 +3296,96 @@ class _ProfileBackgroundJobCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      job.name,
-                      key: ValueKey<String>(
-                        'profile-background-job-${job.key}-name',
-                      ),
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+          LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final bool useStackedHeader =
+                  constraints.maxWidth <
+                  AppBreakpoints.profileBackgroundJobStack;
+
+              final Widget identity = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    job.name,
+                    key: ValueKey<String>(
+                      'profile-background-job-${job.key}-name',
                     ),
-
-                    const SizedBox(height: AppSpacing.xs),
-
-                    Text(
-                      job.schedule,
-                      key: ValueKey<String>(
-                        'profile-background-job-${job.key}-schedule',
-                      ),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    job.schedule,
+                    key: ValueKey<String>(
+                      'profile-background-job-${job.key}-schedule',
+                    ),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              );
 
-              const SizedBox(width: AppSpacing.md),
-
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              final Widget actions = Column(
+                crossAxisAlignment: useStackedHeader
+                    ? CrossAxisAlignment.start
+                    : CrossAxisAlignment.end,
                 children: <Widget>[
                   _ProfileBackgroundJobStatus(job: job),
-
                   const SizedBox(height: AppSpacing.sm),
-
                   _ProfileBackgroundJobRunAction(
                     job: job,
                     isSubmitting: isSubmitting,
                   ),
                 ],
-              ),
-            ],
+              );
+
+              if (useStackedHeader) {
+                return Column(
+                  key: ValueKey<String>(
+                    'profile-background-job-${job.key}-stacked-header',
+                  ),
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    identity,
+                    const SizedBox(height: AppSpacing.md),
+                    Align(alignment: Alignment.centerLeft, child: actions),
+                  ],
+                );
+              }
+
+              return Row(
+                key: ValueKey<String>(
+                  'profile-background-job-${job.key}-wide-header',
+                ),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(child: identity),
+                  const SizedBox(width: AppSpacing.md),
+                  actions,
+                ],
+              );
+            },
           ),
 
           const SizedBox(height: AppSpacing.md),
 
           LayoutBuilder(
             builder: (BuildContext context, BoxConstraints constraints) {
-              final bool useFourColumns = constraints.maxWidth >= 720;
+              final bool useWideLayout =
+                  constraints.maxWidth >= AppBreakpoints.profileFourColumns;
 
               return GridView.count(
                 key: ValueKey<String>(
                   'profile-background-job-${job.key}-timing-grid',
                 ),
-                crossAxisCount: useFourColumns ? 4 : 2,
+                crossAxisCount: useWideLayout ? 3 : 2,
                 crossAxisSpacing: AppSpacing.sm,
                 mainAxisSpacing: AppSpacing.sm,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: useFourColumns ? 1.35 : 1.4,
+                mainAxisExtent: _profileServerMetricCardExtent,
                 children: <Widget>[
                   _ProfileServerMetricCard(
                     cardKey: 'profile-background-job-${job.key}-last-run',
@@ -3549,16 +3590,17 @@ class _ProfileBackgroundJobResultSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool useFourColumns = constraints.maxWidth >= 720;
+        final bool useWideLayout =
+            constraints.maxWidth >= AppBreakpoints.profileFourColumns;
 
         return GridView.count(
           key: ValueKey<String>('profile-background-job-$jobKey-result-grid'),
-          crossAxisCount: useFourColumns ? 4 : 2,
+          crossAxisCount: useWideLayout ? 3 : 2,
           crossAxisSpacing: AppSpacing.sm,
           mainAxisSpacing: AppSpacing.sm,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: useFourColumns ? 1.4 : 1.45,
+          mainAxisExtent: _profileServerMetricCardExtent,
           children: <Widget>[
             _ProfileServerMetricCard(
               cardKey: 'profile-background-job-$jobKey-checked',
@@ -3837,35 +3879,67 @@ class _ProfileServerLogEntryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              _ProfileServerLogLevelBadge(level: entry.level),
+          LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final bool useStackedHeader =
+                  constraints.maxWidth < AppBreakpoints.profileLogHeaderStack;
 
-              const SizedBox(width: AppSpacing.sm),
+              final Widget levelAndLogger = Row(
+                children: <Widget>[
+                  _ProfileServerLogLevelBadge(level: entry.level),
 
-              Expanded(
-                child: Text(
-                  entry.logger,
-                  key: ValueKey<String>('profile-server-log-$index-logger'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
+                  const SizedBox(width: AppSpacing.sm),
+
+                  Expanded(
+                    child: Text(
+                      entry.logger,
+                      key: ValueKey<String>('profile-server-log-$index-logger'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                ],
+              );
 
-              const SizedBox(width: AppSpacing.md),
-
-              Text(
+              final Widget timestamp = Text(
                 _formatServerLogDate(entry.timestamp),
                 key: ValueKey<String>('profile-server-log-$index-timestamp'),
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-              ),
-            ],
+              );
+
+              if (useStackedHeader) {
+                return Column(
+                  key: ValueKey<String>(
+                    'profile-server-log-$index-stacked-header',
+                  ),
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    levelAndLogger,
+
+                    const SizedBox(height: AppSpacing.xs),
+
+                    Align(alignment: Alignment.centerLeft, child: timestamp),
+                  ],
+                );
+              }
+
+              return Row(
+                key: ValueKey<String>('profile-server-log-$index-wide-header'),
+                children: <Widget>[
+                  Expanded(child: levelAndLogger),
+
+                  const SizedBox(width: AppSpacing.md),
+
+                  timestamp,
+                ],
+              );
+            },
           ),
 
           const SizedBox(height: AppSpacing.sm),
