@@ -120,3 +120,62 @@ def test_get_local_returns_none_when_missing(
     result = repository.get_local()
 
     assert result is None
+
+def test_get_by_username_returns_user(
+    db_session,
+) -> None:
+    user = User(
+        username="souocare",
+        email="goncalo@example.com",
+        display_name="Gonçalo",
+        is_local=False,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+
+    repository = UserRepository(db_session)
+
+    result = repository.get_by_username("souocare")
+
+    assert result is not None
+    assert result.id == user.id
+    assert result.username == "souocare"
+
+
+def test_get_by_username_returns_none_when_missing(
+    db_session,
+) -> None:
+    repository = UserRepository(db_session)
+
+    assert repository.get_by_username("missing") is None
+
+
+def test_get_by_email_returns_user(
+    db_session,
+) -> None:
+    user = User(
+        username="souocare",
+        email="goncalo@example.com",
+        display_name="Gonçalo",
+        is_local=False,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+
+    repository = UserRepository(db_session)
+
+    result = repository.get_by_email("goncalo@example.com")
+
+    assert result is not None
+    assert result.id == user.id
+    assert result.email == "goncalo@example.com"
+
+
+def test_get_by_email_returns_none_when_missing(
+    db_session,
+) -> None:
+    repository = UserRepository(db_session)
+
+    assert repository.get_by_email("missing@example.com") is None

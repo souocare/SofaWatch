@@ -6,6 +6,7 @@ import pytest
 
 from app.repositories.user import UserRepository
 from app.services.user import UserService
+from app.models.user import User
 
 
 @pytest.fixture
@@ -116,3 +117,66 @@ def test_get_local_returns_none_when_missing(
     assert result is None
 
     user_repository.get_local.assert_called_once_with()
+
+def test_get_by_username_normalizes_username(
+    user_service,
+    user_repository,
+) -> None:
+    user = User(
+        username="souocare",
+        display_name="Gonçalo",
+        is_local=False,
+    )
+
+    user_repository.get_by_username.return_value = user
+
+    result = user_service.get_by_username("  SouOCare  ")
+
+    assert result is user
+
+    user_repository.get_by_username.assert_called_once_with(
+        "souocare",
+    )
+
+
+def test_get_by_username_rejects_empty_username(
+    user_service,
+    user_repository,
+) -> None:
+    result = user_service.get_by_username("   ")
+
+    assert result is None
+
+    user_repository.get_by_username.assert_not_called()
+
+
+def test_get_by_email_normalizes_email(
+    user_service,
+    user_repository,
+) -> None:
+    user = User(
+        email="goncalo@example.com",
+        display_name="Gonçalo",
+        is_local=False,
+    )
+
+    user_repository.get_by_email.return_value = user
+
+    result = user_service.get_by_email("  Goncalo@Example.COM  ")
+
+    assert result is user
+
+    user_repository.get_by_email.assert_called_once_with(
+        "goncalo@example.com",
+    )
+
+
+def test_get_by_email_rejects_empty_email(
+    user_service,
+    user_repository,
+) -> None:
+    result = user_service.get_by_email("   ")
+
+    assert result is None
+
+    user_repository.get_by_email.assert_not_called()

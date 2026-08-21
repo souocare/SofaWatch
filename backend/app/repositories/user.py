@@ -26,6 +26,30 @@ class UserRepository:
             user_id,
         )
 
+    def get_by_username(
+        self,
+        username: str,
+    ) -> User | None:
+        """Return a user by its normalized username."""
+
+        return self._session.scalar(
+            select(User).where(
+                User.username == username,
+            )
+        )
+
+    def get_by_email(
+        self,
+        email: str,
+    ) -> User | None:
+        """Return a user by its normalized email address."""
+
+        return self._session.scalar(
+            select(User).where(
+                User.email == email,
+            )
+        )
+
     def get_local(
         self,
     ) -> User | None:

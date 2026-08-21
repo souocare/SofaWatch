@@ -45,7 +45,10 @@ def test_get_current_user_returns_local_user(
 
     assert payload == {
         "id": str(user.id),
+        "username": None,
+        "email": None,
         "display_name": "Local User",
+        "is_active": True,
         "is_local": True,
         "is_admin": False,
     }

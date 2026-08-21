@@ -23,9 +23,32 @@ class User(TimestampMixin, Base):
         default=uuid4,
     )
 
+    username: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+        unique=True,
+    )
+
+    email: Mapped[str | None] = mapped_column(
+        String(320),
+        nullable=True,
+        unique=True,
+    )
+
     display_name: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
+    )
+
+    password_hash: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
     )
 
     is_local: Mapped[bool] = mapped_column(
@@ -54,7 +77,10 @@ class User(TimestampMixin, Base):
         return (
             "User("
             f"id={self.id!r}, "
+            f"username={self.username!r}, "
+            f"email={self.email!r}, "
             f"display_name={self.display_name!r}, "
+            f"is_active={self.is_active!r}, "
             f"is_local={self.is_local!r}, "
             f"is_admin={self.is_admin!r}"
             ")"
