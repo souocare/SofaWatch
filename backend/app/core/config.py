@@ -27,6 +27,11 @@ class Settings(BaseSettings):
         ge=1,
         le=1440,
     )
+    session_idle_expire_days: int = Field(
+        default=180,
+        ge=1,
+        le=3650,
+    )
 
     default_language: str = "en-US"
     supported_languages: str = "en-US,pt-PT"
@@ -69,6 +74,13 @@ class Settings(BaseSettings):
     @property
     def is_development(self) -> bool:
         return self.environment.lower() == "development"
+
+
+    @property
+    def is_production(self) -> bool:
+        """Return whether SofaWatch is running in production."""
+
+        return self.environment.lower() == "production"
 
     @property
     def cors_origin_list(self) -> list[str]:

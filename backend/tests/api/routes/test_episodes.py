@@ -962,6 +962,83 @@ def test_delete_watch_event_returns_404_for_event_from_another_episode(
 
     assert persisted_event is not None
 
+
+def test_delete_watch_event_cannot_delete_another_users_event(
+    client: TestClient,
+    db_session: Session,
+    local_user: User,
+) -> None:
+    """Do not allow a user to delete another user's Episode watch event."""
+
+    other_user = User(
+        username="other-user",
+        display_name="Other User",
+        is_local=False,
+        is_active=True,
+    )
+
+    db_session.add(other_user)
+    db_session.commit()
+    db_session.refresh(other_user)
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=134792,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2101,
+        episode_number=1,
+        title="Good News About Hell",
+    )
+
+    event = create_watch_event(
+        db_session,
+        user=other_user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    response = client.delete(
+        f"/api/v1/episodes/{episode.id}/watch-events/{event.id}",
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "error": {
+            "code": "episode_watch_event_not_found",
+            "message": "Episode watch event not found.",
+        }
+    }
+
+    stored_event = db_session.get(
+        EpisodeWatchEvent,
+        event.id,
+    )
+
+    assert stored_event is not None
+    assert stored_event.user_id == other_user.id
+
+
 def test_delete_all_watch_events_clears_history_and_progress(
     client: TestClient,
     db_session: Session,

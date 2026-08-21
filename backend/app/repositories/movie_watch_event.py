@@ -49,16 +49,16 @@ class MovieWatchEventRepository:
 
         return event
 
-    def get_by_id(
-        self,
-        event_id: UUID,
-    ) -> MovieWatchEvent | None:
-        """Return a Movie watch event by identifier."""
+    # def get_by_id(
+    #     self,
+    #     event_id: UUID,
+    # ) -> MovieWatchEvent | None:
+    #     """Return a Movie watch event by identifier."""
 
-        return self._session.get(
-            MovieWatchEvent,
-            event_id,
-        )
+    #     return self._session.get(
+    #         MovieWatchEvent,
+    #         event_id,
+    #     )
 
     def get_by_id_for_user_and_movie(
         self,

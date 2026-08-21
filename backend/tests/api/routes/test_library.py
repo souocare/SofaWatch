@@ -4069,6 +4069,85 @@ def test_delete_movie_watch_event_returns_404_for_unknown_event(
     }
 
 
+def test_delete_movie_watch_event_cannot_delete_another_users_event(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Do not allow a user to delete another user's Movie watch event."""
+
+    local_user = create_local_user(
+        db_session,
+    )
+
+    other_user = User(
+        username="other-user",
+        display_name="Other User",
+        is_local=False,
+        is_active=True,
+    )
+
+    db_session.add(other_user)
+    db_session.commit()
+    db_session.refresh(other_user)
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    create_movie_library_entry(
+        db_session,
+        user=local_user,
+        movie=movie,
+    )
+
+    other_entry = create_movie_library_entry(
+        db_session,
+        user=other_user,
+        movie=movie,
+    )
+
+    event = MovieWatchEvent(
+        user_id=other_user.id,
+        movie_id=movie.id,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    db_session.add(event)
+    db_session.commit()
+    db_session.refresh(event)
+
+    response = client.delete(
+        f"/api/v1/library/movies/{movie.id}/watch-events/{event.id}",
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "error": {
+            "code": "movie_watch_event_not_found",
+            "message": "Movie watch event not found.",
+        }
+    }
+
+    stored_event = db_session.get(
+        MovieWatchEvent,
+        event.id,
+    )
+
+    assert stored_event is not None
+    assert stored_event.user_id == other_user.id
+
+
+
 def test_delete_all_movie_watch_events_returns_movie_to_watchlist(
     client: TestClient,
     db_session: Session,

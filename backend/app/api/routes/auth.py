@@ -1,8 +1,12 @@
-from fastapi import APIRouter, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.api.dependencies import (
     AccessTokenServiceDependency,
     AuthenticationServiceDependency,
+    AuthSessionServiceDependency,
+    CurrentUserDependency,
     InitialSetupServiceDependency,
     UserServiceDependency,
 )
@@ -11,15 +15,61 @@ from app.schemas.auth import (
     AccessTokenResponse,
     InitialSetupRequest,
     LoginRequest,
+    MobileAuthenticationResponse,
+    MobileRefreshRequest,
     SetupStatusResponse,
 )
 from app.services.initial_setup import InitialSetupAlreadyCompletedError
+from app.core.config import Settings, get_settings
+from app.models.auth_session import AuthSessionType
 
 
 router = APIRouter(
     prefix="/auth",
     tags=["authentication"],
 )
+
+
+_SESSION_COOKIE_NAME = "sofawatch_session"
+_SECONDS_PER_DAY = 24 * 60 * 60
+
+
+def _set_web_session_cookie(
+    *,
+    response: Response,
+    credential: str,
+    settings: Settings,
+) -> None:
+    """Store the persistent Web session credential in an HttpOnly cookie."""
+
+    response.set_cookie(
+        key=_SESSION_COOKIE_NAME,
+        value=credential,
+        max_age=(
+            settings.session_idle_expire_days
+            * _SECONDS_PER_DAY
+        ),
+        httponly=True,
+        secure=settings.is_production,
+        samesite="lax",
+        path="/",
+    )
+
+
+def _clear_web_session_cookie(
+    *,
+    response: Response,
+    settings: Settings,
+) -> None:
+    """Remove the persistent Web session cookie."""
+
+    response.delete_cookie(
+        key=_SESSION_COOKIE_NAME,
+        httponly=True,
+        secure=settings.is_production,
+        samesite="lax",
+        path="/",
+    )
 
 
 @router.get(
@@ -53,8 +103,14 @@ def get_setup_status(
 )
 def create_initial_admin(
     payload: InitialSetupRequest,
+    response: Response,
     setup_service: InitialSetupServiceDependency,
     access_token_service: AccessTokenServiceDependency,
+    auth_session_service: AuthSessionServiceDependency,
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
 ) -> AccessTokenResponse:
     """Create the first administrator and authenticate it."""
 
@@ -76,6 +132,17 @@ def create_initial_admin(
         user_id=user.id,
     )
 
+    auth_session = auth_session_service.create(
+        user_id=user.id,
+        session_type=AuthSessionType.WEB,
+    )
+
+    _set_web_session_cookie(
+        response=response,
+        credential=auth_session.credential,
+        settings=settings,
+    )
+
     return AccessTokenResponse(
         access_token=access_token,
         expires_in=int(
@@ -95,8 +162,14 @@ def create_initial_admin(
 )
 def login(
     credentials: LoginRequest,
+    response: Response,
     authentication_service: AuthenticationServiceDependency,
     access_token_service: AccessTokenServiceDependency,
+    auth_session_service: AuthSessionServiceDependency,
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
 ) -> AccessTokenResponse:
     """Authenticate a user and issue a short-lived access token."""
 
@@ -116,9 +189,254 @@ def login(
         user_id=user.id,
     )
 
+    auth_session = auth_session_service.create(
+        user_id=user.id,
+        session_type=AuthSessionType.WEB,
+    )
+
+    _set_web_session_cookie(
+        response=response,
+        credential=auth_session.credential,
+        settings=settings,
+    )
+
     return AccessTokenResponse(
         access_token=access_token,
         expires_in=int(
             access_token_service.expiration.total_seconds(),
         ),
+    )
+
+@router.post(
+    "/mobile/login",
+    response_model=MobileAuthenticationResponse,
+    summary="Authenticate Mobile user",
+    description=(
+        "Authenticate a SofaWatch user for a native Mobile client "
+        "and create a persistent refresh session."
+    ),
+)
+def mobile_login(
+    credentials: LoginRequest,
+    authentication_service: AuthenticationServiceDependency,
+    access_token_service: AccessTokenServiceDependency,
+    auth_session_service: AuthSessionServiceDependency,
+) -> MobileAuthenticationResponse:
+    """Authenticate a native client and create its persistent session."""
+
+    user = authentication_service.authenticate(
+        username=credentials.username,
+        password=credentials.password,
+    )
+
+    if user is None:
+        raise APIError(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="invalid_credentials",
+            message="The username or password is incorrect.",
+        )
+
+    access_token = access_token_service.create(
+        user_id=user.id,
+    )
+
+    auth_session = auth_session_service.create(
+        user_id=user.id,
+        session_type=AuthSessionType.MOBILE,
+    )
+
+    return MobileAuthenticationResponse(
+        access_token=access_token,
+        expires_in=int(
+            access_token_service.expiration.total_seconds(),
+        ),
+        refresh_token=auth_session.credential,
+    )
+
+
+@router.post(
+    "/refresh",
+    response_model=MobileAuthenticationResponse,
+    summary="Refresh Mobile authentication",
+    description=(
+        "Exchange a valid Mobile refresh credential for a new short-lived "
+        "access token and a rotated refresh credential."
+    ),
+)
+def refresh_mobile_authentication(
+    payload: MobileRefreshRequest,
+    auth_session_service: AuthSessionServiceDependency,
+    user_service: UserServiceDependency,
+    access_token_service: AccessTokenServiceDependency,
+) -> MobileAuthenticationResponse:
+    """Rotate a Mobile refresh credential and issue a new access token."""
+
+    rotated_session = auth_session_service.rotate_mobile_credential(
+        payload.refresh_token,
+    )
+
+    if rotated_session is None:
+        raise APIError(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="invalid_refresh_token",
+            message="The refresh token is invalid or expired.",
+        )
+
+    user = user_service.get_by_id(
+        rotated_session.session.user_id,
+    )
+
+    if user is None or not user.is_active:
+        auth_session_service.revoke(
+            session_id=rotated_session.session.id,
+        )
+
+        raise APIError(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="invalid_refresh_token",
+            message="The refresh token is invalid or expired.",
+        )
+
+    access_token = access_token_service.create(
+        user_id=user.id,
+    )
+
+    return MobileAuthenticationResponse(
+        access_token=access_token,
+        expires_in=int(
+            access_token_service.expiration.total_seconds(),
+        ),
+        refresh_token=rotated_session.credential,
+    )
+
+
+@router.post(
+    "/session",
+    response_model=AccessTokenResponse,
+    summary="Restore authenticated Web session",
+    description=(
+        "Restore an authenticated SofaWatch Web session from the "
+        "persistent HttpOnly session cookie and issue a new short-lived "
+        "access token."
+    ),
+)
+def restore_web_session(
+    request: Request,
+    auth_session_service: AuthSessionServiceDependency,
+    user_service: UserServiceDependency,
+    access_token_service: AccessTokenServiceDependency,
+) -> AccessTokenResponse:
+    """Restore a persistent Web session and issue a new access token."""
+
+    credential = request.cookies.get(
+        _SESSION_COOKIE_NAME,
+    )
+
+    if credential is None:
+        raise APIError(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="session_required",
+            message="An authenticated session is required.",
+        )
+
+    auth_session = auth_session_service.resolve(
+        credential,
+    )
+
+    if (
+        auth_session is None
+        or auth_session.session_type != AuthSessionType.WEB
+    ):
+        raise APIError(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="invalid_session",
+            message="The authentication session is invalid or expired.",
+        )
+
+    user = user_service.get_by_id(
+        auth_session.user_id,
+    )
+
+    if user is None or not user.is_active:
+        raise APIError(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="invalid_session",
+            message="The authentication session is invalid or expired.",
+        )
+
+    access_token = access_token_service.create(
+        user_id=user.id,
+    )
+
+    return AccessTokenResponse(
+        access_token=access_token,
+        expires_in=int(
+            access_token_service.expiration.total_seconds(),
+        ),
+    )
+
+
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Log out current Web session",
+    description=(
+        "Revoke the current persistent SofaWatch Web session "
+        "and remove its authentication cookie."
+    ),
+)
+def logout(
+    request: Request,
+    response: Response,
+    auth_session_service: AuthSessionServiceDependency,
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
+) -> None:
+    """Revoke the current Web session and remove its cookie."""
+
+    credential = request.cookies.get(
+        _SESSION_COOKIE_NAME,
+    )
+
+    if credential is not None:
+        auth_session_service.revoke_by_credential(
+            credential,
+        )
+
+    _clear_web_session_cookie(
+        response=response,
+        settings=settings,
+    )
+
+
+@router.post(
+    "/logout-all",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Log out all authenticated sessions",
+    description=(
+        "Revoke every persistent SofaWatch authentication session "
+        "belonging to the current user and remove the current Web "
+        "session cookie."
+    ),
+)
+def logout_all(
+    response: Response,
+    current_user: CurrentUserDependency,
+    auth_session_service: AuthSessionServiceDependency,
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
+) -> None:
+    """Revoke every authentication session belonging to the current user."""
+
+    auth_session_service.revoke_all_for_user(
+        user_id=current_user.id,
+    )
+
+    _clear_web_session_cookie(
+        response=response,
+        settings=settings,
     )

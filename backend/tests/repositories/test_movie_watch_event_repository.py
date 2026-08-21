@@ -242,10 +242,10 @@ def test_allows_multiple_watch_events_for_same_movie(
     assert events[1].id == second_event.id
 
 
-def test_get_by_id_returns_movie_watch_event(
+def test_get_by_id_for_user_and_movie_returns_movie_watch_event(
     db_session: Session,
 ) -> None:
-    """Return a Movie watch event by its UUID."""
+    """Return a Movie watch event owned by the requested user and Movie."""
 
     user = create_user(db_session)
 
@@ -273,8 +273,10 @@ def test_get_by_id_returns_movie_watch_event(
         db_session,
     )
 
-    result = repository.get_by_id(
-        event.id,
+    result = repository.get_by_id_for_user_and_movie(
+        event_id=event.id,
+        user_id=user.id,
+        movie_id=movie.id,
     )
 
     assert result is not None

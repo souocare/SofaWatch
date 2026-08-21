@@ -371,48 +371,6 @@ def list_history(
         ) from error
 
 
-@router.get(
-    "/history",
-    response_model=HistoryPageResponse,
-    summary="List viewing History",
-    description=(
-        "Return combined Episode and Movie viewing events for the current "
-        "user, ordered from newest to oldest using cursor pagination."
-    ),
-)
-def list_history(
-    current_user: CurrentUserDependency,
-    service: HistoryServiceDependency,
-    limit: Annotated[
-        int,
-        Query(
-            ge=1,
-            le=100,
-            description="Maximum number of History entries to return.",
-        ),
-    ] = 30,
-    cursor: Annotated[
-        str | None,
-        Query(
-            description="Opaque cursor returned by the previous page.",
-        ),
-    ] = None,
-) -> HistoryPageResponse:
-    """Return one cursor-paginated page of combined viewing History."""
-
-    try:
-        return service.list_for_user(
-            user_id=current_user.id,
-            limit=limit,
-            cursor=cursor,
-        )
-    except ValueError as error:
-        raise APIError(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            code="invalid_history_cursor",
-            message="Invalid History cursor.",
-        ) from error
-
 
 @router.post(
     "/shows/{show_id}",

@@ -72,6 +72,9 @@ from app.core.security.tokens import (
 )
 from app.services.authentication import AuthenticationService
 from app.services.initial_setup import InitialSetupService
+from app.repositories.auth_session import AuthSessionRepository
+from app.services.auth_session import AuthSessionService
+from app.models.auth_session import AuthSessionType
 
 def get_genre_service(
     session: DatabaseSession,
@@ -404,6 +407,29 @@ AuthenticationServiceDependency = Annotated[
     Depends(get_authentication_service),
 ]
 
+
+def get_auth_session_service(
+    session: DatabaseSession,
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
+) -> AuthSessionService:
+    """Provide the persistent authentication session service."""
+
+    return AuthSessionService(
+        session=session,
+        repository=AuthSessionRepository(session),
+        idle_expire_days=settings.session_idle_expire_days,
+    )
+
+
+AuthSessionServiceDependency = Annotated[
+    AuthSessionService,
+    Depends(get_auth_session_service),
+]
+
+
 def get_initial_setup_service(
     session: DatabaseSession,
 ) -> InitialSetupService:
@@ -443,23 +469,63 @@ AccessTokenServiceDependency = Annotated[
 _bearer_scheme = HTTPBearer(
     auto_error=False,
 )
+_SESSION_COOKIE_NAME = "sofawatch_session"
 
 def get_current_user(
+    request: Request,
     user_service: UserServiceDependency,
     access_token_service: AccessTokenServiceDependency,
+    auth_session_service: AuthSessionServiceDependency,
     credentials: Annotated[
         HTTPAuthorizationCredentials | None,
         Depends(_bearer_scheme),
     ],
 ) -> User:
-    """Resolve the authenticated SofaWatch user for the current request."""
+    """Resolve the authenticated SofaWatch user for the current request.
 
-    if credentials is None:
-        raise APIError(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            code="authentication_required",
-            message="Authentication is required.",
+    Bearer authentication takes precedence when explicitly supplied.
+    Otherwise, Web clients may authenticate through their persistent
+    HttpOnly session cookie.
+    """
+
+    if credentials is not None:
+        return _resolve_bearer_user(
+            credentials=credentials,
+            user_service=user_service,
+            access_token_service=access_token_service,
         )
+
+    session_credential = request.cookies.get(
+        _SESSION_COOKIE_NAME,
+    )
+
+    if session_credential is not None:
+        return _resolve_web_session_user(
+            session_credential=session_credential,
+            user_service=user_service,
+            auth_session_service=auth_session_service,
+        )
+
+    raise APIError(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        code="authentication_required",
+        message="Authentication is required.",
+    )
+
+
+CurrentUserDependency = Annotated[
+    User,
+    Depends(get_current_user),
+]
+
+
+def _resolve_bearer_user(
+    *,
+    credentials: HTTPAuthorizationCredentials,
+    user_service: UserService,
+    access_token_service: AccessTokenService,
+) -> User:
+    """Resolve a user from an explicitly supplied Bearer access token."""
 
     try:
         claims = access_token_service.validate(
@@ -486,10 +552,40 @@ def get_current_user(
     return user
 
 
-CurrentUserDependency = Annotated[
-    User,
-    Depends(get_current_user),
-]
+def _resolve_web_session_user(
+    *,
+    session_credential: str,
+    user_service: UserService,
+    auth_session_service: AuthSessionService,
+) -> User:
+    """Resolve a user from a persistent Web authentication session."""
+
+    auth_session = auth_session_service.resolve(
+        session_credential,
+    )
+
+    if (
+        auth_session is None
+        or auth_session.session_type != AuthSessionType.WEB
+    ):
+        raise APIError(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="invalid_session",
+            message="The authentication session is invalid or expired.",
+        )
+
+    user = user_service.get_by_id(
+        auth_session.user_id,
+    )
+
+    if user is None or not user.is_active:
+        raise APIError(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="invalid_session",
+            message="The authentication session is invalid or expired.",
+        )
+
+    return user
 
 
 def require_admin(

@@ -8,6 +8,7 @@ from app.db.base import Base
 from app.db.mixins import TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.auth_session import AuthSession
     from app.models.episode_progress import EpisodeProgress
     from app.models.library import LibraryEntry
 
@@ -69,6 +70,11 @@ class User(TimestampMixin, Base):
     )
 
     episode_progress: Mapped[list["EpisodeProgress"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    auth_sessions: Mapped[list["AuthSession"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )

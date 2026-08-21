@@ -58,16 +58,16 @@ class EpisodeWatchEventRepository:
 
         return event
 
-    def get_by_id(
-        self,
-        event_id: UUID,
-    ) -> EpisodeWatchEvent | None:
-        """Return a watch event by its identifier."""
+    # def get_by_id(
+    #     self,
+    #     event_id: UUID,
+    # ) -> EpisodeWatchEvent | None:
+    #     """Return a watch event by its identifier."""
 
-        return self._session.get(
-            EpisodeWatchEvent,
-            event_id,
-        )
+    #     return self._session.get(
+    #         EpisodeWatchEvent,
+    #         event_id,
+    #     )
 
     def get_by_id_for_user(
         self,
