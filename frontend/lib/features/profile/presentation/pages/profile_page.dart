@@ -43,10 +43,14 @@ import 'package:sofawatch/features/profile/domain/models/data_import_preview.dar
 const double _profileServerMetricCardExtent = 136;
 
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+  const ProfilePage({super.key, this.isWebOverride});
+
+  @visibleForTesting
+  final bool? isWebOverride;
 
   @override
   Widget build(BuildContext context) {
+    final bool isWeb = isWebOverride ?? kIsWeb;
     return Scaffold(
       key: const ValueKey<String>('profile-page'),
       backgroundColor: AppColors.surface,
@@ -92,7 +96,7 @@ class ProfilePage extends StatelessWidget {
 
                   const _ProfileHistorySection(),
 
-                  if (kIsWeb) ...<Widget>[
+                  if (isWeb) ...<Widget>[
                     const SizedBox(height: AppSpacing.xl),
                     const _ProfileDataTransferSection(),
                   ] else ...<Widget>[

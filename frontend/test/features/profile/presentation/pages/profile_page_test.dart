@@ -37,6 +37,12 @@ import 'package:sofawatch/features/server/domain/repositories/server_repository.
 import 'package:sofawatch/features/server/domain/models/background_job.dart';
 import 'package:sofawatch/features/server/domain/models/background_job.dart';
 import 'package:sofawatch/features/server/domain/models/server_logs.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sofawatch/app/router/app_routes.dart';
+import 'package:sofawatch/features/profile/application/cubit/data_transfer_cubit.dart';
+import 'package:sofawatch/features/profile/domain/models/data_import_preview.dart';
+import 'package:sofawatch/features/profile/domain/models/data_import_result.dart';
+import 'package:sofawatch/features/profile/domain/repositories/data_transfer_repository.dart';
 
 void main() {
   group('ProfilePage Statistics', () {
@@ -548,6 +554,91 @@ void main() {
         findsOneWidget,
       );
     });
+    testWidgets('navigates from Episode History to Episode details', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        _buildNavigationTestApp(
+          historyRepository: _FakeHistoryRepository(preview: _historyPreview),
+          destinationRoutes: <GoRoute>[
+            GoRoute(
+              name: AppRoute.episodeDetails.name,
+              path: '/episodes/:episodeId',
+              builder: (BuildContext context, GoRouterState state) {
+                return Scaffold(
+                  body: Text(
+                    state.pathParameters['episodeId'] ?? 'missing',
+                    key: const ValueKey<String>(
+                      'test-episode-details-destination',
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder row = find.byKey(
+        const ValueKey<String>('profile-history-episode-episode-event-1'),
+      );
+
+      await tester.ensureVisible(row);
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('test-episode-details-destination')),
+        findsOneWidget,
+      );
+
+      expect(find.text('episode-1'), findsOneWidget);
+    });
+
+    testWidgets('navigates from Movie History to Movie details using TMDB id', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        _buildNavigationTestApp(
+          historyRepository: _FakeHistoryRepository(preview: _historyPreview),
+          destinationRoutes: <GoRoute>[
+            GoRoute(
+              name: AppRoute.movieDetails.name,
+              path: '/movies/:movieId',
+              builder: (BuildContext context, GoRouterState state) {
+                return Scaffold(
+                  body: Text(
+                    state.pathParameters['movieId'] ?? 'missing',
+                    key: const ValueKey<String>(
+                      'test-movie-details-destination',
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder row = find.byKey(
+        const ValueKey<String>('profile-history-movie-movie-event-1'),
+      );
+
+      await tester.ensureVisible(row);
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('test-movie-details-destination')),
+        findsOneWidget,
+      );
+
+      expect(find.text('438631'), findsOneWidget);
+    });
     testWidgets('shows See All actions for Shows and Movies', (
       WidgetTester tester,
     ) async {
@@ -786,6 +877,91 @@ void main() {
         ),
         findsOneWidget,
       );
+    });
+    testWidgets('navigates from Episode History to Episode details', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        _buildNavigationTestApp(
+          historyRepository: _FakeHistoryRepository(preview: _historyPreview),
+          destinationRoutes: <GoRoute>[
+            GoRoute(
+              name: AppRoute.episodeDetails.name,
+              path: '/episodes/:episodeId',
+              builder: (BuildContext context, GoRouterState state) {
+                return Scaffold(
+                  body: Text(
+                    state.pathParameters['episodeId'] ?? 'missing',
+                    key: const ValueKey<String>(
+                      'test-episode-details-destination',
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder row = find.byKey(
+        const ValueKey<String>('profile-history-episode-episode-event-1'),
+      );
+
+      await tester.ensureVisible(row);
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('test-episode-details-destination')),
+        findsOneWidget,
+      );
+
+      expect(find.text('episode-1'), findsOneWidget);
+    });
+
+    testWidgets('navigates from Movie History to Movie details using TMDB id', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        _buildNavigationTestApp(
+          historyRepository: _FakeHistoryRepository(preview: _historyPreview),
+          destinationRoutes: <GoRoute>[
+            GoRoute(
+              name: AppRoute.movieDetails.name,
+              path: '/movies/:movieId',
+              builder: (BuildContext context, GoRouterState state) {
+                return Scaffold(
+                  body: Text(
+                    state.pathParameters['movieId'] ?? 'missing',
+                    key: const ValueKey<String>(
+                      'test-movie-details-destination',
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder row = find.byKey(
+        const ValueKey<String>('profile-history-movie-movie-event-1'),
+      );
+
+      await tester.ensureVisible(row);
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('test-movie-details-destination')),
+        findsOneWidget,
+      );
+
+      expect(find.text('438631'), findsOneWidget);
     });
 
     testWidgets('shows empty History state', (WidgetTester tester) async {
@@ -2383,15 +2559,418 @@ void main() {
         findsNothing,
       );
     });
+    testWidgets('navigates from Profile to detailed Statistics', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        _buildNavigationTestApp(
+          destinationRoutes: <GoRoute>[
+            GoRoute(
+              name: AppRoute.detailedStatistics.name,
+              path: '/statistics',
+              builder: (BuildContext context, GoRouterState state) {
+                return const Scaffold(
+                  body: Text(
+                    'Detailed Statistics destination',
+                    key: ValueKey<String>(
+                      'test-detailed-statistics-destination',
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder action = find.byKey(
+        const ValueKey<String>('profile-detailed-statistics-action'),
+      );
+
+      await tester.ensureVisible(action);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('test-detailed-statistics-destination'),
+        ),
+        findsOneWidget,
+      );
+    });
+  });
+  group('ProfilePage Import / Export', () {
+    testWidgets('shows Import / Export tools on Web Profile', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(_buildTestApp(isWeb: true));
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-data-transfer')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-data-transfer-title')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Import / Export'), findsOneWidget);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-data-transfer-export-card')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-data-transfer-import-card')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-data-transfer-export')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-data-transfer-import-select'),
+        ),
+        findsOneWidget,
+      );
+    });
+    testWidgets('shows Export loading and safe failure state', (
+      WidgetTester tester,
+    ) async {
+      final _ControlledDataTransferRepository repository =
+          _ControlledDataTransferRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(isWeb: true, dataTransferRepository: repository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder exportButton = find.byKey(
+        const ValueKey<String>('profile-data-transfer-export'),
+      );
+
+      await tester.ensureVisible(exportButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(exportButton);
+      await tester.pump();
+
+      expect(repository.exportCalls, 1);
+
+      final FilledButton loadingButton = tester.widget<FilledButton>(
+        exportButton,
+      );
+
+      expect(loadingButton.onPressed, isNull);
+      expect(find.text('Exporting…'), findsOneWidget);
+
+      repository.failExport(const AppException.connection());
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-data-transfer-export-error'),
+        ),
+        findsOneWidget,
+      );
+
+      final FilledButton retryableButton = tester.widget<FilledButton>(
+        exportButton,
+      );
+
+      expect(retryableButton.onPressed, isNotNull);
+    });
+    testWidgets('shows validated Import preview and confirmation actions', (
+      WidgetTester tester,
+    ) async {
+      final _FakeDataTransferRepository repository =
+          _FakeDataTransferRepository(
+            preview: const DataImportPreview(
+              format: 'sofawatch-export',
+              version: 1,
+              userDisplayName: 'Backup User',
+              libraryShows: 12,
+              libraryMovies: 7,
+              episodeWatchEvents: 145,
+              movieWatchEvents: 19,
+            ),
+          );
+
+      await tester.pumpWidget(
+        _buildTestApp(isWeb: true, dataTransferRepository: repository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final DataTransferCubit cubit = tester
+          .element(
+            find.byKey(
+              const ValueKey<String>('profile-data-transfer-import-card'),
+            ),
+          )
+          .read<DataTransferCubit>();
+
+      await cubit.previewImport(
+        filename: 'sofawatch-backup.json',
+        json: '{"format":"sofawatch-export","version":1}',
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-data-transfer-import-preview'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(find.text('sofawatch-backup.json'), findsOneWidget);
+      expect(find.text('Backup from Backup User'), findsOneWidget);
+      expect(find.text('sofawatch-export · Version 1'), findsOneWidget);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-data-transfer-import-preview-library-shows',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-data-transfer-import-preview-library-movies',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-data-transfer-import-preview-episode-watch-events',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-data-transfer-import-preview-movie-watch-events',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-data-transfer-import-cancel'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-data-transfer-import-confirm'),
+        ),
+        findsOneWidget,
+      );
+    });
+    testWidgets('shows partial Import result including failed items', (
+      WidgetTester tester,
+    ) async {
+      const DataImportResult result = DataImportResult(
+        library: DataImportLibraryResult(
+          shows: DataImportMediaResult(
+            created: 4,
+            updated: 2,
+            unchanged: 6,
+            failed: 1,
+          ),
+          movies: DataImportMediaResult(
+            created: 3,
+            updated: 1,
+            unchanged: 3,
+            failed: 0,
+          ),
+        ),
+        history: DataImportHistoryResult(
+          episodes: DataImportHistoryMediaResult(
+            created: 130,
+            skipped: 10,
+            failed: 5,
+          ),
+          movies: DataImportHistoryMediaResult(
+            created: 15,
+            skipped: 4,
+            failed: 0,
+          ),
+        ),
+      );
+
+      final _FakeDataTransferRepository repository =
+          _FakeDataTransferRepository(importResult: result);
+
+      await tester.pumpWidget(
+        _buildTestApp(isWeb: true, dataTransferRepository: repository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final DataTransferCubit cubit = tester
+          .element(
+            find.byKey(
+              const ValueKey<String>('profile-data-transfer-import-card'),
+            ),
+          )
+          .read<DataTransferCubit>();
+
+      await cubit.importData('{"format":"sofawatch-export","version":1}');
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-data-transfer-import-success'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(find.text('Import completed with some issues'), findsOneWidget);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-data-transfer-import-result-library-shows-failed',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-data-transfer-import-result-history-episodes-failed',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      // Zero failures should not create visual noise.
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-data-transfer-import-result-library-movies-failed',
+          ),
+        ),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-data-transfer-import-result-history-movies-failed',
+          ),
+        ),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-data-transfer-import-another'),
+        ),
+        findsOneWidget,
+      );
+    });
+    testWidgets('shows Import failure and can start over', (
+      WidgetTester tester,
+    ) async {
+      final _FakeDataTransferRepository repository =
+          _FakeDataTransferRepository(
+            importError: const AppException.connection(),
+          );
+
+      await tester.pumpWidget(
+        _buildTestApp(isWeb: true, dataTransferRepository: repository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final DataTransferCubit cubit = tester
+          .element(
+            find.byKey(
+              const ValueKey<String>('profile-data-transfer-import-card'),
+            ),
+          )
+          .read<DataTransferCubit>();
+
+      await cubit.importData('{"format":"sofawatch-export","version":1}');
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-data-transfer-import-failure'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-data-transfer-import-error'),
+        ),
+        findsOneWidget,
+      );
+
+      final Finder startOver = find.byKey(
+        const ValueKey<String>('profile-data-transfer-import-start-over'),
+      );
+
+      expect(startOver, findsOneWidget);
+
+      await tester.ensureVisible(startOver);
+      await tester.pumpAndSettle();
+
+      await tester.tap(startOver);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-data-transfer-import-failure'),
+        ),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-data-transfer-import-select'),
+        ),
+        findsOneWidget,
+      );
+    });
   });
 }
 
-Widget _buildTestApp({
+Widget _buildNavigationTestApp({
   ProfileRepository? profileRepository,
   StatisticsRepository? statisticsRepository,
   LibraryRepository? libraryRepository,
   HistoryRepository? historyRepository,
   ServerRepository? serverRepository,
+  required List<GoRoute> destinationRoutes,
 }) {
   final ProfileCubit profileCubit = ProfileCubit(
     repository: profileRepository ?? _FakeProfileRepository(),
@@ -2409,6 +2988,19 @@ Widget _buildTestApp({
     repository: historyRepository ?? const _FakeHistoryRepository(),
   )..load();
 
+  final GoRouter router = GoRouter(
+    initialLocation: '/profile',
+    routes: <RouteBase>[
+      GoRoute(
+        path: '/profile',
+        builder: (BuildContext context, GoRouterState state) {
+          return const ProfilePage();
+        },
+      ),
+      ...destinationRoutes,
+    ],
+  );
+
   return RepositoryProvider<ServerRepository>(
     create: (BuildContext context) {
       return serverRepository ?? _FakeServerRepository();
@@ -2422,7 +3014,55 @@ Widget _buildTestApp({
         BlocProvider<LibraryPreviewCubit>.value(value: libraryPreviewCubit),
         BlocProvider<HistoryPreviewCubit>.value(value: historyPreviewCubit),
       ],
-      child: const MaterialApp(home: ProfilePage()),
+      child: MaterialApp.router(routerConfig: router),
+    ),
+  );
+}
+
+Widget _buildTestApp({
+  ProfileRepository? profileRepository,
+  StatisticsRepository? statisticsRepository,
+  LibraryRepository? libraryRepository,
+  HistoryRepository? historyRepository,
+  ServerRepository? serverRepository,
+  DataTransferRepository? dataTransferRepository,
+  bool isWeb = false,
+}) {
+  final ProfileCubit profileCubit = ProfileCubit(
+    repository: profileRepository ?? _FakeProfileRepository(),
+  )..load();
+
+  final StatisticsSummaryCubit statisticsSummaryCubit = StatisticsSummaryCubit(
+    repository: statisticsRepository ?? _FakeStatisticsRepository(),
+  )..load();
+
+  final LibraryPreviewCubit libraryPreviewCubit = LibraryPreviewCubit(
+    repository: libraryRepository ?? const _FakeLibraryRepository(),
+  )..load();
+
+  final HistoryPreviewCubit historyPreviewCubit = HistoryPreviewCubit(
+    repository: historyRepository ?? const _FakeHistoryRepository(),
+  )..load();
+
+  final DataTransferCubit dataTransferCubit = DataTransferCubit(
+    repository: dataTransferRepository ?? _FakeDataTransferRepository(),
+  );
+
+  return RepositoryProvider<ServerRepository>(
+    create: (BuildContext context) {
+      return serverRepository ?? _FakeServerRepository();
+    },
+    child: MultiBlocProvider(
+      providers: <BlocProvider<dynamic>>[
+        BlocProvider<ProfileCubit>.value(value: profileCubit),
+        BlocProvider<StatisticsSummaryCubit>.value(
+          value: statisticsSummaryCubit,
+        ),
+        BlocProvider<LibraryPreviewCubit>.value(value: libraryPreviewCubit),
+        BlocProvider<HistoryPreviewCubit>.value(value: historyPreviewCubit),
+        BlocProvider<DataTransferCubit>.value(value: dataTransferCubit),
+      ],
+      child: MaterialApp(home: ProfilePage(isWebOverride: isWeb)),
     ),
   );
 }
@@ -3430,3 +4070,125 @@ final ServerLogsPage _paginatedServerLogsSecondPage = ServerLogsPage(
   total: 3,
   hasNext: false,
 );
+
+class _FakeDataTransferRepository implements DataTransferRepository {
+  _FakeDataTransferRepository({
+    this.exportJson = '{"format":"sofawatch-export","version":1}',
+    this.preview = const DataImportPreview(
+      format: 'sofawatch-export',
+      version: 1,
+      userDisplayName: 'Test User',
+      libraryShows: 0,
+      libraryMovies: 0,
+      episodeWatchEvents: 0,
+      movieWatchEvents: 0,
+    ),
+    this.importResult = const DataImportResult(
+      library: DataImportLibraryResult(
+        shows: DataImportMediaResult(
+          created: 0,
+          updated: 0,
+          unchanged: 0,
+          failed: 0,
+        ),
+        movies: DataImportMediaResult(
+          created: 0,
+          updated: 0,
+          unchanged: 0,
+          failed: 0,
+        ),
+      ),
+      history: DataImportHistoryResult(
+        episodes: DataImportHistoryMediaResult(
+          created: 0,
+          skipped: 0,
+          failed: 0,
+        ),
+        movies: DataImportHistoryMediaResult(created: 0, skipped: 0, failed: 0),
+      ),
+    ),
+    this.exportError,
+    this.previewError,
+    this.importError,
+  });
+
+  final String exportJson;
+  final DataImportPreview preview;
+  final DataImportResult importResult;
+
+  final AppException? exportError;
+  final AppException? previewError;
+  final AppException? importError;
+
+  @override
+  Future<String> exportData() async {
+    final AppException? error = exportError;
+
+    if (error != null) {
+      throw error;
+    }
+
+    return exportJson;
+  }
+
+  @override
+  Future<DataImportPreview> previewImport(String json) async {
+    final AppException? error = previewError;
+
+    if (error != null) {
+      throw error;
+    }
+
+    return preview;
+  }
+
+  @override
+  Future<DataImportResult> importData(String json) async {
+    final AppException? error = importError;
+
+    if (error != null) {
+      throw error;
+    }
+
+    return importResult;
+  }
+}
+
+class _ControlledDataTransferRepository implements DataTransferRepository {
+  final Completer<String> _exportCompleter = Completer<String>();
+
+  int exportCalls = 0;
+
+  void completeExport(String json) {
+    if (_exportCompleter.isCompleted) {
+      return;
+    }
+
+    _exportCompleter.complete(json);
+  }
+
+  void failExport(AppException error) {
+    if (_exportCompleter.isCompleted) {
+      return;
+    }
+
+    _exportCompleter.completeError(error);
+  }
+
+  @override
+  Future<String> exportData() {
+    exportCalls += 1;
+
+    return _exportCompleter.future;
+  }
+
+  @override
+  Future<DataImportPreview> previewImport(String json) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<DataImportResult> importData(String json) {
+    throw UnimplementedError();
+  }
+}
