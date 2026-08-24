@@ -75,6 +75,8 @@ from app.services.initial_setup import InitialSetupService
 from app.repositories.auth_session import AuthSessionRepository
 from app.services.auth_session import AuthSessionService
 from app.models.auth_session import AuthSessionType
+from app.repositories.auth_handoff import AuthHandoffRepository
+from app.services.auth_handoff import AuthHandoffService
 
 def get_genre_service(
     session: DatabaseSession,
@@ -427,6 +429,22 @@ def get_auth_session_service(
 AuthSessionServiceDependency = Annotated[
     AuthSessionService,
     Depends(get_auth_session_service),
+]
+
+def get_auth_handoff_service(
+    session: DatabaseSession,
+) -> AuthHandoffService:
+    """Provide the short-lived authentication handoff service."""
+
+    return AuthHandoffService(
+        session=session,
+        repository=AuthHandoffRepository(session),
+    )
+
+
+AuthHandoffServiceDependency = Annotated[
+    AuthHandoffService,
+    Depends(get_auth_handoff_service),
 ]
 
 

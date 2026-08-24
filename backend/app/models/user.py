@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, String, Uuid
+from sqlalchemy import Boolean, Index, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -18,6 +18,19 @@ class User(TimestampMixin, Base):
 
     __tablename__ = "users"
 
+    __table_args__ = (
+        Index(
+            "ix_users_username_unique",
+            "username",
+            unique=True,
+        ),
+        Index(
+            "ix_users_email_unique",
+            "email",
+            unique=True,
+        ),
+    )
+
     id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
         primary_key=True,
@@ -27,13 +40,11 @@ class User(TimestampMixin, Base):
     username: Mapped[str | None] = mapped_column(
         String(32),
         nullable=True,
-        unique=True,
     )
 
     email: Mapped[str | None] = mapped_column(
         String(320),
         nullable=True,
-        unique=True,
     )
 
     display_name: Mapped[str] = mapped_column(

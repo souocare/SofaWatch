@@ -1484,3 +1484,210 @@ def test_mobile_logout_is_idempotent_for_unknown_session(
     )
 
     assert response.status_code == 204
+
+def test_create_auth_handoff_requires_authentication(
+    unauthenticated_client: TestClient,
+) -> None:
+    response = unauthenticated_client.post(
+        "/api/v1/auth/handoff",
+    )
+
+    assert response.status_code == 401
+
+    assert response.json() == {
+        "error": {
+            "code": "authentication_required",
+            "message": "Authentication is required.",
+        }
+    }
+
+def test_create_auth_handoff_for_authenticated_user(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    _create_user(
+        db_session,
+    )
+
+    login_response = client.post(
+        "/api/v1/auth/mobile/login",
+        json={
+            "username": "souocare",
+            "password": "correct-password",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    access_token = login_response.json()["access_token"]
+
+    response = client.post(
+        "/api/v1/auth/handoff",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+        },
+    )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+
+    assert payload["handoff_token"]
+    assert payload["expires_in"] == 2 * 60
+
+
+def test_create_auth_handoff_does_not_expose_persistent_credentials(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    _create_user(
+        db_session,
+    )
+
+    login_response = client.post(
+        "/api/v1/auth/mobile/login",
+        json={
+            "username": "souocare",
+            "password": "correct-password",
+        },
+    )
+
+    access_token = login_response.json()["access_token"]
+
+    response = client.post(
+        "/api/v1/auth/handoff",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+        },
+    )
+
+    payload = response.json()
+
+    assert set(payload) == {
+        "handoff_token",
+        "expires_in",
+    }
+
+    assert "access_token" not in payload
+    assert "refresh_token" not in payload
+
+
+def test_exchange_auth_handoff_creates_web_session(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    _create_user(
+        db_session,
+    )
+
+    login_response = client.post(
+        "/api/v1/auth/mobile/login",
+        json={
+            "username": "souocare",
+            "password": "correct-password",
+        },
+    )
+
+    access_token = login_response.json()["access_token"]
+
+    handoff_response = client.post(
+        "/api/v1/auth/handoff",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+        },
+    )
+
+    handoff_token = handoff_response.json()["handoff_token"]
+
+    response = client.post(
+        "/api/v1/auth/handoff/exchange",
+        json={
+            "handoff_token": handoff_token,
+        },
+    )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+
+    assert payload["token_type"] == "bearer"
+    assert payload["expires_in"] == 15 * 60
+    assert payload["access_token"]
+
+    assert "sofawatch_session" in response.cookies
+
+
+def test_auth_handoff_can_only_be_exchanged_once(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    _create_user(
+        db_session,
+    )
+
+    login_response = client.post(
+        "/api/v1/auth/mobile/login",
+        json={
+            "username": "souocare",
+            "password": "correct-password",
+        },
+    )
+
+    access_token = login_response.json()["access_token"]
+
+    handoff_response = client.post(
+        "/api/v1/auth/handoff",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+        },
+    )
+
+    handoff_token = handoff_response.json()["handoff_token"]
+
+    first_response = client.post(
+        "/api/v1/auth/handoff/exchange",
+        json={
+            "handoff_token": handoff_token,
+        },
+    )
+
+    second_response = client.post(
+        "/api/v1/auth/handoff/exchange",
+        json={
+            "handoff_token": handoff_token,
+        },
+    )
+
+    assert first_response.status_code == 200
+
+    assert second_response.status_code == 401
+
+    assert second_response.json() == {
+        "error": {
+            "code": "invalid_auth_handoff",
+            "message": "The authentication handoff is invalid or expired.",
+        }
+    }
+
+
+
+def test_exchange_rejects_invalid_auth_handoff(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/v1/auth/handoff/exchange",
+        json={
+            "handoff_token": "invalid-handoff-token",
+        },
+    )
+
+    assert response.status_code == 401
+
+    assert response.json() == {
+        "error": {
+            "code": "invalid_auth_handoff",
+            "message": "The authentication handoff is invalid or expired.",
+        }
+    }
+
+

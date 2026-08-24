@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Request, Response, status
 from app.api.dependencies import (
     AccessTokenServiceDependency,
     AuthenticationServiceDependency,
+    AuthHandoffServiceDependency,
     AuthSessionServiceDependency,
     CurrentUserDependency,
     InitialSetupServiceDependency,
@@ -13,6 +14,8 @@ from app.api.dependencies import (
 from app.core.exceptions import APIError
 from app.schemas.auth import (
     AccessTokenResponse,
+    AuthHandoffExchangeRequest,
+    AuthHandoffResponse,
     InitialSetupRequest,
     LoginRequest,
     MobileAuthenticationResponse,
@@ -273,6 +276,101 @@ def mobile_logout(
         payload.refresh_token,
     )
 
+
+@router.post(
+    "/handoff",
+    response_model=AuthHandoffResponse,
+    summary="Create authentication handoff",
+    description=(
+        "Create a short-lived one-time credential that allows an "
+        "authenticated SofaWatch client to open SofaWatch Web without "
+        "exposing its persistent authentication credentials."
+    ),
+)
+def create_auth_handoff(
+    current_user: CurrentUserDependency,
+    auth_handoff_service: AuthHandoffServiceDependency,
+) -> AuthHandoffResponse:
+    """Create a short-lived authentication handoff for the current user."""
+
+    created = auth_handoff_service.create(
+        user_id=current_user.id,
+    )
+
+    return AuthHandoffResponse(
+        handoff_token=created.credential,
+        expires_in=int(
+            auth_handoff_service.expiration.total_seconds(),
+        ),
+    )
+
+
+@router.post(
+    "/handoff/exchange",
+    response_model=AccessTokenResponse,
+    summary="Exchange authentication handoff",
+    description=(
+        "Consume a short-lived one-time authentication handoff and "
+        "create an authenticated SofaWatch Web session."
+    ),
+)
+def exchange_auth_handoff(
+    payload: AuthHandoffExchangeRequest,
+    response: Response,
+    auth_handoff_service: AuthHandoffServiceDependency,
+    user_service: UserServiceDependency,
+    access_token_service: AccessTokenServiceDependency,
+    auth_session_service: AuthSessionServiceDependency,
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
+) -> AccessTokenResponse:
+    """Consume a handoff and create an authenticated Web session."""
+
+    handoff = auth_handoff_service.consume(
+        payload.handoff_token,
+    )
+
+    if handoff is None:
+        raise APIError(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="invalid_auth_handoff",
+            message="The authentication handoff is invalid or expired.",
+        )
+
+    user = user_service.get_by_id(
+        handoff.user_id,
+    )
+
+    if user is None or not user.is_active:
+        raise APIError(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="invalid_auth_handoff",
+            message="The authentication handoff is invalid or expired.",
+        )
+
+    auth_session = auth_session_service.create(
+        user_id=user.id,
+        session_type=AuthSessionType.WEB,
+    )
+
+    _set_web_session_cookie(
+        response=response,
+        credential=auth_session.credential,
+        settings=settings,
+    )
+
+    access_token = access_token_service.create(
+        user_id=user.id,
+    )
+
+    return AccessTokenResponse(
+        access_token=access_token,
+        expires_in=int(
+            access_token_service.expiration.total_seconds(),
+        ),
+    )
 
 @router.post(
     "/refresh",

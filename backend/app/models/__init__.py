@@ -14,6 +14,7 @@ from app.models.show_network import show_networks
 from app.models.user import User
 from app.models.movie_watch_event import MovieWatchEvent
 from app.models.auth_session import AuthSession, AuthSessionType
+from app.models.auth_handoff import AuthHandoff
 
 __all__ = [
     "Genre",
@@ -33,4 +34,5 @@ __all__ = [
     "MovieWatchEvent",
     "AuthSession",
     "AuthSessionType",
+    "AuthHandoff",
 ]

@@ -19,6 +19,20 @@ class MobileRefreshRequest(BaseModel):
         min_length=1,
     )
 
+class AuthHandoffResponse(BaseModel):
+    """Short-lived credential used to authenticate SofaWatch Web."""
+
+    handoff_token: str
+    expires_in: int
+
+
+class AuthHandoffExchangeRequest(BaseModel):
+    """One-time Mobile-to-Web authentication handoff credential."""
+
+    handoff_token: str = Field(
+        min_length=1,
+    )
+
 class AccessTokenResponse(BaseModel):
     """Short-lived access token returned after successful authentication."""
 
