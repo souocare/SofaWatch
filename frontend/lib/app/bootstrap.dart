@@ -18,6 +18,15 @@ import 'package:sofawatch/features/search/data/repositories/cached_search_reposi
 import 'package:sofawatch/features/search/domain/repositories/search_repository.dart';
 import 'package:sofawatch/features/server_setup/data/services/api_server_connection_tester.dart';
 import 'package:sofawatch/features/server_setup/domain/services/server_connection_tester.dart';
+import 'package:flutter/foundation.dart';
+import 'package:sofawatch/features/auth/data/repositories/api_auth_repository.dart';
+import 'package:sofawatch/features/auth/data/storage/in_memory_access_token_store.dart';
+import 'package:sofawatch/features/auth/data/storage/secure_mobile_refresh_token_store.dart';
+import 'package:sofawatch/features/auth/domain/repositories/access_token_store.dart';
+import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
+import 'package:sofawatch/features/auth/domain/repositories/mobile_refresh_token_store.dart';
+import 'package:sofawatch/features/auth/data/repositories/api_setup_status_repository.dart';
+import 'package:sofawatch/features/auth/domain/repositories/setup_status_repository.dart';
 
 Future<void> bootstrap(
   FutureOr<Widget> Function(AppBootstrapData data) builder,
@@ -46,7 +55,26 @@ Future<void> bootstrap(
       configuredServerUrl ??
       (webServerUrl.isNotEmpty ? Uri.tryParse(webServerUrl) : null);
 
-  final ApiClient apiClient = ApiClient(baseUrl: bootstrapServerUrl);
+  final AccessTokenStore accessTokenStore = InMemoryAccessTokenStore();
+
+  final ApiClient apiClient = ApiClient(
+    baseUrl: bootstrapServerUrl,
+    accessTokenProvider: () => accessTokenStore.token,
+  );
+
+  final MobileRefreshTokenStore? mobileRefreshTokenStore = kIsWeb
+      ? null
+      : SecureMobileRefreshTokenStore();
+
+  final AuthRepository authRepository = ApiAuthRepository(
+    apiClient: apiClient,
+    accessTokenStore: accessTokenStore,
+    mobileRefreshTokenStore: mobileRefreshTokenStore,
+  );
+
+  final SetupStatusRepository setupStatusRepository = ApiSetupStatusRepository(
+    apiClient,
+  );
 
   final ServerConnectionTester serverConnectionTester =
       ApiServerConnectionTester();
@@ -62,6 +90,9 @@ Future<void> bootstrap(
     serverConnectionTester: serverConnectionTester,
     initialServerConfiguration: initialServerConfiguration,
     searchRepository: searchRepository,
+    accessTokenStore: accessTokenStore,
+    authRepository: authRepository,
+    setupStatusRepository: setupStatusRepository,
   );
 
   final Widget app = await builder(data);

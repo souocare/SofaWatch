@@ -121,11 +121,29 @@ void main() {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          final String path = options.path;
+
+          if (path.endsWith('/auth/session')) {
+            handler.resolve(
+              Response<Map<String, dynamic>>(
+                requestOptions: options,
+                statusCode: 200,
+                data: const <String, dynamic>{
+                  'access_token': 'test-access-token',
+                  'token_type': 'bearer',
+                  'expires_in': 900,
+                },
+              ),
+            );
+
+            return;
+          }
+
           handler.resolve(
             Response<Map<String, dynamic>>(
               requestOptions: options,
               statusCode: 500,
-              data: <String, dynamic>{
+              data: const <String, dynamic>{
                 'error': <String, dynamic>{
                   'code': 'test_error',
                   'message': 'Test failure.',
@@ -186,6 +204,22 @@ void main() {
       InterceptorsWrapper(
         onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
           final String path = options.path;
+
+          if (path.endsWith('/auth/session')) {
+            handler.resolve(
+              Response<Map<String, dynamic>>(
+                requestOptions: options,
+                statusCode: 200,
+                data: const <String, dynamic>{
+                  'access_token': 'test-access-token',
+                  'token_type': 'bearer',
+                  'expires_in': 900,
+                },
+              ),
+            );
+
+            return;
+          }
 
           if (path.endsWith('/library/shows/watch-next')) {
             handler.resolve(
@@ -376,10 +410,14 @@ void main() {
 
     expect(find.byKey(const ValueKey<String>('profile-page')), findsOneWidget);
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('profile-detailed-statistics-action')),
+    final Finder detailedStatisticsAction = find.byKey(
+      const ValueKey<String>('profile-detailed-statistics-action'),
     );
 
+    await tester.ensureVisible(detailedStatisticsAction);
+    await tester.pumpAndSettle();
+
+    await tester.tap(detailedStatisticsAction);
     await tester.pumpAndSettle();
 
     expect(

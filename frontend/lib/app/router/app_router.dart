@@ -11,28 +11,44 @@ import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/navigation/web_app_launcher.dart';
 import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_state.dart';
+import 'package:sofawatch/features/auth/presentation/pages/auth_checking_page.dart';
 import 'package:sofawatch/features/episode_details/application/cubit/episode_details_cubit.dart';
 import 'package:sofawatch/features/episode_details/data/repositories/api_episode_details_repository.dart';
 import 'package:sofawatch/features/episode_details/presentation/pages/episode_details_page.dart';
 import 'package:sofawatch/features/episode_progress/data/repositories/api_episode_progress_repository.dart';
 import 'package:sofawatch/features/explore/presentation/pages/explore_page.dart';
+import 'package:sofawatch/features/history/application/cubit/history_cubit.dart';
+import 'package:sofawatch/features/history/application/cubit/history_preview_cubit.dart';
+import 'package:sofawatch/features/history/data/repositories/api_history_repository.dart';
+import 'package:sofawatch/features/history/presentation/pages/history_page.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/presentation/pages/home_page.dart';
+import 'package:sofawatch/features/library/application/cubit/library_collection_cubit.dart';
 import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
+import 'package:sofawatch/features/library/application/cubit/library_preview_cubit.dart';
 import 'package:sofawatch/features/library/data/repositories/api_library_repository.dart';
 import 'package:sofawatch/features/library/domain/models/library_media_key.dart';
 import 'package:sofawatch/features/library/domain/models/library_media_type.dart';
+import 'package:sofawatch/features/library/presentation/pages/library_collection_page.dart';
 import 'package:sofawatch/features/movie_details/application/cubit/movie_details_cubit.dart';
 import 'package:sofawatch/features/movie_details/data/repositories/api_movie_details_repository.dart';
 import 'package:sofawatch/features/movie_details/presentation/pages/movie_details_page.dart';
 import 'package:sofawatch/features/movies/application/cubit/movies_cubit.dart';
 import 'package:sofawatch/features/movies/data/repositories/api_movies_repository.dart';
 import 'package:sofawatch/features/movies/presentation/pages/movies_page.dart';
+import 'package:sofawatch/features/profile/application/cubit/data_transfer_cubit.dart';
+import 'package:sofawatch/features/profile/application/cubit/profile_cubit.dart';
 import 'package:sofawatch/features/profile/application/services/open_web_app_service.dart';
+import 'package:sofawatch/features/profile/data/repositories/api_data_transfer_repository.dart';
+import 'package:sofawatch/features/profile/data/repositories/api_profile_repository.dart';
 import 'package:sofawatch/features/profile/presentation/pages/profile_page.dart';
 import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
 import 'package:sofawatch/features/search/domain/repositories/search_repository.dart';
 import 'package:sofawatch/features/search/presentation/pages/search_page.dart';
+import 'package:sofawatch/features/server/data/repositories/api_server_repository.dart';
+import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
 import 'package:sofawatch/features/server_setup/application/cubit/server_setup_cubit.dart';
 import 'package:sofawatch/features/server_setup/domain/services/server_connection_tester.dart';
 import 'package:sofawatch/features/server_setup/presentation/pages/server_setup_page.dart';
@@ -44,31 +60,28 @@ import 'package:sofawatch/features/show_details/presentation/pages/show_details_
 import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/data/repositories/api_shows_repository.dart';
 import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_activity_cubit.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_backlog_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_content_insights_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_cubit.dart';
-import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
-import 'package:sofawatch/features/statistics/data/repositories/api_statistics_repository.dart';
-import 'package:sofawatch/features/profile/application/cubit/profile_cubit.dart';
-import 'package:sofawatch/features/profile/data/repositories/api_profile_repository.dart';
-import 'package:sofawatch/features/statistics/application/cubit/statistics_activity_cubit.dart';
-import 'package:sofawatch/features/statistics/presentation/pages/detailed_statistics_page.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_habits_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_library_cubit.dart';
-import 'package:sofawatch/features/statistics/application/cubit/statistics_backlog_cubit.dart';
-import 'package:sofawatch/features/library/application/cubit/library_preview_cubit.dart';
-import 'package:sofawatch/features/library/data/repositories/api_library_repository.dart';
-import 'package:sofawatch/features/library/application/cubit/library_collection_cubit.dart';
-import 'package:sofawatch/features/library/presentation/pages/library_collection_page.dart';
-import 'package:sofawatch/features/history/application/cubit/history_preview_cubit.dart';
-import 'package:sofawatch/features/history/data/repositories/api_history_repository.dart';
-import 'package:sofawatch/features/history/application/cubit/history_cubit.dart';
-import 'package:sofawatch/features/history/presentation/pages/history_page.dart';
-import 'package:sofawatch/features/server/data/repositories/api_server_repository.dart';
-import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
-import 'package:sofawatch/features/profile/application/cubit/data_transfer_cubit.dart';
-import 'package:sofawatch/features/profile/data/repositories/api_data_transfer_repository.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
+import 'package:sofawatch/features/statistics/data/repositories/api_statistics_repository.dart';
+import 'package:sofawatch/features/statistics/presentation/pages/detailed_statistics_page.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_entry_cubit.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_entry_state.dart';
+import 'package:sofawatch/features/auth/presentation/pages/initial_setup_page.dart';
+import 'package:sofawatch/features/auth/presentation/pages/login_page.dart';
+import 'package:sofawatch/features/auth/application/cubit/login_cubit.dart';
+import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
 
-GoRouter createAppRouter({required ApiClient apiClient}) {
+GoRouter createAppRouter({
+  required ApiClient apiClient,
+  AuthCubit? authCubit,
+  AuthEntryCubit? authEntryCubit,
+  Listenable? refreshListenable,
+}) {
   final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
     debugLabel: 'root',
   );
@@ -94,15 +107,28 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
     navigatorKey: rootNavigatorKey,
     initialLocation: RoutePaths.root,
     overridePlatformDefaultLocation: true,
+    refreshListenable: refreshListenable,
     redirect: (BuildContext context, GoRouterState state) {
-      if (kIsWeb) {
-        return null;
-      }
+      final String matchedLocation = state.matchedLocation;
 
-      final bool isServerSetupRoute =
-          state.matchedLocation == RoutePaths.serverSetup;
+      final bool isServerSetupRoute = matchedLocation == RoutePaths.serverSetup;
 
-      if (!apiClient.isConfigured) {
+      final bool isAuthCheckingRoute =
+          matchedLocation == RoutePaths.authChecking;
+
+      final bool isLoginRoute = matchedLocation == RoutePaths.login;
+
+      final bool isInitialSetupRoute =
+          matchedLocation == RoutePaths.initialSetup;
+
+      final bool isAuthFlowRoute =
+          isAuthCheckingRoute || isLoginRoute || isInitialSetupRoute;
+
+      //
+      // Native clients need a configured SofaWatch server before
+      // authentication can be resolved.
+      //
+      if (!kIsWeb && !apiClient.isConfigured) {
         if (isServerSetupRoute) {
           return null;
         }
@@ -110,8 +136,79 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
         return RoutePaths.serverSetup;
       }
 
-      if (isServerSetupRoute) {
-        return RoutePaths.home;
+      final AuthState? authState = authCubit?.state;
+
+      //
+      // Router-isolated tests that do not provide an AuthCubit retain
+      // their existing behaviour.
+      //
+      if (authState == null) {
+        if (!kIsWeb && isServerSetupRoute) {
+          return RoutePaths.home;
+        }
+
+        return null;
+      }
+
+      final String returnLocation = _resolveAuthReturnLocation(state);
+
+      if (authState is AuthInitial ||
+          authState is AuthChecking ||
+          authState is AuthFailure) {
+        if (isAuthCheckingRoute) {
+          return null;
+        }
+
+        return _buildAuthFlowLocation(RoutePaths.authChecking, returnLocation);
+      }
+
+      if (authState is AuthAuthenticated) {
+        if (isAuthFlowRoute) {
+          return returnLocation;
+        }
+
+        if (!kIsWeb && isServerSetupRoute) {
+          return RoutePaths.home;
+        }
+
+        return null;
+      }
+
+      if (authState is AuthUnauthenticated) {
+        final AuthEntryState? entryState = authEntryCubit?.state;
+
+        if (entryState == null ||
+            entryState is AuthEntryInitial ||
+            entryState is AuthEntryChecking ||
+            entryState is AuthEntryFailure) {
+          if (isAuthCheckingRoute) {
+            return null;
+          }
+
+          return _buildAuthFlowLocation(
+            RoutePaths.authChecking,
+            returnLocation,
+          );
+        }
+
+        if (entryState is AuthEntrySetupRequired) {
+          if (isInitialSetupRoute) {
+            return null;
+          }
+
+          return _buildAuthFlowLocation(
+            RoutePaths.initialSetup,
+            returnLocation,
+          );
+        }
+
+        if (entryState is AuthEntryLoginRequired) {
+          if (isLoginRoute) {
+            return null;
+          }
+
+          return _buildAuthFlowLocation(RoutePaths.login, returnLocation);
+        }
       }
 
       return null;
@@ -141,6 +238,35 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
             },
             child: const ServerSetupPage(),
           );
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        name: AppRoute.authChecking.name,
+        path: RoutePaths.authChecking,
+        builder: (BuildContext context, GoRouterState state) {
+          return const AuthCheckingPage();
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        name: AppRoute.login.name,
+        path: RoutePaths.login,
+        builder: (BuildContext context, GoRouterState state) {
+          return BlocProvider<LoginCubit>(
+            create: (BuildContext context) {
+              return LoginCubit(repository: context.read<AuthRepository>());
+            },
+            child: const LoginPage(),
+          );
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        name: AppRoute.initialSetup.name,
+        path: RoutePaths.initialSetup,
+        builder: (BuildContext context, GoRouterState state) {
+          return const InitialSetupPage();
         },
       ),
       GoRoute(
@@ -483,6 +609,7 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
         path: RoutePaths.showDetails,
         pageBuilder: (BuildContext context, GoRouterState state) {
           final String rawTmdbId = state.pathParameters['showId']!;
+
           final int? tmdbId = int.tryParse(rawTmdbId);
 
           if (tmdbId == null || tmdbId <= 0) {
@@ -544,6 +671,7 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
         path: RoutePaths.movieDetails,
         pageBuilder: (BuildContext context, GoRouterState state) {
           final String rawTmdbId = state.pathParameters['movieId']!;
+
           final int? tmdbId = int.tryParse(rawTmdbId);
 
           if (tmdbId == null || tmdbId <= 0) {
@@ -611,4 +739,49 @@ GoRouter createAppRouter({required ApiClient apiClient}) {
       ),
     ],
   );
+}
+
+String _resolveAuthReturnLocation(GoRouterState state) {
+  final String? requestedReturnLocation = state.uri.queryParameters['from'];
+
+  if (_isSafeAuthReturnLocation(requestedReturnLocation)) {
+    return requestedReturnLocation!;
+  }
+
+  final String currentLocation = state.uri.toString();
+
+  if (_isSafeAuthReturnLocation(currentLocation)) {
+    return currentLocation;
+  }
+
+  return RoutePaths.home;
+}
+
+bool _isSafeAuthReturnLocation(String? location) {
+  if (location == null ||
+      location.isEmpty ||
+      !location.startsWith('/') ||
+      location.startsWith('//')) {
+    return false;
+  }
+
+  final Uri? uri = Uri.tryParse(location);
+
+  if (uri == null) {
+    return false;
+  }
+
+  final String path = uri.path;
+
+  return path != RoutePaths.authChecking &&
+      path != RoutePaths.login &&
+      path != RoutePaths.initialSetup &&
+      path != RoutePaths.serverSetup;
+}
+
+String _buildAuthFlowLocation(String path, String returnLocation) {
+  return Uri(
+    path: path,
+    queryParameters: <String, String>{'from': returnLocation},
+  ).toString();
 }

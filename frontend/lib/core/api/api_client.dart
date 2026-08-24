@@ -2,9 +2,14 @@ import 'package:dio/dio.dart';
 import 'package:sofawatch/core/api/api_config.dart';
 import 'package:sofawatch/core/api/api_exception_mapper.dart';
 import 'package:sofawatch/core/api/api_logging_interceptor.dart';
+import 'package:sofawatch/core/api/configure_web_http_client_adapter.dart';
+
+typedef AccessTokenProvider = String? Function();
 
 class ApiClient {
-  ApiClient({Uri? baseUrl, Dio? dio}) : _dio = dio ?? Dio() {
+  ApiClient({Uri? baseUrl, Dio? dio, AccessTokenProvider? accessTokenProvider})
+    : _dio = dio ?? Dio(),
+      _accessTokenProvider = accessTokenProvider {
     if (baseUrl != null) {
       configureBaseUrl(baseUrl);
     }
@@ -15,10 +20,29 @@ class ApiClient {
 
     _dio.options.headers.addAll(ApiConfig.defaultHeaders);
 
+    configureWebHttpClientAdapter(_dio);
+
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          final String? accessToken = _accessTokenProvider?.call()?.trim();
+
+          if (accessToken == null || accessToken.isEmpty) {
+            options.headers.remove('Authorization');
+          } else {
+            options.headers['Authorization'] = 'Bearer $accessToken';
+          }
+
+          handler.next(options);
+        },
+      ),
+    );
+
     _dio.interceptors.add(const ApiLoggingInterceptor());
   }
 
   final Dio _dio;
+  final AccessTokenProvider? _accessTokenProvider;
 
   Dio get dio {
     return _dio;

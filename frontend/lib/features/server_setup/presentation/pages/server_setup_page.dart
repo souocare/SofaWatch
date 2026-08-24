@@ -1,13 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
-import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_colors.dart';
 import 'package:sofawatch/app/theme/tokens/app_radius.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
 import 'package:sofawatch/app/theme/tokens/app_typography.dart';
 import 'package:sofawatch/core/server/validation/server_url_validation_messages.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
 import 'package:sofawatch/features/server_setup/application/cubit/server_setup_cubit.dart';
 import 'package:sofawatch/features/server_setup/application/cubit/server_setup_state.dart';
 
@@ -51,7 +50,7 @@ class _ServerSetupPageState extends State<ServerSetupPage> {
       },
       listener: (BuildContext context, ServerSetupState state) {
         if (state.status == ServerSetupStatus.success) {
-          context.goNamed(AppRoute.home.name);
+          context.read<AuthCubit>().restore();
         }
       },
       child: Scaffold(

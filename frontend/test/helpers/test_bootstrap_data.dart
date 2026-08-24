@@ -8,6 +8,12 @@ import '../fakes/fake_search_repository.dart';
 import '../fakes/fake_server_configuration_repository.dart';
 import '../fakes/fake_server_connection_tester.dart';
 import '../fixtures/server_configuration_fixture.dart';
+import 'package:sofawatch/features/auth/data/repositories/api_auth_repository.dart';
+import 'package:sofawatch/features/auth/data/storage/in_memory_access_token_store.dart';
+import 'package:sofawatch/features/auth/domain/repositories/access_token_store.dart';
+import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
+import 'package:sofawatch/features/auth/data/repositories/api_setup_status_repository.dart';
+import 'package:sofawatch/features/auth/domain/repositories/setup_status_repository.dart';
 
 AppBootstrapData createTestBootstrapData({
   ServerConfiguration? serverConfiguration,
@@ -37,12 +43,27 @@ AppBootstrapData createTestBootstrapData({
       apiClient ??
       _createDefaultTestApiClient(baseUrl: resolvedConfiguration?.serverUrl);
 
+  final AccessTokenStore accessTokenStore = InMemoryAccessTokenStore();
+
+  final AuthRepository authRepository = ApiAuthRepository(
+    apiClient: resolvedApiClient,
+    accessTokenStore: accessTokenStore,
+    isWeb: true,
+  );
+
+  final SetupStatusRepository setupStatusRepository = ApiSetupStatusRepository(
+    resolvedApiClient,
+  );
+
   return AppBootstrapData(
     serverConfigurationRepository: resolvedRepository,
     apiClient: resolvedApiClient,
     searchRepository: resolvedSearchRepository,
     serverConnectionTester: resolvedConnectionTester,
     initialServerConfiguration: resolvedConfiguration,
+    accessTokenStore: accessTokenStore,
+    setupStatusRepository: setupStatusRepository,
+    authRepository: authRepository,
   );
 }
 
@@ -53,6 +74,22 @@ ApiClient _createDefaultTestApiClient({required Uri? baseUrl}) {
     InterceptorsWrapper(
       onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
         final String path = options.path;
+
+        if (path.endsWith('/auth/session')) {
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: const <String, dynamic>{
+                'access_token': 'test-access-token',
+                'token_type': 'bearer',
+                'expires_in': 900,
+              },
+            ),
+          );
+
+          return;
+        }
 
         if (path.endsWith('/library/shows/watch-next')) {
           handler.resolve(
@@ -116,6 +153,18 @@ ApiClient _createDefaultTestApiClient({required Uri? baseUrl}) {
               },
             ),
           );
+          return;
+        }
+
+        if (path.endsWith('/auth/setup')) {
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: const <String, dynamic>{'setup_required': false},
+            ),
+          );
+
           return;
         }
 

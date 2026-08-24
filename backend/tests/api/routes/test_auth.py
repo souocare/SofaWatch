@@ -1430,3 +1430,57 @@ def test_mobile_refresh_rejects_inactive_user(
     assert auth_session is not None
     assert auth_session.revoked_at is not None
 
+
+
+def test_mobile_logout_revokes_current_mobile_session(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Revoke the Mobile session represented by its refresh token."""
+
+    user = _create_user(
+        db_session,
+    )
+
+    service = AuthSessionService(
+        session=db_session,
+        repository=AuthSessionRepository(
+            db_session,
+        ),
+        idle_expire_days=180,
+    )
+
+    created_session = service.create(
+        user_id=user.id,
+        session_type=AuthSessionType.MOBILE,
+    )
+
+    response = client.post(
+        "/api/v1/auth/mobile/logout",
+        json={
+            "refresh_token": created_session.credential,
+        },
+    )
+
+    assert response.status_code == 204
+
+    restored_session = service.resolve(
+        created_session.credential,
+    )
+
+    assert restored_session is None
+
+
+def test_mobile_logout_is_idempotent_for_unknown_session(
+    client: TestClient,
+) -> None:
+    """Do not reveal whether a Mobile refresh session exists."""
+
+    response = client.post(
+        "/api/v1/auth/mobile/logout",
+        json={
+            "refresh_token": "unknown-mobile-refresh-token",
+        },
+    )
+
+    assert response.status_code == 204

@@ -16,21 +16,24 @@ class AuthenticationService:
     def authenticate(
         self,
         *,
-        username: str,
+        identifier: str,
         password: str,
     ) -> User | None:
-        """Return the authenticated user when credentials are valid."""
+        """Authenticate a user by username or email address."""
 
-        normalized_username = username.strip().lower()
+        normalized_identifier = identifier.strip().lower()
 
-        if not normalized_username or not password:
+        if not normalized_identifier or not password:
             return None
 
-        user = self._user_repository.get_by_username(
-            normalized_username,
+        user = self._find_user(
+            normalized_identifier,
         )
 
         if user is None:
+            return None
+
+        if user.password_hash is None:
             return None
 
         if not verify_password(
@@ -43,3 +46,20 @@ class AuthenticationService:
             return None
 
         return user
+
+    def _find_user(
+        self,
+        identifier: str,
+    ) -> User | None:
+        """Resolve an authentication identifier to a SofaWatch user."""
+
+        user = self._user_repository.get_by_username(
+            identifier,
+        )
+
+        if user is not None:
+            return user
+
+        return self._user_repository.get_by_email(
+            identifier,
+        )

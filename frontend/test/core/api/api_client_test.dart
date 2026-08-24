@@ -348,6 +348,124 @@ void main() {
         );
       }
     });
+    group('authentication', () {
+      test('adds current Bearer access token to requests', () async {
+        String? accessToken = 'first-access-token';
+
+        final Dio dio = Dio();
+
+        late RequestOptions capturedRequest;
+
+        dio.httpClientAdapter = _CapturingHttpClientAdapter(
+          onRequest: (RequestOptions options) {
+            capturedRequest = options;
+          },
+        );
+
+        final ApiClient client = ApiClient(
+          baseUrl: Uri.parse('http://localhost:8000'),
+          dio: dio,
+          accessTokenProvider: () => accessToken,
+        );
+
+        await client.get<void>('/users/me');
+
+        expect(
+          capturedRequest.headers['Authorization'],
+          'Bearer first-access-token',
+        );
+      });
+
+      test('uses latest access token for every request', () async {
+        String? accessToken = 'first-access-token';
+
+        final Dio dio = Dio();
+
+        final List<RequestOptions> requests = <RequestOptions>[];
+
+        dio.httpClientAdapter = _CapturingHttpClientAdapter(
+          onRequest: requests.add,
+        );
+
+        final ApiClient client = ApiClient(
+          baseUrl: Uri.parse('http://localhost:8000'),
+          dio: dio,
+          accessTokenProvider: () => accessToken,
+        );
+
+        await client.get<void>('/users/me');
+
+        accessToken = 'second-access-token';
+
+        await client.get<void>('/users/me');
+
+        expect(
+          requests[0].headers['Authorization'],
+          'Bearer first-access-token',
+        );
+
+        expect(
+          requests[1].headers['Authorization'],
+          'Bearer second-access-token',
+        );
+      });
+
+      test('does not send Authorization when no access token exists', () async {
+        final Dio dio = Dio();
+
+        late RequestOptions capturedRequest;
+
+        dio.httpClientAdapter = _CapturingHttpClientAdapter(
+          onRequest: (RequestOptions options) {
+            capturedRequest = options;
+          },
+        );
+
+        final ApiClient client = ApiClient(
+          baseUrl: Uri.parse('http://localhost:8000'),
+          dio: dio,
+          accessTokenProvider: () => null,
+        );
+
+        await client.get<void>('/auth/setup');
+
+        expect(capturedRequest.headers.containsKey('Authorization'), isFalse);
+      });
+
+      test(
+        'removes stale Authorization header after access token is cleared',
+        () async {
+          String? accessToken = 'access-token';
+
+          final Dio dio = Dio();
+
+          final List<RequestOptions> requests = <RequestOptions>[];
+
+          dio.httpClientAdapter = _CapturingHttpClientAdapter(
+            onRequest: requests.add,
+          );
+
+          final ApiClient client = ApiClient(
+            baseUrl: Uri.parse('http://localhost:8000'),
+            dio: dio,
+            accessTokenProvider: () => accessToken,
+          );
+
+          await client.get<void>('/users/me');
+
+          accessToken = null;
+
+          await client.get<void>('/auth/setup');
+
+          expect(
+            requests.first.headers['Authorization'],
+            'Bearer access-token',
+          );
+
+          expect(requests.last.headers.containsKey('Authorization'), isFalse);
+        },
+      );
+    });
   });
 }
 
@@ -361,6 +479,32 @@ class _ThrowingHttpClientAdapter implements HttpClientAdapter {
     throw DioException(
       requestOptions: options,
       type: DioExceptionType.connectionError,
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+final class _CapturingHttpClientAdapter implements HttpClientAdapter {
+  _CapturingHttpClientAdapter({required this.onRequest});
+
+  final void Function(RequestOptions options) onRequest;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    onRequest(options);
+
+    return ResponseBody.fromString(
+      '{}',
+      200,
+      headers: <String, List<String>>{
+        Headers.contentTypeHeader: <String>['application/json'],
+      },
     );
   }
 

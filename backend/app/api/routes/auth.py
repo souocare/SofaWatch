@@ -174,7 +174,7 @@ def login(
     """Authenticate a user and issue a short-lived access token."""
 
     user = authentication_service.authenticate(
-        username=credentials.username,
+        identifier=credentials.username,
         password=credentials.password,
     )
 
@@ -225,7 +225,7 @@ def mobile_login(
     """Authenticate a native client and create its persistent session."""
 
     user = authentication_service.authenticate(
-        username=credentials.username,
+        identifier=credentials.username,
         password=credentials.password,
     )
 
@@ -251,6 +251,26 @@ def mobile_login(
             access_token_service.expiration.total_seconds(),
         ),
         refresh_token=auth_session.credential,
+    )
+
+
+@router.post(
+    "/mobile/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Log out current Mobile session",
+    description=(
+        "Revoke the persistent SofaWatch Mobile session represented "
+        "by the supplied refresh credential."
+    ),
+)
+def mobile_logout(
+    payload: MobileRefreshRequest,
+    auth_session_service: AuthSessionServiceDependency,
+) -> None:
+    """Revoke the current Mobile authentication session."""
+
+    auth_session_service.revoke_by_credential(
+        payload.refresh_token,
     )
 
 

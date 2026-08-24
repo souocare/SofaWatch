@@ -1,5 +1,8 @@
 enum AppRoute {
   serverSetup,
+  authChecking,
+  login,
+  initialSetup,
   search,
   home,
   shows,

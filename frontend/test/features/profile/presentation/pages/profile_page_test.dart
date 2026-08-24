@@ -43,6 +43,9 @@ import 'package:sofawatch/features/profile/application/cubit/data_transfer_cubit
 import 'package:sofawatch/features/profile/domain/models/data_import_preview.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_result.dart';
 import 'package:sofawatch/features/profile/domain/repositories/data_transfer_repository.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
+import 'package:sofawatch/features/auth/domain/models/auth_session.dart';
+import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
 
 void main() {
   group('ProfilePage Statistics', () {
@@ -2961,6 +2964,143 @@ void main() {
         findsOneWidget,
       );
     });
+    group('ProfilePage Account', () {
+      testWidgets('shows Log out everywhere action', (
+        WidgetTester tester,
+      ) async {
+        await tester.pumpWidget(_buildTestApp());
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(
+            const ValueKey<String>('profile-logout-everywhere-action'),
+          ),
+          findsOneWidget,
+        );
+
+        expect(find.text('Log out everywhere'), findsOneWidget);
+
+        expect(
+          find.text('End all active SofaWatch sessions on every device.'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('asks for confirmation before logging out everywhere', (
+        WidgetTester tester,
+      ) async {
+        await tester.pumpWidget(_buildTestApp());
+
+        await tester.pumpAndSettle();
+
+        await tester.ensureVisible(
+          find.byKey(
+            const ValueKey<String>('profile-logout-everywhere-action'),
+          ),
+        );
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('profile-logout-everywhere-action'),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(
+            const ValueKey<String>('profile-logout-everywhere-dialog'),
+          ),
+          findsOneWidget,
+        );
+
+        expect(find.text('Log out everywhere?'), findsOneWidget);
+
+        expect(
+          find.text(
+            'This will end all active SofaWatch sessions on every device, '
+            'including this one.',
+          ),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('cancelling does not log out everywhere', (
+        WidgetTester tester,
+      ) async {
+        final _FakeAuthRepository authRepository = _FakeAuthRepository();
+
+        await tester.pumpWidget(_buildTestApp(authRepository: authRepository));
+
+        await tester.pumpAndSettle();
+
+        await tester.ensureVisible(
+          find.byKey(
+            const ValueKey<String>('profile-logout-everywhere-action'),
+          ),
+        );
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('profile-logout-everywhere-action'),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('profile-logout-everywhere-cancel'),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(authRepository.logoutEverywhereCalls, 0);
+
+        expect(
+          find.byKey(
+            const ValueKey<String>('profile-logout-everywhere-dialog'),
+          ),
+          findsNothing,
+        );
+      });
+
+      testWidgets('confirmation logs out everywhere', (
+        WidgetTester tester,
+      ) async {
+        final _FakeAuthRepository authRepository = _FakeAuthRepository();
+
+        await tester.pumpWidget(_buildTestApp(authRepository: authRepository));
+
+        await tester.pumpAndSettle();
+
+        await tester.ensureVisible(
+          find.byKey(
+            const ValueKey<String>('profile-logout-everywhere-action'),
+          ),
+        );
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('profile-logout-everywhere-action'),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('profile-logout-everywhere-confirm'),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(authRepository.logoutEverywhereCalls, 1);
+      });
+    });
   });
 }
 
@@ -3007,6 +3147,9 @@ Widget _buildNavigationTestApp({
     },
     child: MultiBlocProvider(
       providers: <BlocProvider<dynamic>>[
+        BlocProvider<AuthCubit>(
+          create: (BuildContext context) => _createAuthenticatedAuthCubit(),
+        ),
         BlocProvider<ProfileCubit>.value(value: profileCubit),
         BlocProvider<StatisticsSummaryCubit>.value(
           value: statisticsSummaryCubit,
@@ -3019,6 +3162,19 @@ Widget _buildNavigationTestApp({
   );
 }
 
+AuthCubit _createAuthenticatedAuthCubit() {
+  final AuthCubit cubit = AuthCubit(repository: _FakeAuthRepository());
+
+  cubit.authenticated(
+    const AuthSession(
+      accessToken: 'test-access-token',
+      expiresIn: Duration(minutes: 15),
+    ),
+  );
+
+  return cubit;
+}
+
 Widget _buildTestApp({
   ProfileRepository? profileRepository,
   StatisticsRepository? statisticsRepository,
@@ -3026,6 +3182,7 @@ Widget _buildTestApp({
   HistoryRepository? historyRepository,
   ServerRepository? serverRepository,
   DataTransferRepository? dataTransferRepository,
+  AuthRepository? authRepository,
   bool isWeb = false,
 }) {
   final ProfileCubit profileCubit = ProfileCubit(
@@ -3048,12 +3205,24 @@ Widget _buildTestApp({
     repository: dataTransferRepository ?? _FakeDataTransferRepository(),
   );
 
+  final AuthCubit authCubit =
+      AuthCubit(repository: authRepository ?? _FakeAuthRepository())
+        ..authenticated(
+          const AuthSession(
+            accessToken: 'test-access-token',
+            expiresIn: Duration(minutes: 15),
+          ),
+        );
+
   return RepositoryProvider<ServerRepository>(
     create: (BuildContext context) {
       return serverRepository ?? _FakeServerRepository();
     },
     child: MultiBlocProvider(
       providers: <BlocProvider<dynamic>>[
+        BlocProvider<AuthCubit>(
+          create: (BuildContext context) => _createAuthenticatedAuthCubit(),
+        ),
         BlocProvider<ProfileCubit>.value(value: profileCubit),
         BlocProvider<StatisticsSummaryCubit>.value(
           value: statisticsSummaryCubit,
@@ -3061,6 +3230,7 @@ Widget _buildTestApp({
         BlocProvider<LibraryPreviewCubit>.value(value: libraryPreviewCubit),
         BlocProvider<HistoryPreviewCubit>.value(value: historyPreviewCubit),
         BlocProvider<DataTransferCubit>.value(value: dataTransferCubit),
+        BlocProvider<AuthCubit>.value(value: authCubit),
       ],
       child: MaterialApp(home: ProfilePage(isWebOverride: isWeb)),
     ),
@@ -4190,5 +4360,38 @@ class _ControlledDataTransferRepository implements DataTransferRepository {
   @override
   Future<DataImportResult> importData(String json) {
     throw UnimplementedError();
+  }
+}
+
+final class _FakeAuthRepository implements AuthRepository {
+  _FakeAuthRepository();
+
+  int logoutCalls = 0;
+  int logoutEverywhereCalls = 0;
+
+  @override
+  Future<AuthSession> login({
+    required String username,
+    required String password,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<AuthSession?> restore() async {
+    return const AuthSession(
+      accessToken: 'test-access-token',
+      expiresIn: Duration(minutes: 15),
+    );
+  }
+
+  @override
+  Future<void> logout() async {
+    logoutCalls += 1;
+  }
+
+  @override
+  Future<void> logoutEverywhere() async {
+    logoutEverywhereCalls += 1;
   }
 }

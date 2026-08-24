@@ -1,6 +1,7 @@
 @TestOn('vm')
 library;
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/api/api_client.dart';
@@ -22,7 +23,47 @@ void main() {
 
       connectionTester = FakeServerConnectionTester();
 
-      apiClient = ApiClient();
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                final String path = options.path;
+
+                if (path.endsWith('/auth/session')) {
+                  handler.resolve(
+                    Response<Map<String, dynamic>>(
+                      requestOptions: options,
+                      statusCode: 200,
+                      data: const <String, dynamic>{
+                        'access_token': 'test-access-token',
+                        'token_type': 'bearer',
+                        'expires_in': 900,
+                      },
+                    ),
+                  );
+
+                  return;
+                }
+
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 500,
+                    data: const <String, dynamic>{
+                      'error': <String, dynamic>{
+                        'code': 'test_unhandled_request',
+                        'message': 'Unhandled test request.',
+                      },
+                    },
+                  ),
+                );
+              },
+        ),
+      );
+
+      apiClient = ApiClient(dio: dio);
     });
 
     testWidgets('shows Server Setup when no server is configured', (
@@ -108,7 +149,18 @@ void main() {
         find.byKey(const ValueKey<String>('server-setup-submit-button')),
       );
 
-      await tester.pumpAndSettle();
+      //
+      // Do not use pumpAndSettle here.
+      //
+      // Completing Server Setup now triggers authentication
+      // restoration and then mounts Home, whose independent
+      // asynchronous sections can temporarily use indeterminate
+      // progress indicators.
+      //
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(connectionTester.callCount, 1);
 

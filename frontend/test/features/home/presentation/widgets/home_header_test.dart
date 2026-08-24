@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
+import 'package:sofawatch/features/auth/domain/models/auth_session.dart';
+import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
 import 'package:sofawatch/features/home/presentation/widgets/home_header.dart';
 
 void main() {
@@ -66,15 +70,19 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Profile'), findsOneWidget);
-
       expect(find.text('Settings'), findsOneWidget);
-
       expect(find.text('Log out'), findsOneWidget);
     });
 
     testWidgets('opens Profile from the user menu', (
       WidgetTester tester,
     ) async {
+      final _FakeAuthRepository authRepository = _FakeAuthRepository();
+
+      final AuthCubit authCubit = _createAuthenticatedAuthCubit(authRepository);
+
+      addTearDown(authCubit.close);
+
       final GoRouter router = GoRouter(
         initialLocation: '/',
         routes: <RouteBase>[
@@ -103,7 +111,12 @@ void main() {
 
       addTearDown(router.dispose);
 
-      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpWidget(
+        BlocProvider<AuthCubit>.value(
+          value: authCubit,
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
 
       await tester.pumpAndSettle();
 
@@ -139,10 +152,14 @@ void main() {
       expect(find.text('Settings are not available yet.'), findsOneWidget);
     });
 
-    testWidgets('shows temporary Log out feedback', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(_buildTestApp());
+    testWidgets('logs out from the user menu', (WidgetTester tester) async {
+      final _FakeAuthRepository authRepository = _FakeAuthRepository();
+
+      final AuthCubit authCubit = _createAuthenticatedAuthCubit(authRepository);
+
+      addTearDown(authCubit.close);
+
+      await tester.pumpWidget(_buildTestApp(authCubit: authCubit));
 
       await tester.pumpAndSettle();
 
@@ -154,17 +171,17 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(
-        find.text(
-          'Log out will be available when user accounts are implemented.',
-        ),
-        findsOneWidget,
-      );
+      expect(authRepository.logoutCallCount, 1);
     });
   });
 }
 
-Widget _buildTestApp({DateTime Function()? now}) {
+Widget _buildTestApp({DateTime Function()? now, AuthCubit? authCubit}) {
+  final _FakeAuthRepository authRepository = _FakeAuthRepository();
+
+  final AuthCubit resolvedAuthCubit =
+      authCubit ?? _createAuthenticatedAuthCubit(authRepository);
+
   final GoRouter router = GoRouter(
     initialLocation: '/',
     routes: <RouteBase>[
@@ -186,5 +203,49 @@ Widget _buildTestApp({DateTime Function()? now}) {
     ],
   );
 
-  return MaterialApp.router(routerConfig: router);
+  return BlocProvider<AuthCubit>.value(
+    value: resolvedAuthCubit,
+    child: MaterialApp.router(routerConfig: router),
+  );
+}
+
+AuthCubit _createAuthenticatedAuthCubit(AuthRepository repository) {
+  final AuthCubit cubit = AuthCubit(repository: repository);
+
+  cubit.authenticated(
+    const AuthSession(
+      accessToken: 'test-access-token',
+      expiresIn: Duration(minutes: 15),
+    ),
+  );
+
+  return cubit;
+}
+
+final class _FakeAuthRepository implements AuthRepository {
+  int logoutCallCount = 0;
+  int logoutEverywhereCallCount = 0;
+
+  @override
+  Future<AuthSession> login({
+    required String username,
+    required String password,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<AuthSession?> restore() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> logout() async {
+    logoutCallCount += 1;
+  }
+
+  @override
+  Future<void> logoutEverywhere() async {
+    logoutEverywhereCallCount += 1;
+  }
 }

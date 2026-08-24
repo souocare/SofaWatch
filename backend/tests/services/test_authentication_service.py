@@ -26,7 +26,7 @@ def authentication_service(
     )
 
 
-def test_authenticate_returns_user_for_valid_credentials(
+def test_authenticate_returns_user_for_valid_username_credentials(
     authentication_service: AuthenticationService,
     user_repository: Mock,
 ) -> None:
@@ -34,6 +34,7 @@ def test_authenticate_returns_user_for_valid_credentials(
 
     user = User(
         username="souocare",
+        email="goncalo@example.com",
         display_name="Gonçalo",
         password_hash=hash_password("correct-password"),
         is_active=True,
@@ -43,7 +44,7 @@ def test_authenticate_returns_user_for_valid_credentials(
     user_repository.get_by_username.return_value = user
 
     result = authentication_service.authenticate(
-        username="souocare",
+        identifier="souocare",
         password="correct-password",
     )
 
@@ -51,6 +52,42 @@ def test_authenticate_returns_user_for_valid_credentials(
 
     user_repository.get_by_username.assert_called_once_with(
         "souocare",
+    )
+
+    user_repository.get_by_email.assert_not_called()
+
+
+def test_authenticate_returns_user_for_valid_email_credentials(
+    authentication_service: AuthenticationService,
+    user_repository: Mock,
+) -> None:
+    """Return the user when email and password are valid."""
+
+    user = User(
+        username="souocare",
+        email="goncalo@example.com",
+        display_name="Gonçalo",
+        password_hash=hash_password("correct-password"),
+        is_active=True,
+        is_local=False,
+    )
+
+    user_repository.get_by_username.return_value = None
+    user_repository.get_by_email.return_value = user
+
+    result = authentication_service.authenticate(
+        identifier="goncalo@example.com",
+        password="correct-password",
+    )
+
+    assert result is user
+
+    user_repository.get_by_username.assert_called_once_with(
+        "goncalo@example.com",
+    )
+
+    user_repository.get_by_email.assert_called_once_with(
+        "goncalo@example.com",
     )
 
 
@@ -71,7 +108,7 @@ def test_authenticate_normalizes_username(
     user_repository.get_by_username.return_value = user
 
     result = authentication_service.authenticate(
-        username="  SouOCare  ",
+        identifier="  SouOCare  ",
         password="correct-password",
     )
 
@@ -81,24 +118,96 @@ def test_authenticate_normalizes_username(
         "souocare",
     )
 
+    user_repository.get_by_email.assert_not_called()
 
-def test_authenticate_returns_none_for_unknown_username(
+
+def test_authenticate_normalizes_email(
     authentication_service: AuthenticationService,
     user_repository: Mock,
 ) -> None:
-    """Reject credentials when the user does not exist."""
+    """Normalize email before querying the repository."""
+
+    user = User(
+        username="souocare",
+        email="goncalo@example.com",
+        display_name="Gonçalo",
+        password_hash=hash_password("correct-password"),
+        is_active=True,
+        is_local=False,
+    )
 
     user_repository.get_by_username.return_value = None
+    user_repository.get_by_email.return_value = user
 
     result = authentication_service.authenticate(
-        username="missing",
+        identifier="  Goncalo@Example.COM  ",
+        password="correct-password",
+    )
+
+    assert result is user
+
+    user_repository.get_by_username.assert_called_once_with(
+        "goncalo@example.com",
+    )
+
+    user_repository.get_by_email.assert_called_once_with(
+        "goncalo@example.com",
+    )
+
+
+def test_authenticate_prefers_username_over_email(
+    authentication_service: AuthenticationService,
+    user_repository: Mock,
+) -> None:
+    """Prefer an exact username match before considering email."""
+
+    user = User(
+        username="souocare",
+        email="another@example.com",
+        display_name="Gonçalo",
+        password_hash=hash_password("correct-password"),
+        is_active=True,
+        is_local=False,
+    )
+
+    user_repository.get_by_username.return_value = user
+
+    result = authentication_service.authenticate(
+        identifier="souocare",
+        password="correct-password",
+    )
+
+    assert result is user
+
+    user_repository.get_by_username.assert_called_once_with(
+        "souocare",
+    )
+
+    user_repository.get_by_email.assert_not_called()
+
+
+def test_authenticate_returns_none_for_unknown_identifier(
+    authentication_service: AuthenticationService,
+    user_repository: Mock,
+) -> None:
+    """Reject credentials when neither username nor email exists."""
+
+    user_repository.get_by_username.return_value = None
+    user_repository.get_by_email.return_value = None
+
+    result = authentication_service.authenticate(
+        identifier="missing@example.com",
         password="password",
     )
 
     assert result is None
 
     user_repository.get_by_username.assert_called_once_with(
-        "missing",
+        "missing@example.com",
+    )
+
+    user_repository.get_by_email.assert_called_once_with(
+        "missing@example.com",
     )
 
 
@@ -119,7 +228,7 @@ def test_authenticate_returns_none_for_invalid_password(
     user_repository.get_by_username.return_value = user
 
     result = authentication_service.authenticate(
-        username="souocare",
+        identifier="souocare",
         password="wrong-password",
     )
 
@@ -129,12 +238,14 @@ def test_authenticate_returns_none_for_invalid_password(
         "souocare",
     )
 
+    user_repository.get_by_email.assert_not_called()
+
 
 def test_authenticate_returns_none_for_user_without_password(
     authentication_service: AuthenticationService,
     user_repository: Mock,
 ) -> None:
-    """Reject users that do not yet have authentication credentials."""
+    """Reject users that do not have authentication credentials."""
 
     user = User(
         username="souocare",
@@ -147,7 +258,7 @@ def test_authenticate_returns_none_for_user_without_password(
     user_repository.get_by_username.return_value = user
 
     result = authentication_service.authenticate(
-        username="souocare",
+        identifier="souocare",
         password="password",
     )
 
@@ -157,15 +268,18 @@ def test_authenticate_returns_none_for_user_without_password(
         "souocare",
     )
 
+    user_repository.get_by_email.assert_not_called()
+
 
 def test_authenticate_rejects_inactive_user(
     authentication_service: AuthenticationService,
     user_repository: Mock,
 ) -> None:
-    """Reject a user even when its credentials are otherwise valid."""
+    """Reject inactive users even when their credentials are valid."""
 
     user = User(
         username="souocare",
+        email="goncalo@example.com",
         display_name="Gonçalo",
         password_hash=hash_password("correct-password"),
         is_active=False,
@@ -175,7 +289,7 @@ def test_authenticate_rejects_inactive_user(
     user_repository.get_by_username.return_value = user
 
     result = authentication_service.authenticate(
-        username="souocare",
+        identifier="souocare",
         password="correct-password",
     )
 
@@ -185,29 +299,66 @@ def test_authenticate_rejects_inactive_user(
         "souocare",
     )
 
+    user_repository.get_by_email.assert_not_called()
+
+
+def test_authenticate_rejects_inactive_user_authenticated_by_email(
+    authentication_service: AuthenticationService,
+    user_repository: Mock,
+) -> None:
+    """Reject inactive users without distinguishing email authentication."""
+
+    user = User(
+        username="souocare",
+        email="goncalo@example.com",
+        display_name="Gonçalo",
+        password_hash=hash_password("correct-password"),
+        is_active=False,
+        is_local=False,
+    )
+
+    user_repository.get_by_username.return_value = None
+    user_repository.get_by_email.return_value = user
+
+    result = authentication_service.authenticate(
+        identifier="goncalo@example.com",
+        password="correct-password",
+    )
+
+    assert result is None
+
+    user_repository.get_by_username.assert_called_once_with(
+        "goncalo@example.com",
+    )
+
+    user_repository.get_by_email.assert_called_once_with(
+        "goncalo@example.com",
+    )
+
 
 @pytest.mark.parametrize(
-    ("username", "password"),
+    ("identifier", "password"),
     [
         ("", "password"),
         ("   ", "password"),
         ("souocare", ""),
+        ("goncalo@example.com", ""),
     ],
 )
 def test_authenticate_rejects_empty_credentials(
     authentication_service: AuthenticationService,
     user_repository: Mock,
-    username: str,
+    identifier: str,
     password: str,
 ) -> None:
     """Reject incomplete credentials without querying the repository."""
 
     result = authentication_service.authenticate(
-        username=username,
+        identifier=identifier,
         password=password,
     )
 
     assert result is None
 
     user_repository.get_by_username.assert_not_called()
-
+    user_repository.get_by_email.assert_not_called()

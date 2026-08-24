@@ -39,6 +39,8 @@ import 'package:sofawatch/core/files/file_downloader.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sofawatch/core/files/json_file_picker.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_preview.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_state.dart';
 
 const double _profileServerMetricCardExtent = 136;
 
@@ -83,6 +85,10 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xxl),
 
                   const _ProfileBody(),
+
+                  const SizedBox(height: AppSpacing.xl),
+
+                  const _ProfileAccountSection(),
 
                   const SizedBox(height: AppSpacing.section),
 
@@ -211,6 +217,120 @@ class _ProfileIdentityCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ProfileAccountSection extends StatelessWidget {
+  const _ProfileAccountSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<AuthCubit, AuthState>(
+      buildWhen: (AuthState previous, AuthState current) {
+        return previous.runtimeType != current.runtimeType &&
+            (previous is AuthLoggingOut ||
+                previous is AuthLoggingOutEverywhere ||
+                current is AuthLoggingOut ||
+                current is AuthLoggingOutEverywhere ||
+                current is AuthUnauthenticated);
+      },
+      builder: (BuildContext context, AuthState state) {
+        final bool isLoggingOut =
+            state is AuthLoggingOut || state is AuthLoggingOutEverywhere;
+
+        return Column(
+          key: const ValueKey<String>('profile-account-section'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Text(
+              'Account',
+              key: const ValueKey<String>('profile-account-title'),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+
+            const SizedBox(height: AppSpacing.md),
+
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surfaceHigh,
+                borderRadius: AppRadius.borderLarge,
+                border: Border.all(color: AppColors.outlineVariant),
+              ),
+              child: InkWell(
+                key: const ValueKey<String>('profile-logout-everywhere-action'),
+                borderRadius: AppRadius.borderLarge,
+                onTap: isLoggingOut
+                    ? null
+                    : () {
+                        _confirmLogoutEverywhere(context);
+                      },
+                child: Padding(
+                  padding: AppSpacing.cardPadding,
+                  child: Row(
+                    children: <Widget>[
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppColors.errorContainer.withValues(
+                            alpha: 0.28,
+                          ),
+                          borderRadius: AppRadius.borderMedium,
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.logout_rounded,
+                          color: AppColors.error,
+                        ),
+                      ),
+
+                      const SizedBox(width: AppSpacing.lg),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              'Log out everywhere',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+
+                            const SizedBox(height: AppSpacing.xs),
+
+                            Text(
+                              'End all active SofaWatch sessions on every device.',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(width: AppSpacing.md),
+
+                      if (state is AuthLoggingOutEverywhere)
+                        const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: AppColors.textSecondary,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -4157,6 +4277,97 @@ class _ProfileServerLogsLoading extends StatelessWidget {
   }
 }
 
+class _LogoutEverywhereDialog extends StatelessWidget {
+  const _LogoutEverywhereDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      key: const ValueKey<String>('logout-everywhere-dialog'),
+      title: const Text('Log out everywhere?'),
+      content: const Text(
+        'This will end all active SofaWatch sessions, including sessions '
+        'on your other devices.',
+      ),
+      actions: <Widget>[
+        TextButton(
+          key: const ValueKey<String>('logout-everywhere-cancel'),
+          onPressed: () {
+            Navigator.of(context).pop(false);
+          },
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const ValueKey<String>('logout-everywhere-confirm'),
+          onPressed: () {
+            Navigator.of(context).pop(true);
+          },
+          child: const Text('Log out everywhere'),
+        ),
+      ],
+    );
+  }
+}
+
+class _LogoutEverywhereSheet extends StatelessWidget {
+  const _LogoutEverywhereSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      key: const ValueKey<String>('logout-everywhere-sheet'),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xl,
+        AppSpacing.xxl,
+        AppSpacing.xl,
+        AppSpacing.xxxl,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(
+            'Log out everywhere?',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          Text(
+            'This will end all active SofaWatch sessions, including sessions '
+            'on your other devices.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          ),
+
+          const SizedBox(height: AppSpacing.xxl),
+
+          FilledButton(
+            key: const ValueKey<String>('logout-everywhere-confirm'),
+            onPressed: () {
+              Navigator.of(context).pop(true);
+            },
+            child: const Text('Log out everywhere'),
+          ),
+
+          const SizedBox(height: AppSpacing.sm),
+
+          TextButton(
+            key: const ValueKey<String>('logout-everywhere-cancel'),
+            onPressed: () {
+              Navigator.of(context).pop(false);
+            },
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 String _serverHealthStatusLabel(ServerHealthStatus status) {
   return switch (status) {
     ServerHealthStatus.healthy => 'Healthy',
@@ -4396,4 +4607,42 @@ Future<void> _openSofaWatchWeb(BuildContext context) async {
   ScaffoldMessenger.of(context).showSnackBar(
     const SnackBar(content: Text('SofaWatch Web could not be opened.')),
   );
+}
+
+Future<void> _confirmLogoutEverywhere(BuildContext context) async {
+  final bool? confirmed = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        key: const ValueKey<String>('profile-logout-everywhere-dialog'),
+        title: const Text('Log out everywhere?'),
+        content: const Text(
+          'This will end all active SofaWatch sessions on every device, '
+          'including this one.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            key: const ValueKey<String>('profile-logout-everywhere-cancel'),
+            onPressed: () {
+              Navigator.of(dialogContext).pop(false);
+            },
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const ValueKey<String>('profile-logout-everywhere-confirm'),
+            onPressed: () {
+              Navigator.of(dialogContext).pop(true);
+            },
+            child: const Text('Log out everywhere'),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (confirmed != true || !context.mounted) {
+    return;
+  }
+
+  await context.read<AuthCubit>().logoutEverywhere();
 }

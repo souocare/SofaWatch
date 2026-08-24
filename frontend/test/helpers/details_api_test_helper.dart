@@ -9,6 +9,22 @@ ApiClient createDetailsTestApiClient() {
       onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
         final String path = options.path;
 
+        if (path.endsWith('/auth/session')) {
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: const <String, dynamic>{
+                'access_token': 'test-access-token',
+                'token_type': 'bearer',
+                'expires_in': 900,
+              },
+            ),
+          );
+
+          return;
+        }
+
         final RegExp showDetailsPattern = RegExp(r'/shows/tmdb/(\d+)$');
 
         final RegExp showImportPattern = RegExp(r'/shows/import/tmdb/(\d+)$');
