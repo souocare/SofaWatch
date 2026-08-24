@@ -568,3 +568,108 @@ def test_import_current_user_data_rejects_invalid_export_version(
     )
 
     assert response.status_code == 422
+
+def test_current_user_can_update_display_name(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Allow a user to update their own display name."""
+
+    user = User(
+        username="souocare",
+        display_name="Old Display Name",
+        is_local=True,
+        is_admin=False,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    response = client.patch(
+        "/api/v1/users/me",
+        json={
+            "display_name": "Gonçalo",
+        },
+    )
+
+    assert response.status_code == 200
+
+    assert response.json() == {
+        "id": str(user.id),
+        "username": "souocare",
+        "email": None,
+        "display_name": "Gonçalo",
+        "is_active": True,
+        "is_local": True,
+        "is_admin": False,
+    }
+
+    db_session.refresh(user)
+
+    assert user.display_name == "Gonçalo"
+
+
+def test_update_current_user_display_name_trims_whitespace(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Normalize surrounding whitespace in the display name."""
+
+    user = User(
+        display_name="Old Name",
+        is_local=True,
+        is_admin=False,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    response = client.patch(
+        "/api/v1/users/me",
+        json={
+            "display_name": "   Gonçalo Fonseca   ",
+        },
+    )
+
+    assert response.status_code == 200
+
+    assert response.json()["display_name"] == "Gonçalo Fonseca"
+
+    db_session.refresh(user)
+
+    assert user.display_name == "Gonçalo Fonseca"
+
+
+def test_update_current_user_rejects_blank_display_name(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Reject a blank display name without changing the user."""
+
+    user = User(
+        display_name="Existing Name",
+        is_local=True,
+        is_admin=False,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    response = client.patch(
+        "/api/v1/users/me",
+        json={
+            "display_name": "   ",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"
+
+    db_session.refresh(user)
+
+    assert user.display_name == "Existing Name"
+
+

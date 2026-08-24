@@ -166,62 +166,75 @@ class _ProfileIdentityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Material(
       key: const ValueKey<String>('profile-user-card'),
-      padding: AppSpacing.cardPadding,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
+      color: AppColors.surfaceHigh,
+      shape: RoundedRectangleBorder(
         borderRadius: AppRadius.borderLarge,
-        border: Border.all(color: AppColors.outlineVariant),
+        side: const BorderSide(color: AppColors.outlineVariant),
       ),
-      child: Row(
-        children: <Widget>[
-          Container(
-            key: const ValueKey<String>('profile-user-avatar'),
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.surface,
-              border: Border.all(color: AppColors.outlineVariant),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              _initialFor(user.displayName),
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-            ),
-          ),
-
-          const SizedBox(width: AppSpacing.lg),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  user.displayName,
-                  key: const ValueKey<String>('profile-user-display-name'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: const ValueKey<String>('profile-edit-display-name-action'),
+        onTap: () {
+          _showEditDisplayName(context, user);
+        },
+        child: Padding(
+          padding: AppSpacing.cardPadding,
+          child: Row(
+            children: <Widget>[
+              Container(
+                key: const ValueKey<String>('profile-user-avatar'),
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.surface,
+                  border: Border.all(color: AppColors.outlineVariant),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  _initialFor(user.displayName),
                   style: Theme.of(
                     context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                 ),
+              ),
 
-                const SizedBox(height: AppSpacing.xs),
+              const SizedBox(width: AppSpacing.lg),
 
-                Text(
-                  'SofaWatch profile',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      user.displayName,
+                      key: const ValueKey<String>('profile-user-display-name'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.xs),
+
+                    Text(
+                      'SofaWatch profile',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+
+              const SizedBox(width: AppSpacing.md),
+
+              const Icon(Icons.edit_outlined, color: AppColors.textSecondary),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -4853,4 +4866,280 @@ Future<void> _confirmLogoutEverywhere(BuildContext context) async {
   }
 
   await context.read<AuthCubit>().logoutEverywhere();
+}
+
+Future<void> _showEditDisplayName(
+  BuildContext context,
+  ProfileUser user,
+) async {
+  final bool useDialog =
+      MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet;
+
+  if (useDialog) {
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return BlocProvider<ProfileCubit>.value(
+          value: context.read<ProfileCubit>(),
+          child: _EditDisplayNameDialog(currentDisplayName: user.displayName),
+        );
+      },
+    );
+
+    return;
+  }
+
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (BuildContext sheetContext) {
+      return BlocProvider<ProfileCubit>.value(
+        value: context.read<ProfileCubit>(),
+        child: _EditDisplayNameSheet(currentDisplayName: user.displayName),
+      );
+    },
+  );
+}
+
+class _EditDisplayNameDialog extends StatelessWidget {
+  const _EditDisplayNameDialog({required this.currentDisplayName});
+
+  final String currentDisplayName;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      key: const ValueKey<String>('profile-edit-display-name-dialog'),
+      title: const Text('Edit display name'),
+      content: SizedBox(
+        width: 420,
+        child: _EditDisplayNameForm(currentDisplayName: currentDisplayName),
+      ),
+    );
+  }
+}
+
+class _EditDisplayNameSheet extends StatelessWidget {
+  const _EditDisplayNameSheet({required this.currentDisplayName});
+
+  final String currentDisplayName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      key: const ValueKey<String>('profile-edit-display-name-sheet'),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.xl,
+        AppSpacing.xxl,
+        AppSpacing.xl,
+        MediaQuery.viewInsetsOf(context).bottom + AppSpacing.xxl,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(
+            'Edit display name',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          ),
+
+          const SizedBox(height: AppSpacing.xl),
+
+          _EditDisplayNameForm(currentDisplayName: currentDisplayName),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditDisplayNameForm extends StatefulWidget {
+  const _EditDisplayNameForm({required this.currentDisplayName});
+
+  final String currentDisplayName;
+
+  @override
+  State<_EditDisplayNameForm> createState() {
+    return _EditDisplayNameFormState();
+  }
+}
+
+class _EditDisplayNameFormState extends State<_EditDisplayNameForm> {
+  late final TextEditingController _controller;
+
+  String? _validationError;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = TextEditingController(text: widget.currentDisplayName);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final String displayName = _controller.text.trim();
+
+    if (displayName.isEmpty) {
+      setState(() {
+        _validationError = 'Display name is required.';
+      });
+
+      return;
+    }
+
+    if (displayName.length > 100) {
+      setState(() {
+        _validationError = 'Display name must be 100 characters or fewer.';
+      });
+
+      return;
+    }
+
+    if (displayName == widget.currentDisplayName) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    setState(() {
+      _validationError = null;
+    });
+
+    final bool updated = await context.read<ProfileCubit>().updateDisplayName(
+      displayName,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (updated) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocConsumer<ProfileCubit, ProfileState>(
+      listenWhen: (ProfileState previous, ProfileState current) {
+        final AppException? previousError = switch (previous) {
+          ProfileSuccess(:final updateDisplayNameError) =>
+            updateDisplayNameError,
+          _ => null,
+        };
+
+        final AppException? currentError = switch (current) {
+          ProfileSuccess(:final updateDisplayNameError) =>
+            updateDisplayNameError,
+          _ => null,
+        };
+
+        return previousError != currentError && currentError != null;
+      },
+      listener: (BuildContext context, ProfileState state) {
+        final AppException? error = switch (state) {
+          ProfileSuccess(:final updateDisplayNameError) =>
+            updateDisplayNameError,
+          _ => null,
+        };
+
+        if (error == null) {
+          return;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppErrorMessageMapper.map(error))),
+        );
+
+        context.read<ProfileCubit>().clearUpdateDisplayNameError();
+      },
+      builder: (BuildContext context, ProfileState state) {
+        final bool isUpdating = switch (state) {
+          ProfileSuccess(:final isUpdatingDisplayName) => isUpdatingDisplayName,
+          _ => false,
+        };
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            TextField(
+              key: const ValueKey<String>('profile-edit-display-name-field'),
+              controller: _controller,
+              autofocus: true,
+              enabled: !isUpdating,
+              textInputAction: TextInputAction.done,
+              maxLength: 100,
+              onChanged: (_) {
+                if (_validationError == null) {
+                  return;
+                }
+
+                setState(() {
+                  _validationError = null;
+                });
+              },
+              onSubmitted: (_) {
+                if (!isUpdating) {
+                  _submit();
+                }
+              },
+              decoration: InputDecoration(
+                labelText: 'Display name',
+                errorText: _validationError,
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.xl),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: <Widget>[
+                TextButton(
+                  key: const ValueKey<String>(
+                    'profile-edit-display-name-cancel',
+                  ),
+                  onPressed: isUpdating
+                      ? null
+                      : () {
+                          Navigator.of(context).pop();
+                        },
+                  child: const Text('Cancel'),
+                ),
+
+                const SizedBox(width: AppSpacing.sm),
+
+                FilledButton(
+                  key: const ValueKey<String>('profile-edit-display-name-save'),
+                  onPressed: isUpdating ? null : _submit,
+                  child: isUpdating
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            SizedBox(width: AppSpacing.sm),
+                            Text('Saving…'),
+                          ],
+                        )
+                      : const Text('Save'),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
 }

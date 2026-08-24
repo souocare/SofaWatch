@@ -1527,7 +1527,7 @@ void main() {
 
       await tester.pumpWidget(
         _buildTestApp(
-          profileRepository: const _FakeProfileRepository(user: _regularUser),
+          profileRepository: _FakeProfileRepository(user: _regularUser),
           serverRepository: serverRepository,
         ),
       );
@@ -3139,13 +3139,15 @@ void main() {
         const ProfileUser regularUser = ProfileUser(
           id: 'user-2',
           displayName: 'Regular User',
+          username: 'souocare',
+          email: 'test@test.pt',
           isLocal: false,
           isAdmin: false,
         );
 
         await tester.pumpWidget(
           _buildTestApp(
-            profileRepository: const _FakeProfileRepository(user: regularUser),
+            profileRepository: _FakeProfileRepository(user: regularUser),
             securitySettingsRepository: securityRepository,
           ),
         );
@@ -3372,6 +3374,276 @@ void main() {
       expect(find.text('Open registration'), findsOneWidget);
     });
   });
+  group('ProfilePage Display name', () {
+    testWidgets('opens display name editor from Profile identity card', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(_buildTestApp());
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-action')),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-action')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-sheet')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-field')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Edit display name'), findsOneWidget);
+    });
+
+    testWidgets('prefills editor with current display name', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(_buildTestApp());
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-action')),
+      );
+
+      await tester.pumpAndSettle();
+
+      final TextField field = tester.widget<TextField>(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-field')),
+      );
+
+      expect(field.controller?.text, 'TestDisplay');
+    });
+
+    testWidgets('updates display name and refreshes Profile identity', (
+      WidgetTester tester,
+    ) async {
+      final _FakeProfileRepository profileRepository = _FakeProfileRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(profileRepository: profileRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-action')),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder fieldFinder = find.byKey(
+        const ValueKey<String>('profile-edit-display-name-field'),
+      );
+
+      await tester.enterText(fieldFinder, 'Gonçalo Fonseca');
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-save')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(profileRepository.updateDisplayNameCalls, 1);
+      expect(profileRepository.lastDisplayName, 'Gonçalo Fonseca');
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-sheet')),
+        findsNothing,
+      );
+
+      expect(find.text('Gonçalo Fonseca'), findsOneWidget);
+    });
+
+    testWidgets('trims display name before updating', (
+      WidgetTester tester,
+    ) async {
+      final _FakeProfileRepository profileRepository = _FakeProfileRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(profileRepository: profileRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-action')),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-field')),
+        '   Gonçalo Fonseca   ',
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-save')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(profileRepository.lastDisplayName, 'Gonçalo Fonseca');
+    });
+
+    testWidgets('rejects blank display name without calling repository', (
+      WidgetTester tester,
+    ) async {
+      final _FakeProfileRepository profileRepository = _FakeProfileRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(profileRepository: profileRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-action')),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-field')),
+        '   ',
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-save')),
+      );
+
+      await tester.pump();
+
+      expect(find.text('Display name is required.'), findsOneWidget);
+
+      expect(profileRepository.updateDisplayNameCalls, 0);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-sheet')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('closes editor without update when display name is unchanged', (
+      WidgetTester tester,
+    ) async {
+      final _FakeProfileRepository profileRepository = _FakeProfileRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(profileRepository: profileRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-action')),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-save')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(profileRepository.updateDisplayNameCalls, 0);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-sheet')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('keeps editor open when display name update fails', (
+      WidgetTester tester,
+    ) async {
+      final _FakeProfileRepository profileRepository = _FakeProfileRepository(
+        updateDisplayNameError: const AppException.connection(),
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(profileRepository: profileRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-action')),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-field')),
+        'New Name',
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-save')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(profileRepository.updateDisplayNameCalls, 1);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-sheet')),
+        findsOneWidget,
+      );
+
+      expect(find.text('TestDisplay'), findsOneWidget);
+    });
+
+    testWidgets('cancel closes editor without updating display name', (
+      WidgetTester tester,
+    ) async {
+      final _FakeProfileRepository profileRepository = _FakeProfileRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(profileRepository: profileRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-action')),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-field')),
+        'Changed but cancelled',
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-cancel')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(profileRepository.updateDisplayNameCalls, 0);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-edit-display-name-sheet')),
+        findsNothing,
+      );
+
+      expect(find.text('TestDisplay'), findsOneWidget);
+    });
+  });
 }
 
 Widget _buildNavigationTestApp({
@@ -3530,6 +3802,8 @@ Widget _buildTestApp({
 
 const ProfileUser _user = ProfileUser(
   id: 'user-1',
+  username: 'testuser',
+  email: 'test@example.com',
   displayName: 'TestDisplay',
   isLocal: true,
   isAdmin: true,
@@ -3627,10 +3901,18 @@ final HistoryPreview _historyPreview = HistoryPreview(
 );
 
 final class _FakeProfileRepository implements ProfileRepository {
-  const _FakeProfileRepository({this.user = _user, this.error});
+  _FakeProfileRepository({
+    this.user = _user,
+    this.error,
+    this.updateDisplayNameError,
+  });
 
   final ProfileUser user;
   final AppException? error;
+  final AppException? updateDisplayNameError;
+
+  int updateDisplayNameCalls = 0;
+  String? lastDisplayName;
 
   @override
   Future<ProfileUser> getCurrentUser() async {
@@ -3641,6 +3923,20 @@ final class _FakeProfileRepository implements ProfileRepository {
     }
 
     return user;
+  }
+
+  @override
+  Future<ProfileUser> updateDisplayName({required String displayName}) async {
+    updateDisplayNameCalls += 1;
+    lastDisplayName = displayName;
+
+    final AppException? failure = updateDisplayNameError;
+
+    if (failure != null) {
+      throw failure;
+    }
+
+    return user.copyWith(displayName: displayName);
   }
 }
 
@@ -4415,6 +4711,8 @@ final class _RetryPaginationLogsServerRepository implements ServerRepository {
 const ProfileUser _regularUser = ProfileUser(
   id: 'user-2',
   displayName: 'Regular User',
+  username: 'souocare',
+  email: 'test@test.pt',
   isLocal: false,
   isAdmin: false,
 );

@@ -396,9 +396,10 @@ MovieWatchEventServiceDependency = Annotated[
 def get_user_service(
     session: DatabaseSession,
 ) -> UserService:
-    """Provide a user service for a single request."""
+    """Provide user operations for a single request."""
 
     return UserService(
+        session=session,
         user_repository=UserRepository(session),
     )
 

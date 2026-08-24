@@ -1,5 +1,7 @@
 from uuid import UUID
 
+from sqlalchemy.orm import Session
+
 from app.models.user import User
 from app.repositories.user import UserRepository
 
@@ -10,8 +12,10 @@ class UserService:
     def __init__(
         self,
         *,
+        session: Session,
         user_repository: UserRepository,
     ) -> None:
+        self._session = session
         self._user_repository = user_repository
 
     def get_by_id(
@@ -59,9 +63,24 @@ class UserService:
 
         return not self._user_repository.exists_any()
 
-    # def get_local(
-    #     self,
-    # ) -> User | None:
-    #     """Return the local SofaWatch user."""
+    def update_display_name(
+        self,
+        *,
+        user: User,
+        display_name: str,
+    ) -> User:
+        """Update the current user's display name."""
 
-    #     return self._user_repository.get_local()
+        normalized_display_name = display_name.strip()
+
+        if not normalized_display_name:
+            raise ValueError(
+                "Display name must not be blank.",
+            )
+
+        user.display_name = normalized_display_name
+
+        self._session.commit()
+        self._session.refresh(user)
+
+        return user

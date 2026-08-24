@@ -72,11 +72,75 @@ void main() {
 
       await cubit.close();
     });
+    test(
+      'updates display name while preserving Profile success state',
+      () async {
+        final _UpdatingProfileRepository repository =
+            _UpdatingProfileRepository();
+
+        final ProfileCubit cubit = ProfileCubit(repository: repository);
+
+        await cubit.load();
+
+        await cubit.updateDisplayName('Novo Nome');
+
+        expect(repository.updateDisplayNameCalls, 1);
+        expect(repository.lastDisplayName, 'Novo Nome');
+
+        final ProfileSuccess state = cubit.state as ProfileSuccess;
+
+        expect(state.user.displayName, 'Novo Nome');
+        expect(state.isUpdatingDisplayName, isFalse);
+        expect(state.updateDisplayNameError, isNull);
+
+        await cubit.close();
+      },
+    );
+
+    test('keeps previous user when display name update fails', () async {
+      final ProfileCubit cubit = ProfileCubit(
+        repository: _UpdatingProfileRepository(
+          updateError: const AppException.connection(),
+        ),
+      );
+
+      await cubit.load();
+
+      final bool updated = await cubit.updateDisplayName('Novo Nome');
+
+      expect(updated, isFalse);
+
+      final ProfileSuccess state = cubit.state as ProfileSuccess;
+
+      expect(state.user.displayName, 'Gonçalo');
+      expect(state.isUpdatingDisplayName, isFalse);
+      expect(state.updateDisplayNameError?.type, AppExceptionType.connection);
+
+      await cubit.close();
+    });
+
+    test('does not update display name when value is unchanged', () async {
+      final _UpdatingProfileRepository repository =
+          _UpdatingProfileRepository();
+
+      final ProfileCubit cubit = ProfileCubit(repository: repository);
+
+      await cubit.load();
+
+      final bool updated = await cubit.updateDisplayName('  Gonçalo  ');
+
+      expect(updated, isFalse);
+      expect(repository.updateDisplayNameCalls, 0);
+
+      await cubit.close();
+    });
   });
 }
 
 const ProfileUser _user = ProfileUser(
   id: '11111111-2222-3333-4444-555555555555',
+  username: 'souocare',
+  email: 'goncalo@example.com',
   displayName: 'Gonçalo',
   isLocal: true,
   isAdmin: true,
@@ -104,6 +168,11 @@ final class _FakeProfileRepository implements ProfileRepository {
 
     return _user;
   }
+
+  @override
+  Future<ProfileUser> updateDisplayName({required String displayName}) async {
+    return _user.copyWith(displayName: displayName);
+  }
 }
 
 final class _RetryProfileRepository implements ProfileRepository {
@@ -118,5 +187,38 @@ final class _RetryProfileRepository implements ProfileRepository {
     }
 
     return _user;
+  }
+
+  @override
+  Future<ProfileUser> updateDisplayName({required String displayName}) async {
+    return _user.copyWith(displayName: displayName);
+  }
+}
+
+final class _UpdatingProfileRepository implements ProfileRepository {
+  _UpdatingProfileRepository({this.updateError});
+
+  final AppException? updateError;
+
+  int updateDisplayNameCalls = 0;
+  String? lastDisplayName;
+
+  @override
+  Future<ProfileUser> getCurrentUser() async {
+    return _user;
+  }
+
+  @override
+  Future<ProfileUser> updateDisplayName({required String displayName}) async {
+    updateDisplayNameCalls++;
+    lastDisplayName = displayName;
+
+    final AppException? failure = updateError;
+
+    if (failure != null) {
+      throw failure;
+    }
+
+    return _user.copyWith(displayName: displayName);
   }
 }

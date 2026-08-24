@@ -7,6 +7,10 @@ import pytest
 from app.repositories.user import UserRepository
 from app.services.user import UserService
 from app.models.user import User
+from unittest.mock import Mock
+
+import pytest
+from sqlalchemy.orm import Session
 
 
 @pytest.fixture
@@ -17,12 +21,21 @@ def user_repository() -> Mock:
 
 
 @pytest.fixture
+def db_session() -> Mock:
+    """Provide a mocked database session."""
+
+    return Mock(spec=Session)
+
+
+@pytest.fixture
 def user_service(
+    db_session: Mock,
     user_repository: Mock,
 ) -> UserService:
-    """Provide a user service using a mocked repository."""
+    """Provide a user service using mocked dependencies."""
 
     return UserService(
+        session=db_session,
         user_repository=user_repository,
     )
 
@@ -200,3 +213,52 @@ def test_does_not_require_initial_setup_when_user_exists(
 
     user_repository.exists_any.assert_called_once_with()
 
+
+def test_update_display_name_updates_and_persists_user(
+    user_service: UserService,
+    db_session: Mock,
+) -> None:
+    """Update and persist a normalized display name."""
+
+    user = User(
+        display_name="Old Name",
+        is_local=False,
+    )
+
+    db_session.refresh.side_effect = lambda _: None
+
+    result = user_service.update_display_name(
+        user=user,
+        display_name="  Gonçalo Fonseca  ",
+    )
+
+    assert result is user
+    assert user.display_name == "Gonçalo Fonseca"
+
+    db_session.commit.assert_called_once_with()
+    db_session.refresh.assert_called_once_with(user)
+
+def test_update_display_name_rejects_blank_value(
+    user_service: UserService,
+    db_session: Mock,
+) -> None:
+    """Reject blank display names without persisting changes."""
+
+    user = User(
+        display_name="Existing Name",
+        is_local=False,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Display name must not be blank",
+    ):
+        user_service.update_display_name(
+            user=user,
+            display_name="   ",
+        )
+
+    assert user.display_name == "Existing Name"
+
+    db_session.commit.assert_not_called()
+    db_session.refresh.assert_not_called()

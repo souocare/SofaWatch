@@ -22,7 +22,10 @@ void main() {
                     statusCode: 200,
                     data: const <String, dynamic>{
                       'id': '11111111-2222-3333-4444-555555555555',
+                      'username': 'souocare',
+                      'email': 'goncalo@example.com',
                       'display_name': 'Gonçalo',
+                      'is_active': true,
                       'is_local': true,
                       'is_admin': true,
                     },
@@ -41,6 +44,8 @@ void main() {
       expect(user.displayName, 'Gonçalo');
       expect(user.isLocal, isTrue);
       expect(user.isAdmin, isTrue);
+      expect(user.username, 'souocare');
+      expect(user.email, 'goncalo@example.com');
     });
 
     test('loads a non-admin current user', () async {
@@ -58,7 +63,10 @@ void main() {
                     statusCode: 200,
                     data: const <String, dynamic>{
                       'id': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+                      'username': 'regularuser',
+                      'email': 'regular@example.com',
                       'display_name': 'Regular User',
+                      'is_active': true,
                       'is_local': false,
                       'is_admin': false,
                     },
@@ -94,6 +102,8 @@ void main() {
                     data: const <String, dynamic>{
                       'id': '11111111-2222-3333-4444-555555555555',
                       'display_name': 123,
+                      'username': null,
+                      'email': null,
                       'is_local': true,
                     },
                   ),
@@ -116,6 +126,51 @@ void main() {
           ),
         ),
       );
+    });
+    test('updates the current user display name', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                expect(options.method, 'PATCH');
+                expect(options.path, endsWith('/users/me'));
+
+                expect(options.data, <String, dynamic>{
+                  'display_name': 'Novo Nome',
+                });
+
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: const <String, dynamic>{
+                      'id': '11111111-2222-3333-4444-555555555555',
+                      'username': 'souocare',
+                      'email': 'goncalo@example.com',
+                      'display_name': 'Novo Nome',
+                      'is_active': true,
+                      'is_local': false,
+                      'is_admin': true,
+                    },
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiProfileRepository repository = ApiProfileRepository(
+        ApiClient(baseUrl: Uri.parse('https://server.example.com'), dio: dio),
+      );
+
+      final ProfileUser user = await repository.updateDisplayName(
+        displayName: 'Novo Nome',
+      );
+
+      expect(user.displayName, 'Novo Nome');
+      expect(user.username, 'souocare');
+      expect(user.isAdmin, isTrue);
     });
   });
 }

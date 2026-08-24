@@ -3,15 +3,18 @@ from fastapi import APIRouter, Response
 from app.api.dependencies import (
     CurrentUserDependency,
     DataExportServiceDependency,
-)
-from app.schemas.user import CurrentUserResponse
-from app.api.dependencies import (
-    CurrentUserDependency,
-    DataExportServiceDependency,
     DataImportServiceDependency,
+    UserServiceDependency,
 )
 from app.schemas.data_export import SofaWatchExportResponse
-from app.schemas.data_import import DataImportPreviewResponse, DataImportResultResponse
+from app.schemas.data_import import (
+    DataImportPreviewResponse,
+    DataImportResultResponse,
+)
+from app.schemas.user import (
+    CurrentUserResponse,
+    CurrentUserUpdateRequest,
+)
 
 
 router = APIRouter(
@@ -32,6 +35,30 @@ def get_current_user_profile(
     """Return the user represented by the current request context."""
 
     return CurrentUserResponse.model_validate(current_user)
+
+
+@router.patch(
+    "/me",
+    response_model=CurrentUserResponse,
+    summary="Update current user",
+    description=(
+        "Update mutable profile information belonging to the "
+        "current SofaWatch user."
+    ),
+)
+def update_current_user_profile(
+    payload: CurrentUserUpdateRequest,
+    current_user: CurrentUserDependency,
+    service: UserServiceDependency,
+) -> CurrentUserResponse:
+    """Update the current SofaWatch user's profile."""
+
+    user = service.update_display_name(
+        user=current_user,
+        display_name=payload.display_name,
+    )
+
+    return CurrentUserResponse.model_validate(user)
 
 
 @router.get(

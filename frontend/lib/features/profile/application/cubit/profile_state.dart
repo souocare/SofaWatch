@@ -18,12 +18,40 @@ final class ProfileLoading extends ProfileState {
 }
 
 final class ProfileSuccess extends ProfileState {
-  const ProfileSuccess(this.user);
+  const ProfileSuccess({
+    required this.user,
+    this.isUpdatingDisplayName = false,
+    this.updateDisplayNameError,
+  });
 
   final ProfileUser user;
 
+  final bool isUpdatingDisplayName;
+
+  final AppException? updateDisplayNameError;
+
+  ProfileSuccess copyWith({
+    ProfileUser? user,
+    bool? isUpdatingDisplayName,
+    AppException? updateDisplayNameError,
+    bool clearUpdateDisplayNameError = false,
+  }) {
+    return ProfileSuccess(
+      user: user ?? this.user,
+      isUpdatingDisplayName:
+          isUpdatingDisplayName ?? this.isUpdatingDisplayName,
+      updateDisplayNameError: clearUpdateDisplayNameError
+          ? null
+          : updateDisplayNameError ?? this.updateDisplayNameError,
+    );
+  }
+
   @override
-  List<Object?> get props => <Object?>[user];
+  List<Object?> get props => <Object?>[
+    user,
+    isUpdatingDisplayName,
+    updateDisplayNameError,
+  ];
 }
 
 final class ProfileFailure extends ProfileState {

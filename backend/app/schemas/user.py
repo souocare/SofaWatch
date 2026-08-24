@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class CurrentUserResponse(BaseModel):
@@ -15,3 +15,29 @@ class CurrentUserResponse(BaseModel):
     is_active: bool
     is_local: bool
     is_admin: bool
+
+
+class CurrentUserUpdateRequest(BaseModel):
+    """Mutable profile information for the current SofaWatch user."""
+
+    display_name: str = Field(
+        min_length=1,
+        max_length=100,
+    )
+
+    @field_validator("display_name")
+    @classmethod
+    def normalize_display_name(
+        cls,
+        value: str,
+    ) -> str:
+        """Normalize and reject blank display names."""
+
+        normalized = value.strip()
+
+        if not normalized:
+            raise ValueError(
+                "Display name must not be blank.",
+            )
+
+        return normalized

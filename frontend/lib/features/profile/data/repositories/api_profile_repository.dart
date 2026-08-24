@@ -16,15 +16,7 @@ final class ApiProfileRepository implements ProfileRepository {
       final Response<Map<String, dynamic>> response = await _apiClient
           .get<Map<String, dynamic>>('/users/me');
 
-      final Map<String, dynamic>? data = response.data;
-
-      if (data == null) {
-        throw const FormatException(
-          'The current user response body is missing.',
-        );
-      }
-
-      return ProfileUserDto.fromJson(data).toDomain();
+      return _mapUserResponse(response.data);
     } on AppException {
       rethrow;
     } on FormatException catch (error) {
@@ -32,5 +24,32 @@ final class ApiProfileRepository implements ProfileRepository {
     } on TypeError catch (error) {
       throw AppException.invalidData(originalError: error);
     }
+  }
+
+  @override
+  Future<ProfileUser> updateDisplayName({required String displayName}) async {
+    try {
+      final Response<Map<String, dynamic>> response = await _apiClient
+          .patch<Map<String, dynamic>>(
+            '/users/me',
+            data: <String, dynamic>{'display_name': displayName},
+          );
+
+      return _mapUserResponse(response.data);
+    } on AppException {
+      rethrow;
+    } on FormatException catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } on TypeError catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  ProfileUser _mapUserResponse(Map<String, dynamic>? data) {
+    if (data == null) {
+      throw const FormatException('The current user response body is missing.');
+    }
+
+    return ProfileUserDto.fromJson(data).toDomain();
   }
 }
