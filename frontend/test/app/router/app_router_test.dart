@@ -12,12 +12,16 @@ import 'package:sofawatch/app/theme/app_theme.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_entry_cubit.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_state.dart';
+import 'package:sofawatch/features/auth/data/repositories/api_auth_handoff_repository.dart';
 import 'package:sofawatch/features/auth/data/repositories/api_auth_repository.dart';
 import 'package:sofawatch/features/auth/data/repositories/api_setup_status_repository.dart';
 import 'package:sofawatch/features/auth/data/storage/in_memory_access_token_store.dart';
+import 'package:sofawatch/features/auth/domain/models/auth_handoff.dart';
 import 'package:sofawatch/features/auth/domain/models/auth_session.dart';
 import 'package:sofawatch/features/auth/domain/models/setup_status.dart';
 import 'package:sofawatch/features/auth/domain/repositories/access_token_store.dart';
+import 'package:sofawatch/features/auth/domain/repositories/auth_handoff_repository.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
 import 'package:sofawatch/features/auth/domain/repositories/setup_status_repository.dart';
 import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
@@ -76,6 +80,12 @@ void main() {
     final SetupStatusRepository setupStatusRepository =
         ApiSetupStatusRepository(apiClient);
 
+    final AuthHandoffRepository authHandoffRepository =
+        ApiAuthHandoffRepository(
+          apiClient: apiClient,
+          accessTokenStore: accessTokenStore,
+        );
+
     return AppDependencies(
       serverConfigurationRepository: FakeServerConfigurationRepository(),
       apiClient: apiClient,
@@ -83,6 +93,7 @@ void main() {
       serverConnectionTester: FakeServerConnectionTester(),
       accessTokenStore: accessTokenStore,
       authRepository: authRepository,
+      authHandoffRepository: authHandoffRepository,
       setupStatusRepository: setupStatusRepository,
       child: MaterialApp.router(
         routerConfig: router,
@@ -531,6 +542,149 @@ void main() {
         expect(harness.currentUri.queryParameters['source'], 'deep-link');
       },
     );
+
+    testWidgets(
+      'exchanges authentication handoff when unauthenticated and redirects Home',
+      (WidgetTester tester) async {
+        final _AuthRoutingHarness harness = _AuthRoutingHarness(
+          apiClient: apiClient,
+          setupRequired: false,
+        );
+
+        addTearDown(harness.dispose);
+
+        await harness.resolveUnauthenticatedEntry();
+
+        const String token = 'handoff-token';
+
+        final String handoffLocation = Uri(
+          path: RoutePaths.authHandoff,
+          queryParameters: const <String, String>{'token': token},
+        ).toString();
+
+        harness.router.go(handoffLocation);
+
+        await tester.pumpWidget(harness.buildApp());
+
+        await tester.pump();
+        await tester.pump();
+        await tester.pump();
+
+        expect(harness.authHandoffRepository.exchangeCalls, 1);
+        expect(harness.authHandoffRepository.lastToken, token);
+
+        expect(harness.authCubit.state, isA<AuthAuthenticated>());
+
+        expect(harness.currentUri.path, RoutePaths.home);
+
+        //
+        // Reaching Home starts its normal asynchronous section loads.
+        // Allow those intercepted API requests and router transitions to
+        // complete so the test does not leave Dio timers pending.
+        //
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets(
+      'redirects authenticated user away from authentication handoff',
+      (WidgetTester tester) async {
+        final _AuthRoutingHarness harness = _AuthRoutingHarness(
+          apiClient: apiClient,
+          restoreSession: _authenticatedSession,
+        );
+
+        addTearDown(harness.dispose);
+
+        await harness.authCubit.restore();
+
+        final String handoffLocation = Uri(
+          path: RoutePaths.authHandoff,
+          queryParameters: const <String, String>{
+            'token': 'handoff-token',
+            'from': RoutePaths.search,
+          },
+        ).toString();
+
+        harness.router.go(handoffLocation);
+
+        await tester.pumpWidget(harness.buildApp());
+
+        await tester.pump();
+        await tester.pump();
+
+        expect(harness.currentUri.path, RoutePaths.search);
+
+        expect(
+          find.byKey(const ValueKey<String>('auth-handoff-page')),
+          findsNothing,
+        );
+
+        expect(harness.authHandoffRepository.exchangeCalls, 0);
+      },
+    );
+
+    testWidgets('preserves a safe auth return destination', (
+      WidgetTester tester,
+    ) async {
+      final _AuthRoutingHarness harness = _AuthRoutingHarness(
+        apiClient: apiClient,
+        setupRequired: false,
+      );
+
+      addTearDown(harness.dispose);
+
+      await harness.resolveUnauthenticatedEntry();
+
+      final String loginLocation = Uri(
+        path: RoutePaths.login,
+        queryParameters: const <String, String>{'from': RoutePaths.search},
+      ).toString();
+
+      harness.router.go(loginLocation);
+
+      await tester.pumpWidget(harness.buildApp());
+
+      await tester.pump();
+
+      expect(harness.currentUri.path, RoutePaths.login);
+
+      expect(harness.currentUri.queryParameters['from'], RoutePaths.search);
+    });
+
+    testWidgets(
+      'does not use authentication handoff as an auth return destination',
+      (WidgetTester tester) async {
+        final _AuthRoutingHarness harness = _AuthRoutingHarness(
+          apiClient: apiClient,
+          setupRequired: false,
+        );
+
+        addTearDown(harness.dispose);
+
+        await harness.resolveUnauthenticatedEntry();
+
+        final String handoffLocation = Uri(
+          path: RoutePaths.authHandoff,
+          queryParameters: const <String, String>{'token': 'handoff-token'},
+        ).toString();
+
+        final String loginLocation = Uri(
+          path: RoutePaths.login,
+          queryParameters: <String, String>{'from': handoffLocation},
+        ).toString();
+
+        harness.router.go(loginLocation);
+
+        await tester.pumpWidget(harness.buildApp());
+
+        await tester.pump();
+
+        expect(harness.currentUri.path, RoutePaths.login);
+
+        expect(harness.currentUri.queryParameters['from'], RoutePaths.home);
+      },
+    );
   });
 }
 
@@ -548,6 +702,7 @@ final class _AuthRoutingHarness {
        setupStatusRepository = _FakeSetupStatusRepository(
          setupRequired: setupRequired,
        ),
+       authHandoffRepository = _FakeAuthHandoffRepository(),
        accessTokenStore = InMemoryAccessTokenStore() {
     authCubit = AuthCubit(repository: authRepository);
 
@@ -574,7 +729,10 @@ final class _AuthRoutingHarness {
 
   final _FakeSetupStatusRepository setupStatusRepository;
 
+  final _FakeAuthHandoffRepository authHandoffRepository;
+
   late final AuthCubit authCubit;
+
   late final AuthEntryCubit authEntryCubit;
 
   late final AuthRouterRefreshNotifier refreshNotifier;
@@ -604,6 +762,7 @@ final class _AuthRoutingHarness {
         serverConnectionTester: FakeServerConnectionTester(),
         accessTokenStore: accessTokenStore,
         authRepository: authRepository,
+        authHandoffRepository: authHandoffRepository,
         setupStatusRepository: setupStatusRepository,
         child: MaterialApp.router(
           routerConfig: router,
@@ -659,5 +818,27 @@ final class _FakeSetupStatusRepository implements SetupStatusRepository {
   @override
   Future<SetupStatus> getStatus() async {
     return SetupStatus(setupRequired: setupRequired);
+  }
+}
+
+final class _FakeAuthHandoffRepository implements AuthHandoffRepository {
+  int exchangeCalls = 0;
+
+  String? lastToken;
+
+  @override
+  Future<AuthHandoff> create() async {
+    return const AuthHandoff(
+      token: 'test-handoff-token',
+      expiresIn: Duration(minutes: 2),
+    );
+  }
+
+  @override
+  Future<AuthSession> exchange(String token) async {
+    exchangeCalls += 1;
+    lastToken = token;
+
+    return _authenticatedSession;
   }
 }

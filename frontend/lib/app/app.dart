@@ -140,6 +140,7 @@ class _SofaWatchAppState extends State<SofaWatchApp> {
         serverConnectionTester: bootstrapData.serverConnectionTester,
         accessTokenStore: bootstrapData.accessTokenStore,
         authRepository: bootstrapData.authRepository,
+        authHandoffRepository: bootstrapData.authHandoffRepository,
         setupStatusRepository: bootstrapData.setupStatusRepository,
         child: MaterialApp.router(
           title: 'SofaWatch',

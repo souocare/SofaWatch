@@ -13,6 +13,7 @@ import 'package:sofawatch/core/navigation/web_app_launcher.dart';
 import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_state.dart';
+import 'package:sofawatch/features/auth/domain/repositories/auth_handoff_repository.dart';
 import 'package:sofawatch/features/auth/presentation/pages/auth_checking_page.dart';
 import 'package:sofawatch/features/episode_details/application/cubit/episode_details_cubit.dart';
 import 'package:sofawatch/features/episode_details/data/repositories/api_episode_details_repository.dart';
@@ -75,6 +76,8 @@ import 'package:sofawatch/features/auth/presentation/pages/initial_setup_page.da
 import 'package:sofawatch/features/auth/presentation/pages/login_page.dart';
 import 'package:sofawatch/features/auth/application/cubit/login_cubit.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_handoff_exchange_cubit.dart';
+import 'package:sofawatch/features/auth/presentation/pages/auth_handoff_exchange_page.dart';
 
 GoRouter createAppRouter({
   required ApiClient apiClient,
@@ -121,8 +124,25 @@ GoRouter createAppRouter({
       final bool isInitialSetupRoute =
           matchedLocation == RoutePaths.initialSetup;
 
+      final bool isAuthHandoffRoute = matchedLocation == RoutePaths.authHandoff;
+
       final bool isAuthFlowRoute =
-          isAuthCheckingRoute || isLoginRoute || isInitialSetupRoute;
+          isAuthCheckingRoute ||
+          isLoginRoute ||
+          isInitialSetupRoute ||
+          isAuthHandoffRoute;
+
+      final String? requestedReturnLocation = state.uri.queryParameters['from'];
+
+      final bool hasUnsafeAuthReturnLocation =
+          requestedReturnLocation != null &&
+          !_isSafeAuthReturnLocation(requestedReturnLocation);
+
+      if (!isAuthHandoffRoute &&
+          isAuthFlowRoute &&
+          hasUnsafeAuthReturnLocation) {
+        return _buildAuthFlowLocation(matchedLocation, RoutePaths.home);
+      }
 
       //
       // Native clients need a configured SofaWatch server before
@@ -155,7 +175,7 @@ GoRouter createAppRouter({
       if (authState is AuthInitial ||
           authState is AuthChecking ||
           authState is AuthFailure) {
-        if (isAuthCheckingRoute) {
+        if (isAuthCheckingRoute || isAuthHandoffRoute) {
           return null;
         }
 
@@ -175,6 +195,9 @@ GoRouter createAppRouter({
       }
 
       if (authState is AuthUnauthenticated) {
+        if (isAuthHandoffRoute) {
+          return null;
+        }
         final AuthEntryState? entryState = authEntryCubit?.state;
 
         if (entryState == null ||
@@ -267,6 +290,22 @@ GoRouter createAppRouter({
         path: RoutePaths.initialSetup,
         builder: (BuildContext context, GoRouterState state) {
           return const InitialSetupPage();
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: RoutePaths.authHandoff,
+        builder: (BuildContext context, GoRouterState state) {
+          return BlocProvider<AuthHandoffExchangeCubit>(
+            create: (BuildContext context) {
+              return AuthHandoffExchangeCubit(
+                repository: context.read<AuthHandoffRepository>(),
+              );
+            },
+            child: AuthHandoffExchangePage(
+              token: state.uri.queryParameters['token'],
+            ),
+          );
         },
       ),
       GoRoute(
@@ -443,6 +482,8 @@ GoRouter createAppRouter({
                         create: (BuildContext context) {
                           return OpenWebAppService(
                             apiClient: apiClient,
+                            authHandoffRepository: context
+                                .read<AuthHandoffRepository>(),
                             launcher: const ExternalWebAppLauncher(),
                           );
                         },
@@ -776,6 +817,7 @@ bool _isSafeAuthReturnLocation(String? location) {
   return path != RoutePaths.authChecking &&
       path != RoutePaths.login &&
       path != RoutePaths.initialSetup &&
+      path != RoutePaths.authHandoff &&
       path != RoutePaths.serverSetup;
 }
 

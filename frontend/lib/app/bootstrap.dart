@@ -12,6 +12,8 @@ import 'package:sofawatch/core/server/repositories/server_configuration_reposito
 import 'package:sofawatch/core/server/repositories/shared_preferences_server_configuration_repository.dart';
 import 'package:sofawatch/core/storage/key_value_store.dart';
 import 'package:sofawatch/core/storage/shared_preferences_key_value_store.dart';
+import 'package:sofawatch/features/auth/data/repositories/api_auth_handoff_repository.dart';
+import 'package:sofawatch/features/auth/domain/repositories/auth_handoff_repository.dart';
 import 'package:sofawatch/features/search/data/cache/in_memory_search_cache.dart';
 import 'package:sofawatch/features/search/data/repositories/api_search_repository.dart';
 import 'package:sofawatch/features/search/data/repositories/cached_search_repository.dart';
@@ -72,6 +74,11 @@ Future<void> bootstrap(
     mobileRefreshTokenStore: mobileRefreshTokenStore,
   );
 
+  final AuthHandoffRepository authHandoffRepository = ApiAuthHandoffRepository(
+    apiClient: apiClient,
+    accessTokenStore: accessTokenStore,
+  );
+
   final SetupStatusRepository setupStatusRepository = ApiSetupStatusRepository(
     apiClient,
   );
@@ -92,6 +99,7 @@ Future<void> bootstrap(
     searchRepository: searchRepository,
     accessTokenStore: accessTokenStore,
     authRepository: authRepository,
+    authHandoffRepository: authHandoffRepository,
     setupStatusRepository: setupStatusRepository,
   );
 

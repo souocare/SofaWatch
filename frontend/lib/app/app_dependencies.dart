@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
 import 'package:sofawatch/features/auth/domain/repositories/access_token_store.dart';
+import 'package:sofawatch/features/auth/domain/repositories/auth_handoff_repository.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
 import 'package:sofawatch/features/search/domain/repositories/search_repository.dart';
 import 'package:sofawatch/features/server_setup/domain/services/server_connection_tester.dart';
@@ -18,6 +19,7 @@ class AppDependencies extends StatelessWidget {
     required this.authRepository,
     required this.child,
     required this.setupStatusRepository,
+    required this.authHandoffRepository,
     super.key,
   });
 
@@ -29,6 +31,7 @@ class AppDependencies extends StatelessWidget {
   final AuthRepository authRepository;
   final Widget child;
   final SetupStatusRepository setupStatusRepository;
+  final AuthHandoffRepository authHandoffRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +49,9 @@ class AppDependencies extends StatelessWidget {
         RepositoryProvider<AuthRepository>.value(value: authRepository),
         RepositoryProvider<SetupStatusRepository>.value(
           value: setupStatusRepository,
+        ),
+        RepositoryProvider<AuthHandoffRepository>.value(
+          value: authHandoffRepository,
         ),
       ],
       child: child,

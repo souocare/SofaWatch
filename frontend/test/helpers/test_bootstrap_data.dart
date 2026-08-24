@@ -14,6 +14,8 @@ import 'package:sofawatch/features/auth/domain/repositories/access_token_store.d
 import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
 import 'package:sofawatch/features/auth/data/repositories/api_setup_status_repository.dart';
 import 'package:sofawatch/features/auth/domain/repositories/setup_status_repository.dart';
+import 'package:sofawatch/features/auth/data/repositories/api_auth_handoff_repository.dart';
+import 'package:sofawatch/features/auth/domain/repositories/auth_handoff_repository.dart';
 
 AppBootstrapData createTestBootstrapData({
   ServerConfiguration? serverConfiguration,
@@ -50,6 +52,10 @@ AppBootstrapData createTestBootstrapData({
     accessTokenStore: accessTokenStore,
     isWeb: true,
   );
+  final AuthHandoffRepository authHandoffRepository = ApiAuthHandoffRepository(
+    apiClient: resolvedApiClient,
+    accessTokenStore: accessTokenStore,
+  );
 
   final SetupStatusRepository setupStatusRepository = ApiSetupStatusRepository(
     resolvedApiClient,
@@ -64,6 +70,7 @@ AppBootstrapData createTestBootstrapData({
     accessTokenStore: accessTokenStore,
     setupStatusRepository: setupStatusRepository,
     authRepository: authRepository,
+    authHandoffRepository: authHandoffRepository,
   );
 }
 
