@@ -15,6 +15,7 @@ from app.api.routes.server import router as server_router
 from app.api.routes.shows import router as shows_router
 from app.api.routes.statistics import router as statistics_router
 from app.api.routes.users import router as users_router
+from app.api.routes.security import router as security_router
 
 
 api_router = APIRouter(
@@ -40,8 +41,14 @@ private_router.include_router(explore_router)
 private_router.include_router(statistics_router)
 private_router.include_router(users_router)
 private_router.include_router(server_router)
+private_router.include_router(users_router)
+private_router.include_router(server_router)
+private_router.include_router(security_router)
 
 api_router.include_router(private_router)
 
+
 # Authentication/bootstrap endpoints must remain public.
 api_router.include_router(auth_router)
+
+

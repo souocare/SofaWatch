@@ -13,7 +13,7 @@ from app.core.security.session_credentials import hash_session_credential
 from app.models.auth_session import AuthSession, AuthSessionType
 from app.repositories.auth_session import AuthSessionRepository
 from app.services.auth_session import AuthSessionService
-
+from app.models.authentication_settings import AuthenticationSettings
 
 def _create_user(
     db_session: Session,
@@ -1691,3 +1691,224 @@ def test_exchange_rejects_invalid_auth_handoff(
     }
 
 
+
+def test_registration_status_is_closed_by_default(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/api/v1/auth/registration",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "open_registration": False,
+    }
+
+
+def test_registration_status_reports_open_registration(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    db_session.add(
+        AuthenticationSettings(
+            open_registration=True,
+        )
+    )
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/auth/registration",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "open_registration": True,
+    }
+
+def test_registration_is_rejected_when_closed(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "username": "new-user",
+            "display_name": "New User",
+            "password": "correct-password",
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "error": {
+            "code": "registration_closed",
+            "message": "Account registration is currently closed.",
+        }
+    }
+
+    assert db_session.query(User).count() == 0
+
+def test_registration_creates_regular_user_when_open(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    db_session.add(
+        AuthenticationSettings(
+            open_registration=True,
+        )
+    )
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "username": "New.User",
+            "display_name": "New User",
+            "password": "correct-password",
+            "email": "NEW@EXAMPLE.COM",
+        },
+    )
+
+    assert response.status_code == 201
+
+    payload = response.json()
+
+    assert payload["token_type"] == "bearer"
+    assert payload["access_token"]
+    assert payload["expires_in"] > 0
+
+    user = db_session.scalar(
+        select(User).where(
+            User.username == "new.user",
+        )
+    )
+
+    assert user is not None
+    assert user.display_name == "New User"
+    assert user.email == "new@example.com"
+    assert user.is_active is True
+    assert user.is_local is False
+    assert user.is_admin is False
+    assert user.password_hash is not None
+
+def test_registration_creates_persistent_web_session(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    db_session.add(
+        AuthenticationSettings(
+            open_registration=True,
+        )
+    )
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "username": "new-user",
+            "display_name": "New User",
+            "password": "correct-password",
+        },
+    )
+
+    assert response.status_code == 201
+
+    credential = response.cookies.get(
+        "sofawatch_session",
+    )
+
+    assert credential is not None
+    assert credential
+
+    auth_session = db_session.scalar(
+        select(AuthSession)
+    )
+
+    assert auth_session is not None
+    assert auth_session.session_type == AuthSessionType.WEB
+    assert auth_session.credential_hash == (
+        hash_session_credential(credential)
+    )
+
+    assert credential not in response.text
+
+
+def test_registration_rejects_duplicate_username(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    db_session.add(
+        AuthenticationSettings(
+            open_registration=True,
+        )
+    )
+
+    db_session.add(
+        User(
+            username="existing",
+            display_name="Existing User",
+            is_active=True,
+            is_local=False,
+            is_admin=False,
+        )
+    )
+
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "username": "Existing",
+            "display_name": "Another User",
+            "password": "correct-password",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "error": {
+            "code": "username_already_exists",
+            "message": "That username is already in use.",
+        }
+    }
+
+def test_registration_rejects_duplicate_email(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    db_session.add(
+        AuthenticationSettings(
+            open_registration=True,
+        )
+    )
+
+    db_session.add(
+        User(
+            username="existing",
+            email="existing@example.com",
+            display_name="Existing User",
+            is_active=True,
+            is_local=False,
+            is_admin=False,
+        )
+    )
+
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "username": "another-user",
+            "display_name": "Another User",
+            "password": "correct-password",
+            "email": "EXISTING@EXAMPLE.COM",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "error": {
+            "code": "email_already_exists",
+            "message": "That email address is already in use.",
+        }
+    }

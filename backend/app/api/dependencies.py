@@ -22,6 +22,9 @@ from app.repositories import (
     UserRepository,
     MovieRepository,
 )
+from app.repositories.authentication_settings import (
+    AuthenticationSettingsRepository,
+)
 from app.repositories.background_job import BackgroundJobRepository
 from app.repositories.network import NetworkRepository
 from app.services import (
@@ -31,6 +34,9 @@ from app.services import (
     LibraryService,
     SeasonService,
     UserService,
+)
+from app.services.authentication_settings import (
+    AuthenticationSettingsService,
 )
 from app.services.show_import import ShowImportService
 from app.services.tmdb_season_details import TMDBSeasonDetailsService
@@ -77,6 +83,15 @@ from app.services.auth_session import AuthSessionService
 from app.models.auth_session import AuthSessionType
 from app.repositories.auth_handoff import AuthHandoffRepository
 from app.services.auth_handoff import AuthHandoffService
+from app.repositories.authentication_settings import (
+    AuthenticationSettingsRepository,
+)
+from app.services.authentication_settings import (
+    AuthenticationSettingsService,
+)
+from app.services.registration import RegistrationService
+
+
 
 def get_genre_service(
     session: DatabaseSession,
@@ -626,6 +641,40 @@ AdminUserDependency = Annotated[
     Depends(require_admin),
 ]
 
+
+def get_authentication_settings_service(
+    session: DatabaseSession,
+) -> AuthenticationSettingsService:
+    """Provide global authentication settings operations."""
+
+    return AuthenticationSettingsService(
+        session=session,
+        repository=AuthenticationSettingsRepository(session),
+    )
+
+
+AuthenticationSettingsServiceDependency = Annotated[
+    AuthenticationSettingsService,
+    Depends(get_authentication_settings_service),
+]
+
+def get_registration_service(
+    session: DatabaseSession,
+    authentication_settings_service: AuthenticationSettingsServiceDependency,
+) -> RegistrationService:
+    """Provide public account-registration operations."""
+
+    return RegistrationService(
+        session=session,
+        user_repository=UserRepository(session),
+        authentication_settings_service=authentication_settings_service,
+    )
+
+
+RegistrationServiceDependency = Annotated[
+    RegistrationService,
+    Depends(get_registration_service),
+]
 
 def get_library_service(
     session: DatabaseSession,

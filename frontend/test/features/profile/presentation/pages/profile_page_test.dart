@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sofawatch/core/errors/app_error_message_mapper.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/history/domain/models/history_episode.dart';
 import 'package:sofawatch/features/profile/application/cubit/profile_cubit.dart';
@@ -46,6 +47,9 @@ import 'package:sofawatch/features/profile/domain/repositories/data_transfer_rep
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
 import 'package:sofawatch/features/auth/domain/models/auth_session.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
+import 'package:sofawatch/features/security/application/cubit/security_settings_cubit.dart';
+import 'package:sofawatch/features/security/domain/models/security_settings.dart';
+import 'package:sofawatch/features/security/domain/repositories/security_settings_repository.dart';
 
 void main() {
   group('ProfilePage Statistics', () {
@@ -3102,6 +3106,272 @@ void main() {
       });
     });
   });
+  group('ProfilePage Security', () {
+    testWidgets('shows Security settings for administrator', (
+      WidgetTester tester,
+    ) async {
+      final _FakeSecuritySettingsRepository securityRepository =
+          _FakeSecuritySettingsRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(securitySettingsRepository: securityRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-security')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Security'), findsOneWidget);
+      expect(find.text('Open registration'), findsOneWidget);
+
+      expect(securityRepository.getSettingsCalls, 1);
+    });
+
+    testWidgets(
+      'hides Security settings and does not load them for regular user',
+      (WidgetTester tester) async {
+        final _FakeSecuritySettingsRepository securityRepository =
+            _FakeSecuritySettingsRepository();
+
+        const ProfileUser regularUser = ProfileUser(
+          id: 'user-2',
+          displayName: 'Regular User',
+          isLocal: false,
+          isAdmin: false,
+        );
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            profileRepository: const _FakeProfileRepository(user: regularUser),
+            securitySettingsRepository: securityRepository,
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('profile-security')),
+          findsNothing,
+        );
+
+        expect(find.text('Open registration'), findsNothing);
+
+        expect(securityRepository.getSettingsCalls, 0);
+      },
+    );
+
+    testWidgets('shows current Open registration value', (
+      WidgetTester tester,
+    ) async {
+      final _FakeSecuritySettingsRepository securityRepository =
+          _FakeSecuritySettingsRepository(
+            settings: const SecuritySettings(openRegistration: true),
+          );
+
+      await tester.pumpWidget(
+        _buildTestApp(securitySettingsRepository: securityRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder switchFinder = find.byKey(
+        const ValueKey<String>('profile-security-open-registration'),
+      );
+
+      expect(switchFinder, findsOneWidget);
+
+      final SwitchListTile registrationTile = tester.widget<SwitchListTile>(
+        switchFinder,
+      );
+
+      expect(registrationTile.value, isTrue);
+    });
+
+    testWidgets('enables Open registration', (WidgetTester tester) async {
+      final _FakeSecuritySettingsRepository securityRepository =
+          _FakeSecuritySettingsRepository(
+            settings: const SecuritySettings(openRegistration: false),
+          );
+
+      await tester.pumpWidget(
+        _buildTestApp(securitySettingsRepository: securityRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder switchFinder = find.byKey(
+        const ValueKey<String>('profile-security-open-registration'),
+      );
+
+      await tester.ensureVisible(switchFinder);
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<SwitchListTile>(switchFinder).value, isFalse);
+
+      await tester.tap(switchFinder);
+      await tester.pumpAndSettle();
+
+      expect(securityRepository.updateCalls, 1);
+      expect(securityRepository.lastEnabled, isTrue);
+
+      expect(tester.widget<SwitchListTile>(switchFinder).value, isTrue);
+    });
+
+    testWidgets('disables Open registration', (WidgetTester tester) async {
+      final _FakeSecuritySettingsRepository securityRepository =
+          _FakeSecuritySettingsRepository(
+            settings: const SecuritySettings(openRegistration: true),
+          );
+
+      await tester.pumpWidget(
+        _buildTestApp(securitySettingsRepository: securityRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder switchFinder = find.byKey(
+        const ValueKey<String>('profile-security-open-registration'),
+      );
+
+      await tester.ensureVisible(switchFinder);
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<SwitchListTile>(switchFinder).value, isTrue);
+
+      await tester.tap(switchFinder);
+      await tester.pumpAndSettle();
+
+      expect(securityRepository.updateCalls, 1);
+      expect(securityRepository.lastEnabled, isFalse);
+
+      expect(tester.widget<SwitchListTile>(switchFinder).value, isFalse);
+    });
+
+    testWidgets('keeps previous Open registration value when update fails', (
+      WidgetTester tester,
+    ) async {
+      const AppException updateError = AppException.connection();
+
+      final _FakeSecuritySettingsRepository securityRepository =
+          _FakeSecuritySettingsRepository(
+            settings: const SecuritySettings(openRegistration: false),
+            updateError: updateError,
+          );
+
+      await tester.pumpWidget(
+        _buildTestApp(securitySettingsRepository: securityRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder switchFinder = find.byKey(
+        const ValueKey<String>('profile-security-open-registration'),
+      );
+
+      await tester.ensureVisible(switchFinder);
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<SwitchListTile>(switchFinder).value, isFalse);
+
+      await tester.tap(switchFinder);
+      await tester.pump();
+
+      expect(securityRepository.updateCalls, 1);
+
+      // Failed update must not optimistically change the persisted value.
+      expect(tester.widget<SwitchListTile>(switchFinder).value, isFalse);
+
+      // Update failures are surfaced as transient feedback instead of replacing
+      // the independently loaded Security settings.
+      expect(find.byType(SnackBar), findsOneWidget);
+
+      expect(find.text(AppErrorMessageMapper.map(updateError)), findsOneWidget);
+
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('shows Security failure independently from other sections', (
+      WidgetTester tester,
+    ) async {
+      final _FakeSecuritySettingsRepository securityRepository =
+          _FakeSecuritySettingsRepository(
+            loadError: const AppException.connection(),
+          );
+
+      await tester.pumpWidget(
+        _buildTestApp(securitySettingsRepository: securityRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-security-failure')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-user-card')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-statistics')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-library')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('retries Security settings after load failure', (
+      WidgetTester tester,
+    ) async {
+      final _RetrySecuritySettingsRepository securityRepository =
+          _RetrySecuritySettingsRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(securitySettingsRepository: securityRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(securityRepository.getSettingsCalls, 1);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-security-failure')),
+        findsOneWidget,
+      );
+
+      final Finder retryFinder = find.byKey(
+        const ValueKey<String>('profile-security-failure-retry'),
+      );
+
+      await tester.ensureVisible(retryFinder);
+      await tester.pumpAndSettle();
+
+      await tester.tap(retryFinder);
+      await tester.pumpAndSettle();
+
+      expect(securityRepository.getSettingsCalls, 2);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-security-failure')),
+        findsNothing,
+      );
+
+      expect(find.text('Open registration'), findsOneWidget);
+    });
+  });
 }
 
 Widget _buildNavigationTestApp({
@@ -3110,6 +3380,7 @@ Widget _buildNavigationTestApp({
   LibraryRepository? libraryRepository,
   HistoryRepository? historyRepository,
   ServerRepository? serverRepository,
+  SecuritySettingsRepository? securitySettingsRepository,
   required List<GoRoute> destinationRoutes,
 }) {
   final ProfileCubit profileCubit = ProfileCubit(
@@ -3141,14 +3412,26 @@ Widget _buildNavigationTestApp({
     ],
   );
 
-  return RepositoryProvider<ServerRepository>(
-    create: (BuildContext context) {
-      return serverRepository ?? _FakeServerRepository();
-    },
+  return MultiRepositoryProvider(
+    providers: <RepositoryProvider<dynamic>>[
+      RepositoryProvider<ServerRepository>(
+        create: (BuildContext context) {
+          return serverRepository ?? _FakeServerRepository();
+        },
+      ),
+      RepositoryProvider<SecuritySettingsRepository>(
+        create: (BuildContext context) {
+          return securitySettingsRepository ??
+              _FakeSecuritySettingsRepository();
+        },
+      ),
+    ],
     child: MultiBlocProvider(
       providers: <BlocProvider<dynamic>>[
         BlocProvider<AuthCubit>(
-          create: (BuildContext context) => _createAuthenticatedAuthCubit(),
+          create: (BuildContext context) {
+            return _createAuthenticatedAuthCubit();
+          },
         ),
         BlocProvider<ProfileCubit>.value(value: profileCubit),
         BlocProvider<StatisticsSummaryCubit>.value(
@@ -3183,6 +3466,7 @@ Widget _buildTestApp({
   ServerRepository? serverRepository,
   DataTransferRepository? dataTransferRepository,
   AuthRepository? authRepository,
+  SecuritySettingsRepository? securitySettingsRepository,
   bool isWeb = false,
 }) {
   final ProfileCubit profileCubit = ProfileCubit(
@@ -3214,15 +3498,22 @@ Widget _buildTestApp({
           ),
         );
 
-  return RepositoryProvider<ServerRepository>(
-    create: (BuildContext context) {
-      return serverRepository ?? _FakeServerRepository();
-    },
+  return MultiRepositoryProvider(
+    providers: <RepositoryProvider<dynamic>>[
+      RepositoryProvider<ServerRepository>(
+        create: (BuildContext context) {
+          return serverRepository ?? _FakeServerRepository();
+        },
+      ),
+      RepositoryProvider<SecuritySettingsRepository>(
+        create: (BuildContext context) {
+          return securitySettingsRepository ??
+              _FakeSecuritySettingsRepository();
+        },
+      ),
+    ],
     child: MultiBlocProvider(
       providers: <BlocProvider<dynamic>>[
-        BlocProvider<AuthCubit>(
-          create: (BuildContext context) => _createAuthenticatedAuthCubit(),
-        ),
         BlocProvider<ProfileCubit>.value(value: profileCubit),
         BlocProvider<StatisticsSummaryCubit>.value(
           value: statisticsSummaryCubit,
@@ -4393,5 +4684,78 @@ final class _FakeAuthRepository implements AuthRepository {
   @override
   Future<void> logoutEverywhere() async {
     logoutEverywhereCalls += 1;
+  }
+}
+
+final class _FakeSecuritySettingsRepository
+    implements SecuritySettingsRepository {
+  _FakeSecuritySettingsRepository({
+    this.settings = const SecuritySettings(openRegistration: false),
+    this.loadError,
+    this.updateError,
+  });
+
+  SecuritySettings settings;
+
+  final AppException? loadError;
+  final AppException? updateError;
+
+  int getSettingsCalls = 0;
+  int updateCalls = 0;
+
+  bool? lastEnabled;
+
+  @override
+  Future<SecuritySettings> getSettings() async {
+    getSettingsCalls += 1;
+
+    final AppException? error = loadError;
+
+    if (error != null) {
+      throw error;
+    }
+
+    return settings;
+  }
+
+  @override
+  Future<SecuritySettings> updateOpenRegistration({
+    required bool enabled,
+  }) async {
+    updateCalls += 1;
+    lastEnabled = enabled;
+
+    final AppException? error = updateError;
+
+    if (error != null) {
+      throw error;
+    }
+
+    settings = SecuritySettings(openRegistration: enabled);
+
+    return settings;
+  }
+}
+
+final class _RetrySecuritySettingsRepository
+    implements SecuritySettingsRepository {
+  int getSettingsCalls = 0;
+
+  @override
+  Future<SecuritySettings> getSettings() async {
+    getSettingsCalls += 1;
+
+    if (getSettingsCalls == 1) {
+      throw const AppException.connection();
+    }
+
+    return const SecuritySettings(openRegistration: false);
+  }
+
+  @override
+  Future<SecuritySettings> updateOpenRegistration({required bool enabled}) {
+    throw UnimplementedError(
+      'Updating Security settings is not used by this retry test.',
+    );
   }
 }

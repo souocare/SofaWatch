@@ -40,6 +40,10 @@ import 'package:flutter/foundation.dart';
 import 'package:sofawatch/core/files/json_file_picker.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_preview.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
+import 'package:sofawatch/features/security/application/cubit/security_settings_cubit.dart';
+import 'package:sofawatch/features/security/application/cubit/security_settings_state.dart';
+import 'package:sofawatch/features/security/domain/models/security_settings.dart';
+import 'package:sofawatch/features/security/domain/repositories/security_settings_repository.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_state.dart';
 
 const double _profileServerMetricCardExtent = 136;
@@ -113,6 +117,8 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xl),
 
                   const _ProfileServerGate(),
+
+                  const _ProfileSecurityGate(),
                 ],
               ),
             ),
@@ -4255,6 +4261,208 @@ class _ProfileServerLogsInlineFailure extends StatelessWidget {
             child: const Text('Retry'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ProfileSecurityGate extends StatelessWidget {
+  const _ProfileSecurityGate();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ProfileCubit, ProfileState>(
+      buildWhen: (ProfileState previous, ProfileState current) {
+        final bool previousIsAdmin = switch (previous) {
+          ProfileSuccess(:final user) => user.isAdmin,
+          _ => false,
+        };
+
+        final bool currentIsAdmin = switch (current) {
+          ProfileSuccess(:final user) => user.isAdmin,
+          _ => false,
+        };
+
+        return previousIsAdmin != currentIsAdmin;
+      },
+      builder: (BuildContext context, ProfileState state) {
+        final bool isAdmin = switch (state) {
+          ProfileSuccess(:final user) => user.isAdmin,
+          _ => false,
+        };
+
+        if (!isAdmin) {
+          return const SizedBox.shrink();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.section),
+          child: BlocProvider<SecuritySettingsCubit>(
+            create: (BuildContext context) {
+              return SecuritySettingsCubit(
+                repository: context.read<SecuritySettingsRepository>(),
+              )..load();
+            },
+            child: const _ProfileSecuritySection(),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ProfileSecuritySection extends StatelessWidget {
+  const _ProfileSecuritySection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-security'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'Security',
+          key: const ValueKey<String>('profile-security-title'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        BlocConsumer<SecuritySettingsCubit, SecuritySettingsState>(
+          listenWhen:
+              (SecuritySettingsState previous, SecuritySettingsState current) {
+                final AppException? previousError = switch (previous) {
+                  SecuritySettingsSuccess(:final updateError) => updateError,
+                  _ => null,
+                };
+
+                final AppException? currentError = switch (current) {
+                  SecuritySettingsSuccess(:final updateError) => updateError,
+                  _ => null,
+                };
+
+                return previousError != currentError && currentError != null;
+              },
+          listener: (BuildContext context, SecuritySettingsState state) {
+            final AppException? error = switch (state) {
+              SecuritySettingsSuccess(:final updateError) => updateError,
+              _ => null,
+            };
+
+            if (error == null) {
+              return;
+            }
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(AppErrorMessageMapper.map(error))),
+            );
+
+            context.read<SecuritySettingsCubit>().clearUpdateError();
+          },
+          builder: (BuildContext context, SecuritySettingsState state) {
+            return switch (state) {
+              SecuritySettingsInitial() ||
+              SecuritySettingsLoading() => const _ProfileSecurityLoading(),
+
+              SecuritySettingsSuccess(:final settings, :final isUpdating) =>
+                _ProfileSecurityContent(
+                  settings: settings,
+                  isUpdating: isUpdating,
+                ),
+
+              SecuritySettingsFailure(:final error) => SectionFailureCard(
+                failureKey: 'profile-security-failure',
+                error: error,
+                onRetry: context.read<SecuritySettingsCubit>().retry,
+              ),
+            };
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileSecurityLoading extends StatelessWidget {
+  const _ProfileSecurityLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey<String>('profile-security-loading'),
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: const Row(
+        children: <Widget>[
+          SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+
+          SizedBox(width: AppSpacing.lg),
+
+          Expanded(child: Text('Loading Security settings…')),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileSecurityContent extends StatelessWidget {
+  const _ProfileSecurityContent({
+    required this.settings,
+    required this.isUpdating,
+  });
+
+  final SecuritySettings settings;
+  final bool isUpdating;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      key: const ValueKey<String>('profile-security-settings-card'),
+      color: AppColors.surfaceHigh,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadius.borderLarge,
+        side: const BorderSide(color: AppColors.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SwitchListTile(
+        key: const ValueKey<String>('profile-security-open-registration'),
+        value: settings.openRegistration,
+        onChanged: isUpdating
+            ? null
+            : (bool value) {
+                context.read<SecuritySettingsCubit>().setOpenRegistration(
+                  value,
+                );
+              },
+        title: Text(
+          'Open registration',
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text(
+          'Allow new users to create a SofaWatch account from the sign-in screen.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        ),
+        secondary: isUpdating
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.person_add_alt_1_outlined),
       ),
     );
   }

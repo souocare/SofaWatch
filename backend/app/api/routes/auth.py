@@ -10,6 +10,8 @@ from app.api.dependencies import (
     CurrentUserDependency,
     InitialSetupServiceDependency,
     UserServiceDependency,
+    AuthenticationSettingsServiceDependency,
+    RegistrationServiceDependency,
 )
 from app.core.exceptions import APIError
 from app.schemas.auth import (
@@ -21,11 +23,17 @@ from app.schemas.auth import (
     MobileAuthenticationResponse,
     MobileRefreshRequest,
     SetupStatusResponse,
+    RegistrationRequest,
+    RegistrationStatusResponse,
 )
 from app.services.initial_setup import InitialSetupAlreadyCompletedError
 from app.core.config import Settings, get_settings
 from app.models.auth_session import AuthSessionType
-
+from app.services.registration import (
+    EmailAlreadyExistsError,
+    RegistrationClosedError,
+    UsernameAlreadyExistsError,
+)
 
 router = APIRouter(
     prefix="/auth",
@@ -152,6 +160,99 @@ def create_initial_admin(
             access_token_service.expiration.total_seconds(),
         ),
     )
+
+
+@router.get(
+    "/registration",
+    response_model=RegistrationStatusResponse,
+    summary="Get registration availability",
+    description=(
+        "Return whether this SofaWatch installation currently allows "
+        "public account registration."
+    ),
+)
+def get_registration_status(
+    authentication_settings_service: AuthenticationSettingsServiceDependency,
+) -> RegistrationStatusResponse:
+    """Return whether public account registration is enabled."""
+
+    settings = authentication_settings_service.get()
+
+    return RegistrationStatusResponse(
+        open_registration=settings.open_registration,
+    )
+
+@router.post(
+    "/register",
+    response_model=AccessTokenResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register user",
+    description=(
+        "Create a regular SofaWatch account when public registration "
+        "is enabled and authenticate the new user."
+    ),
+)
+def register(
+    payload: RegistrationRequest,
+    response: Response,
+    registration_service: RegistrationServiceDependency,
+    access_token_service: AccessTokenServiceDependency,
+    auth_session_service: AuthSessionServiceDependency,
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
+) -> AccessTokenResponse:
+    """Register and authenticate a regular SofaWatch user."""
+
+    try:
+        user = registration_service.register(
+            username=payload.username,
+            display_name=payload.display_name,
+            password=payload.password,
+            email=payload.email,
+        )
+    except RegistrationClosedError as error:
+        raise APIError(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="registration_closed",
+            message="Account registration is currently closed.",
+        ) from error
+    except UsernameAlreadyExistsError as error:
+        raise APIError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="username_already_exists",
+            message="That username is already in use.",
+        ) from error
+    except EmailAlreadyExistsError as error:
+        raise APIError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="email_already_exists",
+            message="That email address is already in use.",
+        ) from error
+
+    auth_session = auth_session_service.create(
+        user_id=user.id,
+        session_type=AuthSessionType.WEB,
+    )
+
+    _set_web_session_cookie(
+        response=response,
+        credential=auth_session.credential,
+        settings=settings,
+    )
+
+    access_token = access_token_service.create(
+        user_id=user.id,
+    )
+
+    return AccessTokenResponse(
+        access_token=access_token,
+        expires_in=int(
+            access_token_service.expiration.total_seconds(),
+        ),
+    )
+
 
 
 @router.post(

@@ -27,5 +27,5 @@ final class ProfileUser extends Equatable {
   final bool isAdmin;
 
   @override
-  List<Object?> get props => <Object?>[id, displayName, isLocal];
+  List<Object?> get props => <Object?>[id, displayName, isLocal, isAdmin];
 }

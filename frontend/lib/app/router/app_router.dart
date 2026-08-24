@@ -78,6 +78,8 @@ import 'package:sofawatch/features/auth/application/cubit/login_cubit.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_handoff_exchange_cubit.dart';
 import 'package:sofawatch/features/auth/presentation/pages/auth_handoff_exchange_page.dart';
+import 'package:sofawatch/features/security/data/repositories/api_security_settings_repository.dart';
+import 'package:sofawatch/features/security/domain/repositories/security_settings_repository.dart';
 
 GoRouter createAppRouter({
   required ApiClient apiClient,
@@ -476,6 +478,13 @@ GoRouter createAppRouter({
                       RepositoryProvider<ServerRepository>(
                         create: (BuildContext context) {
                           return ApiServerRepository(apiClient);
+                        },
+                      ),
+                      RepositoryProvider<SecuritySettingsRepository>(
+                        create: (BuildContext context) {
+                          return ApiSecuritySettingsRepository(
+                            apiClient: apiClient,
+                          );
                         },
                       ),
                       RepositoryProvider<OpenWebAppService>(
