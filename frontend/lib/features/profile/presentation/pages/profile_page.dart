@@ -45,6 +45,16 @@ import 'package:sofawatch/features/security/application/cubit/security_settings_
 import 'package:sofawatch/features/security/domain/models/security_settings.dart';
 import 'package:sofawatch/features/security/domain/repositories/security_settings_repository.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_state.dart';
+import 'package:flutter/services.dart';
+import 'package:sofawatch/core/api/api_client.dart';
+import 'package:sofawatch/app/router/route_paths.dart';
+import 'package:sofawatch/features/admin_users/application/cubit/admin_user_password_recovery_cubit.dart';
+import 'package:sofawatch/features/admin_users/application/cubit/admin_user_password_recovery_state.dart';
+import 'package:sofawatch/features/admin_users/application/cubit/admin_users_cubit.dart';
+import 'package:sofawatch/features/admin_users/application/cubit/admin_users_state.dart';
+import 'package:sofawatch/features/admin_users/domain/models/admin_user.dart';
+import 'package:sofawatch/features/admin_users/domain/models/password_recovery_link.dart';
+import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_repository.dart';
 
 const double _profileServerMetricCardExtent = 136;
 
@@ -117,6 +127,8 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xl),
 
                   const _ProfileServerGate(),
+
+                  const _ProfileUsersGate(),
 
                   const _ProfileSecurityGate(),
                 ],
@@ -4348,6 +4360,298 @@ class _ProfileServerLogsInlineFailure extends StatelessWidget {
   }
 }
 
+class _ProfileUsersGate extends StatelessWidget {
+  const _ProfileUsersGate();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ProfileCubit, ProfileState>(
+      buildWhen: (ProfileState previous, ProfileState current) {
+        final bool previousIsAdmin = switch (previous) {
+          ProfileSuccess(:final user) => user.isAdmin,
+          _ => false,
+        };
+
+        final bool currentIsAdmin = switch (current) {
+          ProfileSuccess(:final user) => user.isAdmin,
+          _ => false,
+        };
+
+        return previousIsAdmin != currentIsAdmin;
+      },
+      builder: (BuildContext context, ProfileState state) {
+        final bool isAdmin = switch (state) {
+          ProfileSuccess(:final user) => user.isAdmin,
+          _ => false,
+        };
+
+        final bool useDesktopLayout =
+            MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet;
+
+        if (!isAdmin || !useDesktopLayout) {
+          return const SizedBox.shrink();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.section),
+          child: BlocProvider<AdminUsersCubit>(
+            create: (BuildContext context) {
+              return AdminUsersCubit(
+                repository: context.read<AdminUsersRepository>(),
+              )..load();
+            },
+            child: const _ProfileUsersSection(),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ProfileUsersSection extends StatelessWidget {
+  const _ProfileUsersSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-users'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'Users',
+          key: const ValueKey<String>('profile-users-title'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        BlocBuilder<AdminUsersCubit, AdminUsersState>(
+          builder: (BuildContext context, AdminUsersState state) {
+            return switch (state) {
+              AdminUsersInitial() ||
+              AdminUsersLoading() => const _ProfileUsersLoading(),
+
+              AdminUsersSuccess(:final users) => _ProfileUsersContent(
+                users: users,
+              ),
+
+              AdminUsersFailure(:final error) => SectionFailureCard(
+                failureKey: 'profile-users-failure',
+                error: error,
+                onRetry: context.read<AdminUsersCubit>().retry,
+              ),
+            };
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileUsersLoading extends StatelessWidget {
+  const _ProfileUsersLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey<String>('profile-users-loading'),
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: const Row(
+        children: <Widget>[
+          SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: AppSpacing.lg),
+          Expanded(child: Text('Loading users…')),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileUsersContent extends StatelessWidget {
+  const _ProfileUsersContent({required this.users});
+
+  final List<AdminUser> users;
+
+  @override
+  Widget build(BuildContext context) {
+    if (users.isEmpty) {
+      return Container(
+        key: const ValueKey<String>('profile-users-empty'),
+        padding: AppSpacing.cardPadding,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceHigh,
+          borderRadius: AppRadius.borderLarge,
+          border: Border.all(color: AppColors.outlineVariant),
+        ),
+        child: const Text('No SofaWatch users were found.'),
+      );
+    }
+
+    return Column(
+      key: const ValueKey<String>('profile-users-content'),
+      children: users
+          .map(
+            (AdminUser user) => Padding(
+              padding: EdgeInsets.only(
+                bottom: user == users.last ? 0 : AppSpacing.sm,
+              ),
+              child: _ProfileUserManagementCard(user: user),
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+}
+
+class _ProfileUserManagementCard extends StatelessWidget {
+  const _ProfileUserManagementCard({required this.user});
+
+  final AdminUser user;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: ValueKey<String>('profile-user-management-${user.id}'),
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      user.displayName,
+                      key: ValueKey<String>(
+                        'profile-user-management-name-${user.id}',
+                      ),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+
+                    if (user.username != null) ...<Widget>[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        '@${user.username}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+
+                    if (user.email != null) ...<Widget>[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        user.email!,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: AppSpacing.md),
+
+              _ProfileUserStatusBadge(user: user),
+            ],
+          ),
+
+          if (!user.isAdmin) ...<Widget>[
+            const SizedBox(height: AppSpacing.lg),
+
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                key: ValueKey<String>(
+                  'profile-user-password-recovery-${user.id}',
+                ),
+                onPressed: user.isActive
+                    ? () {
+                        _showUserPasswordRecovery(context, user);
+                      }
+                    : null,
+                icon: const Icon(Icons.key_rounded, size: 18),
+                label: const Text('Generate recovery link'),
+              ),
+            ),
+
+            if (!user.isActive) ...<Widget>[
+              const SizedBox(height: AppSpacing.sm),
+
+              Text(
+                'Password recovery is unavailable while this account is inactive.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileUserStatusBadge extends StatelessWidget {
+  const _ProfileUserStatusBadge({required this.user});
+
+  final AdminUser user;
+
+  @override
+  Widget build(BuildContext context) {
+    final String label = switch ((user.isAdmin, user.isActive)) {
+      (true, true) => 'Administrator',
+      (true, false) => 'Administrator · Inactive',
+      (false, true) => 'Active',
+      (false, false) => 'Inactive',
+    };
+
+    return Container(
+      key: ValueKey<String>('profile-user-status-${user.id}'),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.borderMedium,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: user.isActive
+              ? AppColors.textPrimary
+              : AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
 class _ProfileSecurityGate extends StatelessWidget {
   const _ProfileSecurityGate();
 
@@ -5002,6 +5306,63 @@ Future<void> _showChangePassword(BuildContext context) async {
   );
 }
 
+Future<void> _showUserPasswordRecovery(
+  BuildContext context,
+  AdminUser user,
+) async {
+  final AdminUsersRepository repository = context.read<AdminUsersRepository>();
+
+  final ApiClient apiClient = context.read<ApiClient>();
+
+  await showDialog<void>(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return BlocProvider<AdminUserPasswordRecoveryCubit>(
+        create: (_) {
+          return AdminUserPasswordRecoveryCubit(repository: repository)
+            ..start(userId: user.id);
+        },
+        child: _AdminUserPasswordRecoveryDialog(
+          user: user,
+          apiClient: apiClient,
+        ),
+      );
+    },
+  );
+}
+
+String _buildPasswordRecoveryUrl({
+  required ApiClient apiClient,
+  required String token,
+}) {
+  final Uri? serverUri = apiClient.serverUri;
+
+  if (serverUri == null) {
+    throw StateError(
+      'Cannot build a password recovery URL without a configured server.',
+    );
+  }
+
+  return serverUri
+      .resolve(RoutePaths.passwordRecovery)
+      .replace(queryParameters: <String, String>{'token': token})
+      .toString();
+}
+
+String _formatPasswordRecoveryExpiration(DateTime value) {
+  final DateTime local = value.toLocal();
+
+  final String day = local.day.toString().padLeft(2, '0');
+
+  final String month = local.month.toString().padLeft(2, '0');
+
+  final String hour = local.hour.toString().padLeft(2, '0');
+
+  final String minute = local.minute.toString().padLeft(2, '0');
+
+  return '$day/$month/${local.year} at $hour:$minute';
+}
+
 class _EditDisplayNameDialog extends StatelessWidget {
   const _EditDisplayNameDialog({required this.currentDisplayName});
 
@@ -5630,6 +5991,224 @@ class _ChangePasswordFormState extends State<_ChangePasswordForm> {
           ],
         );
       },
+    );
+  }
+}
+
+class _AdminUserPasswordRecoveryDialog extends StatelessWidget {
+  const _AdminUserPasswordRecoveryDialog({
+    required this.user,
+    required this.apiClient,
+  });
+
+  final AdminUser user;
+  final ApiClient apiClient;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      key: const ValueKey<String>('profile-password-recovery-dialog'),
+      title: const Text('Password recovery'),
+      content: SizedBox(
+        width: 520,
+        child: _AdminUserPasswordRecoveryContent(
+          user: user,
+          apiClient: apiClient,
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          key: const ValueKey<String>('profile-password-recovery-close'),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+class _AdminUserPasswordRecoveryContent extends StatelessWidget {
+  const _AdminUserPasswordRecoveryContent({
+    required this.user,
+    required this.apiClient,
+  });
+
+  final AdminUser user;
+  final ApiClient apiClient;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<
+      AdminUserPasswordRecoveryCubit,
+      AdminUserPasswordRecoveryState
+    >(
+      builder: (BuildContext context, AdminUserPasswordRecoveryState state) {
+        return switch (state) {
+          AdminUserPasswordRecoveryInitial() ||
+          AdminUserPasswordRecoveryLoading() =>
+            const _AdminPasswordRecoveryLoading(),
+
+          AdminUserPasswordRecoverySuccess(:final recovery) =>
+            _AdminPasswordRecoverySuccess(
+              user: user,
+              recovery: recovery,
+              apiClient: apiClient,
+            ),
+
+          AdminUserPasswordRecoveryFailure(:final error) =>
+            _AdminPasswordRecoveryFailure(user: user, error: error),
+        };
+      },
+    );
+  }
+}
+
+class _AdminPasswordRecoveryLoading extends StatelessWidget {
+  const _AdminPasswordRecoveryLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      key: ValueKey<String>('profile-password-recovery-loading'),
+      children: <Widget>[
+        SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+
+        SizedBox(width: AppSpacing.lg),
+
+        Expanded(child: Text('Generating recovery link…')),
+      ],
+    );
+  }
+}
+
+class _AdminPasswordRecoveryFailure extends StatelessWidget {
+  const _AdminPasswordRecoveryFailure({
+    required this.user,
+    required this.error,
+  });
+
+  final AdminUser user;
+  final AppException error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-password-recovery-failure'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(AppErrorMessageMapper.map(error)),
+
+        const SizedBox(height: AppSpacing.md),
+
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            key: const ValueKey<String>('profile-password-recovery-retry'),
+            onPressed: () {
+              context.read<AdminUserPasswordRecoveryCubit>().start(
+                userId: user.id,
+              );
+            },
+            child: const Text('Retry'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AdminPasswordRecoverySuccess extends StatelessWidget {
+  const _AdminPasswordRecoverySuccess({
+    required this.user,
+    required this.recovery,
+    required this.apiClient,
+  });
+
+  final AdminUser user;
+  final PasswordRecoveryLink recovery;
+  final ApiClient apiClient;
+
+  @override
+  Widget build(BuildContext context) {
+    final String recoveryUrl = _buildPasswordRecoveryUrl(
+      apiClient: apiClient,
+      token: recovery.token,
+    );
+
+    return Column(
+      key: const ValueKey<String>('profile-password-recovery-success'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'A temporary recovery link has been generated for '
+          '${user.displayName}.',
+        ),
+
+        const SizedBox(height: AppSpacing.lg),
+
+        Container(
+          key: const ValueKey<String>('profile-password-recovery-link-card'),
+          padding: AppSpacing.cardPadding,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: AppRadius.borderMedium,
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: SelectableText(
+            recoveryUrl,
+            key: const ValueKey<String>('profile-password-recovery-link'),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        Text(
+          'Expires ${_formatPasswordRecoveryExpiration(recovery.expiresAt)}',
+          key: const ValueKey<String>('profile-password-recovery-expiration'),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        ),
+
+        const SizedBox(height: AppSpacing.lg),
+
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.icon(
+            key: const ValueKey<String>('profile-password-recovery-copy'),
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: recoveryUrl));
+
+              if (!context.mounted) {
+                return;
+              }
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Recovery link copied.')),
+              );
+            },
+            icon: const Icon(Icons.copy_rounded, size: 18),
+            label: const Text('Copy link'),
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        Text(
+          'This link can only be used once. '
+          'After the password is changed, the user will be signed out from existing sessions.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        ),
+      ],
     );
   }
 }

@@ -79,3 +79,16 @@ class UserRepository:
         self._session.add(user)
 
         return user
+
+
+    def list_all(self) -> list[User]:
+        """Return all SofaWatch users ordered by display name."""
+
+        return list(
+            self._session.scalars(
+                select(User).order_by(
+                    User.display_name.asc(),
+                    User.username.asc(),
+                )
+            )
+        )

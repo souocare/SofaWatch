@@ -61,6 +61,8 @@ abstract final class AppErrorMessageMapper {
       'current_password_invalid' => 'The current password is incorrect.',
       'password_change_unavailable' =>
         'Password change is not available for this account.',
+      'password_recovery_invalid' =>
+        'This password recovery link is invalid, expired, or has already been used.',
       'http_error' => null,
       _ => null,
     };

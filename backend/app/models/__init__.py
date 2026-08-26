@@ -16,6 +16,7 @@ from app.models.movie_watch_event import MovieWatchEvent
 from app.models.auth_session import AuthSession, AuthSessionType
 from app.models.auth_handoff import AuthHandoff
 from app.models.authentication_settings import AuthenticationSettings
+from app.models.password_reset_token import PasswordResetToken
 
 __all__ = [
     "Genre",
@@ -37,4 +38,5 @@ __all__ = [
     "AuthSessionType",
     "AuthHandoff",
     "AuthenticationSettings",
+    "PasswordResetToken",
 ]

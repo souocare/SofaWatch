@@ -155,3 +155,55 @@ def test_exists_any_returns_true_when_user_exists(
     repository = UserRepository(db_session)
 
     assert repository.exists_any() is True
+
+
+def test_list_all_returns_users_ordered_by_display_name(
+    db_session: Session,
+) -> None:
+    repository = UserRepository(db_session)
+
+    charlie = User(
+        username="charlie",
+        display_name="Charlie",
+        is_local=False,
+    )
+
+    alice = User(
+        username="alice",
+        display_name="Alice",
+        is_local=False,
+    )
+
+    bob = User(
+        username="bob",
+        display_name="Bob",
+        is_local=False,
+    )
+
+    db_session.add_all(
+        [
+            charlie,
+            alice,
+            bob,
+        ]
+    )
+    db_session.commit()
+
+    result = repository.list_all()
+
+    assert [
+        user.display_name
+        for user in result
+    ] == [
+        "Alice",
+        "Bob",
+        "Charlie",
+    ]
+
+
+def test_list_all_returns_empty_list_when_no_users_exist(
+    db_session: Session,
+) -> None:
+    repository = UserRepository(db_session)
+
+    assert repository.list_all() == []

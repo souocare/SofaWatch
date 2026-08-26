@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Response, status
 
 from app.api.dependencies import (
@@ -5,6 +7,8 @@ from app.api.dependencies import (
     DataExportServiceDependency,
     DataImportServiceDependency,
     UserServiceDependency,
+    AdminUserDependency,
+    PasswordResetTokenServiceDependency,
 )
 from app.schemas.data_export import SofaWatchExportResponse
 from app.schemas.data_import import (
@@ -15,12 +19,15 @@ from app.schemas.user import (
     CurrentUserPasswordUpdateRequest,
     CurrentUserResponse,
     CurrentUserUpdateRequest,
+    PasswordRecoveryResponse,
+    AdminUserResponse,
 )
 from app.services.user import (
     CurrentPasswordInvalidError,
     PasswordUnavailableError,
 )
 from app.core.exceptions import APIError
+
 
 
 router = APIRouter(
@@ -102,6 +109,93 @@ def change_current_user_password(
             code="password_change_unavailable",
             message="Password change is not available for this account.",
         ) from error
+
+
+@router.get(
+    "",
+    response_model=list[AdminUserResponse],
+    summary="List users",
+    description=(
+        "Return SofaWatch user accounts for administrative management. "
+        "Only administrators may access this operation."
+    ),
+)
+def list_users(
+    admin_user: AdminUserDependency,
+    user_service: UserServiceDependency,
+) -> list[AdminUserResponse]:
+    """Return safe administrative information about SofaWatch users."""
+
+    del admin_user
+
+    users = user_service.list_users()
+
+    return [
+        AdminUserResponse.model_validate(user)
+        for user in users
+    ]
+
+
+@router.post(
+    "/{user_id}/password-recovery",
+    response_model=PasswordRecoveryResponse,
+    summary="Start user password recovery",
+    description=(
+        "Create a short-lived one-time password recovery credential "
+        "for a regular SofaWatch user. Only administrators may perform "
+        "this operation."
+    ),
+)
+def start_user_password_recovery(
+    user_id: UUID,
+    admin_user: AdminUserDependency,
+    user_service: UserServiceDependency,
+    password_reset_service: PasswordResetTokenServiceDependency,
+) -> PasswordRecoveryResponse:
+    """Create a temporary password recovery credential for a user."""
+
+    del admin_user
+
+    user = user_service.get_by_id(
+        user_id,
+    )
+
+    if user is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="user_not_found",
+            message="The requested user could not be found.",
+        )
+
+    if user.is_admin:
+        raise APIError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="administrator_password_recovery_unavailable",
+            message=(
+                "Administrator password recovery must be performed "
+                "through the server recovery flow."
+            ),
+        )
+
+    if not user.is_active:
+        raise APIError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="inactive_user_password_recovery_unavailable",
+            message=(
+                "Password recovery is not available for an inactive account."
+            ),
+        )
+
+    created = password_reset_service.create(
+        user_id=user.id,
+    )
+
+    return PasswordRecoveryResponse(
+        token=created.credential,
+        expires_at=created.reset_token.expires_at,
+    )
+
+
 
 @router.get(
     "/me/export",

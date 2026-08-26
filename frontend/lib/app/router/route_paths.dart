@@ -6,6 +6,7 @@ abstract final class RoutePaths {
   static const String login = '/auth/login';
   static const String initialSetup = '/auth/setup';
   static const String authHandoff = '/auth/handoff';
+  static const String passwordRecovery = '/auth/password-recovery';
   static const String search = '/search';
 
   static const String home = '/home';

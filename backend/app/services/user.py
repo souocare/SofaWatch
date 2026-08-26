@@ -120,3 +120,9 @@ class UserService:
         self._session.refresh(user)
 
         return user
+
+
+    def list_users(self) -> list[User]:
+        """Return all SofaWatch users."""
+
+        return self._user_repository.list_all()

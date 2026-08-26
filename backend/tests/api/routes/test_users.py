@@ -19,6 +19,10 @@ from app.schemas.data_export import (
     ExportWatchHistoryResponse,
     SofaWatchExportResponse,
 )
+from app.core.security.session_credentials import (
+    hash_session_credential,
+)
+from app.models.password_reset_token import PasswordResetToken
 
 
 def test_get_current_user_returns_local_user(
@@ -781,3 +785,310 @@ def test_change_current_user_password_rejects_short_new_password(
     assert response.json()["error"]["code"] == "validation_error"
 
 
+
+def test_admin_can_start_regular_user_password_recovery(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    admin = User(
+        username="administrator",
+        display_name="Administrator",
+        is_active=True,
+        is_local=True,
+        is_admin=True,
+    )
+
+    user = User(
+        username="regular-user",
+        display_name="Regular User",
+        is_active=True,
+        is_local=False,
+        is_admin=False,
+    )
+
+    db_session.add_all([admin, user])
+    db_session.commit()
+    db_session.refresh(user)
+
+    response = client.post(
+        f"/api/v1/users/{user.id}/password-recovery",
+    )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+
+    assert payload["token"]
+    assert payload["expires_at"]
+
+    reset_token = db_session.query(
+        PasswordResetToken,
+    ).one()
+
+    assert reset_token.user_id == user.id
+
+    assert reset_token.credential_hash == hash_session_credential(
+        payload["token"],
+    )
+
+    assert reset_token.credential_hash != payload["token"]
+
+
+def test_regular_user_cannot_start_password_recovery(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    regular_user = User(
+        username="requesting-user",
+        display_name="Requesting User",
+        is_active=True,
+        is_local=True,
+        is_admin=False,
+    )
+
+    target = User(
+        username="target-user",
+        display_name="Target User",
+        is_active=True,
+        is_local=False,
+        is_admin=False,
+    )
+
+    db_session.add_all([regular_user, target])
+    db_session.commit()
+    db_session.refresh(target)
+
+    response = client.post(
+        f"/api/v1/users/{target.id}/password-recovery",
+    )
+
+    assert response.status_code == 403
+
+    assert response.json()["error"]["code"] == "admin_required"
+
+
+def test_admin_password_recovery_rejects_missing_user(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    admin = User(
+        username="administrator",
+        display_name="Administrator",
+        is_active=True,
+        is_local=True,
+        is_admin=True,
+    )
+
+    db_session.add(admin)
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/users/"
+        "11111111-2222-3333-4444-555555555555"
+        "/password-recovery",
+    )
+
+    assert response.status_code == 404
+
+    assert response.json()["error"]["code"] == "user_not_found"
+
+
+def test_admin_cannot_start_web_password_recovery_for_administrator(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    admin = User(
+        username="administrator",
+        display_name="Administrator",
+        is_active=True,
+        is_local=True,
+        is_admin=True,
+    )
+
+    second_admin = User(
+        username="second-admin",
+        display_name="Second Administrator",
+        is_active=True,
+        is_local=False,
+        is_admin=True,
+    )
+
+    db_session.add_all([admin, second_admin])
+    db_session.commit()
+    db_session.refresh(second_admin)
+
+    response = client.post(
+        f"/api/v1/users/{second_admin.id}/password-recovery",
+    )
+
+    assert response.status_code == 400
+
+    assert response.json()["error"]["code"] == (
+        "administrator_password_recovery_unavailable"
+    )
+
+
+def test_admin_cannot_start_password_recovery_for_inactive_user(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    admin = User(
+        username="administrator",
+        display_name="Administrator",
+        is_active=True,
+        is_local=True,
+        is_admin=True,
+    )
+
+    user = User(
+        username="inactive-user",
+        display_name="Inactive User",
+        is_active=False,
+        is_local=False,
+        is_admin=False,
+    )
+
+    db_session.add_all([admin, user])
+    db_session.commit()
+    db_session.refresh(user)
+
+    response = client.post(
+        f"/api/v1/users/{user.id}/password-recovery",
+    )
+
+    assert response.status_code == 400
+
+    assert response.json()["error"]["code"] == (
+        "inactive_user_password_recovery_unavailable"
+    )
+
+def test_admin_can_list_users(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    admin = User(
+        username="administrator",
+        email="admin@example.com",
+        display_name="Administrator",
+        is_active=True,
+        is_local=True,
+        is_admin=True,
+    )
+
+    regular_user = User(
+        username="regular-user",
+        email="regular@example.com",
+        display_name="Regular User",
+        is_active=True,
+        is_local=False,
+        is_admin=False,
+    )
+
+    inactive_user = User(
+        username="inactive-user",
+        email=None,
+        display_name="Inactive User",
+        is_active=False,
+        is_local=False,
+        is_admin=False,
+    )
+
+    db_session.add_all(
+        [
+            admin,
+            regular_user,
+            inactive_user,
+        ]
+    )
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/users",
+    )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+
+    assert payload == [
+        {
+            "id": str(admin.id),
+            "username": "administrator",
+            "email": "admin@example.com",
+            "display_name": "Administrator",
+            "is_active": True,
+            "is_local": True,
+            "is_admin": True,
+        },
+        {
+            "id": str(inactive_user.id),
+            "username": "inactive-user",
+            "email": None,
+            "display_name": "Inactive User",
+            "is_active": False,
+            "is_local": False,
+            "is_admin": False,
+        },
+        {
+            "id": str(regular_user.id),
+            "username": "regular-user",
+            "email": "regular@example.com",
+            "display_name": "Regular User",
+            "is_active": True,
+            "is_local": False,
+            "is_admin": False,
+        },
+    ]
+
+
+def test_regular_user_cannot_list_users(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    user = User(
+        username="regular-user",
+        display_name="Regular User",
+        is_active=True,
+        is_local=True,
+        is_admin=False,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/users",
+    )
+
+    assert response.status_code == 403
+
+    assert response.json()["error"]["code"] == "admin_required"
+
+def test_admin_user_list_does_not_expose_sensitive_fields(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    admin = User(
+        username="administrator",
+        display_name="Administrator",
+        password_hash="sensitive-password-hash",
+        is_active=True,
+        is_local=True,
+        is_admin=True,
+    )
+
+    db_session.add(admin)
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/users",
+    )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+
+    assert len(payload) == 1
+
+    assert "password_hash" not in payload[0]
+    assert "auth_sessions" not in payload[0]

@@ -90,7 +90,15 @@ from app.services.authentication_settings import (
     AuthenticationSettingsService,
 )
 from app.services.registration import RegistrationService
-
+from app.repositories.password_reset_token import (
+    PasswordResetTokenRepository,
+)
+from app.services.password_reset_token import (
+    PasswordResetTokenService,
+)
+from app.services.password_recovery import (
+    PasswordRecoveryService,
+)
 
 
 def get_genre_service(
@@ -461,6 +469,47 @@ def get_auth_handoff_service(
 AuthHandoffServiceDependency = Annotated[
     AuthHandoffService,
     Depends(get_auth_handoff_service),
+]
+
+def get_password_reset_token_service(
+    session: DatabaseSession,
+) -> PasswordResetTokenService:
+    """Provide password reset token operations for a single request."""
+
+    return PasswordResetTokenService(
+        session=session,
+        repository=PasswordResetTokenRepository(session),
+    )
+
+
+PasswordResetTokenServiceDependency = Annotated[
+    PasswordResetTokenService,
+    Depends(get_password_reset_token_service),
+]
+
+
+def get_password_recovery_service(
+    session: DatabaseSession,
+) -> PasswordRecoveryService:
+    """Provide password recovery operations for a single request."""
+
+    return PasswordRecoveryService(
+        session=session,
+        password_reset_token_repository=PasswordResetTokenRepository(
+            session,
+        ),
+        user_repository=UserRepository(
+            session,
+        ),
+        auth_session_repository=AuthSessionRepository(
+            session,
+        ),
+    )
+
+
+PasswordRecoveryServiceDependency = Annotated[
+    PasswordRecoveryService,
+    Depends(get_password_recovery_service),
 ]
 
 

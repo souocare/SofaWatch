@@ -685,6 +685,84 @@ void main() {
         expect(harness.currentUri.queryParameters['from'], RoutePaths.home);
       },
     );
+    testWidgets('allows unauthenticated user to open Password Recovery', (
+      WidgetTester tester,
+    ) async {
+      final _AuthRoutingHarness harness = _AuthRoutingHarness(
+        apiClient: apiClient,
+        setupRequired: false,
+      );
+
+      addTearDown(harness.dispose);
+
+      await harness.resolveUnauthenticatedEntry();
+
+      harness.router.go('${RoutePaths.passwordRecovery}?token=reset-token');
+
+      await tester.pumpWidget(harness.buildApp());
+
+      await tester.pump();
+
+      expect(harness.currentUri.path, RoutePaths.passwordRecovery);
+
+      expect(harness.currentUri.queryParameters['token'], 'reset-token');
+
+      expect(
+        find.byKey(const ValueKey<String>('password-recovery-page')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+      'allows Password Recovery while authentication state is unresolved',
+      (WidgetTester tester) async {
+        final _AuthRoutingHarness harness = _AuthRoutingHarness(
+          apiClient: apiClient,
+        );
+
+        addTearDown(harness.dispose);
+
+        harness.router.go('${RoutePaths.passwordRecovery}?token=reset-token');
+
+        await tester.pumpWidget(harness.buildApp());
+
+        await tester.pump();
+
+        expect(harness.currentUri.path, RoutePaths.passwordRecovery);
+
+        expect(
+          find.byKey(const ValueKey<String>('password-recovery-page')),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('allows authenticated user to open Password Recovery', (
+      WidgetTester tester,
+    ) async {
+      final _AuthRoutingHarness harness = _AuthRoutingHarness(
+        apiClient: apiClient,
+        restoreSession: _authenticatedSession,
+      );
+
+      addTearDown(harness.dispose);
+
+      await harness.authCubit.restore();
+
+      harness.router.go('${RoutePaths.passwordRecovery}?token=reset-token');
+
+      await tester.pumpWidget(harness.buildApp());
+
+      await tester.pump();
+      await tester.pump();
+
+      expect(harness.currentUri.path, RoutePaths.passwordRecovery);
+
+      expect(
+        find.byKey(const ValueKey<String>('password-recovery-page')),
+        findsOneWidget,
+      );
+    });
   });
 }
 

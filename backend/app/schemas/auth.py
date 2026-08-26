@@ -103,3 +103,16 @@ class RegistrationRequest(BaseModel):
         default=None,
         max_length=320,
     )
+
+class PasswordRecoveryCompleteRequest(BaseModel):
+    """Credentials required to complete password recovery."""
+
+    token: str = Field(
+        min_length=1,
+        max_length=256,
+    )
+
+    new_password: str = Field(
+        min_length=8,
+        max_length=128,
+    )

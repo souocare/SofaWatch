@@ -12,6 +12,7 @@ from app.api.dependencies import (
     UserServiceDependency,
     AuthenticationSettingsServiceDependency,
     RegistrationServiceDependency,
+    PasswordRecoveryServiceDependency,
 )
 from app.core.exceptions import APIError
 from app.schemas.auth import (
@@ -25,6 +26,7 @@ from app.schemas.auth import (
     SetupStatusResponse,
     RegistrationRequest,
     RegistrationStatusResponse,
+    PasswordRecoveryCompleteRequest,
 )
 from app.services.initial_setup import InitialSetupAlreadyCompletedError
 from app.core.config import Settings, get_settings
@@ -33,6 +35,9 @@ from app.services.registration import (
     EmailAlreadyExistsError,
     RegistrationClosedError,
     UsernameAlreadyExistsError,
+)
+from app.services.password_recovery import (
+    PasswordRecoveryInvalidError,
 )
 
 router = APIRouter(
@@ -253,6 +258,35 @@ def register(
         ),
     )
 
+
+@router.post(
+    "/password-recovery/complete",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Complete password recovery",
+    description=(
+        "Set a new password using a valid short-lived one-time "
+        "password recovery credential."
+    ),
+)
+def complete_password_recovery(
+    payload: PasswordRecoveryCompleteRequest,
+    password_recovery_service: PasswordRecoveryServiceDependency,
+) -> None:
+    """Complete password recovery and invalidate existing sessions."""
+
+    try:
+        password_recovery_service.complete(
+            credential=payload.token,
+            new_password=payload.new_password,
+        )
+    except PasswordRecoveryInvalidError as error:
+        raise APIError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="password_recovery_invalid",
+            message=(
+                "This password recovery link is invalid or has expired."
+            ),
+        ) from error
 
 
 @router.post(

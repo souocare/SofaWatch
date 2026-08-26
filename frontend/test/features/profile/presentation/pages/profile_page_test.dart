@@ -1,10 +1,14 @@
 import 'dart:async';
 
+import 'package:sofawatch/core/api/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_error_message_mapper.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/features/admin_users/domain/models/admin_user.dart';
+import 'package:sofawatch/features/admin_users/domain/models/password_recovery_link.dart';
+import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_repository.dart';
 import 'package:sofawatch/features/history/domain/models/history_episode.dart';
 import 'package:sofawatch/features/profile/application/cubit/profile_cubit.dart';
 import 'package:sofawatch/features/profile/domain/models/profile_user.dart';
@@ -4060,11 +4064,317 @@ void main() {
       await tester.pumpAndSettle();
     });
   });
+  group('ProfilePage Admin Users', () {
+    testWidgets('shows Users section for administrator', (
+      WidgetTester tester,
+    ) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(1200, 900);
+
+      addTearDown(() {
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetPhysicalSize();
+      });
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          adminUsersRepository: const _FakeAdminUsersRepository(
+            users: <AdminUser>[
+              AdminUser(
+                id: 'user-1',
+                username: 'regular-user',
+                email: 'regular@example.com',
+                displayName: 'Regular User',
+                isActive: true,
+                isLocal: false,
+                isAdmin: false,
+              ),
+            ],
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-users')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Regular User'), findsOneWidget);
+    });
+
+    testWidgets('hides Users section for regular user', (
+      WidgetTester tester,
+    ) async {
+      const ProfileUser regularProfileUser = ProfileUser(
+        id: 'regular-profile-user',
+        username: 'regular',
+        email: 'regular@example.com',
+        displayName: 'Regular User',
+        isLocal: false,
+        isAdmin: false,
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          profileRepository: _FakeProfileRepository(user: regularProfileUser),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey<String>('profile-users')), findsNothing);
+    });
+
+    testWidgets('does not load users for regular user', (
+      WidgetTester tester,
+    ) async {
+      final _CountingAdminUsersRepository repository =
+          _CountingAdminUsersRepository();
+
+      const ProfileUser regularProfileUser = ProfileUser(
+        id: 'regular-profile-user',
+        username: 'regular',
+        email: 'regular@example.com',
+        displayName: 'Regular User',
+        isLocal: false,
+        isAdmin: false,
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          profileRepository: _FakeProfileRepository(user: regularProfileUser),
+          adminUsersRepository: repository,
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(repository.listCalls, 0);
+    });
+
+    testWidgets('shows Retry when users loading fails', (
+      WidgetTester tester,
+    ) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(1200, 900);
+
+      addTearDown(() {
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetPhysicalSize();
+      });
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          adminUsersRepository: const _FakeAdminUsersRepository(
+            listError: AppException.connection(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-users-failure')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('does not show recovery action for administrator', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        _buildTestApp(
+          adminUsersRepository: const _FakeAdminUsersRepository(
+            users: <AdminUser>[
+              AdminUser(
+                id: 'admin-user',
+                username: 'admin',
+                email: 'admin@example.com',
+                displayName: 'Administrator',
+                isActive: true,
+                isLocal: false,
+                isAdmin: true,
+              ),
+            ],
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-user-password-recovery-admin-user'),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('disables recovery for inactive user', (
+      WidgetTester tester,
+    ) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(1200, 900);
+
+      addTearDown(() {
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetPhysicalSize();
+      });
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          adminUsersRepository: const _FakeAdminUsersRepository(
+            users: <AdminUser>[
+              AdminUser(
+                id: 'inactive-user',
+                username: 'inactive',
+                email: null,
+                displayName: 'Inactive User',
+                isActive: false,
+                isLocal: false,
+                isAdmin: false,
+              ),
+            ],
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder action = find.byKey(
+        const ValueKey<String>('profile-user-password-recovery-inactive-user'),
+      );
+
+      expect(action, findsOneWidget);
+
+      final OutlinedButton button = tester.widget<OutlinedButton>(action);
+
+      expect(button.onPressed, isNull);
+    });
+
+    testWidgets('generates password recovery link for active user on desktop', (
+      WidgetTester tester,
+    ) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(1200, 900);
+
+      addTearDown(() {
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetPhysicalSize();
+      });
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          adminUsersRepository: const _FakeAdminUsersRepository(
+            users: <AdminUser>[
+              AdminUser(
+                id: 'regular-user',
+                username: 'regular',
+                email: 'regular@example.com',
+                displayName: 'Regular User',
+                isActive: true,
+                isLocal: false,
+                isAdmin: false,
+              ),
+            ],
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-users')),
+        findsOneWidget,
+      );
+
+      final Finder recoveryAction = find.byKey(
+        const ValueKey<String>('profile-user-password-recovery-regular-user'),
+      );
+
+      expect(recoveryAction, findsOneWidget);
+
+      await tester.ensureVisible(recoveryAction);
+      await tester.pumpAndSettle();
+
+      await tester.tap(recoveryAction);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-password-recovery-dialog')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-password-recovery-success')),
+        findsOneWidget,
+      );
+
+      expect(find.textContaining('/auth/password-recovery'), findsOneWidget);
+
+      expect(find.textContaining('recovery-token'), findsOneWidget);
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-password-recovery-copy')),
+        findsOneWidget,
+      );
+    });
+    testWidgets('hides Users and does not load them on mobile', (
+      WidgetTester tester,
+    ) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(390, 844);
+
+      addTearDown(() {
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetPhysicalSize();
+      });
+
+      final _CountingAdminUsersRepository repository =
+          _CountingAdminUsersRepository();
+
+      await tester.pumpWidget(_buildTestApp(adminUsersRepository: repository));
+
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey<String>('profile-users')), findsNothing);
+
+      expect(repository.listCalls, 0);
+    });
+    testWidgets('shows Users at desktop breakpoint', (
+      WidgetTester tester,
+    ) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(900, 900);
+
+      addTearDown(() {
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetPhysicalSize();
+      });
+
+      final _CountingAdminUsersRepository repository =
+          _CountingAdminUsersRepository();
+
+      await tester.pumpWidget(_buildTestApp(adminUsersRepository: repository));
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-users')),
+        findsOneWidget,
+      );
+
+      expect(repository.listCalls, 1);
+    });
+  });
 }
 
 Widget _buildNavigationTestApp({
   ProfileRepository? profileRepository,
   StatisticsRepository? statisticsRepository,
+  AdminUsersRepository? adminUsersRepository,
   LibraryRepository? libraryRepository,
   HistoryRepository? historyRepository,
   ServerRepository? serverRepository,
@@ -4100,6 +4410,10 @@ Widget _buildNavigationTestApp({
     ],
   );
 
+  final ApiClient apiClient = ApiClient(
+    baseUrl: Uri.parse('https://server.example.com'),
+  );
+
   return MultiRepositoryProvider(
     providers: <RepositoryProvider<dynamic>>[
       RepositoryProvider<ServerRepository>(
@@ -4113,6 +4427,12 @@ Widget _buildNavigationTestApp({
               _FakeSecuritySettingsRepository();
         },
       ),
+      RepositoryProvider<AdminUsersRepository>(
+        create: (BuildContext context) {
+          return adminUsersRepository ?? const _FakeAdminUsersRepository();
+        },
+      ),
+      RepositoryProvider<ApiClient>.value(value: apiClient),
     ],
     child: MultiBlocProvider(
       providers: <BlocProvider<dynamic>>[
@@ -4154,6 +4474,7 @@ Widget _buildTestApp({
   ServerRepository? serverRepository,
   DataTransferRepository? dataTransferRepository,
   AuthRepository? authRepository,
+  AdminUsersRepository? adminUsersRepository,
   SecuritySettingsRepository? securitySettingsRepository,
   bool isWeb = false,
 }) {
@@ -4186,6 +4507,10 @@ Widget _buildTestApp({
           ),
         );
 
+  final ApiClient apiClient = ApiClient(
+    baseUrl: Uri.parse('https://server.example.com'),
+  );
+
   return MultiRepositoryProvider(
     providers: <RepositoryProvider<dynamic>>[
       RepositoryProvider<ServerRepository>(
@@ -4199,6 +4524,12 @@ Widget _buildTestApp({
               _FakeSecuritySettingsRepository();
         },
       ),
+      RepositoryProvider<AdminUsersRepository>(
+        create: (BuildContext context) {
+          return adminUsersRepository ?? const _FakeAdminUsersRepository();
+        },
+      ),
+      RepositoryProvider<ApiClient>.value(value: apiClient),
     ],
     child: MultiBlocProvider(
       providers: <BlocProvider<dynamic>>[
@@ -5564,5 +5895,60 @@ final class _ControlledPasswordProfileRepository implements ProfileRepository {
     }
 
     _passwordCompleter.complete();
+  }
+}
+
+final class _FakeAdminUsersRepository implements AdminUsersRepository {
+  const _FakeAdminUsersRepository({
+    this.users = const <AdminUser>[],
+    this.listError,
+    this.recoveryError,
+  });
+
+  final List<AdminUser> users;
+  final AppException? listError;
+  final AppException? recoveryError;
+
+  @override
+  Future<List<AdminUser>> listUsers() async {
+    final AppException? failure = listError;
+
+    if (failure != null) {
+      throw failure;
+    }
+
+    return users;
+  }
+
+  @override
+  Future<PasswordRecoveryLink> startPasswordRecovery({
+    required String userId,
+  }) async {
+    final AppException? failure = recoveryError;
+
+    if (failure != null) {
+      throw failure;
+    }
+
+    return PasswordRecoveryLink(
+      token: 'recovery-token',
+      expiresAt: DateTime.utc(2026, 8, 26, 10),
+    );
+  }
+}
+
+final class _CountingAdminUsersRepository implements AdminUsersRepository {
+  int listCalls = 0;
+
+  @override
+  Future<List<AdminUser>> listUsers() async {
+    listCalls += 1;
+
+    return const <AdminUser>[];
+  }
+
+  @override
+  Future<PasswordRecoveryLink> startPasswordRecovery({required String userId}) {
+    throw UnimplementedError();
   }
 }

@@ -1,5 +1,5 @@
 from uuid import UUID
-
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -55,3 +55,23 @@ class CurrentUserPasswordUpdateRequest(BaseModel):
         min_length=8,
         max_length=128,
     )
+
+class PasswordRecoveryResponse(BaseModel):
+    """Temporary credential created by an administrator for password recovery."""
+
+    token: str
+    expires_at: datetime
+
+
+class AdminUserResponse(BaseModel):
+    """Safe administrative representation of a SofaWatch user."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    username: str | None
+    email: str | None
+    display_name: str
+    is_active: bool
+    is_local: bool
+    is_admin: bool

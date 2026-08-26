@@ -1,19 +1,32 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from sqlalchemy.orm import Session
 
-from app.core.security.passwords import hash_password
 from app.core.security.tokens import AccessTokenService
 from app.core.config import get_settings
-from app.models.user import User
 from app.core.security.session_credentials import hash_session_credential
-from app.models.auth_session import AuthSession, AuthSessionType
 from app.repositories.auth_session import AuthSessionRepository
 from app.services.auth_session import AuthSessionService
 from app.models.authentication_settings import AuthenticationSettings
+from app.core.security.passwords import (
+    hash_password,
+    verify_password,
+)
+from app.models.auth_session import (
+    AuthSession,
+    AuthSessionType,
+)
+from app.models.user import User
+from app.repositories.password_reset_token import (
+    PasswordResetTokenRepository,
+)
+from app.services.password_reset_token import (
+    PasswordResetTokenService,
+)
+
 
 def _create_user(
     db_session: Session,
@@ -1912,3 +1925,267 @@ def test_registration_rejects_duplicate_email(
             "message": "That email address is already in use.",
         }
     }
+
+def test_complete_password_recovery_changes_password(
+    unauthenticated_client: TestClient,
+    db_session: Session,
+) -> None:
+    user = User(
+        username="regular-user",
+        display_name="Regular User",
+        password_hash=hash_password("old-password"),
+        is_active=True,
+        is_local=False,
+        is_admin=False,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    token_service = PasswordResetTokenService(
+        session=db_session,
+        repository=PasswordResetTokenRepository(db_session),
+    )
+
+    created = token_service.create(
+        user_id=user.id,
+    )
+
+    response = unauthenticated_client.post(
+        "/api/v1/auth/password-recovery/complete",
+        json={
+            "token": created.credential,
+            "new_password": "new-password",
+        },
+    )
+
+    assert response.status_code == 204
+
+    db_session.refresh(user)
+
+    assert verify_password(
+        "new-password",
+        user.password_hash,
+    )
+
+    assert not verify_password(
+        "old-password",
+        user.password_hash,
+    )
+
+
+def test_complete_password_recovery_does_not_require_authentication(
+    unauthenticated_client: TestClient,
+    db_session: Session,
+) -> None:
+    user = User(
+        username="regular-user",
+        display_name="Regular User",
+        password_hash=hash_password("old-password"),
+        is_active=True,
+        is_local=False,
+        is_admin=False,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    created = PasswordResetTokenService(
+        session=db_session,
+        repository=PasswordResetTokenRepository(db_session),
+    ).create(
+        user_id=user.id,
+    )
+
+    response = unauthenticated_client.post(
+        "/api/v1/auth/password-recovery/complete",
+        json={
+            "token": created.credential,
+            "new_password": "new-password",
+        },
+    )
+
+    assert response.status_code == 204
+
+
+def test_complete_password_recovery_rejects_invalid_token(
+    unauthenticated_client: TestClient,
+) -> None:
+    response = unauthenticated_client.post(
+        "/api/v1/auth/password-recovery/complete",
+        json={
+            "token": "invalid-password-reset-token",
+            "new_password": "new-password",
+        },
+    )
+
+    assert response.status_code == 400
+
+    assert response.json()["error"]["code"] == (
+        "password_recovery_invalid"
+    )
+
+
+def test_complete_password_recovery_rejects_used_token(
+    unauthenticated_client: TestClient,
+    db_session: Session,
+) -> None:
+    user = User(
+        username="regular-user",
+        display_name="Regular User",
+        password_hash=hash_password("old-password"),
+        is_active=True,
+        is_local=False,
+        is_admin=False,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    created = PasswordResetTokenService(
+        session=db_session,
+        repository=PasswordResetTokenRepository(db_session),
+    ).create(
+        user_id=user.id,
+    )
+
+    first_response = unauthenticated_client.post(
+        "/api/v1/auth/password-recovery/complete",
+        json={
+            "token": created.credential,
+            "new_password": "new-password",
+        },
+    )
+
+    assert first_response.status_code == 204
+
+    second_response = unauthenticated_client.post(
+        "/api/v1/auth/password-recovery/complete",
+        json={
+            "token": created.credential,
+            "new_password": "another-password",
+        },
+    )
+
+    assert second_response.status_code == 400
+
+    assert second_response.json()["error"]["code"] == (
+        "password_recovery_invalid"
+    )
+
+
+def test_complete_password_recovery_rejects_expired_token(
+    unauthenticated_client: TestClient,
+    db_session: Session,
+) -> None:
+    user = User(
+        username="regular-user",
+        display_name="Regular User",
+        password_hash=hash_password("old-password"),
+        is_active=True,
+        is_local=False,
+        is_admin=False,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    created = PasswordResetTokenService(
+        session=db_session,
+        repository=PasswordResetTokenRepository(db_session),
+    ).create(
+        user_id=user.id,
+        now=datetime.now(UTC) - timedelta(minutes=31),
+    )
+
+    response = unauthenticated_client.post(
+        "/api/v1/auth/password-recovery/complete",
+        json={
+            "token": created.credential,
+            "new_password": "new-password",
+        },
+    )
+
+    assert response.status_code == 400
+
+    assert response.json()["error"]["code"] == (
+        "password_recovery_invalid"
+    )
+
+    db_session.refresh(user)
+
+    assert verify_password(
+        "old-password",
+        user.password_hash,
+    )
+
+
+def test_complete_password_recovery_revokes_existing_sessions(
+    unauthenticated_client: TestClient,
+    db_session: Session,
+) -> None:
+    user = User(
+        username="regular-user",
+        display_name="Regular User",
+        password_hash=hash_password("old-password"),
+        is_active=True,
+        is_local=False,
+        is_admin=False,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    auth_session = AuthSession(
+        user_id=user.id,
+        session_type=AuthSessionType.WEB,
+        credential_hash="b" * 64,
+        expires_at=datetime.now(UTC) + timedelta(days=30),
+        last_used_at=datetime.now(UTC),
+    )
+
+    db_session.add(auth_session)
+    db_session.commit()
+    db_session.refresh(auth_session)
+
+    created = PasswordResetTokenService(
+        session=db_session,
+        repository=PasswordResetTokenRepository(db_session),
+    ).create(
+        user_id=user.id,
+    )
+
+    response = unauthenticated_client.post(
+        "/api/v1/auth/password-recovery/complete",
+        json={
+            "token": created.credential,
+            "new_password": "new-password",
+        },
+    )
+
+    assert response.status_code == 204
+
+    db_session.refresh(auth_session)
+
+    assert auth_session.revoked_at is not None
+
+
+def test_complete_password_recovery_validates_new_password(
+    unauthenticated_client: TestClient,
+) -> None:
+    response = unauthenticated_client.post(
+        "/api/v1/auth/password-recovery/complete",
+        json={
+            "token": "some-token",
+            "new_password": "short",
+        },
+    )
+
+    assert response.status_code == 422
+
+    assert response.json()["error"]["code"] == "validation_error"

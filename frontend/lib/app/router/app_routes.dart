@@ -15,4 +15,5 @@ enum AppRoute {
   libraryCollection,
   history,
   episodeDetails,
+  passwordRecovery,
 }

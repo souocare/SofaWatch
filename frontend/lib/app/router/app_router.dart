@@ -80,6 +80,11 @@ import 'package:sofawatch/features/auth/application/cubit/auth_handoff_exchange_
 import 'package:sofawatch/features/auth/presentation/pages/auth_handoff_exchange_page.dart';
 import 'package:sofawatch/features/security/data/repositories/api_security_settings_repository.dart';
 import 'package:sofawatch/features/security/domain/repositories/security_settings_repository.dart';
+import 'package:sofawatch/features/auth/application/cubit/password_recovery_cubit.dart';
+import 'package:sofawatch/features/auth/data/repositories/api_password_recovery_repository.dart';
+import 'package:sofawatch/features/auth/presentation/pages/password_recovery_page.dart';
+import 'package:sofawatch/features/admin_users/data/repositories/api_admin_users_repository.dart';
+import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_repository.dart';
 
 GoRouter createAppRouter({
   required ApiClient apiClient,
@@ -127,12 +132,15 @@ GoRouter createAppRouter({
           matchedLocation == RoutePaths.initialSetup;
 
       final bool isAuthHandoffRoute = matchedLocation == RoutePaths.authHandoff;
+      final bool isPasswordRecoveryRoute =
+          matchedLocation == RoutePaths.passwordRecovery;
 
       final bool isAuthFlowRoute =
           isAuthCheckingRoute ||
           isLoginRoute ||
           isInitialSetupRoute ||
-          isAuthHandoffRoute;
+          isAuthHandoffRoute ||
+          isPasswordRecoveryRoute;
 
       final String? requestedReturnLocation = state.uri.queryParameters['from'];
 
@@ -141,6 +149,7 @@ GoRouter createAppRouter({
           !_isSafeAuthReturnLocation(requestedReturnLocation);
 
       if (!isAuthHandoffRoute &&
+          !isPasswordRecoveryRoute &&
           isAuthFlowRoute &&
           hasUnsafeAuthReturnLocation) {
         return _buildAuthFlowLocation(matchedLocation, RoutePaths.home);
@@ -156,6 +165,14 @@ GoRouter createAppRouter({
         }
 
         return RoutePaths.serverSetup;
+      }
+
+      //
+      // Password recovery must remain publicly reachable regardless
+      // of the current authentication state.
+      //
+      if (isPasswordRecoveryRoute) {
+        return null;
       }
 
       final AuthState? authState = authCubit?.state;
@@ -305,6 +322,25 @@ GoRouter createAppRouter({
               );
             },
             child: AuthHandoffExchangePage(
+              token: state.uri.queryParameters['token'],
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        name: AppRoute.passwordRecovery.name,
+        path: RoutePaths.passwordRecovery,
+        builder: (BuildContext context, GoRouterState state) {
+          return BlocProvider<PasswordRecoveryCubit>(
+            create: (BuildContext context) {
+              return PasswordRecoveryCubit(
+                repository: ApiPasswordRecoveryRepository(
+                  apiClient: context.read<ApiClient>(),
+                ),
+              );
+            },
+            child: PasswordRecoveryPage(
               token: state.uri.queryParameters['token'],
             ),
           );
@@ -485,6 +521,11 @@ GoRouter createAppRouter({
                           return ApiSecuritySettingsRepository(
                             apiClient: apiClient,
                           );
+                        },
+                      ),
+                      RepositoryProvider<AdminUsersRepository>(
+                        create: (BuildContext context) {
+                          return ApiAdminUsersRepository(apiClient: apiClient);
                         },
                       ),
                       RepositoryProvider<OpenWebAppService>(
