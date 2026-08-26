@@ -172,5 +172,81 @@ void main() {
       expect(user.username, 'souocare');
       expect(user.isAdmin, isTrue);
     });
+    test('changes current user password', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                expect(options.method, 'PUT');
+                expect(options.path, endsWith('/users/me/password'));
+
+                expect(options.data, <String, dynamic>{
+                  'current_password': 'old-password',
+                  'new_password': 'new-password',
+                });
+
+                handler.resolve(
+                  Response<void>(requestOptions: options, statusCode: 204),
+                );
+              },
+        ),
+      );
+
+      final ApiProfileRepository repository = ApiProfileRepository(
+        ApiClient(baseUrl: Uri.parse('https://server.example.com'), dio: dio),
+      );
+
+      await repository.updatePassword(
+        currentPassword: 'old-password',
+        newPassword: 'new-password',
+      );
+    });
+    test('preserves current password invalid error', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                handler.reject(
+                  DioException(
+                    requestOptions: options,
+                    response: Response<Map<String, dynamic>>(
+                      requestOptions: options,
+                      statusCode: 400,
+                      data: const <String, dynamic>{
+                        'error': <String, dynamic>{
+                          'code': 'current_password_invalid',
+                          'message': 'The current password is incorrect.',
+                        },
+                      },
+                    ),
+                    type: DioExceptionType.badResponse,
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiProfileRepository repository = ApiProfileRepository(
+        ApiClient(baseUrl: Uri.parse('https://server.example.com'), dio: dio),
+      );
+
+      expect(
+        () => repository.updatePassword(
+          currentPassword: 'wrong-password',
+          newPassword: 'new-password',
+        ),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.code,
+            'code',
+            'current_password_invalid',
+          ),
+        ),
+      );
+    });
   });
 }

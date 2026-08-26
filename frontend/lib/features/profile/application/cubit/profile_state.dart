@@ -22,19 +22,26 @@ final class ProfileSuccess extends ProfileState {
     required this.user,
     this.isUpdatingDisplayName = false,
     this.updateDisplayNameError,
+    this.isUpdatingPassword = false,
+    this.updatePasswordError,
   });
 
   final ProfileUser user;
 
   final bool isUpdatingDisplayName;
-
   final AppException? updateDisplayNameError;
+
+  final bool isUpdatingPassword;
+  final AppException? updatePasswordError;
 
   ProfileSuccess copyWith({
     ProfileUser? user,
     bool? isUpdatingDisplayName,
     AppException? updateDisplayNameError,
     bool clearUpdateDisplayNameError = false,
+    bool? isUpdatingPassword,
+    AppException? updatePasswordError,
+    bool clearUpdatePasswordError = false,
   }) {
     return ProfileSuccess(
       user: user ?? this.user,
@@ -43,6 +50,10 @@ final class ProfileSuccess extends ProfileState {
       updateDisplayNameError: clearUpdateDisplayNameError
           ? null
           : updateDisplayNameError ?? this.updateDisplayNameError,
+      isUpdatingPassword: isUpdatingPassword ?? this.isUpdatingPassword,
+      updatePasswordError: clearUpdatePasswordError
+          ? null
+          : updatePasswordError ?? this.updatePasswordError,
     );
   }
 
@@ -51,6 +62,8 @@ final class ProfileSuccess extends ProfileState {
     user,
     isUpdatingDisplayName,
     updateDisplayNameError,
+    isUpdatingPassword,
+    updatePasswordError,
   ];
 }
 

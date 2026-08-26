@@ -11,6 +11,12 @@ from unittest.mock import Mock
 
 import pytest
 from sqlalchemy.orm import Session
+from app.core.security.passwords import hash_password, verify_password
+from app.services.user import (
+    CurrentPasswordInvalidError,
+    PasswordUnavailableError,
+    UserService,
+)
 
 
 @pytest.fixture
@@ -262,3 +268,77 @@ def test_update_display_name_rejects_blank_value(
 
     db_session.commit.assert_not_called()
     db_session.refresh.assert_not_called()
+
+def test_update_password_changes_password(
+    user_service: UserService,
+    db_session: Session,
+) -> None:
+    user = User(
+        username="souocare",
+        display_name="Gonçalo",
+        password_hash=hash_password("old-password"),
+    )
+
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    updated_user = user_service.update_password(
+        user=user,
+        current_password="old-password",
+        new_password="new-password",
+    )
+
+    assert updated_user is user
+
+    assert verify_password(
+        "new-password",
+        user.password_hash,
+    )
+
+    assert not verify_password(
+        "old-password",
+        user.password_hash,
+    )
+
+
+
+def test_update_password_rejects_incorrect_current_password(
+    user_service: UserService,
+) -> None:
+    user = User(
+        username="souocare",
+        display_name="Gonçalo",
+        password_hash=hash_password("correct-password"),
+    )
+
+    with pytest.raises(CurrentPasswordInvalidError):
+        user_service.update_password(
+            user=user,
+            current_password="wrong-password",
+            new_password="new-password",
+        )
+
+    assert verify_password(
+        "correct-password",
+        user.password_hash,
+    )
+
+
+def test_update_password_rejects_account_without_password(
+    user_service: UserService,
+) -> None:
+    user = User(
+        display_name="Local User",
+        password_hash=None,
+    )
+
+    with pytest.raises(PasswordUnavailableError):
+        user_service.update_password(
+            user=user,
+            current_password="anything",
+            new_password="new-password",
+        )
+
+
+

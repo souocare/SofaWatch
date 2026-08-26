@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+from app.core.security.passwords import hash_password, verify_password
 
 from app.api.dependencies import get_data_export_service
 from app.main import app
@@ -671,5 +672,112 @@ def test_update_current_user_rejects_blank_display_name(
     db_session.refresh(user)
 
     assert user.display_name == "Existing Name"
+
+
+
+def test_change_current_user_password(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    user = User(
+        username="souocare",
+        display_name="Gonçalo",
+        password_hash=hash_password("current-password"),
+        is_local=True,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    response = client.put(
+        "/api/v1/users/me/password",
+        json={
+            "current_password": "current-password",
+            "new_password": "new-password",
+        },
+    )
+
+    assert response.status_code == 204
+    assert response.content == b""
+
+    db_session.refresh(user)
+
+    assert verify_password(
+        "new-password",
+        user.password_hash,
+    )
+
+    assert not verify_password(
+        "current-password",
+        user.password_hash,
+    )
+
+
+
+def test_change_current_user_password_rejects_wrong_current_password(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    user = User(
+        username="souocare",
+        display_name="Gonçalo",
+        password_hash=hash_password("current-password"),
+        is_local=True,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    response = client.put(
+        "/api/v1/users/me/password",
+        json={
+            "current_password": "wrong-password",
+            "new_password": "new-password",
+        },
+    )
+
+    assert response.status_code == 400
+
+    assert response.json() == {
+        "error": {
+            "code": "current_password_invalid",
+            "message": "The current password is incorrect.",
+        }
+    }
+
+    db_session.refresh(user)
+
+    assert verify_password(
+        "current-password",
+        user.password_hash,
+    )
+
+
+def test_change_current_user_password_rejects_short_new_password(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    user = User(
+        username="souocare",
+        display_name="Gonçalo",
+        password_hash=hash_password("current-password"),
+        is_local=True,
+    )
+
+    db_session.add(user)
+    db_session.commit()
+
+    response = client.put(
+        "/api/v1/users/me/password",
+        json={
+            "current_password": "current-password",
+            "new_password": "short",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"
 
 

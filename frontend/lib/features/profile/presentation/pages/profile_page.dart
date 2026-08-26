@@ -272,6 +272,75 @@ class _ProfileAccountSection extends StatelessWidget {
 
             const SizedBox(height: AppSpacing.md),
 
+            Material(
+              color: AppColors.surfaceHigh,
+              shape: RoundedRectangleBorder(
+                borderRadius: AppRadius.borderLarge,
+                side: const BorderSide(color: AppColors.outlineVariant),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                key: const ValueKey<String>('profile-change-password-action'),
+                onTap: isLoggingOut
+                    ? null
+                    : () {
+                        _showChangePassword(context);
+                      },
+                child: Padding(
+                  padding: AppSpacing.cardPadding,
+                  child: Row(
+                    children: <Widget>[
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: AppRadius.borderMedium,
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.password_rounded,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+
+                      const SizedBox(width: AppSpacing.lg),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              'Change password',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+
+                            const SizedBox(height: AppSpacing.xs),
+
+                            Text(
+                              'Update your password using your current password.',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(width: AppSpacing.md),
+
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
             Container(
               decoration: BoxDecoration(
                 color: AppColors.surfaceHigh,
@@ -4902,6 +4971,37 @@ Future<void> _showEditDisplayName(
   );
 }
 
+Future<void> _showChangePassword(BuildContext context) async {
+  final bool useDialog =
+      MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet;
+
+  if (useDialog) {
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return BlocProvider<ProfileCubit>.value(
+          value: context.read<ProfileCubit>(),
+          child: const _ChangePasswordDialog(),
+        );
+      },
+    );
+
+    return;
+  }
+
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (BuildContext sheetContext) {
+      return BlocProvider<ProfileCubit>.value(
+        value: context.read<ProfileCubit>(),
+        child: const _ChangePasswordSheet(),
+      );
+    },
+  );
+}
+
 class _EditDisplayNameDialog extends StatelessWidget {
   const _EditDisplayNameDialog({required this.currentDisplayName});
 
@@ -5136,6 +5236,396 @@ class _EditDisplayNameFormState extends State<_EditDisplayNameForm> {
                       : const Text('Save'),
                 ),
               ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ChangePasswordDialog extends StatelessWidget {
+  const _ChangePasswordDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return const AlertDialog(
+      key: ValueKey<String>('profile-change-password-dialog'),
+      title: Text('Change password'),
+      content: SizedBox(width: 420, child: _ChangePasswordForm()),
+    );
+  }
+}
+
+class _ChangePasswordSheet extends StatelessWidget {
+  const _ChangePasswordSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      key: const ValueKey<String>('profile-change-password-sheet'),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.xl,
+        AppSpacing.xxl,
+        AppSpacing.xl,
+        MediaQuery.viewInsetsOf(context).bottom + AppSpacing.xxl,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(
+            'Change password',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          ),
+
+          const SizedBox(height: AppSpacing.xl),
+
+          const _ChangePasswordForm(),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChangePasswordForm extends StatefulWidget {
+  const _ChangePasswordForm();
+
+  @override
+  State<_ChangePasswordForm> createState() {
+    return _ChangePasswordFormState();
+  }
+}
+
+class _ChangePasswordFormState extends State<_ChangePasswordForm> {
+  late final TextEditingController _currentPasswordController;
+  late final TextEditingController _newPasswordController;
+  late final TextEditingController _confirmPasswordController;
+
+  bool _obscureCurrentPassword = true;
+  bool _obscureNewPassword = true;
+  bool _obscureConfirmPassword = true;
+
+  String? _currentPasswordError;
+  String? _newPasswordError;
+  String? _confirmPasswordError;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _currentPasswordController = TextEditingController();
+    _newPasswordController = TextEditingController();
+    _confirmPasswordController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final String currentPassword = _currentPasswordController.text;
+
+    final String newPassword = _newPasswordController.text;
+
+    final String confirmPassword = _confirmPasswordController.text;
+
+    String? currentPasswordError;
+    String? newPasswordError;
+    String? confirmPasswordError;
+
+    if (currentPassword.isEmpty) {
+      currentPasswordError = 'Current password is required.';
+    }
+
+    if (newPassword.length < 8) {
+      newPasswordError = 'New password must be at least 8 characters.';
+    } else if (newPassword.length > 128) {
+      newPasswordError = 'New password must be 128 characters or fewer.';
+    }
+
+    if (confirmPassword.isEmpty) {
+      confirmPasswordError = 'Please confirm your new password.';
+    } else if (confirmPassword != newPassword) {
+      confirmPasswordError = 'Passwords do not match.';
+    }
+
+    if (currentPasswordError != null ||
+        newPasswordError != null ||
+        confirmPasswordError != null) {
+      setState(() {
+        _currentPasswordError = currentPasswordError;
+        _newPasswordError = newPasswordError;
+        _confirmPasswordError = confirmPasswordError;
+      });
+
+      return;
+    }
+
+    setState(() {
+      _currentPasswordError = null;
+      _newPasswordError = null;
+      _confirmPasswordError = null;
+    });
+
+    final bool updated = await context.read<ProfileCubit>().updatePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (updated) {
+      Navigator.of(context).pop();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password changed successfully.')),
+      );
+    }
+  }
+
+  void _clearValidation() {
+    if (_currentPasswordError == null &&
+        _newPasswordError == null &&
+        _confirmPasswordError == null) {
+      return;
+    }
+
+    setState(() {
+      _currentPasswordError = null;
+      _newPasswordError = null;
+      _confirmPasswordError = null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocConsumer<ProfileCubit, ProfileState>(
+      listenWhen: (ProfileState previous, ProfileState current) {
+        final AppException? previousError = switch (previous) {
+          ProfileSuccess(:final updatePasswordError) => updatePasswordError,
+          _ => null,
+        };
+
+        final AppException? currentError = switch (current) {
+          ProfileSuccess(:final updatePasswordError) => updatePasswordError,
+          _ => null,
+        };
+
+        return previousError != currentError && currentError != null;
+      },
+      listener: (BuildContext context, ProfileState state) {
+        final AppException? error = switch (state) {
+          ProfileSuccess(:final updatePasswordError) => updatePasswordError,
+          _ => null,
+        };
+
+        if (error == null) {
+          return;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppErrorMessageMapper.map(error))),
+        );
+
+        context.read<ProfileCubit>().clearUpdatePasswordError();
+      },
+      builder: (BuildContext context, ProfileState state) {
+        final bool isUpdating = switch (state) {
+          ProfileSuccess(:final isUpdatingPassword) => isUpdatingPassword,
+          _ => false,
+        };
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            TextField(
+              key: const ValueKey<String>(
+                'profile-change-password-current-field',
+              ),
+              controller: _currentPasswordController,
+              enabled: !isUpdating,
+              autofocus: true,
+              obscureText: _obscureCurrentPassword,
+              textInputAction: TextInputAction.next,
+              autofillHints: const <String>[AutofillHints.password],
+              onChanged: (_) {
+                _clearValidation();
+              },
+              decoration: InputDecoration(
+                labelText: 'Current password',
+                errorText: _currentPasswordError,
+                suffixIcon: IconButton(
+                  key: const ValueKey<String>(
+                    'profile-change-password-current-visibility',
+                  ),
+                  tooltip: _obscureCurrentPassword
+                      ? 'Show password'
+                      : 'Hide password',
+                  onPressed: isUpdating
+                      ? null
+                      : () {
+                          setState(() {
+                            _obscureCurrentPassword = !_obscureCurrentPassword;
+                          });
+                        },
+                  icon: Icon(
+                    _obscureCurrentPassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.xl),
+
+            TextField(
+              key: const ValueKey<String>('profile-change-password-new-field'),
+              controller: _newPasswordController,
+              enabled: !isUpdating,
+              obscureText: _obscureNewPassword,
+              textInputAction: TextInputAction.next,
+              autofillHints: const <String>[AutofillHints.newPassword],
+              onChanged: (_) {
+                _clearValidation();
+              },
+              decoration: InputDecoration(
+                labelText: 'New password',
+                errorText: _newPasswordError,
+                suffixIcon: IconButton(
+                  key: const ValueKey<String>(
+                    'profile-change-password-new-visibility',
+                  ),
+                  tooltip: _obscureNewPassword
+                      ? 'Show password'
+                      : 'Hide password',
+                  onPressed: isUpdating
+                      ? null
+                      : () {
+                          setState(() {
+                            _obscureNewPassword = !_obscureNewPassword;
+                          });
+                        },
+                  icon: Icon(
+                    _obscureNewPassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.xl),
+
+            TextField(
+              key: const ValueKey<String>(
+                'profile-change-password-confirm-field',
+              ),
+              controller: _confirmPasswordController,
+              enabled: !isUpdating,
+              obscureText: _obscureConfirmPassword,
+              textInputAction: TextInputAction.done,
+              autofillHints: const <String>[AutofillHints.newPassword],
+              onChanged: (_) {
+                _clearValidation();
+              },
+              onSubmitted: (_) {
+                if (!isUpdating) {
+                  _submit();
+                }
+              },
+              decoration: InputDecoration(
+                labelText: 'Confirm new password',
+                errorText: _confirmPasswordError,
+                suffixIcon: IconButton(
+                  key: const ValueKey<String>(
+                    'profile-change-password-confirm-visibility',
+                  ),
+                  tooltip: _obscureConfirmPassword
+                      ? 'Show password'
+                      : 'Hide password',
+                  onPressed: isUpdating
+                      ? null
+                      : () {
+                          setState(() {
+                            _obscureConfirmPassword = !_obscureConfirmPassword;
+                          });
+                        },
+                  icon: Icon(
+                    _obscureConfirmPassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.xl),
+
+            LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final bool useStackedActions = constraints.maxWidth < 400;
+
+                final Widget cancelButton = TextButton(
+                  key: const ValueKey<String>('profile-change-password-cancel'),
+                  onPressed: isUpdating
+                      ? null
+                      : () {
+                          Navigator.of(context).pop();
+                        },
+                  child: const Text('Cancel'),
+                );
+
+                final Widget saveButton = FilledButton(
+                  key: const ValueKey<String>('profile-change-password-save'),
+                  onPressed: isUpdating ? null : _submit,
+                  child: isUpdating
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            SizedBox(width: AppSpacing.sm),
+                            Text('Saving…'),
+                          ],
+                        )
+                      : const Text('Change password'),
+                );
+
+                if (useStackedActions) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      saveButton,
+                      const SizedBox(height: AppSpacing.sm),
+                      cancelButton,
+                    ],
+                  );
+                }
+
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: <Widget>[
+                    cancelButton,
+                    const SizedBox(width: AppSpacing.sm),
+                    saveButton,
+                  ],
+                );
+              },
             ),
           ],
         );

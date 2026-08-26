@@ -52,4 +52,22 @@ final class ApiProfileRepository implements ProfileRepository {
 
     return ProfileUserDto.fromJson(data).toDomain();
   }
+
+  @override
+  Future<void> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _apiClient.put<void>(
+        '/users/me/password',
+        data: <String, dynamic>{
+          'current_password': currentPassword,
+          'new_password': newPassword,
+        },
+      );
+    } on AppException {
+      rethrow;
+    }
+  }
 }

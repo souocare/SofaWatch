@@ -134,6 +134,79 @@ void main() {
 
       await cubit.close();
     });
+    test('updates password', () async {
+      final _PasswordProfileRepository repository =
+          _PasswordProfileRepository();
+
+      final ProfileCubit cubit = ProfileCubit(repository: repository);
+
+      await cubit.load();
+
+      final bool updated = await cubit.updatePassword(
+        currentPassword: 'old-password',
+        newPassword: 'new-password',
+      );
+
+      expect(updated, isTrue);
+      expect(repository.currentPassword, 'old-password');
+      expect(repository.newPassword, 'new-password');
+
+      final ProfileSuccess state = cubit.state as ProfileSuccess;
+
+      expect(state.isUpdatingPassword, isFalse);
+      expect(state.updatePasswordError, isNull);
+
+      await cubit.close();
+    });
+
+    test('preserves AppException when password update fails', () async {
+      final _PasswordProfileRepository repository = _PasswordProfileRepository(
+        error: const AppException(
+          type: AppExceptionType.badResponse,
+          code: 'current_password_invalid',
+          message: 'The current password is incorrect.',
+          statusCode: 400,
+        ),
+      );
+
+      final ProfileCubit cubit = ProfileCubit(repository: repository);
+
+      await cubit.load();
+
+      final bool updated = await cubit.updatePassword(
+        currentPassword: 'wrong-password',
+        newPassword: 'new-password',
+      );
+
+      expect(updated, isFalse);
+
+      final ProfileSuccess state = cubit.state as ProfileSuccess;
+
+      expect(state.updatePasswordError?.type, AppExceptionType.badResponse);
+      expect(state.updatePasswordError?.code, 'current_password_invalid');
+      expect(state.updatePasswordError?.statusCode, 400);
+
+      await cubit.close();
+    });
+
+    test('does not submit invalid new password', () async {
+      final _PasswordProfileRepository repository =
+          _PasswordProfileRepository();
+
+      final ProfileCubit cubit = ProfileCubit(repository: repository);
+
+      await cubit.load();
+
+      final bool updated = await cubit.updatePassword(
+        currentPassword: 'old-password',
+        newPassword: 'short',
+      );
+
+      expect(updated, isFalse);
+      expect(repository.passwordUpdateCalls, 0);
+
+      await cubit.close();
+    });
   });
 }
 
@@ -173,6 +246,12 @@ final class _FakeProfileRepository implements ProfileRepository {
   Future<ProfileUser> updateDisplayName({required String displayName}) async {
     return _user.copyWith(displayName: displayName);
   }
+
+  @override
+  Future<void> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {}
 }
 
 final class _RetryProfileRepository implements ProfileRepository {
@@ -193,6 +272,12 @@ final class _RetryProfileRepository implements ProfileRepository {
   Future<ProfileUser> updateDisplayName({required String displayName}) async {
     return _user.copyWith(displayName: displayName);
   }
+
+  @override
+  Future<void> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {}
 }
 
 final class _UpdatingProfileRepository implements ProfileRepository {
@@ -220,5 +305,48 @@ final class _UpdatingProfileRepository implements ProfileRepository {
     }
 
     return _user.copyWith(displayName: displayName);
+  }
+
+  @override
+  Future<void> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {}
+}
+
+final class _PasswordProfileRepository implements ProfileRepository {
+  _PasswordProfileRepository({this.error});
+
+  final AppException? error;
+
+  String? currentPassword;
+  String? newPassword;
+  int passwordUpdateCalls = 0;
+
+  @override
+  Future<ProfileUser> getCurrentUser() async {
+    return _user;
+  }
+
+  @override
+  Future<ProfileUser> updateDisplayName({required String displayName}) async {
+    return _user.copyWith(displayName: displayName);
+  }
+
+  @override
+  Future<void> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    passwordUpdateCalls++;
+
+    this.currentPassword = currentPassword;
+    this.newPassword = newPassword;
+
+    final AppException? failure = error;
+
+    if (failure != null) {
+      throw failure;
+    }
   }
 }

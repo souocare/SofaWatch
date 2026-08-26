@@ -58,6 +58,9 @@ abstract final class AppErrorMessageMapper {
         'This item could not be found in your library.',
       'background_job_not_found' =>
         'The requested background job could not be found.',
+      'current_password_invalid' => 'The current password is incorrect.',
+      'password_change_unavailable' =>
+        'Password change is not available for this account.',
       'http_error' => null,
       _ => null,
     };

@@ -4,7 +4,15 @@ from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.repositories.user import UserRepository
+from app.core.security.passwords import hash_password, verify_password
 
+
+class CurrentPasswordInvalidError(Exception):
+    """Raised when the supplied current password is incorrect."""
+
+
+class PasswordUnavailableError(Exception):
+    """Raised when the account does not have a password that can be changed."""
 
 class UserService:
     """Business logic for SofaWatch users."""
@@ -79,6 +87,34 @@ class UserService:
             )
 
         user.display_name = normalized_display_name
+
+        self._session.commit()
+        self._session.refresh(user)
+
+        return user
+
+
+    def update_password(
+        self,
+        *,
+        user: User,
+        current_password: str,
+        new_password: str,
+    ) -> User:
+        """Change the current user's password after verifying the old one."""
+
+        if user.password_hash is None:
+            raise PasswordUnavailableError
+
+        if not verify_password(
+            current_password,
+            user.password_hash,
+        ):
+            raise CurrentPasswordInvalidError
+
+        user.password_hash = hash_password(
+            new_password,
+        )
 
         self._session.commit()
         self._session.refresh(user)

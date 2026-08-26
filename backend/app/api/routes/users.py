@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Response, status
 
 from app.api.dependencies import (
     CurrentUserDependency,
@@ -12,9 +12,15 @@ from app.schemas.data_import import (
     DataImportResultResponse,
 )
 from app.schemas.user import (
+    CurrentUserPasswordUpdateRequest,
     CurrentUserResponse,
     CurrentUserUpdateRequest,
 )
+from app.services.user import (
+    CurrentPasswordInvalidError,
+    PasswordUnavailableError,
+)
+from app.core.exceptions import APIError
 
 
 router = APIRouter(
@@ -35,6 +41,8 @@ def get_current_user_profile(
     """Return the user represented by the current request context."""
 
     return CurrentUserResponse.model_validate(current_user)
+
+
 
 
 @router.patch(
@@ -60,6 +68,40 @@ def update_current_user_profile(
 
     return CurrentUserResponse.model_validate(user)
 
+@router.put(
+    "/me/password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Change current user password",
+    description=(
+        "Change the authenticated SofaWatch user's password after "
+        "verifying the current password."
+    ),
+)
+def change_current_user_password(
+    payload: CurrentUserPasswordUpdateRequest,
+    current_user: CurrentUserDependency,
+    service: UserServiceDependency,
+) -> None:
+    """Change the authenticated user's password."""
+
+    try:
+        service.update_password(
+            user=current_user,
+            current_password=payload.current_password,
+            new_password=payload.new_password,
+        )
+    except CurrentPasswordInvalidError as error:
+        raise APIError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="current_password_invalid",
+            message="The current password is incorrect.",
+        ) from error
+    except PasswordUnavailableError as error:
+        raise APIError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="password_change_unavailable",
+            message="Password change is not available for this account.",
+        ) from error
 
 @router.get(
     "/me/export",

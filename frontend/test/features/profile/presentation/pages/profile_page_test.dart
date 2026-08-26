@@ -3644,6 +3644,422 @@ void main() {
       expect(find.text('TestDisplay'), findsOneWidget);
     });
   });
+  group('ProfilePage Change Password', () {
+    testWidgets('opens Change password dialog on desktop', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1.0;
+
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(_buildTestApp());
+
+      await tester.pumpAndSettle();
+
+      final Finder action = find.byKey(
+        const ValueKey<String>('profile-change-password-action'),
+      );
+
+      await tester.ensureVisible(action);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-change-password-dialog')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Change password'), findsWidgets);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-change-password-current-field'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-change-password-new-field')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-change-password-confirm-field'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('opens Change password sheet on mobile', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(_buildTestApp());
+
+      await tester.pumpAndSettle();
+
+      final Finder action = find.byKey(
+        const ValueKey<String>('profile-change-password-action'),
+      );
+
+      await tester.ensureVisible(action);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-change-password-sheet')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Change password'), findsWidgets);
+    });
+
+    testWidgets('requires current password', (WidgetTester tester) async {
+      await tester.pumpWidget(_buildTestApp());
+
+      await tester.pumpAndSettle();
+
+      final Finder action = find.byKey(
+        const ValueKey<String>('profile-change-password-action'),
+      );
+
+      await tester.ensureVisible(action);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+
+      final Finder save = find.byKey(
+        const ValueKey<String>('profile-change-password-save'),
+      );
+
+      await tester.tap(save);
+      await tester.pump();
+
+      expect(find.text('Current password is required.'), findsOneWidget);
+    });
+
+    testWidgets('requires new password', (WidgetTester tester) async {
+      await tester.pumpWidget(_buildTestApp());
+
+      await tester.pumpAndSettle();
+
+      final Finder action = find.byKey(
+        const ValueKey<String>('profile-change-password-action'),
+      );
+
+      await tester.ensureVisible(action);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(
+          const ValueKey<String>('profile-change-password-current-field'),
+        ),
+        'current-password',
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-change-password-save')),
+      );
+
+      await tester.pump();
+
+      expect(
+        find.text('New password must be at least 8 characters.'),
+        findsOneWidget,
+      );
+
+      expect(find.text('Please confirm your new password.'), findsOneWidget);
+    });
+
+    testWidgets('rejects new password shorter than eight characters', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(_buildTestApp());
+
+      await tester.pumpAndSettle();
+
+      final Finder action = find.byKey(
+        const ValueKey<String>('profile-change-password-action'),
+      );
+
+      await tester.ensureVisible(action);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(
+          const ValueKey<String>('profile-change-password-current-field'),
+        ),
+        'current-password',
+      );
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('profile-change-password-new-field')),
+        'short',
+      );
+
+      await tester.enterText(
+        find.byKey(
+          const ValueKey<String>('profile-change-password-confirm-field'),
+        ),
+        'short',
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-change-password-save')),
+      );
+
+      await tester.pump();
+
+      expect(
+        find.text('New password must be at least 8 characters.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('requires matching password confirmation', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(_buildTestApp());
+
+      await tester.pumpAndSettle();
+
+      final Finder action = find.byKey(
+        const ValueKey<String>('profile-change-password-action'),
+      );
+
+      await tester.ensureVisible(action);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(
+          const ValueKey<String>('profile-change-password-current-field'),
+        ),
+        'current-password',
+      );
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('profile-change-password-new-field')),
+        'new-password',
+      );
+
+      await tester.enterText(
+        find.byKey(
+          const ValueKey<String>('profile-change-password-confirm-field'),
+        ),
+        'different-password',
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-change-password-save')),
+      );
+
+      await tester.pump();
+
+      expect(find.text('Passwords do not match.'), findsOneWidget);
+    });
+
+    testWidgets('changes password successfully', (WidgetTester tester) async {
+      final _PasswordProfileRepository profileRepository =
+          _PasswordProfileRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(profileRepository: profileRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder action = find.byKey(
+        const ValueKey<String>('profile-change-password-action'),
+      );
+
+      await tester.ensureVisible(action);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(
+          const ValueKey<String>('profile-change-password-current-field'),
+        ),
+        'current-password',
+      );
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('profile-change-password-new-field')),
+        'new-password',
+      );
+
+      await tester.enterText(
+        find.byKey(
+          const ValueKey<String>('profile-change-password-confirm-field'),
+        ),
+        'new-password',
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-change-password-save')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(profileRepository.updatePasswordCalls, 1);
+      expect(profileRepository.lastCurrentPassword, 'current-password');
+      expect(profileRepository.lastNewPassword, 'new-password');
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-change-password-dialog')),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-change-password-sheet')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('keeps Change password open when current password is invalid', (
+      WidgetTester tester,
+    ) async {
+      final _PasswordProfileRepository profileRepository =
+          _PasswordProfileRepository(
+            error: const AppException(
+              type: AppExceptionType.badResponse,
+              message: 'The current password is incorrect.',
+              code: 'current_password_invalid',
+              statusCode: 400,
+            ),
+          );
+
+      await tester.pumpWidget(
+        _buildTestApp(profileRepository: profileRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder action = find.byKey(
+        const ValueKey<String>('profile-change-password-action'),
+      );
+
+      await tester.ensureVisible(action);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(
+          const ValueKey<String>('profile-change-password-current-field'),
+        ),
+        'wrong-password',
+      );
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('profile-change-password-new-field')),
+        'new-password',
+      );
+
+      await tester.enterText(
+        find.byKey(
+          const ValueKey<String>('profile-change-password-confirm-field'),
+        ),
+        'new-password',
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-change-password-save')),
+      );
+
+      await tester.pump();
+      await tester.pump();
+
+      expect(profileRepository.updatePasswordCalls, 1);
+
+      expect(find.text('The current password is incorrect.'), findsOneWidget);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-change-password-current-field'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('disables Change password actions while request is running', (
+      WidgetTester tester,
+    ) async {
+      final _ControlledPasswordProfileRepository profileRepository =
+          _ControlledPasswordProfileRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(profileRepository: profileRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder action = find.byKey(
+        const ValueKey<String>('profile-change-password-action'),
+      );
+
+      await tester.ensureVisible(action);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(
+          const ValueKey<String>('profile-change-password-current-field'),
+        ),
+        'current-password',
+      );
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('profile-change-password-new-field')),
+        'new-password',
+      );
+
+      await tester.enterText(
+        find.byKey(
+          const ValueKey<String>('profile-change-password-confirm-field'),
+        ),
+        'new-password',
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('profile-change-password-save')),
+      );
+
+      await tester.pump();
+
+      expect(profileRepository.updatePasswordCalls, 1);
+
+      final FilledButton saveButton = tester.widget<FilledButton>(
+        find.byKey(const ValueKey<String>('profile-change-password-save')),
+      );
+
+      final TextButton cancelButton = tester.widget<TextButton>(
+        find.byKey(const ValueKey<String>('profile-change-password-cancel')),
+      );
+
+      expect(saveButton.onPressed, isNull);
+      expect(cancelButton.onPressed, isNull);
+
+      expect(find.text('Saving…'), findsOneWidget);
+
+      profileRepository.complete();
+
+      await tester.pumpAndSettle();
+    });
+  });
 }
 
 Widget _buildNavigationTestApp({
@@ -3905,14 +4321,20 @@ final class _FakeProfileRepository implements ProfileRepository {
     this.user = _user,
     this.error,
     this.updateDisplayNameError,
+    this.updatePasswordError,
   });
 
   final ProfileUser user;
   final AppException? error;
   final AppException? updateDisplayNameError;
+  final AppException? updatePasswordError;
 
   int updateDisplayNameCalls = 0;
   String? lastDisplayName;
+
+  int updatePasswordCalls = 0;
+  String? lastCurrentPassword;
+  String? lastNewPassword;
 
   @override
   Future<ProfileUser> getCurrentUser() async {
@@ -3937,6 +4359,22 @@ final class _FakeProfileRepository implements ProfileRepository {
     }
 
     return user.copyWith(displayName: displayName);
+  }
+
+  @override
+  Future<void> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    updatePasswordCalls += 1;
+    lastCurrentPassword = currentPassword;
+    lastNewPassword = newPassword;
+
+    final AppException? failure = updatePasswordError;
+
+    if (failure != null) {
+      throw failure;
+    }
   }
 }
 
@@ -5055,5 +5493,76 @@ final class _RetrySecuritySettingsRepository
     throw UnimplementedError(
       'Updating Security settings is not used by this retry test.',
     );
+  }
+}
+
+final class _PasswordProfileRepository implements ProfileRepository {
+  _PasswordProfileRepository({this.error, this.user = _user});
+
+  final AppException? error;
+  final ProfileUser user;
+
+  int updatePasswordCalls = 0;
+  String? lastCurrentPassword;
+  String? lastNewPassword;
+
+  @override
+  Future<ProfileUser> getCurrentUser() async {
+    return user;
+  }
+
+  @override
+  Future<ProfileUser> updateDisplayName({required String displayName}) async {
+    return user.copyWith(displayName: displayName);
+  }
+
+  @override
+  Future<void> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    updatePasswordCalls += 1;
+    lastCurrentPassword = currentPassword;
+    lastNewPassword = newPassword;
+
+    final AppException? failure = error;
+
+    if (failure != null) {
+      throw failure;
+    }
+  }
+}
+
+final class _ControlledPasswordProfileRepository implements ProfileRepository {
+  final Completer<void> _passwordCompleter = Completer<void>();
+
+  int updatePasswordCalls = 0;
+
+  @override
+  Future<ProfileUser> getCurrentUser() async {
+    return _user;
+  }
+
+  @override
+  Future<ProfileUser> updateDisplayName({required String displayName}) async {
+    return _user.copyWith(displayName: displayName);
+  }
+
+  @override
+  Future<void> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) {
+    updatePasswordCalls += 1;
+
+    return _passwordCompleter.future;
+  }
+
+  void complete() {
+    if (_passwordCompleter.isCompleted) {
+      return;
+    }
+
+    _passwordCompleter.complete();
   }
 }
