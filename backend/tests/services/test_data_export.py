@@ -74,7 +74,6 @@ def create_user() -> User:
     return User(
         id=uuid4(),
         display_name="Gonçalo",
-        is_local=True,
         is_admin=True,
     )
 

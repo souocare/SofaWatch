@@ -91,7 +91,6 @@ def test_private_endpoint_accepts_web_session_cookie(
             "correct-password",
         ),
         is_active=True,
-        is_local=False,
     )
 
     db_session.add(user)
@@ -151,7 +150,6 @@ def test_bearer_authentication_takes_precedence_over_web_session(
             "correct-password",
         ),
         is_active=True,
-        is_local=False,
     )
 
     db_session.add(user)
@@ -193,7 +191,6 @@ def test_mobile_session_credential_is_not_accepted_as_web_cookie(
         username="mobile-user",
         display_name="Mobile User",
         is_active=True,
-        is_local=False,
     )
 
     db_session.add(user)

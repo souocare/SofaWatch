@@ -102,7 +102,6 @@ def persist_user(
 
     user = User(
         display_name="Test User",
-        is_local=False,
     )
 
     db_session.add(user)
@@ -609,7 +608,6 @@ def test_add_movie_creates_library_entry(
 
     user = User(
         display_name="Local User",
-        is_local=True,
     )
 
     movie = Movie(
@@ -741,7 +739,6 @@ def test_update_movie_status_to_completed_sets_completed_at(
 
     user = User(
         display_name="Local User",
-        is_local=True,
     )
 
     movie = Movie(
@@ -811,7 +808,6 @@ def test_update_movie_status_to_planning_clears_completed_at(
 
     user = User(
         display_name="Local User",
-        is_local=True,
     )
 
     movie = Movie(
@@ -882,7 +878,6 @@ def test_update_movie_status_keeps_existing_completed_at(
 
     user = User(
         display_name="Local User",
-        is_local=True,
     )
 
     movie = Movie(

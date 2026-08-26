@@ -32,7 +32,6 @@ def test_creates_first_user_as_administrator(
 
     assert user.is_active is True
     assert user.is_admin is True
-    assert user.is_local is False
 
     assert user.password_hash is not None
     assert verify_password(
@@ -67,7 +66,6 @@ def test_rejects_setup_when_user_already_exists(
     existing_user = User(
         username="existing",
         display_name="Existing User",
-        is_local=False,
     )
 
     db_session.add(existing_user)

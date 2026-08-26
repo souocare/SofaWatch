@@ -9,13 +9,11 @@ from app.repositories.user import UserRepository
 def make_user(
     *,
     display_name: str = "Local User",
-    is_local: bool = True,
 ) -> User:
     """Create a user for repository tests."""
 
     return User(
         display_name=display_name,
-        is_local=is_local,
     )
 
 
@@ -35,7 +33,6 @@ def test_add_persists_user(
 
     assert user.id is not None
     assert user.display_name == "Local User"
-    assert user.is_local is True
 
 
 def test_get_by_id_returns_user(
@@ -79,7 +76,6 @@ def test_get_by_username_returns_user(
         username="souocare",
         email="goncalo@example.com",
         display_name="Gonçalo",
-        is_local=False,
     )
 
     db_session.add(user)
@@ -109,7 +105,6 @@ def test_get_by_email_returns_user(
         username="souocare",
         email="goncalo@example.com",
         display_name="Gonçalo",
-        is_local=False,
     )
 
     db_session.add(user)
@@ -146,7 +141,6 @@ def test_exists_any_returns_true_when_user_exists(
     user = User(
         username="souocare",
         display_name="Gonçalo",
-        is_local=False,
     )
 
     db_session.add(user)
@@ -165,19 +159,16 @@ def test_list_all_returns_users_ordered_by_display_name(
     charlie = User(
         username="charlie",
         display_name="Charlie",
-        is_local=False,
     )
 
     alice = User(
         username="alice",
         display_name="Alice",
-        is_local=False,
     )
 
     bob = User(
         username="bob",
         display_name="Bob",
-        is_local=False,
     )
 
     db_session.add_all(
@@ -207,3 +198,5 @@ def test_list_all_returns_empty_list_when_no_users_exist(
     repository = UserRepository(db_session)
 
     assert repository.list_all() == []
+
+

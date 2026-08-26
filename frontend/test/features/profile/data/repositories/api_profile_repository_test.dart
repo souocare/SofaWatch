@@ -26,7 +26,6 @@ void main() {
                       'email': 'goncalo@example.com',
                       'display_name': 'Gonçalo',
                       'is_active': true,
-                      'is_local': true,
                       'is_admin': true,
                     },
                   ),
@@ -42,7 +41,6 @@ void main() {
       final ProfileUser user = await repository.getCurrentUser();
 
       expect(user.displayName, 'Gonçalo');
-      expect(user.isLocal, isTrue);
       expect(user.isAdmin, isTrue);
       expect(user.username, 'souocare');
       expect(user.email, 'goncalo@example.com');
@@ -67,7 +65,6 @@ void main() {
                       'email': 'regular@example.com',
                       'display_name': 'Regular User',
                       'is_active': true,
-                      'is_local': false,
                       'is_admin': false,
                     },
                   ),
@@ -84,7 +81,6 @@ void main() {
 
       expect(user.id, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
       expect(user.displayName, 'Regular User');
-      expect(user.isLocal, isFalse);
       expect(user.isAdmin, isFalse);
     });
 
@@ -104,7 +100,6 @@ void main() {
                       'display_name': 123,
                       'username': null,
                       'email': null,
-                      'is_local': true,
                     },
                   ),
                 );
@@ -151,7 +146,6 @@ void main() {
                       'email': 'goncalo@example.com',
                       'display_name': 'Novo Nome',
                       'is_active': true,
-                      'is_local': false,
                       'is_admin': true,
                     },
                   ),

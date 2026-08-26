@@ -28,7 +28,6 @@ def make_user(
         username="testuser",
         display_name="Test User",
         is_active=is_active,
-        is_local=False,
         is_admin=is_admin,
     )
 

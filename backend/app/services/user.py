@@ -67,7 +67,7 @@ class UserService:
         )
 
     def requires_initial_setup(self) -> bool:
-        """Return whether the installation still needs its first user."""
+        """Return whether initial account setup is still required."""
 
         return not self._user_repository.exists_any()
 

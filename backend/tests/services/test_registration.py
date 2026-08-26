@@ -70,7 +70,6 @@ def test_registers_regular_user_when_registration_is_open(
     assert user.email == "new@example.com"
 
     assert user.is_active is True
-    assert user.is_local is False
     assert user.is_admin is False
 
     assert user.password_hash is not None
@@ -91,7 +90,6 @@ def test_rejects_duplicate_username(
             username="existing",
             display_name="Existing User",
             is_active=True,
-            is_local=False,
             is_admin=False,
         )
     )
@@ -123,7 +121,6 @@ def test_rejects_duplicate_email(
             email="existing@example.com",
             display_name="Existing User",
             is_active=True,
-            is_local=False,
             is_admin=False,
         )
     )

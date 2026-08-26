@@ -36,7 +36,6 @@ def _create_admin(
         display_name="Administrator",
         password_hash=hash_password("old-password"),
         is_active=is_active,
-        is_local=True,
         is_admin=True,
     )
 
@@ -192,7 +191,6 @@ def test_reset_password_rejects_regular_user(
         display_name="Regular User",
         password_hash=hash_password("old-password"),
         is_active=True,
-        is_local=False,
         is_admin=False,
     )
 

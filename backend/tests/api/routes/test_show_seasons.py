@@ -129,7 +129,6 @@ def create_local_user(
 
     user = User(
         display_name=display_name,
-        is_local=True,
     )
 
     db_session.add(user)

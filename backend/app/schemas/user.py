@@ -13,7 +13,6 @@ class CurrentUserResponse(BaseModel):
     email: str | None
     display_name: str
     is_active: bool
-    is_local: bool
     is_admin: bool
 
 
@@ -73,5 +72,4 @@ class AdminUserResponse(BaseModel):
     email: str | None
     display_name: str
     is_active: bool
-    is_local: bool
     is_admin: bool

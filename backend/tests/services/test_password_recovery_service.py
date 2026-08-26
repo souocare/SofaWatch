@@ -45,7 +45,6 @@ def _create_user(
         display_name="Regular User",
         password_hash=hash_password("old-password"),
         is_active=is_active,
-        is_local=False,
         is_admin=is_admin,
     )
 

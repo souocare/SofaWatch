@@ -38,7 +38,6 @@ def create_local_user(
 
     user = User(
         display_name="Local User",
-        is_local=True,
     )
 
     db_session.add(user)
@@ -57,7 +56,6 @@ def create_user(
 
     user = User(
         display_name=display_name,
-        is_local=False,
     )
 
     db_session.add(user)
@@ -3478,7 +3476,6 @@ def test_list_library_movies_only_returns_current_users_movies(
 
     other_user = User(
         display_name="Other User",
-        is_local=False,
     )
 
     db_session.add(other_user)
@@ -4082,7 +4079,6 @@ def test_delete_movie_watch_event_cannot_delete_another_users_event(
     other_user = User(
         username="other-user",
         display_name="Other User",
-        is_local=False,
         is_active=True,
     )
 

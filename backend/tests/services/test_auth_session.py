@@ -17,7 +17,6 @@ def _create_user(
     user = User(
         username=username,
         display_name="Session User",
-        is_local=False,
     )
 
     db_session.add(user)

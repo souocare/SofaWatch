@@ -31,7 +31,6 @@ def test_get_server_health_requires_admin(
 
     user = User(
         display_name="Regular User",
-        is_local=True,
         is_admin=False,
     )
 
@@ -57,7 +56,6 @@ def test_get_server_health_returns_admin_health_summary(
 
     user = User(
         display_name="Administrator",
-        is_local=True,
         is_admin=True,
     )
 

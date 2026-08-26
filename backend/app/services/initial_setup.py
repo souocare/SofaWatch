@@ -59,7 +59,6 @@ class InitialSetupService:
                 display_name=normalized_display_name,
                 password_hash=hash_password(password),
                 is_active=True,
-                is_local=False,
                 is_admin=True,
             )
 

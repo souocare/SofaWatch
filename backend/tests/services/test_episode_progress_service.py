@@ -42,7 +42,6 @@ def persist_user(
 ) -> User:
     user = User(
         display_name="Test User",
-        is_local=False,
     )
     db_session.add(user)
     db_session.flush()

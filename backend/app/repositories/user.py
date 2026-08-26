@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -59,16 +59,7 @@ class UserRepository:
 
         return user_id is not None
 
-    # def get_local(
-    #     self,
-    # ) -> User | None:
-    #     """Return the legacy local SofaWatch user."""
 
-    #     return self._session.scalar(
-    #         select(User).where(
-    #             User.is_local.is_(True),
-    #         )
-    #     )
 
     def add(
         self,
@@ -92,3 +83,4 @@ class UserRepository:
                 )
             )
         )
+    

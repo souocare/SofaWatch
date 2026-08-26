@@ -215,7 +215,6 @@ const ProfileUser _user = ProfileUser(
   username: 'souocare',
   email: 'goncalo@example.com',
   displayName: 'Gonçalo',
-  isLocal: true,
   isAdmin: true,
 );
 

@@ -77,7 +77,6 @@ def create_local_user(
 
     user = User(
         display_name="Local User",
-        is_local=True,
     )
 
     db_session.add(user)

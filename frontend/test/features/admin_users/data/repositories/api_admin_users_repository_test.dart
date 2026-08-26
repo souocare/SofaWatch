@@ -122,7 +122,6 @@ void main() {
                         'email': 'admin@example.com',
                         'display_name': 'Administrator',
                         'is_active': true,
-                        'is_local': true,
                         'is_admin': true,
                       },
                       <String, dynamic>{
@@ -131,7 +130,6 @@ void main() {
                         'email': null,
                         'display_name': 'Regular User',
                         'is_active': true,
-                        'is_local': false,
                         'is_admin': false,
                       },
                     ],

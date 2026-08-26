@@ -40,7 +40,6 @@ def _create_user(
         display_name="Gonçalo",
         password_hash=hash_password(password),
         is_active=is_active,
-        is_local=False,
     )
 
     db_session.add(user)
@@ -191,7 +190,6 @@ def test_setup_status_reports_existing_installation(
         display_name="Gonçalo",
         password_hash=hash_password("correct-password"),
         is_active=True,
-        is_local=False,
         is_admin=True,
     )
 
@@ -220,6 +218,9 @@ def test_setup_status_reports_setup_required_when_no_users_exist(
     assert response.json() == {
         "setup_required": True,
     }
+
+
+
 
 def test_initial_setup_creates_first_administrator(
     client: TestClient,
@@ -252,8 +253,8 @@ def test_initial_setup_creates_first_administrator(
     assert user.display_name == "Gonçalo"
     assert user.is_admin is True
     assert user.is_active is True
-    assert user.is_local is False
     assert user.password_hash is not None
+
 
 def test_initial_setup_is_closed_after_first_user(
     client: TestClient,
@@ -262,7 +263,6 @@ def test_initial_setup_is_closed_after_first_user(
     existing_user = User(
         username="existing",
         display_name="Existing User",
-        is_local=False,
     )
 
     db_session.add(existing_user)
@@ -881,7 +881,6 @@ def test_logout_all_does_not_revoke_other_users_sessions(
         username="other-user",
         display_name="Other User",
         is_active=True,
-        is_local=False,
     )
 
     db_session.add(
@@ -1800,7 +1799,6 @@ def test_registration_creates_regular_user_when_open(
     assert user.display_name == "New User"
     assert user.email == "new@example.com"
     assert user.is_active is True
-    assert user.is_local is False
     assert user.is_admin is False
     assert user.password_hash is not None
 
@@ -1861,7 +1859,6 @@ def test_registration_rejects_duplicate_username(
             username="existing",
             display_name="Existing User",
             is_active=True,
-            is_local=False,
             is_admin=False,
         )
     )
@@ -1901,7 +1898,6 @@ def test_registration_rejects_duplicate_email(
             email="existing@example.com",
             display_name="Existing User",
             is_active=True,
-            is_local=False,
             is_admin=False,
         )
     )
@@ -1935,7 +1931,6 @@ def test_complete_password_recovery_changes_password(
         display_name="Regular User",
         password_hash=hash_password("old-password"),
         is_active=True,
-        is_local=False,
         is_admin=False,
     )
 
@@ -1984,7 +1979,6 @@ def test_complete_password_recovery_does_not_require_authentication(
         display_name="Regular User",
         password_hash=hash_password("old-password"),
         is_active=True,
-        is_local=False,
         is_admin=False,
     )
 
@@ -2037,7 +2031,6 @@ def test_complete_password_recovery_rejects_used_token(
         display_name="Regular User",
         password_hash=hash_password("old-password"),
         is_active=True,
-        is_local=False,
         is_admin=False,
     )
 
@@ -2086,7 +2079,6 @@ def test_complete_password_recovery_rejects_expired_token(
         display_name="Regular User",
         password_hash=hash_password("old-password"),
         is_active=True,
-        is_local=False,
         is_admin=False,
     )
 
@@ -2133,7 +2125,6 @@ def test_complete_password_recovery_revokes_existing_sessions(
         display_name="Regular User",
         password_hash=hash_password("old-password"),
         is_active=True,
-        is_local=False,
         is_admin=False,
     )
 

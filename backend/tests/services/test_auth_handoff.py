@@ -16,7 +16,6 @@ def user(
         username="souocare",
         display_name="Gonçalo",
         is_active=True,
-        is_local=False,
     )
 
     db_session.add(user)

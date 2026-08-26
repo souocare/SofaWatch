@@ -86,7 +86,6 @@ const List<AdminUser> _users = <AdminUser>[
     email: 'admin@example.com',
     displayName: 'Administrator',
     isActive: true,
-    isLocal: true,
     isAdmin: true,
   ),
   AdminUser(
@@ -95,7 +94,6 @@ const List<AdminUser> _users = <AdminUser>[
     email: 'regular@example.com',
     displayName: 'Regular User',
     isActive: true,
-    isLocal: false,
     isAdmin: false,
   ),
 ];

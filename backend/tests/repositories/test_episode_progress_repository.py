@@ -24,7 +24,6 @@ def create_user(
 
     user = User(
         display_name=display_name,
-        is_local=False,
     )
 
     db_session.add(user)
@@ -1447,7 +1446,6 @@ def test_get_watched_counts_by_show_id_isolated_by_user(
 
     second_user = User(
         display_name="Another User",
-        is_local=False,
     )
 
     db_session.add(

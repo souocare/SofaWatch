@@ -63,12 +63,6 @@ class User(TimestampMixin, Base):
         default=True,
     )
 
-    is_local: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=False,
-    )
-
     is_admin: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -98,7 +92,6 @@ class User(TimestampMixin, Base):
             f"email={self.email!r}, "
             f"display_name={self.display_name!r}, "
             f"is_active={self.is_active!r}, "
-            f"is_local={self.is_local!r}, "
             f"is_admin={self.is_admin!r}"
             ")"
         )

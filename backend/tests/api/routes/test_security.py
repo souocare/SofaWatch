@@ -12,7 +12,6 @@ def test_admin_can_get_security_settings(
     user = User(
         display_name="Administrator",
         is_active=True,
-        is_local=False,
         is_admin=True,
     )
 
@@ -37,7 +36,6 @@ def test_admin_can_enable_open_registration(
     user = User(
         display_name="Administrator",
         is_active=True,
-        is_local=False,
         is_admin=True,
     )
 
@@ -69,7 +67,6 @@ def test_admin_can_disable_open_registration(
     user = User(
         display_name="Administrator",
         is_active=True,
-        is_local=False,
         is_admin=True,
     )
 
@@ -144,7 +141,6 @@ def test_disabling_open_registration_blocks_new_registrations(
         username="administrator",
         display_name="Administrator",
         is_active=True,
-        is_local=False,
         is_admin=True,
     )
 

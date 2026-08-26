@@ -22,7 +22,6 @@ def _create_user(
         username="regular-user",
         display_name="Regular User",
         is_active=True,
-        is_local=False,
         is_admin=False,
     )
 

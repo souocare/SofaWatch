@@ -6,7 +6,6 @@ final class ProfileUser extends Equatable {
     required this.username,
     required this.email,
     required this.displayName,
-    required this.isLocal,
     required this.isAdmin,
   });
 
@@ -14,15 +13,6 @@ final class ProfileUser extends Equatable {
   final String? username;
   final String? email;
   final String displayName;
-
-  /*
-   * Transitional backend information.
-   *
-   * SofaWatch currently operates with a single local user. When real
-   * authentication is introduced, Profile will continue consuming the
-   * current-user endpoint without needing to know how that user was resolved.
-   */
-  final bool isLocal;
 
   /// Whether this user may access administrative SofaWatch functionality.
   ///
@@ -37,7 +27,6 @@ final class ProfileUser extends Equatable {
     String? email,
     bool clearEmail = false,
     String? displayName,
-    bool? isLocal,
     bool? isAdmin,
   }) {
     return ProfileUser(
@@ -45,7 +34,6 @@ final class ProfileUser extends Equatable {
       username: clearUsername ? null : username ?? this.username,
       email: clearEmail ? null : email ?? this.email,
       displayName: displayName ?? this.displayName,
-      isLocal: isLocal ?? this.isLocal,
       isAdmin: isAdmin ?? this.isAdmin,
     );
   }
@@ -56,7 +44,6 @@ final class ProfileUser extends Equatable {
     username,
     email,
     displayName,
-    isLocal,
     isAdmin,
   ];
 }

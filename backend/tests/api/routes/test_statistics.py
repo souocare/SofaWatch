@@ -23,7 +23,6 @@ def create_local_user(
 
     user = User(
         display_name="Local User",
-        is_local=True,
     )
 
     db_session.add(user)
@@ -440,7 +439,6 @@ def test_get_statistics_habits_returns_current_and_longest_streaks(
 
     user = User(
         display_name="Local User",
-        is_local=True,
     )
 
     show = Show(
@@ -588,7 +586,6 @@ def test_get_statistics_habits_returns_zeroes_without_viewing_history(
 
     user = User(
         display_name="Local User",
-        is_local=True,
     )
 
     db_session.add(user)
@@ -621,7 +618,6 @@ def test_get_statistics_habits_keeps_yesterday_streak_alive(
 
     user = User(
         display_name="Local User",
-        is_local=True,
     )
 
     show = Show(

@@ -29,7 +29,6 @@ def create_local_user(
             if is_admin
             else "Regular User"
         ),
-        is_local=True,
         is_admin=is_admin,
     )
 

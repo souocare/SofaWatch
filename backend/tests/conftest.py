@@ -114,23 +114,13 @@ def client(
         yield db_session
 
     def override_get_current_user() -> User:
-        # Preserve compatibility with route tests that explicitly create
-        # the legacy local user as their current-user fixture.
+        # Route tests that explicitly persist a user use the first created
+        # account as the authenticated current-user fixture.
         user = db_session.scalar(
             select(User)
-            .where(User.is_local.is_(True))
+            .order_by(User.created_at)
             .limit(1)
         )
-
-        if user is None:
-            # Multi-user tests may create an authenticated user without
-            # marking it as legacy/local. In those cases, use the first
-            # explicitly-created user.
-            user = db_session.scalar(
-                select(User)
-                .order_by(User.created_at)
-                .limit(1)
-            )
 
         if user is not None:
             return user
@@ -144,7 +134,6 @@ def client(
         user = User(
             display_name="Test User",
             is_active=True,
-            is_local=False,
             is_admin=False,
         )
 

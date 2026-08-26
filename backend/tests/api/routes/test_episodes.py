@@ -111,7 +111,6 @@ def local_user(
 
     user = User(
         display_name="Local User",
-        is_local=True,
     )
 
     db_session.add(user)
@@ -973,7 +972,6 @@ def test_delete_watch_event_cannot_delete_another_users_event(
     other_user = User(
         username="other-user",
         display_name="Other User",
-        is_local=False,
         is_active=True,
     )
 

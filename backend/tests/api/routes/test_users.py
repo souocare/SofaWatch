@@ -33,7 +33,6 @@ def test_get_current_user_returns_local_user(
 
     user = User(
         display_name="Local User",
-        is_local=True,
     )
 
     db_session.add(user)
@@ -54,7 +53,6 @@ def test_get_current_user_returns_local_user(
         "email": None,
         "display_name": "Local User",
         "is_active": True,
-        "is_local": True,
         "is_admin": False,
     }
 
@@ -66,12 +64,10 @@ def test_get_current_user_ignores_non_local_users(
 
     local_user = User(
         display_name="Gonçalo",
-        is_local=True,
     )
 
     other_user = User(
         display_name="Other User",
-        is_local=False,
     )
 
     db_session.add_all(
@@ -93,7 +89,6 @@ def test_get_current_user_ignores_non_local_users(
 
     assert payload["id"] == str(local_user.id)
     assert payload["display_name"] == "Gonçalo"
-    assert payload["is_local"] is True
     assert payload["is_admin"] is False
 
 
@@ -106,7 +101,6 @@ def test_export_current_user_data_downloads_portable_export(
 
     user = User(
         display_name="Gonçalo",
-        is_local=True,
         is_admin=False,
     )
 
@@ -258,7 +252,6 @@ def test_export_current_user_data_does_not_require_admin(
 
     user = User(
         display_name="Regular User",
-        is_local=True,
         is_admin=False,
     )
 
@@ -315,7 +308,6 @@ def test_preview_current_user_data_import_returns_summary(
 
     user = User(
         display_name="Gonçalo",
-        is_local=True,
         is_admin=False,
     )
 
@@ -399,7 +391,6 @@ def test_preview_current_user_data_import_rejects_unknown_format(
     db_session.add(
         User(
             display_name="Gonçalo",
-            is_local=True,
             is_admin=False,
         )
     )
@@ -438,7 +429,6 @@ def test_preview_current_user_data_import_rejects_unsupported_version(
     db_session.add(
         User(
             display_name="Gonçalo",
-            is_local=True,
             is_admin=False,
         )
     )
@@ -475,7 +465,6 @@ def test_import_current_user_data_returns_import_summary(
 
     user = User(
         display_name="Local User",
-        is_local=True,
     )
 
     db_session.add(user)
@@ -544,7 +533,6 @@ def test_import_current_user_data_rejects_invalid_export_version(
 
     user = User(
         display_name="Local User",
-        is_local=True,
     )
 
     db_session.add(user)
@@ -583,7 +571,6 @@ def test_current_user_can_update_display_name(
     user = User(
         username="souocare",
         display_name="Old Display Name",
-        is_local=True,
         is_admin=False,
     )
 
@@ -606,7 +593,6 @@ def test_current_user_can_update_display_name(
         "email": None,
         "display_name": "Gonçalo",
         "is_active": True,
-        "is_local": True,
         "is_admin": False,
     }
 
@@ -623,7 +609,6 @@ def test_update_current_user_display_name_trims_whitespace(
 
     user = User(
         display_name="Old Name",
-        is_local=True,
         is_admin=False,
     )
 
@@ -655,7 +640,6 @@ def test_update_current_user_rejects_blank_display_name(
 
     user = User(
         display_name="Existing Name",
-        is_local=True,
         is_admin=False,
     )
 
@@ -687,7 +671,6 @@ def test_change_current_user_password(
         username="souocare",
         display_name="Gonçalo",
         password_hash=hash_password("current-password"),
-        is_local=True,
     )
 
     db_session.add(user)
@@ -727,7 +710,6 @@ def test_change_current_user_password_rejects_wrong_current_password(
         username="souocare",
         display_name="Gonçalo",
         password_hash=hash_password("current-password"),
-        is_local=True,
     )
 
     db_session.add(user)
@@ -767,7 +749,6 @@ def test_change_current_user_password_rejects_short_new_password(
         username="souocare",
         display_name="Gonçalo",
         password_hash=hash_password("current-password"),
-        is_local=True,
     )
 
     db_session.add(user)
@@ -794,7 +775,6 @@ def test_admin_can_start_regular_user_password_recovery(
         username="administrator",
         display_name="Administrator",
         is_active=True,
-        is_local=True,
         is_admin=True,
     )
 
@@ -802,7 +782,6 @@ def test_admin_can_start_regular_user_password_recovery(
         username="regular-user",
         display_name="Regular User",
         is_active=True,
-        is_local=False,
         is_admin=False,
     )
 
@@ -842,7 +821,6 @@ def test_regular_user_cannot_start_password_recovery(
         username="requesting-user",
         display_name="Requesting User",
         is_active=True,
-        is_local=True,
         is_admin=False,
     )
 
@@ -850,7 +828,6 @@ def test_regular_user_cannot_start_password_recovery(
         username="target-user",
         display_name="Target User",
         is_active=True,
-        is_local=False,
         is_admin=False,
     )
 
@@ -875,7 +852,6 @@ def test_admin_password_recovery_rejects_missing_user(
         username="administrator",
         display_name="Administrator",
         is_active=True,
-        is_local=True,
         is_admin=True,
     )
 
@@ -901,7 +877,6 @@ def test_admin_cannot_start_web_password_recovery_for_administrator(
         username="administrator",
         display_name="Administrator",
         is_active=True,
-        is_local=True,
         is_admin=True,
     )
 
@@ -909,7 +884,6 @@ def test_admin_cannot_start_web_password_recovery_for_administrator(
         username="second-admin",
         display_name="Second Administrator",
         is_active=True,
-        is_local=False,
         is_admin=True,
     )
 
@@ -936,7 +910,6 @@ def test_admin_cannot_start_password_recovery_for_inactive_user(
         username="administrator",
         display_name="Administrator",
         is_active=True,
-        is_local=True,
         is_admin=True,
     )
 
@@ -944,7 +917,6 @@ def test_admin_cannot_start_password_recovery_for_inactive_user(
         username="inactive-user",
         display_name="Inactive User",
         is_active=False,
-        is_local=False,
         is_admin=False,
     )
 
@@ -971,7 +943,6 @@ def test_admin_can_list_users(
         email="admin@example.com",
         display_name="Administrator",
         is_active=True,
-        is_local=True,
         is_admin=True,
     )
 
@@ -980,7 +951,6 @@ def test_admin_can_list_users(
         email="regular@example.com",
         display_name="Regular User",
         is_active=True,
-        is_local=False,
         is_admin=False,
     )
 
@@ -989,7 +959,6 @@ def test_admin_can_list_users(
         email=None,
         display_name="Inactive User",
         is_active=False,
-        is_local=False,
         is_admin=False,
     )
 
@@ -1017,7 +986,6 @@ def test_admin_can_list_users(
             "email": "admin@example.com",
             "display_name": "Administrator",
             "is_active": True,
-            "is_local": True,
             "is_admin": True,
         },
         {
@@ -1026,7 +994,6 @@ def test_admin_can_list_users(
             "email": None,
             "display_name": "Inactive User",
             "is_active": False,
-            "is_local": False,
             "is_admin": False,
         },
         {
@@ -1035,7 +1002,6 @@ def test_admin_can_list_users(
             "email": "regular@example.com",
             "display_name": "Regular User",
             "is_active": True,
-            "is_local": False,
             "is_admin": False,
         },
     ]
@@ -1049,7 +1015,6 @@ def test_regular_user_cannot_list_users(
         username="regular-user",
         display_name="Regular User",
         is_active=True,
-        is_local=True,
         is_admin=False,
     )
 
@@ -1073,7 +1038,6 @@ def test_admin_user_list_does_not_expose_sensitive_fields(
         display_name="Administrator",
         password_hash="sensitive-password-hash",
         is_active=True,
-        is_local=True,
         is_admin=True,
     )
 

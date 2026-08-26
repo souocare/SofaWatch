@@ -7,7 +7,6 @@ final class AdminUser extends Equatable {
     required this.email,
     required this.displayName,
     required this.isActive,
-    required this.isLocal,
     required this.isAdmin,
   });
 
@@ -16,7 +15,6 @@ final class AdminUser extends Equatable {
   final String? email;
   final String displayName;
   final bool isActive;
-  final bool isLocal;
   final bool isAdmin;
 
   @override
@@ -26,7 +24,6 @@ final class AdminUser extends Equatable {
     email,
     displayName,
     isActive,
-    isLocal,
     isAdmin,
   ];
 }

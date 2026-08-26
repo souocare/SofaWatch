@@ -63,7 +63,6 @@ def current_user() -> User:
     return User(
         id=uuid4(),
         display_name="Local User",
-        is_local=True,
     )
 
 

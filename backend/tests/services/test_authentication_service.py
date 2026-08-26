@@ -38,7 +38,6 @@ def test_authenticate_returns_user_for_valid_username_credentials(
         display_name="Gonçalo",
         password_hash=hash_password("correct-password"),
         is_active=True,
-        is_local=False,
     )
 
     user_repository.get_by_username.return_value = user
@@ -69,7 +68,6 @@ def test_authenticate_returns_user_for_valid_email_credentials(
         display_name="Gonçalo",
         password_hash=hash_password("correct-password"),
         is_active=True,
-        is_local=False,
     )
 
     user_repository.get_by_username.return_value = None
@@ -102,7 +100,6 @@ def test_authenticate_normalizes_username(
         display_name="Gonçalo",
         password_hash=hash_password("correct-password"),
         is_active=True,
-        is_local=False,
     )
 
     user_repository.get_by_username.return_value = user
@@ -133,7 +130,6 @@ def test_authenticate_normalizes_email(
         display_name="Gonçalo",
         password_hash=hash_password("correct-password"),
         is_active=True,
-        is_local=False,
     )
 
     user_repository.get_by_username.return_value = None
@@ -167,7 +163,6 @@ def test_authenticate_prefers_username_over_email(
         display_name="Gonçalo",
         password_hash=hash_password("correct-password"),
         is_active=True,
-        is_local=False,
     )
 
     user_repository.get_by_username.return_value = user
@@ -222,7 +217,6 @@ def test_authenticate_returns_none_for_invalid_password(
         display_name="Gonçalo",
         password_hash=hash_password("correct-password"),
         is_active=True,
-        is_local=False,
     )
 
     user_repository.get_by_username.return_value = user
@@ -252,7 +246,6 @@ def test_authenticate_returns_none_for_user_without_password(
         display_name="Gonçalo",
         password_hash=None,
         is_active=True,
-        is_local=True,
     )
 
     user_repository.get_by_username.return_value = user
@@ -283,7 +276,6 @@ def test_authenticate_rejects_inactive_user(
         display_name="Gonçalo",
         password_hash=hash_password("correct-password"),
         is_active=False,
-        is_local=False,
     )
 
     user_repository.get_by_username.return_value = user
@@ -314,7 +306,6 @@ def test_authenticate_rejects_inactive_user_authenticated_by_email(
         display_name="Gonçalo",
         password_hash=hash_password("correct-password"),
         is_active=False,
-        is_local=False,
     )
 
     user_repository.get_by_username.return_value = None

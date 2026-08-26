@@ -29,7 +29,6 @@ def create_user(
 
     user = User(
         display_name=display_name,
-        is_local=False,
     )
 
     db_session.add(user)

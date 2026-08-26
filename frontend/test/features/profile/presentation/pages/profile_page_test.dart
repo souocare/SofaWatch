@@ -3145,7 +3145,6 @@ void main() {
           displayName: 'Regular User',
           username: 'souocare',
           email: 'test@test.pt',
-          isLocal: false,
           isAdmin: false,
         );
 
@@ -4086,7 +4085,6 @@ void main() {
                 email: 'regular@example.com',
                 displayName: 'Regular User',
                 isActive: true,
-                isLocal: false,
                 isAdmin: false,
               ),
             ],
@@ -4112,7 +4110,6 @@ void main() {
         username: 'regular',
         email: 'regular@example.com',
         displayName: 'Regular User',
-        isLocal: false,
         isAdmin: false,
       );
 
@@ -4138,7 +4135,6 @@ void main() {
         username: 'regular',
         email: 'regular@example.com',
         displayName: 'Regular User',
-        isLocal: false,
         isAdmin: false,
       );
 
@@ -4194,7 +4190,6 @@ void main() {
                 email: 'admin@example.com',
                 displayName: 'Administrator',
                 isActive: true,
-                isLocal: false,
                 isAdmin: true,
               ),
             ],
@@ -4233,7 +4228,6 @@ void main() {
                 email: null,
                 displayName: 'Inactive User',
                 isActive: false,
-                isLocal: false,
                 isAdmin: false,
               ),
             ],
@@ -4275,7 +4269,6 @@ void main() {
                 email: 'regular@example.com',
                 displayName: 'Regular User',
                 isActive: true,
-                isLocal: false,
                 isAdmin: false,
               ),
             ],
@@ -4552,7 +4545,6 @@ const ProfileUser _user = ProfileUser(
   username: 'testuser',
   email: 'test@example.com',
   displayName: 'TestDisplay',
-  isLocal: true,
   isAdmin: true,
 );
 
@@ -5482,7 +5474,6 @@ const ProfileUser _regularUser = ProfileUser(
   displayName: 'Regular User',
   username: 'souocare',
   email: 'test@test.pt',
-  isLocal: false,
   isAdmin: false,
 );
 

@@ -7,7 +7,6 @@ final class AdminUserDto {
     required this.email,
     required this.displayName,
     required this.isActive,
-    required this.isLocal,
     required this.isAdmin,
   });
 
@@ -17,7 +16,6 @@ final class AdminUserDto {
     final Object? email = json['email'];
     final Object? displayName = json['display_name'];
     final Object? isActive = json['is_active'];
-    final Object? isLocal = json['is_local'];
     final Object? isAdmin = json['is_admin'];
 
     if (id is! String || id.trim().isEmpty) {
@@ -46,12 +44,6 @@ final class AdminUserDto {
       );
     }
 
-    if (isLocal is! bool) {
-      throw const FormatException(
-        'User response contains an invalid local-user flag.',
-      );
-    }
-
     if (isAdmin is! bool) {
       throw const FormatException(
         'User response contains an invalid administrator flag.',
@@ -70,7 +62,6 @@ final class AdminUserDto {
       },
       displayName: displayName.trim(),
       isActive: isActive,
-      isLocal: isLocal,
       isAdmin: isAdmin,
     );
   }
@@ -80,7 +71,6 @@ final class AdminUserDto {
   final String? email;
   final String displayName;
   final bool isActive;
-  final bool isLocal;
   final bool isAdmin;
 
   AdminUser toDomain() {
@@ -90,7 +80,6 @@ final class AdminUserDto {
       email: email,
       displayName: displayName,
       isActive: isActive,
-      isLocal: isLocal,
       isAdmin: isAdmin,
     );
   }

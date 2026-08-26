@@ -73,7 +73,6 @@ def _admin_user(
         email=email,
         display_name="Administrator",
         is_active=is_active,
-        is_local=True,
         is_admin=True,
     )
 
@@ -83,7 +82,6 @@ def _regular_user() -> User:
         username="regular-user",
         display_name="Regular User",
         is_active=True,
-        is_local=False,
         is_admin=False,
     )
 
