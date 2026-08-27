@@ -195,6 +195,12 @@ Feature-specific repositories and Cubits/BLoCs should normally be created closer
 
 This keeps dependency lifetime and ownership explicit.
 
+Cross-cutting application infrastructure may also include lightweight
+coordination mechanisms such as `ViewingStateChangeNotifier`.
+
+These should coordinate invalidation rather than expose or duplicate
+feature-owned state.
+
 ---
 
 ## Backend Connection
@@ -485,6 +491,40 @@ Global Search uses `SearchBloc`, where behavior includes query changes, debounce
 State objects should be scoped as close as practical to the part of the widget tree that owns them.
 
 Avoid globally providing feature Cubits simply because they are convenient to access.
+
+
+### Cross-Feature State Invalidation
+
+Some backend mutations affect data displayed by multiple independently scoped
+features.
+
+SofaWatch avoids coupling feature Cubits directly to one another. For viewing
+state, successful mutations are announced through a shared
+`ViewingStateChangeNotifier`.
+
+For example:
+
+    Show Details viewing mutation
+              |
+              v
+    ViewingStateChangeNotifier
+          /            \
+         v              v
+       Home           History
+
+Producer features announce only that persisted viewing state changed.
+
+Consumer features decide which of their own server-derived collections need to
+be refreshed.
+
+The notifier does not carry duplicated viewing-domain state and is not a
+replacement for the backend source of truth.
+
+A notification is emitted only after the server mutation succeeds. It is
+emitted before optional local post-mutation read-back so that a successful
+persisted mutation still invalidates other features if a later local refresh
+fails.
+
 
 ### Independent Failure Boundaries
 

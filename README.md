@@ -21,6 +21,8 @@ The goal is to provide a private, self-hosted alternative for managing what you 
 - Rewatch support
 - Show and season details
 - Metadata synchronization
+- Season and show bulk watched actions
+- Previous-episode catch-up when marking later episodes watched
 
 #### Movies
 

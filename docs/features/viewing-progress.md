@@ -119,3 +119,92 @@ For a caught-up show:
 next episode     = null
 next upcoming    = next future episode
 ``` 
+
+
+## Bulk Watched Actions
+
+SofaWatch supports bulk watched mutations at Season and Show level.
+
+### Season
+
+A Season can be marked as watched in a single operation.
+
+Only Episodes that are currently watchable are affected:
+
+- `air_date` must be known;
+- `air_date` must be today or earlier.
+
+Future Episodes and Episodes without a known air date are not marked as watched.
+
+Episodes that are already watched remain unchanged. Bulk operations do not
+create additional watch events for already-watched Episodes and therefore do
+not implicitly create rewatches.
+
+Season zero can still be handled independently where appropriate, but
+Show-level bulk watched operations exclude Specials by default.
+
+### Show
+
+A Show can be marked as watched across all regular Seasons.
+
+The operation:
+
+- excludes Season zero / Specials;
+- includes only aired Episodes with a known air date;
+- leaves future Episodes untouched;
+- leaves Episodes without a known air date untouched;
+- does not create duplicate watch events for Episodes already watched.
+
+The backend owns these eligibility rules. Flutter does not independently
+reimplement them.
+
+## Previous Unwatched Episodes
+
+When a user marks a regular Episode as watched, SofaWatch can determine whether
+earlier regular Episodes remain unwatched.
+
+Only earlier Episodes that:
+
+- belong to regular Seasons;
+- have already aired;
+- have a known air date;
+- remain unwatched;
+
+are considered.
+
+Specials and future Episodes are excluded.
+
+If eligible previous Episodes exist, the client offers the user two choices:
+
+1. mark the selected Episode only; or
+2. mark the eligible previous Episodes and the selected Episode as watched.
+
+Already-watched previous Episodes are never converted into additional
+rewatches.
+
+The catch-up mutation is handled by the backend so eligibility and viewing
+history semantics remain consistent across clients.
+
+## Viewing-State Synchronization
+
+Persisted viewing state is owned by the backend.
+
+After a successful viewing mutation, the Flutter application announces that
+server-owned viewing state has changed. Features that expose viewing-derived
+collections can then refresh their own data independently.
+
+Current consumers include:
+
+- Home viewing sections;
+- History;
+- History Preview.
+
+This keeps features decoupled: Show Details does not directly depend on Home
+or History Cubits.
+
+The notification occurs after the backend mutation succeeds and before
+post-mutation local read-back. Therefore, if the mutation succeeds but a later
+local refresh fails, other loaded features can still refresh from the
+authoritative backend state.
+
+A failed mutation does not emit a viewing-state change notification.

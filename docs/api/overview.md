@@ -334,6 +334,7 @@ Capabilities include areas such as:
 - progress;
 - Watch Next-related information;
 - Upcoming-related information;
+- bulk watched operations across eligible regular Episodes;
 - Seasons.
 
 Local Show routes use internal SofaWatch identity.
@@ -349,6 +350,7 @@ Capabilities include:
 - Season information;
 - Episode listing;
 - progress;
+- bulk watched operations for aired/watchable Episodes;
 - lazy Episode synchronization where applicable.
 
 Season loading/synchronization may be performed independently rather than requiring every Episode during initial Show import.
@@ -364,11 +366,22 @@ Episode resources support:
 - watch-event creation;
 - viewing history;
 - removing individual viewing events;
+- previous-unwatched Episode detection;
+- catch-up mutations that can mark eligible previous Episodes together with
+  the selected Episode.
 - rewatch behavior.
+
 
 Viewing history is event-based.
 
 A rewatch creates a new event rather than overwriting the previous viewing.
+
+Bulk and catch-up watched operations do not create additional watch events for
+Episodes that were already watched.
+
+Eligibility for previous-Episode catch-up and bulk mutations is a backend
+business rule. Clients request the operation rather than independently
+reconstructing the rule.
 
 ---
 

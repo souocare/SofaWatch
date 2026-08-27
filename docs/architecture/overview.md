@@ -277,6 +277,37 @@ Some features preserve previous data during refresh.
 
 Large screens such as Profile should maintain independent failure boundaries so one section can fail without breaking unrelated content.
 
+### Cross-Feature Invalidation
+
+Feature state remains independently scoped even when multiple features derive
+data from the same persisted backend state.
+
+When a successful mutation can affect other loaded features, SofaWatch may use
+a lightweight cross-cutting invalidation signal rather than introducing
+Cubit-to-Cubit dependencies.
+
+Viewing state currently follows this model through
+`ViewingStateChangeNotifier`.
+
+    Viewing Mutation
+          |
+          v
+    Backend Success
+          |
+          v
+    Viewing-State Invalidation
+       /       |       \
+      v        v        v
+    Home    History   Other consumers
+
+The signal carries no duplicated domain state. Each consumer remains
+responsible for refreshing the server-owned collections it displays.
+
+Mutation failure produces no invalidation.
+
+If persistence succeeds but a subsequent local read-back fails, invalidation
+has already occurred because the backend remains authoritative.
+
 ---
 
 ## Design System
@@ -981,7 +1012,8 @@ Planned or exploratory areas include:
 - production deployment guidance
 - stronger multi-worker job locking if needed
 - full Administrator user-management UI
-- coordinated refresh improvements
+- broader coordinated invalidation for additional cross-feature state where
+  real product needs emerge
 - final performance and accessibility audits
 
 These should be introduced only when they solve real product or operational needs.
