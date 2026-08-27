@@ -87,6 +87,7 @@ class EpisodeDetailsService:
             season=EpisodeDetailsSeasonResponse(
                 id=season.id,
                 season_number=season.season_number,
+                title=season.title,
             ),
             show=ShowSummaryResponse.model_validate(
                 show,

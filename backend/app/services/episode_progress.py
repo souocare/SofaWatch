@@ -57,7 +57,7 @@ class EpisodeProgressService:
         user_id: UUID,
         episode_id: UUID,
         watched_at: datetime | None = None,
-    ) -> EpisodeProgress | None:
+    ) -> EpisodeProgressWithWatchCountResponse | None:
         """Record an Episode watch and update its current progress.
 
         An Episode can only be marked as watched when its air date is known
@@ -128,7 +128,18 @@ class EpisodeProgressService:
         self._session.commit()
         self._session.refresh(progress)
 
-        return progress
+        watch_count = self._watch_event_repository.count_by_user_and_episode(
+            user_id=user_id,
+            episode_id=episode_id,
+        )
+
+        return EpisodeProgressWithWatchCountResponse(
+            id=progress.id,
+            episode_id=progress.episode_id,
+            is_watched=progress.is_watched,
+            watched_at=progress.watched_at,
+            watch_count=watch_count,
+        )
 
     def get_previous_unwatched_episodes(
         self,
@@ -356,7 +367,7 @@ class EpisodeProgressService:
         *,
         user_id: UUID,
         episode_id: UUID,
-    ) -> EpisodeProgress | None:
+    ) -> EpisodeProgressWithWatchCountResponse | None:
         """Mark an Episode as not watched.
 
         Returns None when the Episode does not exist locally.
@@ -392,7 +403,18 @@ class EpisodeProgressService:
         self._session.commit()
         self._session.refresh(progress)
 
-        return progress
+        watch_count = self._watch_event_repository.count_by_user_and_episode(
+            user_id=user_id,
+            episode_id=episode_id,
+        )
+
+        return EpisodeProgressWithWatchCountResponse(
+            id=progress.id,
+            episode_id=progress.episode_id,
+            is_watched=progress.is_watched,
+            watched_at=progress.watched_at,
+            watch_count=watch_count,
+        )
 
     def mark_season_watched(
         self,

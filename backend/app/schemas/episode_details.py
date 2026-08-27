@@ -12,6 +12,7 @@ class EpisodeDetailsSeasonResponse(BaseModel):
 
     id: UUID
     season_number: int = Field(ge=0)
+    title: str
 
 
 class EpisodeDetailsProgressResponse(BaseModel):

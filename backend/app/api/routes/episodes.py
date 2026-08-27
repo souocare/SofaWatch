@@ -18,6 +18,7 @@ from app.schemas.episode_progress import (
     EpisodeWatchedRequest,
     EpisodeWatchedWithPreviousResponse,
     PreviousUnwatchedEpisodesResponse,
+    EpisodeProgressWithWatchCountResponse,
 )
 from app.schemas.episode_watch_event import EpisodeWatchEventResponse
 from app.services.episode_progress import EpisodeNotWatchableError
@@ -144,7 +145,7 @@ def get_previous_unwatched_episodes(
 
 @router.post(
     "/{episode_id}/watched",
-    response_model=EpisodeProgressResponse,
+    response_model=EpisodeProgressWithWatchCountResponse,
     summary="Mark episode as watched",
     description="Mark a TV episode as watched for the current user.",
 )
@@ -158,7 +159,7 @@ def mark_episode_watched(
     payload: EpisodeWatchedRequest,
     service: EpisodeProgressServiceDependency,
     current_user: CurrentUserDependency,
-) -> EpisodeProgressResponse:
+) -> EpisodeProgressWithWatchCountResponse:
     """Mark an episode as watched for the current user."""
 
     try:
@@ -232,7 +233,7 @@ def mark_episode_watched_with_previous(
 
 @router.delete(
     "/{episode_id}/watched",
-    response_model=EpisodeProgressResponse,
+    response_model=EpisodeProgressWithWatchCountResponse,
     summary="Mark episode as not watched",
     description="Mark a TV episode as not watched for the current user.",
 )
@@ -245,7 +246,7 @@ def mark_episode_unwatched(
     ],
     service: EpisodeProgressServiceDependency,
     current_user: CurrentUserDependency,
-) -> EpisodeProgressResponse:
+) -> EpisodeProgressWithWatchCountResponse:
     """Mark an episode as not watched for the current user."""
 
     progress = service.mark_unwatched(
