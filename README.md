@@ -1,57 +1,190 @@
 # SofaWatch
 
-**SofaWatch** is a self-hosted companion application for tracking TV shows and movies across web, iOS, and Android.
+**SofaWatch** is a self-hosted companion application for tracking TV shows and movies across Web, iOS, and Android.
 
 The goal is to provide a private, self-hosted alternative for managing what you watch, keeping track of your progress, discovering what to watch next, and maintaining your own viewing history while keeping application data under your control.
 
 > [!NOTE]
-> SofaWatch is currently under active development. Things are being built. 
+> SofaWatch is currently under active development. Features, APIs, and the interface may change as the project evolves.
 
 ## Features
 
-### Currently implemented
+### Implemented
 
-The backend currently supports:
+#### TV Shows
 
-- TV show search through TMDB
-- Importing TV shows into the local database
-- Show, season, and episode metadata
-- Genres and television networks
-- Personal TV show library
-- Library tracking states
-- Watched and unwatched episode tracking
-- Viewing dates
-- Overall and aired viewing progress
-- Caught-up state detection
-- Next aired episode detection
-- Next upcoming episode detection
-- Manual metadata refresh
-- Periodic metadata synchronization
-- Persistent background jobs and execution history
-- User-scoped library and viewing progress
+- TV show library and status management
+- Season and episode tracking
+- Watch progress and Watch Next
+- Upcoming episodes
+- Complete episode viewing history
+- Rewatch support
+- Show and season details
+- Metadata synchronization
+
+#### Movies
+
+- Movie library and watchlist
+- Movie details
+- Watched state and viewing history
+- Rewatch support
+- Movie metadata
+
+#### Search & Discovery
+
+- Global search for TV shows and movies
+- Search filters and pagination
+- Media previews
+- Trending and popular content
+- Genre-based discovery
+- Responsive search experience across Web and mobile
+
+#### Home
+
+- Personal viewing dashboard
+- Weekly viewing summary
+- Continue Watching
+- Premiering Today
+- Upcoming episodes
+- Missed episodes
+- Recent activity
+
+#### Statistics
+
+- Viewing time and activity
+- Episode and movie statistics
+- Rewatch statistics
+- Viewing habits and streaks
+- Content and genre insights
+- Library statistics
+
+#### History
+
+- Episode and movie viewing history
+- Combined chronological history
+- Individual entries for every viewing and rewatch
+- Navigation back to the associated media
+
+#### Authentication & Multi-user
+
+- Multi-user authentication
+- First-run administrator setup
+- Web sessions using HttpOnly cookies
+- Mobile authentication with access and rotating refresh credentials
+- Session management and revocation
+- Password changes and recovery
+- Configurable public registration
+- Mobile-to-Web authentication handoff
+
+#### Administration
+
+- Server health and diagnostics
+- Database and storage diagnostics
+- Background jobs
+- Application logs
+- Import / Export
+- Security settings
+- Administrator-only functionality
+
+#### Self-hosting
+
+- FastAPI backend
+- Flutter Web, iOS, and Android clients
+- SQLite database
+- Alembic migrations
+- Background worker
+- TMDB metadata integration
+
+---
 
 ### Planned
 
-SofaWatch is intended to grow into a complete TV and movie companion, including:
+The roadmap is intentionally flexible. Some of these features are exploratory and may change or be removed as SofaWatch evolves.
 
-- Movie tracking
-- Native iOS and Android applications
-- Responsive web application
-- Personalized home and discovery experiences
-- Ratings and favorites
-- Viewing statistics and history
-- Recommendations
-- Notifications
-- Multi-user support
-- Authentication and first-run administrator setup
-- Internationalization
-- Additional metadata and service integrations
+#### Metadata Providers
 
-The exact scope may evolve as the project develops.
+- TVDB integration
+- Provider-independent external identifiers
+- TMDB / TVDB metadata matching
+- Metadata precedence and fallback rules
+- IMDb integration or another legitimate external ratings source
+- External ratings alongside personal SofaWatch ratings
+
+#### Discovery
+
+- Personalized recommendations
+- More Like This
+- Because You Watched...
+- Hidden Gems
+- Coming Soon
+- More advanced personal discovery
+
+#### TV & Movie Tracking
+
+- Additional Upcoming interactions
+- Improved coordinated refresh behavior
+- Additional progress and caught-up handling
+- More advanced movie discovery
+- Further responsive improvements
+
+#### Statistics
+
+- Backlog statistics
+- Estimated future watch time
+- Catch-up speed
+- Additional long-term viewing insights
+
+#### User Administration
+
+- Full administrator user management
+- Activate and deactivate accounts
+- Session management improvements
+- Desktop/Web administration interface
+
+#### Localization
+
+- English and Portuguese localization
+- Language preferences
+- Localized dates and numbers
+- Metadata provider language integration
+
+#### Backups
+
+- SQLite backup strategy
+- Backup status and history
+- Restore workflow
+- Backup storage diagnostics
+
+#### Notifications
+
+Potential future notifications for:
+
+- Upcoming episodes
+- New seasons
+- Background job failures
+- Administrative events
+
+#### Self-hosting & Production
+
+- Production deployment guidance
+- HTTPS / reverse proxy configuration
+- Backup and restore procedures
+- Worker deployment
+- Web and mobile release builds
+- Upgrade and migration procedures
+
+#### Quality
+
+- Accessibility audit
+- Responsive design audit
+- Performance audit
+- Integration testing
+- Architecture review
+- Stable release preparation
 
 ## Architecture
 
-SofaWatch is designed around a self-hosted backend API consumed by web and native clients.
+SofaWatch follows a layered architecture designed to keep business rules independent from external providers and presentation frameworks.
 
 ```text
                     ┌─────────────────────┐
@@ -73,23 +206,47 @@ SofaWatch is designed around a self-hosted backend API consumed by web and nativ
         └───────────┘   └─────────────┘  └───────────┘
 ```
 
-The backend follows a layered architecture:
+### Backend
 
 ```text
-API Routes
-    ↓
+API / Routes
+     |
+     v
 Services
-    ↓
+     |
+     v
 Repositories
-    ↓
-SQLAlchemy Models
-    ↓
-Database
+     |
+     v
+Database / External Providers
 ```
 
-External integrations are isolated behind provider components rather than being accessed directly from API routes or persistence code.
+The backend is the source of truth for persisted state and application business rules.
 
-More information is available in the [architecture documentation](docs/architecture/overview.md).
+External metadata providers are kept separate from the SofaWatch domain wherever possible.
+
+### Frontend
+
+The Flutter application follows a Feature First structure with a lightweight Clean Architecture approach:
+
+```text
+feature/
+├── presentation/
+├── application/
+├── domain/
+└── data/
+```
+
+Domain and application logic are shared across platforms whenever possible, while presentation adapts to Web and mobile.
+
+For more detailed architecture and development information:
+
+- [Backend documentation](backend/README.md)
+- [Frontend documentation](frontend/README.md)
+
+> The detailed backend and frontend documentation is being expanded as development continues.
+
+---
 
 ## Tech Stack
 
@@ -98,82 +255,232 @@ More information is available in the [architecture documentation](docs/architect
 - Python
 - FastAPI
 - SQLAlchemy
-- Alembic
 - Pydantic
+- Alembic
 - SQLite
-- HTTPX
 - pytest
 - Ruff
 
-### Metadata
-
-- TMDB — current TV metadata provider
-- TVDB — planned integration
-
 ### Frontend
 
-The client is planned around:
+- Flutter
+- Dart
+- flutter_bloc
+- go_router
+- Dio
 
-- React Native
-- Expo
-- Web, iOS, and Android targets
+### Metadata
 
-Frontend development is the next major phase of the project.
+Currently:
+
+- TMDB
+
+Planned / under evaluation:
+
+- TVDB
+- IMDb or another appropriate external ratings source
+
+---
 
 ## Project Structure
 
 ```text
 SofaWatch/
-├── backend/       # FastAPI API and server-side logic
-├── frontend/      # React Native / Expo client
-├── docs/          # Technical and feature documentation
-├── scripts/       # Development and maintenance scripts
-├── .env.example   # Example environment configuration
-├── LICENSE
+├── backend/
+│   ├── app/
+│   ├── alembic/
+│   └── tests/
+│
+├── frontend/
+│   ├── lib/
+│   └── test/
+│
+├── docs/
+│
 └── README.md
 ```
 
 For backend-specific information, see [`backend/README.md`](backend/README.md).
 
+For frontend-specific information, see [`frontend/README.md`](frontend/README.md).
+
 For technical documentation, see [`docs/README.md`](docs/README.md).
+
+---
+
+<!--
+## Screenshots
+
+Screenshots will be added as the interface approaches a more stable state.
+
+### Home
+
+### Shows
+
+### Show Details
+
+### Movies
+
+### Explore
+
+### Search
+
+### Profile
+
+### Mobile
+
+Screenshots should be stored under:
+
+docs/assets/screenshots/
+-->
 
 ## Getting Started
 
-SofaWatch is not yet considered production-ready, but the backend can already be run locally for development.
+SofaWatch is currently under active development. These instructions describe a development environment rather than a final production deployment.
 
 Clone the repository:
 
 ```bash
 git clone https://github.com/souocare/SofaWatch.git
-cd SofaWatch/backend
 ```
 
-Create and activate a Python virtual environment:
+### Backend
+
+From the `backend` directory, activate the virtual environment:
 
 ```bash
-python -m venv .sofawatchvenv
 source .sofawatchvenv/bin/activate
 ```
 
-Install the backend:
+If the virtual environment is stored at the project root:
 
 ```bash
-pip install -e .
+source ../.sofawatchvenv/bin/activate
 ```
 
-Configure the required environment variables using `.env.example`, then apply the database migrations:
+Apply database migrations:
 
 ```bash
 alembic upgrade head
 ```
 
-Start the development API:
+Start the API:
 
 ```bash
-uvicorn app.main:app --reload
+uvicorn app.main:app \
+  --reload \
+  --host 0.0.0.0 \
+  --port 8000
 ```
 
-For complete setup instructions, see the [Development Setup](docs/development/setup.md).
+The API is available at:
+
+```text
+http://127.0.0.1:8000
+```
+
+Interactive API documentation:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+### Background Worker
+
+Run the worker in a separate terminal:
+
+```bash
+python -m app.jobs.worker
+```
+
+### Flutter Web
+
+From the `frontend` directory:
+
+```bash
+flutter run -d chrome \
+  --dart-define=SOFAWATCH_SERVER_URL=http://127.0.0.1:8000
+```
+
+### iOS Simulator
+
+```bash
+flutter run -d "<iPhone Simulator>" \
+  --dart-define=SOFAWATCH_SERVER_URL=http://127.0.0.1:8000
+```
+
+### Android Emulator
+
+```bash
+flutter run -d "<Android Emulator>" \
+  --dart-define=SOFAWATCH_SERVER_URL=http://10.0.2.2:8000
+```
+
+### Physical Devices
+
+For physical iOS or Android devices, the backend must be reachable through the computer's LAN address.
+
+Start FastAPI listening on all interfaces:
+
+```bash
+uvicorn app.main:app \
+  --reload \
+  --host 0.0.0.0 \
+  --port 8000
+```
+
+Then run Flutter using the computer's LAN IP:
+
+```bash
+flutter run -d "<device>" \
+  --dart-define=SOFAWATCH_SERVER_URL=http://<LAN-IP>:8000
+```
+
+---
+
+## Database
+
+SofaWatch uses **SQLite** as its database.
+
+SQLite is an intentional choice for the self-hosted deployment model rather than a temporary development database.
+
+Schema changes are managed through Alembic migrations.
+
+---
+
+## Metadata Providers
+
+TMDB is currently the primary metadata provider for search, discovery, TV shows, movies, seasons, episodes, genres, images, and related metadata.
+
+SofaWatch maintains its own internal entity IDs after media is imported.
+
+External identifiers such as TMDB, future TVDB IDs, and IMDb IDs are treated as provider identifiers rather than SofaWatch's primary domain identifiers.
+
+The long-term architecture is intended to support multiple providers without coupling the application domain to any individual provider.
+
+---
+
+## Authentication
+
+SofaWatch supports multiple users and persistent authenticated sessions.
+
+Web clients use server-managed sessions through HttpOnly cookies.
+
+Native clients use short-lived access tokens together with rotating refresh credentials.
+
+A new installation enters a first-run setup flow where the first account becomes the initial Administrator.
+
+Public registration is disabled by default and can be enabled by an Administrator.
+
+---
+
+## API
+
+The API is versioned under:
+
+```text
+/api/v1
+```
 
 ## API Documentation
 
@@ -195,129 +502,47 @@ provides ReDoc.
 
 See the [API Overview](docs/api/overview.md) for an overview of the available resources.
 
-## Database
-
-SQLite is the default database.
-
-Database access is implemented using SQLAlchemy, while schema changes are managed through Alembic migrations.
-
-Apply all pending migrations with:
-
-```bash
-alembic upgrade head
-```
-
-Create a migration after changing database models:
-
-```bash
-alembic revision --autogenerate -m "describe change"
-```
-
-Generated migrations should always be reviewed before being applied.
-
-See:
-
-- [Database Architecture](docs/architecture/database.md)
-- [Database Migrations](docs/development/migrations.md)
-
-## Metadata
-
-TMDB is currently the primary metadata source.
-
-Metadata is imported into the local database rather than being fetched directly by clients. This allows SofaWatch to maintain its own application state independently from external providers.
-
-Synchronization currently covers:
-
-- TV shows
-- Seasons
-- Episodes
-- Genres
-- Networks
-
-Local metadata overrides, such as locally managed artwork paths, are preserved when external metadata is refreshed.
-
-Ended and canceled TV shows are excluded from automatic metadata refreshes but can still be refreshed manually.
-
-See [Metadata Synchronization](docs/features/metadata-sync.md) for more information.
-
 ## Background Jobs
 
-SofaWatch includes a persistent background job system for recurring server-side work.
+SofaWatch includes a persistent background job system for recurring server-side tasks, including metadata synchronization.
 
-Jobs track their:
-
-- Status
-- Schedule
-- Last execution
-- Execution duration
-- Next execution
-- Errors
-- Execution history
-- Structured execution results
-
-The first scheduled job handles TV metadata synchronization.
-
-The scheduler checks for metadata synchronization every eight hours. Automatic synchronization respects the metadata refresh policy and does not force updates for shows that should not be refreshed.
-
-Ended and canceled TV shows are excluded from automatic metadata refreshes but remain available for manual refresh.
-
-Metadata synchronization runs record how many shows were checked, refreshed, skipped, or failed. These structured results are stored with each execution history entry and remain available even when a run finishes with partial failures.
+Jobs provide scheduling, execution history, status tracking, structured results, and failure reporting.
 
 See [Background Jobs](docs/architecture/background-jobs.md) for details.
 
 ## Testing
 
-The backend has automated tests covering:
-
-- API routes
-- Services
-- Repositories
-- Models
-- External providers
-- Library management
-- Viewing progress
-- Metadata synchronization
-- Background job execution and scheduling
-
-Run the complete test suite from the `backend` directory:
+### Backend
 
 ```bash
-python -m pytest
+pytest -q
 ```
 
-External provider calls are mocked where appropriate so the test suite does not depend on live TMDB responses.
+### Frontend
+
+```bash
+flutter test
+```
+
+Development normally follows an incremental workflow:
+
+1. Make a focused change.
+2. Run focused tests.
+3. Run static analysis/linting where applicable.
+4. Run the relevant full test suite.
+5. Fix regressions before continuing.
 
 See [Testing](docs/development/testing.md) for more information.
 
 ## Development
 
-SofaWatch follows a layered backend architecture intended to keep responsibilities separated and the codebase maintainable.
+Detailed backend and frontend development information is maintained alongside each application layer:
 
-In general:
+- [Backend development](backend/README.md)
+- [Frontend development](frontend/README.md)
+- [Technical documentation](docs/README.md)
 
-```text
-Routes
-  ↓
-Services
-  ↓
-Repositories
-  ↓
-Database
-```
-
-External APIs are accessed through provider abstractions:
-
-```text
-Services
-  ↓
-Providers
-  ↓
-External APIs
-```
-
-Recurring tasks are handled independently through the background job infrastructure.
-
-Ruff is used for linting and formatting:
+Backend linting and formatting use Ruff:
 
 ```bash
 ruff check .
@@ -329,47 +554,45 @@ ruff format .
 
 Additional development documentation is available under [`docs/development/`](docs/development/).
 
-## Documentation
+## Development Principles
 
-Project documentation lives under [`docs/`](docs/).
+SofaWatch is developed around a few core principles:
 
-Useful starting points include:
+- Clean Architecture
+- SOLID
+- DRY
+- KISS
+- Feature First organization
+- Backend as the source of truth
+- Provider-independent domain models
+- Incremental development
+- Automated regression testing
+- Responsive UI
+- Avoiding unnecessary abstractions and premature optimization
 
-- [Documentation Index](docs/README.md)
-- [Architecture Overview](docs/architecture/overview.md)
-- [Backend Architecture](docs/architecture/backend.md)
-- [Database Architecture](docs/architecture/database.md)
-- [Background Jobs](docs/architecture/background-jobs.md)
-- [API Overview](docs/api/overview.md)
-- [Development Setup](docs/development/setup.md)
-- [Testing](docs/development/testing.md)
-- [Database Migrations](docs/development/migrations.md)
-
-Feature-specific documentation is available under [`docs/features/`](docs/features/).
+---
 
 ## Project Status
 
-SofaWatch is in active development.
+SofaWatch is under active development.
 
-Development so far has focused on building the backend foundation:
+The core application already supports TV and movie tracking, watch history and rewatches, global search, discovery, statistics, multi-user authentication, administration, background jobs, and responsive Flutter clients.
 
-```text
-TV metadata
-      ↓
-Local database
-      ↓
-Personal library
-      ↓
-Viewing progress
-      ↓
-Metadata synchronization
-      ↓
-Background jobs
-```
+The project should still be considered **pre-release software**.
 
-The next major development phase is the frontend, starting with the application foundation and integration with the existing backend API.
+Features and architecture may continue to evolve before the first stable release.
 
-SofaWatch should currently be considered development software rather than a production-ready release.
+---
+
+## Documentation
+
+More detailed documentation is separated by application layer:
+
+- [Backend](backend/README.md)
+- [Frontend](frontend/README.md)
+- [Technical documentation](docs/README.md)
+
+Additional architecture, deployment, and development documentation may be added under `docs/` as the project approaches a stable release.
 
 ## Contributing
 
@@ -379,15 +602,16 @@ Issues, ideas, bug reports, and contributions are welcome.
 
 Technical documentation is available under [`docs/`](docs/), and backend-specific development information is available in [`backend/README.md`](backend/README.md).
 
-
 ## Acknowledgements
 
 SofaWatch would not exist without the projects and services that inspired and support its development.
 
 ### TMDB
 
-SofaWatch uses the TMDB API as its current source for TV show, season, episode, genre, network, and related metadata.
+SofaWatch uses the TMDB API as its current source for TV show, movie, season, episode, genre, image, and related metadata.
+
 This product uses the TMDB API but is not endorsed or certified by TMDB.
+
 TMDB data, images, and other content remain subject to TMDB's own terms and policies.
 
 ### Inspiration
@@ -400,7 +624,6 @@ SofaWatch has been inspired by existing TV and movie tracking applications, part
 SofaWatch is an independent project and is not affiliated with, endorsed by, or associated with TMDB, TV Time, or Sofa.
 
 Special thanks to the developers and communities behind these projects for helping inspire SofaWatch.
-
 
 ## License
 
