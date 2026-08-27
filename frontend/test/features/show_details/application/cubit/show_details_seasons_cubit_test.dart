@@ -1755,6 +1755,227 @@ void main() {
         await cubit.close();
       },
     );
+    test('loads previous unwatched Episode count', () async {
+      final _FakeShowDetailsSeasonsRepository repository =
+          _FakeShowDetailsSeasonsRepository()
+            ..previousUnwatchedEpisodeCount = 4;
+
+      final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      final int count = await cubit.getPreviousUnwatchedEpisodeCount(
+        episodeId: 'episode-2-uuid',
+      );
+
+      expect(count, 4);
+
+      expect(repository.getPreviousUnwatchedEpisodeCountCalls, 1);
+      expect(repository.requestedPreviousUnwatchedEpisodeIds, <String>[
+        'episode-2-uuid',
+      ]);
+
+      await cubit.close();
+    });
+    test(
+      'marks Episode with previous Episodes and refreshes progress',
+      () async {
+        final _FakeShowDetailsSeasonsRepository repository =
+            _FakeShowDetailsSeasonsRepository()..previousMarkedCount = 1;
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        await cubit.loadInitialProgress();
+
+        await cubit.toggleSeason(1);
+
+        expect(cubit.state[1]?.episodeProgressById['episode-2-uuid'], isNull);
+
+        final int getSeasonsProgressBefore = repository.getSeasonsProgressCalls;
+
+        await cubit.markEpisodeWatchedWithPrevious(
+          seasonNumber: 1,
+          episodeId: 'episode-2-uuid',
+        );
+
+        expect(repository.markEpisodeWatchedWithPreviousCalls, 1);
+
+        expect(repository.requestedMarkEpisodeWatchedWithPreviousIds, <String>[
+          'episode-2-uuid',
+        ]);
+
+        expect(
+          repository.getSeasonsProgressCalls,
+          getSeasonsProgressBefore + 1,
+        );
+
+        expect(
+          cubit.state[1]?.episodeProgressById['episode-1-uuid']?.isWatched,
+          isTrue,
+        );
+
+        expect(
+          cubit.state[1]?.episodeProgressById['episode-2-uuid']?.isWatched,
+          isTrue,
+        );
+
+        expect(
+          cubit.state[1]?.operationForEpisode('episode-2-uuid').isUpdating,
+          isFalse,
+        );
+
+        await cubit.close();
+      },
+    );
+    test(
+      'catch-up refreshes Episode progress only for already loaded Seasons',
+      () async {
+        final _FakeShowDetailsSeasonsRepository repository =
+            _FakeShowDetailsSeasonsRepository()..previousMarkedCount = 1;
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        await cubit.loadInitialProgress();
+
+        await cubit.toggleSeason(1);
+
+        repository.requestedEpisodeProgressSeasonIds.clear();
+        repository.getEpisodeProgressCalls = 0;
+
+        await cubit.markEpisodeWatchedWithPrevious(
+          seasonNumber: 1,
+          episodeId: 'episode-2-uuid',
+        );
+
+        expect(repository.requestedEpisodeProgressSeasonIds, <String>[
+          'season-1-uuid',
+        ]);
+
+        expect(repository.getEpisodeProgressCalls, 1);
+
+        /*
+     * Season 2 was never opened, therefore its Episode rows must not
+     * be loaded solely because another Episode was marked watched.
+     */
+        expect(cubit.state[2]?.hasLoadedEpisodes ?? false, isFalse);
+
+        await cubit.close();
+      },
+    );
+    test(
+      'catch-up refreshes Episode progress for every loaded Season',
+      () async {
+        final _FakeShowDetailsSeasonsRepository repository =
+            _FakeShowDetailsSeasonsRepository()..previousMarkedCount = 1;
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        await cubit.loadInitialProgress();
+
+        await cubit.toggleSeason(1);
+        await cubit.toggleSeason(2);
+
+        repository.requestedEpisodeProgressSeasonIds.clear();
+        repository.getEpisodeProgressCalls = 0;
+
+        await cubit.markEpisodeWatchedWithPrevious(
+          seasonNumber: 2,
+          episodeId: 'episode-3-uuid',
+        );
+
+        expect(repository.requestedEpisodeProgressSeasonIds, <String>[
+          'season-1-uuid',
+          'season-2-uuid',
+        ]);
+
+        expect(repository.getEpisodeProgressCalls, 2);
+
+        await cubit.close();
+      },
+    );
+    test('does not catch up an Episode that is already watched', () async {
+      final _FakeShowDetailsSeasonsRepository repository =
+          _FakeShowDetailsSeasonsRepository();
+
+      final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      await cubit.toggleSeason(1);
+
+      expect(
+        cubit.state[1]?.episodeProgressById['episode-1-uuid']?.isWatched,
+        isTrue,
+      );
+
+      await cubit.markEpisodeWatchedWithPrevious(
+        seasonNumber: 1,
+        episodeId: 'episode-1-uuid',
+      );
+
+      expect(repository.markEpisodeWatchedWithPreviousCalls, 0);
+
+      await cubit.close();
+    });
+    test('retries failed Episode catch-up operation', () async {
+      final _FakeShowDetailsSeasonsRepository repository =
+          _FakeShowDetailsSeasonsRepository()
+            ..failMarkEpisodeWatchedWithPreviousOnce = true;
+
+      final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      await cubit.toggleSeason(1);
+
+      await cubit.markEpisodeWatchedWithPrevious(
+        seasonNumber: 1,
+        episodeId: 'episode-2-uuid',
+      );
+
+      final ShowDetailsEpisodeOperation failedOperation = cubit.state[1]!
+          .operationForEpisode('episode-2-uuid');
+
+      expect(failedOperation.hasFailed, isTrue);
+
+      expect(
+        failedOperation.intent,
+        ShowDetailsEpisodeOperationIntent.catchUpWithPrevious,
+      );
+
+      expect(repository.markEpisodeWatchedWithPreviousCalls, 1);
+
+      await cubit.retryEpisodeUpdate(
+        seasonNumber: 1,
+        episodeId: 'episode-2-uuid',
+      );
+
+      expect(repository.markEpisodeWatchedWithPreviousCalls, 2);
+
+      expect(
+        cubit.state[1]!.operationForEpisode('episode-2-uuid').hasFailed,
+        isFalse,
+      );
+
+      expect(
+        cubit.state[1]!.operationForEpisode('episode-2-uuid').isUpdating,
+        isFalse,
+      );
+
+      await cubit.close();
+    });
   });
 }
 
@@ -1864,6 +2085,11 @@ final class _FakeShowDetailsSeasonsRepository
   int getEpisodesCalls = 0;
   int syncEpisodesCalls = 0;
   int getSeasonProgressCalls = 0;
+  int getPreviousUnwatchedEpisodeCountCalls = 0;
+  int markEpisodeWatchedWithPreviousCalls = 0;
+
+  int previousUnwatchedEpisodeCount = 0;
+  int previousMarkedCount = 0;
 
   int getEpisodeProgressCalls = 0;
 
@@ -1879,6 +2105,13 @@ final class _FakeShowDetailsSeasonsRepository
 
   final List<String> requestedProgressSeasonIds = <String>[];
   bool seasonMarkedWatched = false;
+
+  bool failPreviousUnwatchedCheck = false;
+  bool failMarkEpisodeWatchedWithPrevious = false;
+
+  final List<String> requestedPreviousUnwatchedEpisodeIds = <String>[];
+  final List<String> requestedMarkEpisodeWatchedWithPreviousIds = <String>[];
+  bool failMarkEpisodeWatchedWithPreviousOnce = false;
 
   @override
   Future<ShowDetailsSeasonsBootstrap> resolveLocalSeasons({
@@ -2104,6 +2337,40 @@ final class _FakeShowDetailsSeasonsRepository
       caughtUp: true,
     );
   }
+
+  @override
+  Future<int> getPreviousUnwatchedEpisodeCount({
+    required String episodeId,
+  }) async {
+    getPreviousUnwatchedEpisodeCountCalls++;
+    requestedPreviousUnwatchedEpisodeIds.add(episodeId);
+
+    if (failPreviousUnwatchedCheck) {
+      throw const AppException.connection();
+    }
+
+    return previousUnwatchedEpisodeCount;
+  }
+
+  @override
+  Future<int> markEpisodeWatchedWithPrevious({
+    required String episodeId,
+    DateTime? watchedAt,
+  }) async {
+    markEpisodeWatchedWithPreviousCalls++;
+    requestedMarkEpisodeWatchedWithPreviousIds.add(episodeId);
+
+    if (failMarkEpisodeWatchedWithPrevious ||
+        failMarkEpisodeWatchedWithPreviousOnce) {
+      failMarkEpisodeWatchedWithPreviousOnce = false;
+
+      throw const AppException.connection();
+    }
+
+    seasonMarkedWatched = true;
+
+    return previousMarkedCount;
+  }
 }
 
 final class _ControlledShowDetailsSeasonsRepository
@@ -2227,6 +2494,23 @@ final class _ControlledShowDetailsSeasonsRepository
     required String episodeId,
     required String eventId,
   }) async {}
+
+  @override
+  Future<int> getPreviousUnwatchedEpisodeCount({required String episodeId}) {
+    throw UnsupportedError(
+      'getPreviousUnwatchedEpisodeCount is not used by this test repository.',
+    );
+  }
+
+  @override
+  Future<int> markEpisodeWatchedWithPrevious({
+    required String episodeId,
+    DateTime? watchedAt,
+  }) {
+    throw UnsupportedError(
+      'markEpisodeWatchedWithPrevious is not used by this test repository.',
+    );
+  }
 
   @override
   Future<ShowDetailsSeasonProgress> getSeasonProgress({
@@ -2415,6 +2699,23 @@ final class _ManySeasonsRepository implements ShowDetailsSeasonsRepository {
   }
 
   @override
+  Future<int> getPreviousUnwatchedEpisodeCount({required String episodeId}) {
+    throw UnsupportedError(
+      'getPreviousUnwatchedEpisodeCount is not used by this test repository.',
+    );
+  }
+
+  @override
+  Future<int> markEpisodeWatchedWithPrevious({
+    required String episodeId,
+    DateTime? watchedAt,
+  }) {
+    throw UnsupportedError(
+      'markEpisodeWatchedWithPrevious is not used by this test repository.',
+    );
+  }
+
+  @override
   Future<ShowDetailsEpisodeProgress> markEpisodeWatched({
     required String episodeId,
     DateTime? watchedAt,
@@ -2589,6 +2890,23 @@ final class _WatchEventRemovalRepository
 
   @override
   Future<void> markShowWatched({required String showId}) async {}
+
+  @override
+  Future<int> getPreviousUnwatchedEpisodeCount({required String episodeId}) {
+    throw UnsupportedError(
+      'getPreviousUnwatchedEpisodeCount is not used by this test repository.',
+    );
+  }
+
+  @override
+  Future<int> markEpisodeWatchedWithPrevious({
+    required String episodeId,
+    DateTime? watchedAt,
+  }) {
+    throw UnsupportedError(
+      'markEpisodeWatchedWithPrevious is not used by this test repository.',
+    );
+  }
 
   @override
   Future<List<ShowDetailsEpisodeProgress>> getEpisodeProgress({

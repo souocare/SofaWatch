@@ -16,6 +16,8 @@ from app.schemas.episode_details import EpisodeDetailsResponse
 from app.schemas.episode_progress import (
     EpisodeProgressResponse,
     EpisodeWatchedRequest,
+    EpisodeWatchedWithPreviousResponse,
+    PreviousUnwatchedEpisodesResponse,
 )
 from app.schemas.episode_watch_event import EpisodeWatchEventResponse
 from app.services.episode_progress import EpisodeNotWatchableError
@@ -93,6 +95,50 @@ def get_episode_details(
     return details
 
 
+@router.get(
+    "/{episode_id}/previous-unwatched",
+    response_model=PreviousUnwatchedEpisodesResponse,
+    summary="Check previous unwatched episodes",
+    description=(
+        "Return the number of aired regular Episodes before the requested "
+        "Episode that are not currently marked as watched for the current user. "
+        "Specials are excluded."
+    ),
+)
+def get_previous_unwatched_episodes(
+    episode_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV episode identifier.",
+        ),
+    ],
+    service: EpisodeProgressServiceDependency,
+    current_user: CurrentUserDependency,
+) -> PreviousUnwatchedEpisodesResponse:
+    """Return the number of eligible previous unwatched Episodes."""
+
+    try:
+        result = service.get_previous_unwatched_episodes(
+            user_id=current_user.id,
+            episode_id=episode_id,
+        )
+    except EpisodeNotWatchableError as error:
+        raise APIError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="episode_cannot_be_watched",
+            message="TV episode cannot be marked as watched yet.",
+        ) from error
+
+    if result is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="episode_not_found",
+            message="TV episode not found.",
+        )
+
+    return result
+
+
 @router.post(
     "/{episode_id}/watched",
     response_model=EpisodeProgressResponse,
@@ -133,6 +179,52 @@ def mark_episode_watched(
         )
 
     return progress
+
+
+@router.post(
+    "/{episode_id}/watched-with-previous",
+    response_model=EpisodeWatchedWithPreviousResponse,
+    summary="Mark episode and previous episodes as watched",
+    description=(
+        "Mark the requested Episode and every eligible previous aired regular "
+        "Episode as watched for the current user. Specials and already watched "
+        "Episodes are excluded."
+    ),
+)
+def mark_episode_watched_with_previous(
+    episode_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV episode identifier.",
+        ),
+    ],
+    payload: EpisodeWatchedRequest,
+    service: EpisodeProgressServiceDependency,
+    current_user: CurrentUserDependency,
+) -> EpisodeWatchedWithPreviousResponse:
+    """Mark a target Episode and eligible previous Episodes as watched."""
+
+    try:
+        result = service.mark_watched_with_previous(
+            user_id=current_user.id,
+            episode_id=episode_id,
+            watched_at=payload.watched_at,
+        )
+    except EpisodeNotWatchableError as error:
+        raise APIError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="episode_cannot_be_watched",
+            message="TV episode cannot be marked as watched yet.",
+        ) from error
+
+    if result is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="episode_not_found",
+            message="TV episode not found.",
+        )
+
+    return result
 
 
 @router.delete(

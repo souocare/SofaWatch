@@ -1174,6 +1174,177 @@ void main() {
         ),
       );
     });
+    test('loads previous unwatched Episode count', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                expect(options.method, 'GET');
+                expect(
+                  options.path,
+                  '/episodes/episode-3-uuid/previous-unwatched',
+                );
+
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <String, dynamic>{
+                      'episode_id': 'episode-3-uuid',
+                      'previous_unwatched_count': 4,
+                    },
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiShowDetailsSeasonsRepository repository =
+          ApiShowDetailsSeasonsRepository(
+            ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+          );
+
+      final int count = await repository.getPreviousUnwatchedEpisodeCount(
+        episodeId: 'episode-3-uuid',
+      );
+
+      expect(count, 4);
+    });
+    test(
+      'maps invalid previous unwatched Episode response to invalidData',
+      () async {
+        final Dio dio = Dio();
+
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onRequest:
+                (RequestOptions options, RequestInterceptorHandler handler) {
+                  handler.resolve(
+                    Response<Map<String, dynamic>>(
+                      requestOptions: options,
+                      statusCode: 200,
+                      data: <String, dynamic>{
+                        'episode_id': 'wrong-episode-uuid',
+                        'previous_unwatched_count': 4,
+                      },
+                    ),
+                  );
+                },
+          ),
+        );
+
+        final ApiShowDetailsSeasonsRepository repository =
+            ApiShowDetailsSeasonsRepository(
+              ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+            );
+
+        expect(
+          repository.getPreviousUnwatchedEpisodeCount(
+            episodeId: 'episode-3-uuid',
+          ),
+          throwsA(
+            isA<AppException>().having(
+              (AppException error) => error.type,
+              'type',
+              AppExceptionType.invalidData,
+            ),
+          ),
+        );
+      },
+    );
+    test('marks Episode and previous Episodes watched', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                expect(options.method, 'POST');
+                expect(
+                  options.path,
+                  '/episodes/episode-3-uuid/watched-with-previous',
+                );
+
+                expect(options.data, <String, dynamic>{
+                  'watched_at': '2026-08-27T20:30:00.000Z',
+                });
+
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <String, dynamic>{
+                      'progress': <String, dynamic>{
+                        'id': 'progress-3-uuid',
+                        'episode_id': 'episode-3-uuid',
+                        'is_watched': true,
+                        'watched_at': '2026-08-27T20:30:00Z',
+                      },
+                      'previous_marked_count': 4,
+                    },
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiShowDetailsSeasonsRepository repository =
+          ApiShowDetailsSeasonsRepository(
+            ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+          );
+
+      final int previousMarkedCount = await repository
+          .markEpisodeWatchedWithPrevious(
+            episodeId: 'episode-3-uuid',
+            watchedAt: DateTime.utc(2026, 8, 27, 20, 30),
+          );
+
+      expect(previousMarkedCount, 4);
+    });
+    test('maps invalid Episode catch-up response to invalidData', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <String, dynamic>{
+                      'progress': <String, dynamic>{
+                        'id': 'progress-3-uuid',
+                        'episode_id': 'wrong-episode-uuid',
+                        'is_watched': true,
+                        'watched_at': '2026-08-27T20:30:00Z',
+                      },
+                      'previous_marked_count': 4,
+                    },
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiShowDetailsSeasonsRepository repository =
+          ApiShowDetailsSeasonsRepository(
+            ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+          );
+
+      expect(
+        repository.markEpisodeWatchedWithPrevious(episodeId: 'episode-3-uuid'),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
   });
   test('synchronizes and maps Season Episodes', () async {
     final Dio dio = Dio();

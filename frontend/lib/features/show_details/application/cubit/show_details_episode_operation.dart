@@ -5,6 +5,7 @@ enum ShowDetailsEpisodeOperationStatus { idle, updating, failure }
 
 enum ShowDetailsEpisodeOperationIntent {
   setWatchedState,
+  catchUpWithPrevious,
   rewatch,
   removeLatestViewing,
   removeAllViewings,

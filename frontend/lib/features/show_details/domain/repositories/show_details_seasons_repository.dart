@@ -31,6 +31,13 @@ abstract interface class ShowDetailsSeasonsRepository {
     required String seasonId,
   });
 
+  Future<int> getPreviousUnwatchedEpisodeCount({required String episodeId});
+
+  Future<int> markEpisodeWatchedWithPrevious({
+    required String episodeId,
+    DateTime? watchedAt,
+  });
+
   Future<ShowDetailsEpisodeProgress> markEpisodeWatched({
     required String episodeId,
     DateTime? watchedAt,

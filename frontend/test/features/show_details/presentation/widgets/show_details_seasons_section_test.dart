@@ -2010,6 +2010,332 @@ void main() {
       await operationCubit.close();
       await seasonsCubit.close();
     });
+    testWidgets(
+      'marks only the Episode immediately when there are no previous unwatched Episodes',
+      (WidgetTester tester) async {
+        final _PreviousEpisodesRepository repository =
+            _PreviousEpisodesRepository(previousUnwatchedCount: 0);
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            cubit: cubit,
+            seasons: const <ShowDetailsSeason>[_seasonOne],
+          ),
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('show-details-season-toggle-1')),
+        );
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>(
+              'show-details-episode-watched-episode-2-uuid',
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(repository.previousCheckCalls, 1);
+        expect(repository.checkedEpisodeIds, <String>['episode-2-uuid']);
+
+        expect(repository.markWatchedCalls, 1);
+        expect(repository.markWithPreviousCalls, 0);
+
+        expect(
+          find.byKey(
+            const ValueKey<String>('show-details-previous-unwatched-title'),
+          ),
+          findsNothing,
+        );
+
+        await cubit.close();
+      },
+    );
+    testWidgets(
+      'shows previous Episodes confirmation when earlier Episodes are unwatched',
+      (WidgetTester tester) async {
+        final _PreviousEpisodesRepository repository =
+            _PreviousEpisodesRepository(previousUnwatchedCount: 3);
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            cubit: cubit,
+            seasons: const <ShowDetailsSeason>[_seasonOne],
+          ),
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('show-details-season-toggle-1')),
+        );
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>(
+              'show-details-episode-watched-episode-2-uuid',
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(
+            const ValueKey<String>('show-details-previous-unwatched-title'),
+          ),
+          findsOneWidget,
+        );
+
+        expect(
+          find.text(
+            '3 previous episodes aired before this one and are still marked as unwatched.',
+          ),
+          findsOneWidget,
+        );
+
+        expect(
+          find.text(
+            'Specials (Season 0) are not included. Only episodes that have already aired are considered.',
+          ),
+          findsOneWidget,
+        );
+
+        expect(repository.markWatchedCalls, 0);
+        expect(repository.markWithPreviousCalls, 0);
+
+        await cubit.close();
+      },
+    );
+    testWidgets(
+      'marks only the selected Episode when choosing Only this episode',
+      (WidgetTester tester) async {
+        final _PreviousEpisodesRepository repository =
+            _PreviousEpisodesRepository(previousUnwatchedCount: 3);
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            cubit: cubit,
+            seasons: const <ShowDetailsSeason>[_seasonOne],
+          ),
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('show-details-season-toggle-1')),
+        );
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>(
+              'show-details-episode-watched-episode-2-uuid',
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('show-details-mark-only-this-episode'),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(repository.markWatchedCalls, 1);
+        expect(repository.markedEpisodeIds, <String>['episode-2-uuid']);
+
+        expect(repository.markWithPreviousCalls, 0);
+
+        await cubit.close();
+      },
+    );
+    testWidgets(
+      'marks selected and previous Episodes when choosing Include previous episodes',
+      (WidgetTester tester) async {
+        final _PreviousEpisodesRepository repository =
+            _PreviousEpisodesRepository(previousUnwatchedCount: 3);
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            cubit: cubit,
+            seasons: const <ShowDetailsSeason>[_seasonOne],
+          ),
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('show-details-season-toggle-1')),
+        );
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>(
+              'show-details-episode-watched-episode-2-uuid',
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('show-details-mark-with-previous')),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(repository.markWatchedCalls, 0);
+        expect(repository.markWithPreviousCalls, 1);
+
+        expect(repository.markedWithPreviousEpisodeIds, <String>[
+          'episode-2-uuid',
+        ]);
+
+        final IconButton watchedButton = tester.widget<IconButton>(
+          find.byKey(
+            const ValueKey<String>(
+              'show-details-episode-watched-episode-2-uuid',
+            ),
+          ),
+        );
+
+        expect(watchedButton.tooltip, 'Mark as not watched');
+
+        await cubit.close();
+      },
+    );
+    testWidgets(
+      'does not update Episodes when previous Episodes confirmation is cancelled',
+      (WidgetTester tester) async {
+        final _PreviousEpisodesRepository repository =
+            _PreviousEpisodesRepository(previousUnwatchedCount: 2);
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            cubit: cubit,
+            seasons: const <ShowDetailsSeason>[_seasonOne],
+          ),
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('show-details-season-toggle-1')),
+        );
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>(
+              'show-details-episode-watched-episode-2-uuid',
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('show-details-mark-with-previous-cancel'),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(repository.markWatchedCalls, 0);
+        expect(repository.markWithPreviousCalls, 0);
+
+        await cubit.close();
+      },
+    );
+    testWidgets(
+      'shows safe failure when checking previous unwatched Episodes fails',
+      (WidgetTester tester) async {
+        final _PreviousEpisodesRepository repository =
+            _PreviousEpisodesRepository(
+              previousUnwatchedCount: 2,
+              failPreviousCheck: true,
+            );
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            cubit: cubit,
+            seasons: const <ShowDetailsSeason>[_seasonOne],
+          ),
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('show-details-season-toggle-1')),
+        );
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>(
+              'show-details-episode-watched-episode-2-uuid',
+            ),
+          ),
+        );
+
+        await tester.pump();
+
+        expect(
+          find.byKey(
+            const ValueKey<String>(
+              'show-details-previous-unwatched-check-failure',
+            ),
+          ),
+          findsOneWidget,
+        );
+
+        expect(
+          find.text('Could not check previous episodes. Please try again.'),
+          findsOneWidget,
+        );
+
+        expect(repository.markWatchedCalls, 0);
+        expect(repository.markWithPreviousCalls, 0);
+
+        await cubit.close();
+      },
+    );
   });
 }
 
@@ -2269,6 +2595,21 @@ base class _FakeShowDetailsSeasonsRepository
   }
 
   @override
+  Future<int> getPreviousUnwatchedEpisodeCount({
+    required String episodeId,
+  }) async {
+    return 0;
+  }
+
+  @override
+  Future<int> markEpisodeWatchedWithPrevious({
+    required String episodeId,
+    DateTime? watchedAt,
+  }) async {
+    return 0;
+  }
+
+  @override
   Future<ShowDetailsSeasonProgress> markSeasonWatched({
     required String seasonId,
   }) {
@@ -2307,6 +2648,107 @@ base class _FakeShowDetailsSeasonsRepository
 
   @override
   Future<void> deleteAllEpisodeWatchEvents({required String episodeId}) async {}
+}
+
+final class _PreviousEpisodesRepository
+    extends _FakeShowDetailsSeasonsRepository {
+  _PreviousEpisodesRepository({
+    this.previousUnwatchedCount = 0,
+    this.failPreviousCheck = false,
+  });
+
+  int previousUnwatchedCount;
+  bool failPreviousCheck;
+
+  int previousCheckCalls = 0;
+  int markWatchedCalls = 0;
+  int markWithPreviousCalls = 0;
+
+  final List<String> checkedEpisodeIds = <String>[];
+  final List<String> markedEpisodeIds = <String>[];
+  final List<String> markedWithPreviousEpisodeIds = <String>[];
+
+  bool episodeTwoWasMarkedWatched = false;
+  bool catchUpWasPerformed = false;
+
+  @override
+  Future<int> getPreviousUnwatchedEpisodeCount({
+    required String episodeId,
+  }) async {
+    previousCheckCalls++;
+    checkedEpisodeIds.add(episodeId);
+
+    if (failPreviousCheck) {
+      throw const AppException.connection();
+    }
+
+    return previousUnwatchedCount;
+  }
+
+  @override
+  Future<ShowDetailsEpisodeProgress> markEpisodeWatched({
+    required String episodeId,
+    DateTime? watchedAt,
+  }) async {
+    markWatchedCalls++;
+    markedEpisodeIds.add(episodeId);
+
+    if (episodeId == 'episode-2-uuid') {
+      episodeTwoWasMarkedWatched = true;
+    }
+
+    return ShowDetailsEpisodeProgress(
+      id: 'progress-$episodeId',
+      episodeId: episodeId,
+      isWatched: true,
+      watchCount: 1,
+      watchedAt: watchedAt ?? DateTime.utc(2026, 8, 27, 20),
+    );
+  }
+
+  @override
+  Future<int> markEpisodeWatchedWithPrevious({
+    required String episodeId,
+    DateTime? watchedAt,
+  }) async {
+    markWithPreviousCalls++;
+    markedWithPreviousEpisodeIds.add(episodeId);
+
+    catchUpWasPerformed = true;
+    episodeTwoWasMarkedWatched = true;
+
+    return previousUnwatchedCount;
+  }
+
+  @override
+  Future<List<ShowDetailsEpisodeProgress>> getEpisodeProgress({
+    required String seasonId,
+  }) async {
+    if (seasonId != 'season-1-uuid') {
+      return super.getEpisodeProgress(seasonId: seasonId);
+    }
+
+    if (catchUpWasPerformed) {
+      return <ShowDetailsEpisodeProgress>[
+        ShowDetailsEpisodeProgress(
+          id: 'progress-1-uuid',
+          episodeId: 'episode-1-uuid',
+          isWatched: true,
+          watchCount: 1,
+          watchedAt: DateTime.utc(2026, 8, 10, 12),
+        ),
+        ShowDetailsEpisodeProgress(
+          id: 'progress-2-uuid',
+          episodeId: 'episode-2-uuid',
+          isWatched: true,
+          watchCount: 1,
+          watchedAt: DateTime.utc(2026, 8, 27, 20),
+        ),
+      ];
+    }
+
+    return super.getEpisodeProgress(seasonId: seasonId);
+  }
 }
 
 final class _SeasonWatchedRepository extends _FakeShowDetailsSeasonsRepository {

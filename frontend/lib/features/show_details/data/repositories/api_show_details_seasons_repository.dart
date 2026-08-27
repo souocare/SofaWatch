@@ -228,6 +228,91 @@ final class ApiShowDetailsSeasonsRepository
   }
 
   @override
+  Future<int> getPreviousUnwatchedEpisodeCount({
+    required String episodeId,
+  }) async {
+    try {
+      final Response<dynamic> response = await _apiClient.get<dynamic>(
+        '/episodes/$episodeId/previous-unwatched',
+      );
+
+      final Object? data = response.data;
+
+      if (data is! Map<String, dynamic>) {
+        throw const FormatException(
+          'Invalid previous unwatched Episodes response.',
+        );
+      }
+
+      final Object? returnedEpisodeId = data['episode_id'];
+      final Object? previousUnwatchedCount = data['previous_unwatched_count'];
+
+      if (returnedEpisodeId is! String ||
+          returnedEpisodeId.isEmpty ||
+          returnedEpisodeId != episodeId ||
+          previousUnwatchedCount is! int ||
+          previousUnwatchedCount < 0) {
+        throw const FormatException(
+          'Invalid previous unwatched Episodes data.',
+        );
+      }
+
+      return previousUnwatchedCount;
+    } on AppException {
+      rethrow;
+    } catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  @override
+  Future<int> markEpisodeWatchedWithPrevious({
+    required String episodeId,
+    DateTime? watchedAt,
+  }) async {
+    try {
+      final Response<dynamic> response = await _apiClient.post<dynamic>(
+        '/episodes/$episodeId/watched-with-previous',
+        data: <String, dynamic>{
+          'watched_at': watchedAt?.toUtc().toIso8601String(),
+        },
+      );
+
+      final Object? data = response.data;
+
+      if (data is! Map<String, dynamic>) {
+        throw const FormatException('Invalid Episode catch-up response.');
+      }
+
+      final Object? progress = data['progress'];
+      final Object? previousMarkedCount = data['previous_marked_count'];
+
+      if (progress is! Map<String, dynamic> ||
+          previousMarkedCount is! int ||
+          previousMarkedCount < 0) {
+        throw const FormatException('Invalid Episode catch-up data.');
+      }
+
+      final Object? returnedEpisodeId = progress['episode_id'];
+      final Object? isWatched = progress['is_watched'];
+
+      if (returnedEpisodeId is! String ||
+          returnedEpisodeId.isEmpty ||
+          returnedEpisodeId != episodeId ||
+          isWatched is! bool ||
+          !isWatched) {
+        throw const FormatException('Invalid Episode catch-up progress.');
+      }
+
+      return previousMarkedCount;
+    } on AppException {
+      rethrow;
+    } catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
+
+  @override
   Future<ShowDetailsEpisodeProgress> markEpisodeWatched({
     required String episodeId,
     DateTime? watchedAt,

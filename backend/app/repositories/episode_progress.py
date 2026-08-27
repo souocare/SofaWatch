@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from uuid import UUID
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.enums import LibraryStatus
@@ -88,6 +88,93 @@ class EpisodeProgressRepository:
                 EpisodeProgress.user_id == user_id,
                 EpisodeProgress.episode_id == episode_id,
             )
+        )
+
+    def list_by_user_and_episode_ids(
+        self,
+        *,
+        user_id: UUID,
+        episode_ids: list[UUID],
+    ) -> list[EpisodeProgress]:
+        """Return progress entries belonging to a user for multiple Episodes."""
+
+        if not episode_ids:
+            return []
+
+        statement = select(EpisodeProgress).where(
+            EpisodeProgress.user_id == user_id,
+            EpisodeProgress.episode_id.in_(episode_ids),
+        )
+
+        return list(
+            self._session.scalars(
+                statement,
+            ).all()
+        )
+
+    def list_previous_unwatched_aired_episodes(
+        self,
+        *,
+        user_id: UUID,
+        show_id: UUID,
+        target_season_number: int,
+        target_episode_number: int,
+        as_of: date,
+    ) -> list[Episode]:
+        """Return aired regular Episodes before a target Episode that remain unwatched.
+
+        Ordering follows the natural TV-series order:
+
+        - earlier regular Seasons first;
+        - then earlier Episodes inside the target Season.
+
+        Specials are deliberately excluded.
+
+        Only Episodes with a known air date on or before ``as_of`` are eligible.
+        Episodes already watched by the requested user are excluded.
+        """
+
+        watched_progress = (
+            select(EpisodeProgress.id)
+            .where(
+                EpisodeProgress.user_id == user_id,
+                EpisodeProgress.episode_id == Episode.id,
+                EpisodeProgress.is_watched.is_(True),
+            )
+            .exists()
+        )
+
+        statement = (
+            select(Episode)
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .where(
+                Season.show_id == show_id,
+                Season.season_number > 0,
+                Episode.air_date.is_not(None),
+                Episode.air_date <= as_of,
+                or_(
+                    Season.season_number < target_season_number,
+                    (
+                        (Season.season_number == target_season_number)
+                        & (Episode.episode_number < target_episode_number)
+                    ),
+                ),
+                ~watched_progress,
+            )
+            .order_by(
+                Season.season_number.asc(),
+                Episode.episode_number.asc(),
+                Episode.id.asc(),
+            )
+        )
+
+        return list(
+            self._session.scalars(
+                statement,
+            ).all()
         )
 
     def list_by_user_and_season(

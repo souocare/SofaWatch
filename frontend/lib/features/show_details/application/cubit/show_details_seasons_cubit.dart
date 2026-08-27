@@ -267,6 +267,117 @@ final class ShowDetailsSeasonsCubit
     await markSeasonWatched(seasonNumber: seasonNumber);
   }
 
+  Future<int> getPreviousUnwatchedEpisodeCount({required String episodeId}) {
+    return _repository.getPreviousUnwatchedEpisodeCount(episodeId: episodeId);
+  }
+
+  Future<void> markEpisodeWatchedWithPrevious({
+    required int seasonNumber,
+    required String episodeId,
+  }) async {
+    final ShowDetailsSeasonState current =
+        state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+    final ShowDetailsEpisodeOperation currentOperation = current
+        .operationForEpisode(episodeId);
+
+    if (currentOperation.isUpdating) {
+      return;
+    }
+
+    final ShowDetailsEpisodeProgress? currentProgress =
+        current.episodeProgressById[episodeId];
+
+    /*
+   * Catch-up is only initiated from the normal "Mark as watched"
+   * action for an unwatched Episode.
+   *
+   * It must never become another Rewatch path.
+   */
+    if (currentProgress?.isWatched ?? false) {
+      return;
+    }
+
+    _setSeasonState(
+      seasonNumber,
+      current.copyWith(
+        episodeOperationsById: <String, ShowDetailsEpisodeOperation>{
+          ...current.episodeOperationsById,
+          episodeId: const ShowDetailsEpisodeOperation.updating(
+            targetWatched: true,
+            intent: ShowDetailsEpisodeOperationIntent.catchUpWithPrevious,
+          ),
+        },
+      ),
+    );
+
+    try {
+      await _repository.markEpisodeWatchedWithPrevious(episodeId: episodeId);
+
+      await _refreshProgressAfterEpisodeCatchUp();
+
+      if (isClosed) {
+        return;
+      }
+
+      final ShowDetailsSeasonState latest =
+          state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+      _setSeasonState(
+        seasonNumber,
+        latest.copyWith(
+          episodeOperationsById: <String, ShowDetailsEpisodeOperation>{
+            ...latest.episodeOperationsById,
+            episodeId: const ShowDetailsEpisodeOperation.idle(),
+          },
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      _setEpisodeCatchUpFailure(
+        seasonNumber: seasonNumber,
+        episodeId: episodeId,
+        error: error,
+      );
+    } catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      _setEpisodeCatchUpFailure(
+        seasonNumber: seasonNumber,
+        episodeId: episodeId,
+        error: AppException.unknown(originalError: error),
+      );
+    }
+  }
+
+  void _setEpisodeCatchUpFailure({
+    required int seasonNumber,
+    required String episodeId,
+    required AppException error,
+  }) {
+    final ShowDetailsSeasonState latest =
+        state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+    _setSeasonState(
+      seasonNumber,
+      latest.copyWith(
+        episodeOperationsById: <String, ShowDetailsEpisodeOperation>{
+          ...latest.episodeOperationsById,
+          episodeId: ShowDetailsEpisodeOperation.failure(
+            error,
+            targetWatched: true,
+            intent: ShowDetailsEpisodeOperationIntent.catchUpWithPrevious,
+          ),
+        },
+      ),
+    );
+  }
+
   Future<void> markEpisodeWatched({
     required int seasonNumber,
     required String episodeId,
@@ -534,6 +645,13 @@ final class ShowDetailsSeasonsCubit
           return;
         }
 
+      case ShowDetailsEpisodeOperationIntent.catchUpWithPrevious:
+        /*
+   * Catch-up has its own mutation flow because it may update Episodes
+   * across multiple Seasons.
+   */
+        return;
+
       case ShowDetailsEpisodeOperationIntent.rewatch:
         /*
      * Rewatch only makes sense for an Episode that is already watched.
@@ -688,6 +806,12 @@ final class ShowDetailsSeasonsCubit
           intent: intent,
         );
 
+      case ShowDetailsEpisodeOperationIntent.catchUpWithPrevious:
+        await markEpisodeWatchedWithPrevious(
+          seasonNumber: seasonNumber,
+          episodeId: episodeId,
+        );
+
       case ShowDetailsEpisodeOperationIntent.rewatch:
         await _updateEpisodeWatchedState(
           seasonNumber: seasonNumber,
@@ -709,6 +833,81 @@ final class ShowDetailsSeasonsCubit
           episodeId: episodeId,
         );
     }
+  }
+
+  Future<void> _refreshProgressAfterEpisodeCatchUp() async {
+    final ShowDetailsSeasonsBootstrap bootstrap =
+        _bootstrap ??
+        await _repository.resolveLocalSeasons(showTmdbId: _showTmdbId);
+
+    _bootstrap = bootstrap;
+
+    /*
+   * Catch-up may affect the target Season and any earlier regular Season.
+   *
+   * Refresh all aggregate Season progress in one request so collapsed
+   * Seasons immediately display the correct progress as well.
+   */
+    final List<ShowDetailsSeasonProgress> seasonProgressItems =
+        await _repository.getSeasonsProgress(showId: bootstrap.showId);
+
+    final Map<String, ShowDetailsSeasonProgress> progressBySeasonId =
+        <String, ShowDetailsSeasonProgress>{
+          for (final ShowDetailsSeasonProgress progress in seasonProgressItems)
+            progress.seasonId: progress,
+        };
+
+    final Map<int, List<ShowDetailsEpisodeProgress>> loadedEpisodeProgress =
+        <int, List<ShowDetailsEpisodeProgress>>{};
+
+    /*
+   * Only refresh Episode-level progress for Seasons whose Episode rows have
+   * already been loaded.
+   *
+   * Collapsed/unloaded Seasons only need their aggregate progress.
+   */
+    for (final ShowDetailsLocalSeason localSeason in bootstrap.seasons) {
+      final ShowDetailsSeasonState current =
+          state[localSeason.seasonNumber] ?? const ShowDetailsSeasonState();
+
+      if (!current.hasLoadedEpisodes) {
+        continue;
+      }
+
+      loadedEpisodeProgress[localSeason.seasonNumber] = await _repository
+          .getEpisodeProgress(seasonId: localSeason.id);
+    }
+
+    if (isClosed) {
+      return;
+    }
+
+    final Map<int, ShowDetailsSeasonState> nextState =
+        <int, ShowDetailsSeasonState>{...state};
+
+    for (final ShowDetailsLocalSeason localSeason in bootstrap.seasons) {
+      final ShowDetailsSeasonState current =
+          nextState[localSeason.seasonNumber] ?? const ShowDetailsSeasonState();
+
+      final ShowDetailsSeasonProgress? seasonProgress =
+          progressBySeasonId[localSeason.id];
+
+      final List<ShowDetailsEpisodeProgress>? episodeProgress =
+          loadedEpisodeProgress[localSeason.seasonNumber];
+
+      nextState[localSeason.seasonNumber] = current.copyWith(
+        progress: seasonProgress,
+        episodeProgressById: episodeProgress == null
+            ? current.episodeProgressById
+            : <String, ShowDetailsEpisodeProgress>{
+                for (final ShowDetailsEpisodeProgress progress
+                    in episodeProgress)
+                  progress.episodeId: progress,
+              },
+      );
+    }
+
+    emit(nextState);
   }
 
   Future<void> toggleSeason(int seasonNumber) async {

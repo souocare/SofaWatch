@@ -1139,9 +1139,10 @@ class _EpisodeStatusButton extends StatelessWidget {
           IconButton(
             key: ValueKey<String>('show-details-episode-watched-${episode.id}'),
             onPressed: () {
-              context.read<ShowDetailsSeasonsCubit>().markEpisodeWatched(
+              _handleEpisodeMarkWatched(
+                context,
                 seasonNumber: seasonNumber,
-                episodeId: episode.id,
+                episode: episode,
               );
             },
             tooltip: 'Mark as watched',
@@ -1177,6 +1178,263 @@ class _EpisodeStatusButton extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+enum _EpisodeMarkWatchedChoice { onlyThisEpisode, includePrevious }
+
+Future<void> _handleEpisodeMarkWatched(
+  BuildContext context, {
+  required int seasonNumber,
+  required ShowDetailsEpisode episode,
+}) async {
+  final ShowDetailsSeasonsCubit cubit = context.read<ShowDetailsSeasonsCubit>();
+
+  /*
+   * Do not start another action for the same Episode while an existing
+   * mutation is still running.
+   */
+  final ShowDetailsSeasonState currentState =
+      cubit.state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+  if (currentState.operationForEpisode(episode.id).isUpdating) {
+    return;
+  }
+
+  int previousUnwatchedCount;
+
+  try {
+    previousUnwatchedCount = await cubit.getPreviousUnwatchedEpisodeCount(
+      episodeId: episode.id,
+    );
+  } on AppException {
+    if (!context.mounted) {
+      return;
+    }
+
+    _showPreviousEpisodeCheckFailure(context);
+
+    return;
+  } catch (_) {
+    if (!context.mounted) {
+      return;
+    }
+
+    _showPreviousEpisodeCheckFailure(context);
+
+    return;
+  }
+
+  if (!context.mounted) {
+    return;
+  }
+
+  /*
+   * Nothing earlier needs attention, so preserve the normal one-click
+   * "Mark as watched" behavior.
+   */
+  if (previousUnwatchedCount == 0) {
+    await cubit.markEpisodeWatched(
+      seasonNumber: seasonNumber,
+      episodeId: episode.id,
+    );
+
+    return;
+  }
+
+  final _EpisodeMarkWatchedChoice? choice = await _showEpisodeMarkWatchedChoice(
+    context,
+    previousUnwatchedCount: previousUnwatchedCount,
+  );
+
+  if (choice == null || !context.mounted) {
+    return;
+  }
+
+  /*
+   * State may have changed while the confirmation UI was open.
+   *
+   * Check again before starting the mutation so repeated taps cannot create
+   * overlapping operations.
+   */
+  final ShowDetailsSeasonState latestState =
+      cubit.state[seasonNumber] ?? const ShowDetailsSeasonState();
+
+  if (latestState.operationForEpisode(episode.id).isUpdating) {
+    return;
+  }
+
+  switch (choice) {
+    case _EpisodeMarkWatchedChoice.onlyThisEpisode:
+      await cubit.markEpisodeWatched(
+        seasonNumber: seasonNumber,
+        episodeId: episode.id,
+      );
+
+    case _EpisodeMarkWatchedChoice.includePrevious:
+      await cubit.markEpisodeWatchedWithPrevious(
+        seasonNumber: seasonNumber,
+        episodeId: episode.id,
+      );
+  }
+}
+
+void _showPreviousEpisodeCheckFailure(BuildContext context) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      const SnackBar(
+        key: ValueKey<String>('show-details-previous-unwatched-check-failure'),
+        content: Text('Could not check previous episodes. Please try again.'),
+      ),
+    );
+}
+
+Future<_EpisodeMarkWatchedChoice?> _showEpisodeMarkWatchedChoice(
+  BuildContext context, {
+  required int previousUnwatchedCount,
+}) async {
+  final bool useBottomSheet =
+      MediaQuery.sizeOf(context).width < AppBreakpoints.tablet;
+
+  if (useBottomSheet) {
+    return showModalBottomSheet<_EpisodeMarkWatchedChoice>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return _EpisodeMarkWatchedOptions(
+          previousUnwatchedCount: previousUnwatchedCount,
+        );
+      },
+    );
+  }
+
+  return showDialog<_EpisodeMarkWatchedChoice>(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: _EpisodeMarkWatchedOptions(
+            previousUnwatchedCount: previousUnwatchedCount,
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _EpisodeMarkWatchedOptions extends StatelessWidget {
+  const _EpisodeMarkWatchedOptions({required this.previousUnwatchedCount});
+
+  final int previousUnwatchedCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final String episodeLabel = previousUnwatchedCount == 1
+        ? '1 previous episode'
+        : '$previousUnwatchedCount previous episodes';
+
+    return SingleChildScrollView(
+      child: Padding(
+        padding: AppSpacing.cardPadding,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'Previous episodes are unwatched',
+              key: const ValueKey<String>(
+                'show-details-previous-unwatched-title',
+              ),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            Text(
+              '$episodeLabel aired before this one and '
+              '${previousUnwatchedCount == 1 ? 'is' : 'are'} '
+              'still marked as unwatched.',
+              key: const ValueKey<String>(
+                'show-details-previous-unwatched-description',
+              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            Text(
+              'Specials (Season 0) are not included. Only episodes that '
+              'have already aired are considered.',
+              key: const ValueKey<String>(
+                'show-details-previous-unwatched-rules',
+              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+
+            ListTile(
+              key: const ValueKey<String>(
+                'show-details-mark-only-this-episode',
+              ),
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.check_circle_outline_rounded),
+              title: const Text('Only this episode'),
+              subtitle: const Text('Leave the previous episodes unchanged.'),
+              onTap: () {
+                Navigator.of(
+                  context,
+                ).pop(_EpisodeMarkWatchedChoice.onlyThisEpisode);
+              },
+            ),
+
+            ListTile(
+              key: const ValueKey<String>('show-details-mark-with-previous'),
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.done_all_rounded),
+              title: Text(
+                previousUnwatchedCount == 1
+                    ? 'Include previous episode'
+                    : 'Include previous episodes',
+              ),
+              subtitle: Text(
+                previousUnwatchedCount == 1
+                    ? 'Mark the previous episode and this episode as watched.'
+                    : 'Mark all $previousUnwatchedCount previous episodes '
+                          'and this episode as watched.',
+              ),
+              onTap: () {
+                Navigator.of(
+                  context,
+                ).pop(_EpisodeMarkWatchedChoice.includePrevious);
+              },
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                key: const ValueKey<String>(
+                  'show-details-mark-with-previous-cancel',
+                ),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Cancel'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

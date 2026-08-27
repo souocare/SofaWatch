@@ -1571,3 +1571,231 @@ def test_get_episode_details_returns_404_when_episode_does_not_exist(
             "message": "TV episode not found.",
         }
     }
+
+
+def test_get_previous_unwatched_episodes_returns_count(
+    client: TestClient,
+    db_session: Session,
+    local_user: User,
+) -> None:
+    """Return the number of eligible earlier unwatched Episodes."""
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season_one = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=1001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    season_two = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=1002,
+        season_number=2,
+        title="Season 2",
+    )
+
+    create_local_episode(
+        db_session,
+        season=season_one,
+        tmdb_id=2001,
+        episode_number=1,
+        title="S01E01",
+        air_date=date(2026, 8, 1),
+    )
+
+    create_local_episode(
+        db_session,
+        season=season_two,
+        tmdb_id=2002,
+        episode_number=1,
+        title="S02E01",
+        air_date=date(2026, 8, 10),
+    )
+
+    target = create_local_episode(
+        db_session,
+        season=season_two,
+        tmdb_id=2003,
+        episode_number=2,
+        title="S02E02",
+        air_date=date(2026, 8, 15),
+    )
+
+    response = client.get(
+        f"/api/v1/episodes/{target.id}/previous-unwatched",
+    )
+
+    assert response.status_code == 200
+
+    assert response.json() == {
+        "episode_id": str(target.id),
+        "previous_unwatched_count": 2,
+    }
+
+
+def test_previous_unwatched_excludes_specials_and_future_episodes(
+    client: TestClient,
+    db_session: Session,
+    local_user: User,
+) -> None:
+    """Specials and future Episodes must not trigger catch-up."""
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    specials = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=1000,
+        season_number=0,
+        title="Specials",
+    )
+
+    season = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=1001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    create_local_episode(
+        db_session,
+        season=specials,
+        tmdb_id=2000,
+        episode_number=1,
+        title="Special",
+        air_date=date(2026, 8, 1),
+    )
+
+    create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2001,
+        episode_number=1,
+        title="Future Episode",
+        air_date=date(2099, 1, 1),
+    )
+
+    target = create_local_episode(
+        db_session,
+        season=season,
+        tmdb_id=2002,
+        episode_number=2,
+        title="S01E02",
+        air_date=date(2026, 8, 15),
+    )
+
+    response = client.get(
+        f"/api/v1/episodes/{target.id}/previous-unwatched",
+    )
+
+    assert response.status_code == 200
+
+    assert response.json()["previous_unwatched_count"] == 0
+
+
+def test_mark_episode_watched_with_previous_marks_earlier_episodes(
+    client: TestClient,
+    db_session: Session,
+    local_user: User,
+) -> None:
+    """Mark target and eligible earlier Episodes watched together."""
+
+    show = create_local_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season_one = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=1001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    season_two = create_local_season(
+        db_session,
+        show=show,
+        tmdb_id=1002,
+        season_number=2,
+        title="Season 2",
+    )
+
+    previous_one = create_local_episode(
+        db_session,
+        season=season_one,
+        tmdb_id=2001,
+        episode_number=1,
+        title="S01E01",
+        air_date=date(2026, 8, 1),
+    )
+
+    previous_two = create_local_episode(
+        db_session,
+        season=season_two,
+        tmdb_id=2002,
+        episode_number=1,
+        title="S02E01",
+        air_date=date(2026, 8, 10),
+    )
+
+    target = create_local_episode(
+        db_session,
+        season=season_two,
+        tmdb_id=2003,
+        episode_number=2,
+        title="S02E02",
+        air_date=date(2026, 8, 15),
+    )
+
+    response = client.post(
+        f"/api/v1/episodes/{target.id}/watched-with-previous",
+        json={},
+    )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+
+    assert payload["progress"]["episode_id"] == str(target.id)
+    assert payload["progress"]["is_watched"] is True
+
+    assert payload["previous_marked_count"] == 2
+
+    progress_entries = db_session.scalars(
+        select(EpisodeProgress).where(
+            EpisodeProgress.user_id == local_user.id,
+        )
+    ).all()
+
+    assert {progress.episode_id for progress in progress_entries if progress.is_watched} == {
+        previous_one.id,
+        previous_two.id,
+        target.id,
+    }
+
+    events = db_session.scalars(
+        select(EpisodeWatchEvent).where(
+            EpisodeWatchEvent.user_id == local_user.id,
+        )
+    ).all()
+
+    assert {event.episode_id for event in events} == {
+        previous_one.id,
+        previous_two.id,
+        target.id,
+    }

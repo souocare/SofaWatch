@@ -2006,6 +2006,7 @@ def test_mark_season_watched_does_not_create_rewatch_for_watched_episode(
     progress_repository.add.assert_not_called()
     watch_event_repository.add.assert_not_called()
 
+
 def test_mark_show_watched_returns_none_when_show_does_not_exist(
     progress_service: EpisodeProgressService,
     show_repository: Mock,
@@ -2214,3 +2215,358 @@ def test_mark_show_watched_reuses_existing_unwatched_progress(
     assert created_event.episode_id == episode_id
     assert created_event.watched_at == existing_progress.watched_at
 
+
+def test_get_previous_unwatched_episodes_counts_eligible_previous_episodes(
+    progress_service: EpisodeProgressService,
+    progress_repository: Mock,
+    episode_repository: Mock,
+    season_repository: Mock,
+) -> None:
+    """Count eligible previous unwatched regular Episodes."""
+
+    user_id = uuid4()
+    episode_id = uuid4()
+    season_id = uuid4()
+    show_id = uuid4()
+
+    episode_repository.get_by_id.return_value = SimpleNamespace(
+        id=episode_id,
+        season_id=season_id,
+        episode_number=3,
+        air_date=date(2026, 8, 15),
+    )
+
+    season_repository.get_by_id.return_value = SimpleNamespace(
+        id=season_id,
+        show_id=show_id,
+        season_number=2,
+    )
+
+    previous_episodes = [
+        SimpleNamespace(id=uuid4()),
+        SimpleNamespace(id=uuid4()),
+        SimpleNamespace(id=uuid4()),
+    ]
+
+    progress_repository.list_previous_unwatched_aired_episodes.return_value = previous_episodes
+
+    result = progress_service.get_previous_unwatched_episodes(
+        user_id=user_id,
+        episode_id=episode_id,
+    )
+
+    assert result is not None
+    assert result.episode_id == episode_id
+    assert result.previous_unwatched_count == 3
+    assert result.has_previous_unwatched is True
+
+    progress_repository.list_previous_unwatched_aired_episodes.assert_called_once_with(
+        user_id=user_id,
+        show_id=show_id,
+        target_season_number=2,
+        target_episode_number=3,
+        as_of=FIXED_TODAY,
+    )
+
+
+def test_get_previous_unwatched_episodes_returns_zero_when_none_exist(
+    progress_service: EpisodeProgressService,
+    progress_repository: Mock,
+    episode_repository: Mock,
+    season_repository: Mock,
+) -> None:
+    """Return zero when no eligible earlier Episodes remain unwatched."""
+
+    user_id = uuid4()
+    episode_id = uuid4()
+    season_id = uuid4()
+    show_id = uuid4()
+
+    episode_repository.get_by_id.return_value = SimpleNamespace(
+        id=episode_id,
+        season_id=season_id,
+        episode_number=1,
+        air_date=date(2026, 8, 15),
+    )
+
+    season_repository.get_by_id.return_value = SimpleNamespace(
+        id=season_id,
+        show_id=show_id,
+        season_number=1,
+    )
+
+    progress_repository.list_previous_unwatched_aired_episodes.return_value = []
+
+    result = progress_service.get_previous_unwatched_episodes(
+        user_id=user_id,
+        episode_id=episode_id,
+    )
+
+    assert result is not None
+    assert result.previous_unwatched_count == 0
+    assert result.has_previous_unwatched is False
+
+
+def test_get_previous_unwatched_episodes_returns_none_when_episode_missing(
+    progress_service: EpisodeProgressService,
+    progress_repository: Mock,
+    episode_repository: Mock,
+    season_repository: Mock,
+) -> None:
+    """Return None when checking a missing Episode."""
+
+    episode_repository.get_by_id.return_value = None
+
+    result = progress_service.get_previous_unwatched_episodes(
+        user_id=uuid4(),
+        episode_id=uuid4(),
+    )
+
+    assert result is None
+
+    season_repository.get_by_id.assert_not_called()
+    progress_repository.list_previous_unwatched_aired_episodes.assert_not_called()
+
+
+def test_get_previous_unwatched_episodes_rejects_future_episode(
+    progress_service: EpisodeProgressService,
+    progress_repository: Mock,
+    episode_repository: Mock,
+    season_repository: Mock,
+) -> None:
+    """Do not inspect previous Episodes when the target has not aired."""
+
+    episode_repository.get_by_id.return_value = SimpleNamespace(
+        id=uuid4(),
+        season_id=uuid4(),
+        episode_number=4,
+        air_date=date(2026, 8, 16),
+    )
+
+    with pytest.raises(EpisodeNotWatchableError):
+        progress_service.get_previous_unwatched_episodes(
+            user_id=uuid4(),
+            episode_id=uuid4(),
+        )
+
+    season_repository.get_by_id.assert_not_called()
+    progress_repository.list_previous_unwatched_aired_episodes.assert_not_called()
+
+
+def test_mark_watched_with_previous_marks_previous_and_target_once(
+    db_session: Session,
+    progress_service: EpisodeProgressService,
+    progress_repository: Mock,
+    episode_repository: Mock,
+    season_repository: Mock,
+    watch_event_repository: Mock,
+) -> None:
+    """Mark eligible previous Episodes and target without creating Rewatches."""
+
+    user = persist_user(db_session)
+
+    show = persist_show(db_session)
+
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+
+    already_watched_episode = Episode(
+        season_id=season.id,
+        tmdb_id=999101,
+        episode_number=1,
+        title="Episode 1",
+        air_date=date(2026, 8, 10),
+    )
+
+    new_previous_episode = Episode(
+        season_id=season.id,
+        tmdb_id=999102,
+        episode_number=2,
+        title="Episode 2",
+        air_date=date(2026, 8, 11),
+    )
+
+    target_episode = Episode(
+        season_id=season.id,
+        tmdb_id=999103,
+        episode_number=3,
+        title="Episode 3",
+        air_date=date(2026, 8, 15),
+    )
+
+    db_session.add_all(
+        [
+            already_watched_episode,
+            new_previous_episode,
+            target_episode,
+        ]
+    )
+    db_session.flush()
+
+    episode_repository.get_by_id.return_value = target_episode
+    season_repository.get_by_id.return_value = season
+
+    progress_repository.list_previous_unwatched_aired_episodes.return_value = [
+        already_watched_episode,
+        new_previous_episode,
+    ]
+
+    original_watched_at = datetime(
+        2026,
+        8,
+        10,
+        20,
+        tzinfo=UTC,
+    )
+
+    already_watched_progress = EpisodeProgress(
+        user_id=user.id,
+        episode_id=already_watched_episode.id,
+        is_watched=True,
+        watched_at=original_watched_at,
+    )
+
+    db_session.add(already_watched_progress)
+    db_session.flush()
+
+    progress_repository.list_by_user_and_episode_ids.return_value = [
+        already_watched_progress,
+    ]
+
+    progress_repository.get_by_user_and_episode.return_value = None
+
+    added_progress: list[EpisodeProgress] = []
+
+    def add_progress(progress: EpisodeProgress) -> EpisodeProgress:
+        db_session.add(progress)
+        added_progress.append(progress)
+
+        return progress
+
+    progress_repository.add.side_effect = add_progress
+
+    added_events: list[EpisodeWatchEvent] = []
+
+    def add_watch_event(event: EpisodeWatchEvent) -> EpisodeWatchEvent:
+        db_session.add(event)
+        added_events.append(event)
+
+        return event
+
+    watch_event_repository.add.side_effect = add_watch_event
+
+    result = progress_service.mark_watched_with_previous(
+        user_id=user.id,
+        episode_id=target_episode.id,
+    )
+
+    assert result is not None
+
+    assert result.previous_marked_count == 1
+
+    assert result.progress.episode_id == target_episode.id
+    assert result.progress.is_watched is True
+
+    assert {progress.episode_id for progress in added_progress} == {
+        new_previous_episode.id,
+        target_episode.id,
+    }
+
+    assert {event.episode_id for event in added_events} == {
+        new_previous_episode.id,
+        target_episode.id,
+    }
+
+    assert already_watched_episode.id not in {event.episode_id for event in added_events}
+
+    assert already_watched_progress.watched_at is not None
+
+    assert (
+        as_utc(
+            already_watched_progress.watched_at,
+        )
+        == original_watched_at
+    )
+
+
+def test_mark_watched_with_previous_does_not_rewatch_watched_target(
+    db_session: Session,
+    progress_service: EpisodeProgressService,
+    progress_repository: Mock,
+    episode_repository: Mock,
+    season_repository: Mock,
+    watch_event_repository: Mock,
+) -> None:
+    """Catch-up must not create another event for an already watched target."""
+
+    user = persist_user(db_session)
+
+    show = persist_show(db_session)
+
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+
+    target_episode = Episode(
+        season_id=season.id,
+        tmdb_id=999201,
+        episode_number=3,
+        title="Episode 3",
+        air_date=date(2026, 8, 15),
+    )
+
+    db_session.add(target_episode)
+    db_session.flush()
+
+    episode_repository.get_by_id.return_value = target_episode
+    season_repository.get_by_id.return_value = season
+
+    progress_repository.list_previous_unwatched_aired_episodes.return_value = []
+    progress_repository.list_by_user_and_episode_ids.return_value = []
+
+    original_watched_at = datetime(
+        2026,
+        8,
+        10,
+        20,
+        tzinfo=UTC,
+    )
+
+    progress = EpisodeProgress(
+        user_id=user.id,
+        episode_id=target_episode.id,
+        is_watched=True,
+        watched_at=original_watched_at,
+    )
+
+    db_session.add(progress)
+    db_session.flush()
+
+    progress_repository.get_by_user_and_episode.return_value = progress
+
+    result = progress_service.mark_watched_with_previous(
+        user_id=user.id,
+        episode_id=target_episode.id,
+    )
+
+    assert result is not None
+
+    assert result.previous_marked_count == 0
+
+    assert result.progress.episode_id == target_episode.id
+    assert result.progress.is_watched is True
+
+    assert progress.watched_at is not None
+
+    assert (
+        as_utc(
+            progress.watched_at,
+        )
+        == original_watched_at
+    )
+
+    progress_repository.add.assert_not_called()
+    watch_event_repository.add.assert_not_called()

@@ -308,6 +308,23 @@ final class _FakeShowDetailsSeasonsRepository
   }
 
   @override
+  Future<int> getPreviousUnwatchedEpisodeCount({required String episodeId}) {
+    throw UnsupportedError(
+      'getPreviousUnwatchedEpisodeCount is not used by this test repository.',
+    );
+  }
+
+  @override
+  Future<int> markEpisodeWatchedWithPrevious({
+    required String episodeId,
+    DateTime? watchedAt,
+  }) {
+    throw UnsupportedError(
+      'markEpisodeWatchedWithPrevious is not used by this test repository.',
+    );
+  }
+
+  @override
   Future<ShowDetailsSeasonProgress> markSeasonWatched({
     required String seasonId,
   }) {

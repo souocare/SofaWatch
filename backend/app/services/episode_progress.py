@@ -12,7 +12,10 @@ from app.repositories.episode_watch_event import EpisodeWatchEventRepository
 from app.repositories.season import SeasonRepository
 from app.repositories.show import ShowRepository
 from app.schemas.episode_progress import (
+    EpisodeProgressResponse,
     EpisodeProgressWithWatchCountResponse,
+    EpisodeWatchedWithPreviousResponse,
+    PreviousUnwatchedEpisodesResponse,
 )
 from app.schemas.progress import (
     NextEpisodeResponse,
@@ -27,7 +30,7 @@ class EpisodeNotWatchableError(Exception):
 
 
 class EpisodeProgressService:
-    """Business logic for episode viewing progress."""
+    """Business logic for Episode viewing progress."""
 
     def __init__(
         self,
@@ -62,6 +65,10 @@ class EpisodeProgressService:
 
         Because the current provider data does not include a reliable air time,
         an Episode dated Today is considered available to watch.
+
+        Calling this operation for an already watched Episode is intentionally
+        treated as a Rewatch and therefore creates another historical viewing
+        event.
         """
 
         episode = self._episode_repository.get_by_id(
@@ -105,24 +112,244 @@ class EpisodeProgressService:
             progress.is_watched = True
             progress.watched_at = viewed_at
 
-        watch_event = EpisodeWatchEvent(
-            user_id=user_id,
-            episode_id=episode_id,
-            watched_at=viewed_at,
-        )
-
         self._watch_event_repository.add(
-            watch_event,
+            EpisodeWatchEvent(
+                user_id=user_id,
+                episode_id=episode_id,
+                watched_at=viewed_at,
+            )
         )
 
         # One transaction deliberately persists both:
         # - the current Episode progress;
         # - the historical watch event.
+        #
         # We must never record one without the other.
         self._session.commit()
         self._session.refresh(progress)
 
         return progress
+
+    def get_previous_unwatched_episodes(
+        self,
+        *,
+        user_id: UUID,
+        episode_id: UUID,
+    ) -> PreviousUnwatchedEpisodesResponse | None:
+        """Return the number of eligible earlier Episodes still unwatched.
+
+        Earlier Episodes include:
+
+        - regular Episodes from previous Seasons;
+        - earlier Episodes from the target Season.
+
+        Specials are excluded.
+
+        Only Episodes whose air date is known and not later than Today are
+        considered eligible.
+
+        The target Episode itself must also be watchable.
+
+        Returns None when the target Episode or its Season does not exist.
+        """
+
+        episode = self._episode_repository.get_by_id(
+            episode_id,
+        )
+
+        if episode is None:
+            return None
+
+        air_date = episode.air_date
+
+        if air_date is None or air_date > self._today():
+            raise EpisodeNotWatchableError(
+                "Episode has not aired yet.",
+            )
+
+        season = self._season_repository.get_by_id(
+            episode.season_id,
+        )
+
+        if season is None:
+            return None
+
+        previous_episodes = self._progress_repository.list_previous_unwatched_aired_episodes(
+            user_id=user_id,
+            show_id=season.show_id,
+            target_season_number=season.season_number,
+            target_episode_number=episode.episode_number,
+            as_of=self._today(),
+        )
+
+        return PreviousUnwatchedEpisodesResponse(
+            episode_id=episode.id,
+            previous_unwatched_count=len(previous_episodes),
+        )
+
+    def mark_watched_with_previous(
+        self,
+        *,
+        user_id: UUID,
+        episode_id: UUID,
+        watched_at: datetime | None = None,
+    ) -> EpisodeWatchedWithPreviousResponse | None:
+        """Mark a target Episode and eligible previous Episodes as watched.
+
+        Earlier Episodes include regular Episodes from previous Seasons and
+        earlier Episodes from the target Season.
+
+        Specials, future Episodes, Episodes without a known air date, and
+        Episodes already watched by the user are ignored.
+
+        This is a catch-up operation rather than a Rewatch operation.
+        Existing viewing history is therefore never duplicated, including for
+        the target Episode when it is already watched.
+
+        Every newly watched Episode receives the same viewing timestamp.
+
+        Previous Episodes and the target Episode are persisted as one atomic
+        transaction.
+
+        Returns None when the target Episode or its Season does not exist.
+        """
+
+        episode = self._episode_repository.get_by_id(
+            episode_id,
+        )
+
+        if episode is None:
+            return None
+
+        air_date = episode.air_date
+
+        if air_date is None or air_date > self._today():
+            raise EpisodeNotWatchableError(
+                "Episode has not aired yet.",
+            )
+
+        season = self._season_repository.get_by_id(
+            episode.season_id,
+        )
+
+        if season is None:
+            return None
+
+        if watched_at is not None and watched_at.tzinfo is None:
+            watched_at = watched_at.replace(
+                tzinfo=UTC,
+            )
+
+        viewed_at = watched_at or datetime.now(UTC)
+
+        previous_episodes = self._progress_repository.list_previous_unwatched_aired_episodes(
+            user_id=user_id,
+            show_id=season.show_id,
+            target_season_number=season.season_number,
+            target_episode_number=episode.episode_number,
+            as_of=self._today(),
+        )
+
+        previous_episode_ids = [previous_episode.id for previous_episode in previous_episodes]
+
+        previous_progress_entries = {
+            progress.episode_id: progress
+            for progress in self._progress_repository.list_by_user_and_episode_ids(
+                user_id=user_id,
+                episode_ids=previous_episode_ids,
+            )
+        }
+
+        previous_marked_count = 0
+
+        for previous_episode in previous_episodes:
+            progress = previous_progress_entries.get(
+                previous_episode.id,
+            )
+
+            # The repository query already excludes watched Episodes.
+            #
+            # Keep this defensive check nevertheless: this operation must never
+            # create an accidental Rewatch if state changes between the lookup
+            # and the mutation.
+            if progress is not None and progress.is_watched:
+                continue
+
+            if progress is None:
+                progress = EpisodeProgress(
+                    user_id=user_id,
+                    episode_id=previous_episode.id,
+                    is_watched=True,
+                    watched_at=viewed_at,
+                )
+
+                self._progress_repository.add(
+                    progress,
+                )
+            else:
+                progress.is_watched = True
+                progress.watched_at = viewed_at
+
+            self._watch_event_repository.add(
+                EpisodeWatchEvent(
+                    user_id=user_id,
+                    episode_id=previous_episode.id,
+                    watched_at=viewed_at,
+                )
+            )
+
+            previous_marked_count += 1
+
+        target_progress = self._progress_repository.get_by_user_and_episode(
+            user_id=user_id,
+            episode_id=episode.id,
+        )
+
+        # Unlike the regular /watched operation, this catch-up operation must
+        # never convert an already watched target Episode into a Rewatch.
+        if target_progress is None:
+            target_progress = EpisodeProgress(
+                user_id=user_id,
+                episode_id=episode.id,
+                is_watched=True,
+                watched_at=viewed_at,
+            )
+
+            self._progress_repository.add(
+                target_progress,
+            )
+
+            self._watch_event_repository.add(
+                EpisodeWatchEvent(
+                    user_id=user_id,
+                    episode_id=episode.id,
+                    watched_at=viewed_at,
+                )
+            )
+
+        elif not target_progress.is_watched:
+            target_progress.is_watched = True
+            target_progress.watched_at = viewed_at
+
+            self._watch_event_repository.add(
+                EpisodeWatchEvent(
+                    user_id=user_id,
+                    episode_id=episode.id,
+                    watched_at=viewed_at,
+                )
+            )
+
+        # Previous Episodes and the target Episode form one logical catch-up
+        # operation and must therefore either all persist or none persist.
+        self._session.commit()
+        self._session.refresh(target_progress)
+
+        return EpisodeWatchedWithPreviousResponse(
+            progress=EpisodeProgressResponse.model_validate(
+                target_progress,
+            ),
+            previous_marked_count=previous_marked_count,
+        )
 
     def mark_unwatched(
         self,
@@ -130,9 +357,9 @@ class EpisodeProgressService:
         user_id: UUID,
         episode_id: UUID,
     ) -> EpisodeProgress | None:
-        """Mark an episode as not watched.
+        """Mark an Episode as not watched.
 
-        Returns None when the episode does not exist locally.
+        Returns None when the Episode does not exist locally.
         """
 
         episode = self._episode_repository.get_by_id(
@@ -217,9 +444,7 @@ class EpisodeProgressService:
         for episode in episodes:
             air_date = episode.air_date
 
-            # /*
-            #  * Unknown and future Episodes are not watchable yet.
-            #  */
+            # Unknown and future Episodes are not watchable yet.
             if air_date is None or air_date > today:
                 continue
 
@@ -227,12 +452,10 @@ class EpisodeProgressService:
                 episode.id,
             )
 
-            # /*
-            #  * This is a bulk "complete Season" operation, not a Rewatch.
-            #  *
-            #  * Already watched Episodes keep their current watched_at and
-            #  * historical viewing events unchanged.
-            #  */
+            # This is a bulk completion operation, not a Rewatch.
+            #
+            # Already watched Episodes keep their existing watched_at and
+            # historical viewing events unchanged.
             if progress is not None and progress.is_watched:
                 continue
 
@@ -261,12 +484,10 @@ class EpisodeProgressService:
                 )
             )
 
-        # /*
-        #  * The whole Season update is one logical operation.
-        #  *
-        #  * Progress and historical watch events must therefore either all be
-        #  * persisted together or not persisted at all.
-        #  */
+        # The whole Season update is one logical operation.
+        #
+        # Progress and historical watch events must therefore either all be
+        # persisted together or not persisted at all.
         self._session.commit()
 
         return self.get_season_progress(
@@ -380,7 +601,7 @@ class EpisodeProgressService:
         user_id: UUID,
         season_id: UUID,
     ) -> SeasonProgressResponse | None:
-        """Calculate viewing progress for a TV season."""
+        """Calculate viewing progress for a TV Season."""
 
         season = self._season_repository.get_by_id(
             season_id,
@@ -490,7 +711,7 @@ class EpisodeProgressService:
         user_id: UUID,
         show_id: UUID,
     ) -> list[SeasonProgressResponse] | None:
-        """Calculate viewing progress for every locally stored season of a show.
+        """Calculate viewing progress for every locally stored Season of a Show.
 
         Returns None when the TV series does not exist.
         """
@@ -622,7 +843,7 @@ class EpisodeProgressService:
         user_id: UUID,
         show_id: UUID,
     ) -> NextEpisodeResponse | None:
-        """Return the next unwatched episode of a TV series.
+        """Return the next unwatched Episode of a TV series.
 
         Returns None when the TV series does not exist.
         """
@@ -650,7 +871,7 @@ class EpisodeProgressService:
         *,
         show_id: UUID,
     ) -> NextUpcomingEpisodeResponse | None:
-        """Return the next future regular episode of a TV series."""
+        """Return the next future regular Episode of a TV series."""
 
         show = self._show_repository.get_by_id(
             show_id,
