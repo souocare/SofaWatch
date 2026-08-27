@@ -115,6 +115,37 @@ class EpisodeProgressRepository:
 
         return list(self._session.scalars(statement).all())
 
+    def list_by_user_and_show(
+        self,
+        *,
+        user_id: UUID,
+        show_id: UUID,
+    ) -> list[EpisodeProgress]:
+        """Return a user's progress entries for regular episodes of a TV series."""
+
+        statement = (
+            select(EpisodeProgress)
+            .join(
+                Episode,
+                Episode.id == EpisodeProgress.episode_id,
+            )
+            .join(
+                Season,
+                Season.id == Episode.season_id,
+            )
+            .where(
+                EpisodeProgress.user_id == user_id,
+                Season.show_id == show_id,
+                Season.season_number > 0,
+            )
+            .order_by(
+                Season.season_number.asc(),
+                Episode.episode_number.asc(),
+            )
+        )
+
+        return list(self._session.scalars(statement).all())
+
     def add(
         self,
         progress: EpisodeProgress,

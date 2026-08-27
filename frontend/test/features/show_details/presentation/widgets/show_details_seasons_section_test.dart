@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_seasons_cubit.dart';
+import 'package:sofawatch/features/show_details/application/cubit/show_details_show_operation_cubit.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_watch_event.dart';
@@ -229,23 +230,17 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: BlocProvider<ShowDetailsSeasonsCubit>.value(
-              value: cubit,
-              child: const ShowDetailsSeasonsSection(
-                seasons: <ShowDetailsSeason>[
-                  ShowDetailsSeason(
-                    tmdbId: 134792,
-                    seasonNumber: 1,
-                    title: 'Season 1',
-                    episodeCount: 2,
-                    voteAverage: 8.0,
-                  ),
-                ],
-              ),
+        _buildTestApp(
+          cubit: cubit,
+          seasons: const <ShowDetailsSeason>[
+            ShowDetailsSeason(
+              tmdbId: 134792,
+              seasonNumber: 1,
+              title: 'Season 1',
+              episodeCount: 2,
+              voteAverage: 8.0,
             ),
-          ),
+          ],
         ),
       );
 
@@ -1644,17 +1639,401 @@ void main() {
         );
       },
     );
+    testWidgets('shows Mark all watched when aired Episodes remain unwatched', (
+      WidgetTester tester,
+    ) async {
+      final _FakeShowDetailsSeasonsRepository repository =
+          _FakeShowDetailsSeasonsRepository();
+
+      final ShowDetailsSeasonsCubit seasonsCubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      final ShowDetailsShowOperationCubit operationCubit =
+          ShowDetailsShowOperationCubit(
+            repository: repository,
+            showTmdbId: 95396,
+          );
+
+      await seasonsCubit.loadInitialProgress();
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          cubit: seasonsCubit,
+          showOperationCubit: operationCubit,
+          seasons: const <ShowDetailsSeason>[_seasonOne, _seasonTwo],
+        ),
+      );
+
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey<String>('show-details-mark-all-watched')),
+        findsOneWidget,
+      );
+
+      await operationCubit.close();
+      await seasonsCubit.close();
+    });
+
+    testWidgets(
+      'hides Mark all watched when all regular Seasons are caught up',
+      (WidgetTester tester) async {
+        final _FakeShowDetailsSeasonsRepository repository =
+            _FakeShowDetailsSeasonsRepository(
+              progressItems: const <ShowDetailsSeasonProgress>[
+                ShowDetailsSeasonProgress(
+                  seasonId: 'season-1-uuid',
+                  watchedEpisodes: 2,
+                  totalEpisodes: 2,
+                  progressPercentage: 100,
+                  airedEpisodes: 2,
+                  watchedAiredEpisodes: 2,
+                  airedProgressPercentage: 100,
+                  caughtUp: true,
+                ),
+              ],
+            );
+
+        final ShowDetailsSeasonsCubit seasonsCubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        final ShowDetailsShowOperationCubit operationCubit =
+            ShowDetailsShowOperationCubit(
+              repository: repository,
+              showTmdbId: 95396,
+            );
+
+        await seasonsCubit.loadInitialProgress();
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            cubit: seasonsCubit,
+            showOperationCubit: operationCubit,
+            seasons: const <ShowDetailsSeason>[_seasonOne],
+          ),
+        );
+
+        await tester.pump();
+
+        expect(
+          find.byKey(const ValueKey<String>('show-details-mark-all-watched')),
+          findsNothing,
+        );
+
+        await operationCubit.close();
+        await seasonsCubit.close();
+      },
+    );
+
+    testWidgets('opens confirmation before marking all Episodes watched', (
+      WidgetTester tester,
+    ) async {
+      final _ShowWatchedRepository repository = _ShowWatchedRepository();
+
+      final ShowDetailsSeasonsCubit seasonsCubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      final ShowDetailsShowOperationCubit operationCubit =
+          ShowDetailsShowOperationCubit(
+            repository: repository,
+            showTmdbId: 95396,
+          );
+
+      await seasonsCubit.loadInitialProgress();
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          cubit: seasonsCubit,
+          showOperationCubit: operationCubit,
+          seasons: const <ShowDetailsSeason>[_seasonOne],
+        ),
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('show-details-mark-all-watched')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mark all episodes as watched?'), findsOneWidget);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('show-details-mark-all-watched-confirm'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(repository.markShowWatchedCalls, 0);
+
+      await operationCubit.close();
+      await seasonsCubit.close();
+    });
+
+    testWidgets('Cancel does not mark the Show watched', (
+      WidgetTester tester,
+    ) async {
+      final _ShowWatchedRepository repository = _ShowWatchedRepository();
+
+      final ShowDetailsSeasonsCubit seasonsCubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      final ShowDetailsShowOperationCubit operationCubit =
+          ShowDetailsShowOperationCubit(
+            repository: repository,
+            showTmdbId: 95396,
+          );
+
+      await seasonsCubit.loadInitialProgress();
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          cubit: seasonsCubit,
+          showOperationCubit: operationCubit,
+          seasons: const <ShowDetailsSeason>[_seasonOne],
+        ),
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('show-details-mark-all-watched')),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>('show-details-mark-all-watched-cancel'),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(repository.markShowWatchedCalls, 0);
+
+      await operationCubit.close();
+      await seasonsCubit.close();
+    });
+    testWidgets(
+      'marks all aired Episodes watched and refreshes Season progress',
+      (WidgetTester tester) async {
+        final _ShowWatchedRepository repository = _ShowWatchedRepository();
+
+        final ShowDetailsSeasonsCubit seasonsCubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        final ShowDetailsShowOperationCubit operationCubit =
+            ShowDetailsShowOperationCubit(
+              repository: repository,
+              showTmdbId: 95396,
+            );
+
+        await seasonsCubit.loadInitialProgress();
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            cubit: seasonsCubit,
+            showOperationCubit: operationCubit,
+            seasons: const <ShowDetailsSeason>[_seasonOne],
+          ),
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('show-details-mark-all-watched')),
+        );
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('show-details-mark-all-watched-confirm'),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(repository.markShowWatchedCalls, 1);
+        expect(repository.markedShowIds, <String>['show-uuid']);
+
+        expect(
+          find.byKey(const ValueKey<String>('show-details-season-caught-up-1')),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(
+            const ValueKey<String>('show-details-mark-all-watched-success'),
+          ),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('show-details-mark-all-watched')),
+          findsNothing,
+        );
+
+        await operationCubit.close();
+        await seasonsCubit.close();
+      },
+    );
+    testWidgets('shows loading while Mark all watched is running', (
+      WidgetTester tester,
+    ) async {
+      final _PendingShowWatchedRepository repository =
+          _PendingShowWatchedRepository();
+
+      final ShowDetailsSeasonsCubit seasonsCubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      final ShowDetailsShowOperationCubit operationCubit =
+          ShowDetailsShowOperationCubit(
+            repository: repository,
+            showTmdbId: 95396,
+          );
+
+      await seasonsCubit.loadInitialProgress();
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          cubit: seasonsCubit,
+          showOperationCubit: operationCubit,
+          seasons: const <ShowDetailsSeason>[_seasonOne],
+        ),
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('show-details-mark-all-watched')),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>('show-details-mark-all-watched-confirm'),
+        ),
+      );
+
+      await tester.pump();
+
+      expect(repository.markShowWatchedCalls, 1);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('show-details-mark-all-watched-loading'),
+        ),
+        findsOneWidget,
+      );
+
+      repository.complete();
+
+      await tester.pumpAndSettle();
+
+      await operationCubit.close();
+      await seasonsCubit.close();
+    });
+    testWidgets('shows Retry when Mark all watched fails', (
+      WidgetTester tester,
+    ) async {
+      final _RetryShowWatchedRepository repository =
+          _RetryShowWatchedRepository();
+
+      final ShowDetailsSeasonsCubit seasonsCubit = ShowDetailsSeasonsCubit(
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      final ShowDetailsShowOperationCubit operationCubit =
+          ShowDetailsShowOperationCubit(
+            repository: repository,
+            showTmdbId: 95396,
+          );
+
+      await seasonsCubit.loadInitialProgress();
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          cubit: seasonsCubit,
+          showOperationCubit: operationCubit,
+          seasons: const <ShowDetailsSeason>[_seasonOne],
+        ),
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('show-details-mark-all-watched')),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>('show-details-mark-all-watched-confirm'),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(repository.markShowWatchedCalls, 1);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('show-details-mark-all-watched-failure'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+
+      await tester.pumpAndSettle();
+
+      expect(repository.markShowWatchedCalls, 2);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('show-details-mark-all-watched-success'),
+        ),
+        findsOneWidget,
+      );
+
+      await operationCubit.close();
+      await seasonsCubit.close();
+    });
   });
 }
 
 Widget _buildTestApp({
   required ShowDetailsSeasonsCubit cubit,
   required List<ShowDetailsSeason> seasons,
+  ShowDetailsShowOperationCubit? showOperationCubit,
 }) {
+  final ShowDetailsShowOperationCubit operationCubit =
+      showOperationCubit ??
+      ShowDetailsShowOperationCubit(
+        repository: _FakeShowDetailsSeasonsRepository(),
+        showTmdbId: 95396,
+      );
+
   return MaterialApp(
     home: Scaffold(
-      body: BlocProvider<ShowDetailsSeasonsCubit>.value(
-        value: cubit,
+      body: MultiBlocProvider(
+        providers: <BlocProvider<dynamic>>[
+          BlocProvider<ShowDetailsSeasonsCubit>.value(value: cubit),
+          BlocProvider<ShowDetailsShowOperationCubit>.value(
+            value: operationCubit,
+          ),
+        ],
         child: ShowDetailsSeasonsSection(seasons: seasons),
       ),
     ),
@@ -1756,7 +2135,7 @@ final class _UpcomingEpisodeRepository
   }) async {}
 }
 
-final class _FakeShowDetailsSeasonsRepository
+base class _FakeShowDetailsSeasonsRepository
     implements ShowDetailsSeasonsRepository {
   _FakeShowDetailsSeasonsRepository({
     this.progressItems = const <ShowDetailsSeasonProgress>[
@@ -1867,6 +2246,9 @@ final class _FakeShowDetailsSeasonsRepository
       watchCount: 0,
     );
   }
+
+  @override
+  Future<void> markShowWatched({required String showId}) async {}
 
   @override
   Future<List<ShowDetailsEpisode>> syncEpisodes({
@@ -2285,4 +2667,114 @@ final class _EpisodeStillRepository extends _FakeShowDetailsSeasonsRepository {
     required String episodeId,
     required String eventId,
   }) async {}
+}
+
+base class _ShowWatchedRepository extends _FakeShowDetailsSeasonsRepository {
+  bool showWasMarkedWatched = false;
+
+  int markShowWatchedCalls = 0;
+  final List<String> markedShowIds = <String>[];
+
+  @override
+  Future<void> markShowWatched({required String showId}) async {
+    markShowWatchedCalls++;
+    markedShowIds.add(showId);
+    showWasMarkedWatched = true;
+  }
+
+  @override
+  Future<List<ShowDetailsSeasonProgress>> getSeasonsProgress({
+    required String showId,
+  }) async {
+    if (!showWasMarkedWatched) {
+      return super.getSeasonsProgress(showId: showId);
+    }
+
+    return const <ShowDetailsSeasonProgress>[
+      ShowDetailsSeasonProgress(
+        seasonId: 'season-1-uuid',
+        watchedEpisodes: 2,
+        totalEpisodes: 2,
+        progressPercentage: 100,
+        airedEpisodes: 2,
+        watchedAiredEpisodes: 2,
+        airedProgressPercentage: 100,
+        caughtUp: true,
+      ),
+      ShowDetailsSeasonProgress(
+        seasonId: 'season-2-uuid',
+        watchedEpisodes: 1,
+        totalEpisodes: 1,
+        progressPercentage: 100,
+        airedEpisodes: 1,
+        watchedAiredEpisodes: 1,
+        airedProgressPercentage: 100,
+        caughtUp: true,
+      ),
+    ];
+  }
+
+  @override
+  Future<List<ShowDetailsEpisodeProgress>> getEpisodeProgress({
+    required String seasonId,
+  }) async {
+    if (!showWasMarkedWatched) {
+      return super.getEpisodeProgress(seasonId: seasonId);
+    }
+
+    if (seasonId != 'season-1-uuid') {
+      return const <ShowDetailsEpisodeProgress>[];
+    }
+
+    return <ShowDetailsEpisodeProgress>[
+      ShowDetailsEpisodeProgress(
+        id: 'progress-1-uuid',
+        episodeId: 'episode-1-uuid',
+        isWatched: true,
+        watchCount: 1,
+        watchedAt: DateTime.utc(2026, 8, 27, 12),
+      ),
+      ShowDetailsEpisodeProgress(
+        id: 'progress-2-uuid',
+        episodeId: 'episode-2-uuid',
+        isWatched: true,
+        watchCount: 1,
+        watchedAt: DateTime.utc(2026, 8, 27, 12),
+      ),
+    ];
+  }
+}
+
+final class _PendingShowWatchedRepository extends _ShowWatchedRepository {
+  final Completer<void> _completer = Completer<void>();
+
+  @override
+  Future<void> markShowWatched({required String showId}) async {
+    markShowWatchedCalls++;
+    markedShowIds.add(showId);
+
+    await _completer.future;
+
+    showWasMarkedWatched = true;
+  }
+
+  void complete() {
+    if (!_completer.isCompleted) {
+      _completer.complete();
+    }
+  }
+}
+
+final class _RetryShowWatchedRepository extends _ShowWatchedRepository {
+  @override
+  Future<void> markShowWatched({required String showId}) async {
+    markShowWatchedCalls++;
+    markedShowIds.add(showId);
+
+    if (markShowWatchedCalls == 1) {
+      throw const AppException.connection();
+    }
+
+    showWasMarkedWatched = true;
+  }
 }

@@ -6,6 +6,8 @@ import 'package:sofawatch/features/show_details/application/cubit/show_details_e
 import 'package:sofawatch/features/show_details/application/cubit/show_details_season_operation.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_season_state.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_seasons_cubit.dart';
+import 'package:sofawatch/features/show_details/application/cubit/show_details_show_operation.dart';
+import 'package:sofawatch/features/show_details/application/cubit/show_details_show_operation_cubit.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode_watch_event.dart';
@@ -20,70 +22,218 @@ class ShowDetailsSeasonsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<
-      ShowDetailsSeasonsCubit,
-      Map<int, ShowDetailsSeasonState>
+      ShowDetailsShowOperationCubit,
+      ShowDetailsShowOperation
     >(
       listenWhen:
           (
-            Map<int, ShowDetailsSeasonState> previous,
-            Map<int, ShowDetailsSeasonState> current,
+            ShowDetailsShowOperation previous,
+            ShowDetailsShowOperation current,
           ) {
-            return _findNewSeasonFailure(previous, current) != null ||
-                _findNewEpisodeFailure(previous, current) != null;
+            return previous.status != current.status;
           },
-      listener:
-          (BuildContext context, Map<int, ShowDetailsSeasonState> current) {
-            final _SeasonFailureInfo? seasonFailure = _findCurrentSeasonFailure(
-              current,
-            );
+      listener: (BuildContext context, ShowDetailsShowOperation operation) async {
+        if (operation.isSuccess) {
+          try {
+            await context
+                .read<ShowDetailsSeasonsCubit>()
+                .refreshAfterShowWatched();
 
-            if (seasonFailure != null) {
-              _showSeasonOperationFailure(context, failure: seasonFailure);
-
+            if (!context.mounted) {
               return;
             }
 
-            final _EpisodeFailure? episodeFailure = _findCurrentEpisodeFailure(
-              current,
-            );
-
-            if (episodeFailure != null) {
-              _showEpisodeFailure(context, failure: episodeFailure);
-            }
-          },
-      builder: (BuildContext context, Map<int, ShowDetailsSeasonState> state) {
-        return Column(
-          key: const ValueKey<String>('show-details-seasons-section'),
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              'Seasons',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-            ),
-
-            const SizedBox(height: AppSpacing.lg),
-
-            Column(
-              children: <Widget>[
-                for (
-                  int index = 0;
-                  index < seasons.length;
-                  index++
-                ) ...<Widget>[
-                  _SeasonAccordion(
-                    season: seasons[index],
-                    state:
-                        state[seasons[index].seasonNumber] ??
-                        const ShowDetailsSeasonState(),
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                const SnackBar(
+                  key: ValueKey<String>(
+                    'show-details-mark-all-watched-success',
                   ),
-                  if (index != seasons.length - 1)
-                    const SizedBox(height: AppSpacing.md),
-                ],
-              ],
+                  content: Text('All aired episodes were marked as watched.'),
+                ),
+              );
+          } on AppException {
+            if (!context.mounted) {
+              return;
+            }
+
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                const SnackBar(
+                  key: ValueKey<String>(
+                    'show-details-mark-all-refresh-failure',
+                  ),
+                  content: Text(
+                    'Episodes were marked as watched, but the page could not be '
+                    'refreshed.',
+                  ),
+                ),
+              );
+          } catch (_) {
+            if (!context.mounted) {
+              return;
+            }
+
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                const SnackBar(
+                  key: ValueKey<String>(
+                    'show-details-mark-all-refresh-failure',
+                  ),
+                  content: Text(
+                    'Episodes were marked as watched, but the page could not be '
+                    'refreshed.',
+                  ),
+                ),
+              );
+          } finally {
+            if (context.mounted) {
+              context.read<ShowDetailsShowOperationCubit>().reset();
+            }
+          }
+
+          return;
+        }
+
+        if (!operation.hasFailed) {
+          return;
+        }
+
+        final AppException? error = operation.error;
+
+        if (error == null) {
+          return;
+        }
+
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              key: const ValueKey<String>(
+                'show-details-mark-all-watched-failure',
+              ),
+              content: const Text('Could not mark all episodes as watched.'),
+              action: error.canRetry
+                  ? SnackBarAction(
+                      label: 'Retry',
+                      onPressed: () {
+                        context
+                            .read<ShowDetailsShowOperationCubit>()
+                            .retryMarkShowWatched();
+                      },
+                    )
+                  : null,
             ),
-          ],
+          );
+      },
+      builder: (BuildContext context, ShowDetailsShowOperation showOperation) {
+        return BlocConsumer<
+          ShowDetailsSeasonsCubit,
+          Map<int, ShowDetailsSeasonState>
+        >(
+          listenWhen:
+              (
+                Map<int, ShowDetailsSeasonState> previous,
+                Map<int, ShowDetailsSeasonState> current,
+              ) {
+                return _findNewSeasonFailure(previous, current) != null ||
+                    _findNewEpisodeFailure(previous, current) != null;
+              },
+          listener:
+              (BuildContext context, Map<int, ShowDetailsSeasonState> current) {
+                final _SeasonFailureInfo? seasonFailure =
+                    _findCurrentSeasonFailure(current);
+
+                if (seasonFailure != null) {
+                  _showSeasonOperationFailure(context, failure: seasonFailure);
+
+                  return;
+                }
+
+                final _EpisodeFailure? episodeFailure =
+                    _findCurrentEpisodeFailure(current);
+
+                if (episodeFailure != null) {
+                  _showEpisodeFailure(context, failure: episodeFailure);
+                }
+              },
+          builder:
+              (BuildContext context, Map<int, ShowDetailsSeasonState> state) {
+                final bool hasEpisodesToMark = seasons.any((
+                  ShowDetailsSeason season,
+                ) {
+                  if (season.seasonNumber <= 0) {
+                    return false;
+                  }
+
+                  final ShowDetailsSeasonProgress? progress =
+                      state[season.seasonNumber]?.progress;
+
+                  return progress != null &&
+                      progress.hasAiredEpisodes &&
+                      !progress.caughtUp;
+                });
+
+                final ShowDetailsSeasonsCubit seasonsCubit = context
+                    .read<ShowDetailsSeasonsCubit>();
+
+                final bool hasOtherMutation =
+                    seasonsCubit.hasMutationInProgress;
+
+                final bool canMarkAll =
+                    hasEpisodesToMark &&
+                    !showOperation.isUpdating &&
+                    !hasOtherMutation;
+
+                return Column(
+                  key: const ValueKey<String>('show-details-seasons-section'),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            'Seasons',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+
+                        if (hasEpisodesToMark || showOperation.isUpdating)
+                          _MarkAllWatchedButton(
+                            isUpdating: showOperation.isUpdating,
+                            enabled: canMarkAll,
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: AppSpacing.lg),
+
+                    Column(
+                      children: <Widget>[
+                        for (
+                          int index = 0;
+                          index < seasons.length;
+                          index++
+                        ) ...<Widget>[
+                          _SeasonAccordion(
+                            season: seasons[index],
+                            state:
+                                state[seasons[index].seasonNumber] ??
+                                const ShowDetailsSeasonState(),
+                          ),
+                          if (index != seasons.length - 1)
+                            const SizedBox(height: AppSpacing.md),
+                        ],
+                      ],
+                    ),
+                  ],
+                );
+              },
         );
       },
     );
@@ -151,6 +301,171 @@ class ShowDetailsSeasonsSection extends StatelessWidget {
                 },
               )
             : null,
+      ),
+    );
+  }
+}
+
+class _MarkAllWatchedButton extends StatelessWidget {
+  const _MarkAllWatchedButton({
+    required this.isUpdating,
+    required this.enabled,
+  });
+
+  final bool isUpdating;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isUpdating) {
+      return const SizedBox(
+        key: ValueKey<String>('show-details-mark-all-watched-loading'),
+        width: 40,
+        height: 40,
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.sm),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    return OutlinedButton.icon(
+      key: const ValueKey<String>('show-details-mark-all-watched'),
+      onPressed: enabled
+          ? () {
+              _handleMarkAllWatched(context);
+            }
+          : null,
+      icon: const Icon(Icons.library_add_check_outlined),
+      label: const Text('Mark all watched'),
+    );
+  }
+}
+
+Future<void> _handleMarkAllWatched(BuildContext context) async {
+  final ShowDetailsSeasonsCubit seasonsCubit = context
+      .read<ShowDetailsSeasonsCubit>();
+
+  final ShowDetailsShowOperationCubit operationCubit = context
+      .read<ShowDetailsShowOperationCubit>();
+
+  if (operationCubit.state.isUpdating || seasonsCubit.hasMutationInProgress) {
+    return;
+  }
+
+  final bool confirmed = await _confirmMarkAllWatched(context);
+
+  if (!confirmed || !context.mounted) {
+    return;
+  }
+
+  if (operationCubit.state.isUpdating || seasonsCubit.hasMutationInProgress) {
+    return;
+  }
+
+  await operationCubit.markShowWatched();
+}
+
+Future<bool> _confirmMarkAllWatched(BuildContext context) async {
+  final bool useBottomSheet =
+      MediaQuery.sizeOf(context).width < AppBreakpoints.tablet;
+
+  if (useBottomSheet) {
+    final bool? result = await showModalBottomSheet<bool>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return const _MarkAllWatchedConfirmation();
+      },
+    );
+
+    return result ?? false;
+  }
+
+  final bool? result = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: const _MarkAllWatchedConfirmation(),
+        ),
+      );
+    },
+  );
+
+  return result ?? false;
+}
+
+class _MarkAllWatchedConfirmation extends StatelessWidget {
+  const _MarkAllWatchedConfirmation();
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: AppSpacing.cardPadding,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'Mark all episodes as watched?',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            Text(
+              'All aired episodes that are not currently marked as watched '
+              'will be marked as watched now.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            Text(
+              'Already watched episodes, future episodes, and Specials '
+              'will not be changed.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+            ),
+
+            const SizedBox(height: AppSpacing.xl),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: <Widget>[
+                TextButton(
+                  key: const ValueKey<String>(
+                    'show-details-mark-all-watched-cancel',
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pop(false);
+                  },
+                  child: const Text('Cancel'),
+                ),
+
+                const SizedBox(width: AppSpacing.sm),
+
+                FilledButton.icon(
+                  key: const ValueKey<String>(
+                    'show-details-mark-all-watched-confirm',
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                  },
+                  icon: const Icon(Icons.library_add_check_outlined),
+                  label: const Text('Mark all watched'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -75,6 +75,76 @@ final class ShowDetailsSeasonsCubit
     }
   }
 
+  bool get hasMutationInProgress {
+    return state.values.any((ShowDetailsSeasonState seasonState) {
+      if (seasonState.operation.isUpdating) {
+        return true;
+      }
+
+      return seasonState.episodeOperationsById.values.any(
+        (ShowDetailsEpisodeOperation operation) => operation.isUpdating,
+      );
+    });
+  }
+
+  Future<void> refreshAfterShowWatched() async {
+    final ShowDetailsSeasonsBootstrap bootstrap =
+        _bootstrap ??
+        await _repository.resolveLocalSeasons(showTmdbId: _showTmdbId);
+
+    _bootstrap = bootstrap;
+
+    final List<ShowDetailsSeasonProgress> progressItems = await _repository
+        .getSeasonsProgress(showId: bootstrap.showId);
+
+    final Map<String, ShowDetailsSeasonProgress> progressBySeasonId =
+        <String, ShowDetailsSeasonProgress>{
+          for (final ShowDetailsSeasonProgress progress in progressItems)
+            progress.seasonId: progress,
+        };
+
+    final Map<int, ShowDetailsSeasonState> nextState =
+        <int, ShowDetailsSeasonState>{...state};
+
+    for (final ShowDetailsLocalSeason season in bootstrap.seasons) {
+      final ShowDetailsSeasonState current =
+          nextState[season.seasonNumber] ?? const ShowDetailsSeasonState();
+
+      final ShowDetailsSeasonProgress? seasonProgress =
+          progressBySeasonId[season.id];
+
+      Map<String, ShowDetailsEpisodeProgress> episodeProgressById =
+          current.episodeProgressById;
+
+      /*
+     * Only refresh Episode-level progress when those Episode rows have
+     * already been loaded.
+     *
+     * Collapsed/unloaded Seasons only need their aggregate progress.
+     */
+      if (current.hasLoadedEpisodes) {
+        final List<ShowDetailsEpisodeProgress> episodeProgress =
+            await _repository.getEpisodeProgress(seasonId: season.id);
+
+        episodeProgressById = <String, ShowDetailsEpisodeProgress>{
+          for (final ShowDetailsEpisodeProgress progress in episodeProgress)
+            progress.episodeId: progress,
+        };
+      }
+
+      nextState[season.seasonNumber] = current.copyWith(
+        progress: seasonProgress,
+        episodeProgressById: episodeProgressById,
+      );
+    }
+
+    if (isClosed) {
+      return;
+    }
+
+    emit(nextState);
+  }
+
   Future<void> markSeasonWatched({required int seasonNumber}) async {
     final ShowDetailsSeasonState current =
         state[seasonNumber] ?? const ShowDetailsSeasonState();

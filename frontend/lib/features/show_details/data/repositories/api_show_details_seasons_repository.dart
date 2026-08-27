@@ -558,4 +558,23 @@ final class ApiShowDetailsSeasonsRepository
       watchedAt: parsedWatchedAt,
     );
   }
+
+  @override
+  Future<void> markShowWatched({required String showId}) async {
+    try {
+      final Response<dynamic> progressResponse = await _apiClient.post<dynamic>(
+        '/shows/$showId/watched',
+      );
+
+      final Object? response = progressResponse.data;
+
+      if (response is! Map<String, dynamic>) {
+        throw const FormatException('Invalid Show progress response.');
+      }
+    } on AppException {
+      rethrow;
+    } catch (error) {
+      throw AppException.invalidData(originalError: error);
+    }
+  }
 }

@@ -70,6 +70,7 @@ import 'package:sofawatch/features/server_setup/domain/services/server_connectio
 import 'package:sofawatch/features/server_setup/presentation/pages/server_setup_page.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_cubit.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_seasons_cubit.dart';
+import 'package:sofawatch/features/show_details/application/cubit/show_details_show_operation_cubit.dart';
 import 'package:sofawatch/features/show_details/data/repositories/api_show_details_repository.dart';
 import 'package:sofawatch/features/show_details/data/repositories/api_show_details_seasons_repository.dart';
 import 'package:sofawatch/features/show_details/presentation/pages/show_details_page.dart';
@@ -732,6 +733,16 @@ GoRouter createAppRouter({
                       ),
                       showTmdbId: tmdbId,
                     )..loadInitialProgress();
+                  },
+                ),
+                BlocProvider<ShowDetailsShowOperationCubit>(
+                  create: (BuildContext context) {
+                    return ShowDetailsShowOperationCubit(
+                      repository: ApiShowDetailsSeasonsRepository(
+                        context.read<ApiClient>(),
+                      ),
+                      showTmdbId: tmdbId,
+                    );
                   },
                 ),
                 BlocProvider<LibraryCubit>(

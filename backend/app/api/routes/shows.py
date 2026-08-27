@@ -321,6 +321,42 @@ def get_show_progress(
     return progress
 
 
+@router.post(
+    "/{show_id}/watched",
+    response_model=ShowProgressResponse,
+    summary="Mark TV series as watched",
+    description=(
+        "Mark every aired, currently unwatched regular Episode in a TV series "
+        "as watched for the current user."
+    ),
+)
+def mark_show_watched(
+    show_id: Annotated[
+        UUID,
+        Path(
+            description="Internal TV series identifier.",
+        ),
+    ],
+    service: EpisodeProgressServiceDependency,
+    current_user: CurrentUserDependency,
+) -> ShowProgressResponse:
+    """Mark every eligible regular Episode in a Show as watched."""
+
+    progress = service.mark_show_watched(
+        user_id=current_user.id,
+        show_id=show_id,
+    )
+
+    if progress is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="show_not_found",
+            message="TV series not found.",
+        )
+
+    return progress
+
+
 @router.get(
     "/{show_id}/next-episode",
     response_model=NextEpisodeResponse,

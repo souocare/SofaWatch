@@ -83,6 +83,30 @@ class EpisodeRepository:
             ).all()
         )
 
+    def list_regular_by_show_id(
+        self,
+        show_id: UUID,
+    ) -> list[Episode]:
+        """Return all regular episodes belonging to a TV series."""
+
+        return list(
+            self._session.scalars(
+                select(Episode)
+                .join(
+                    Season,
+                    Season.id == Episode.season_id,
+                )
+                .where(
+                    Season.show_id == show_id,
+                    Season.season_number > 0,
+                )
+                .order_by(
+                    Season.season_number.asc(),
+                    Episode.episode_number.asc(),
+                )
+            ).all()
+        )
+
     def add(
         self,
         episode: Episode,

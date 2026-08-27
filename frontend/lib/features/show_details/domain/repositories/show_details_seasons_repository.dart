@@ -13,6 +13,8 @@ abstract interface class ShowDetailsSeasonsRepository {
     required String showId,
   });
 
+  Future<void> markShowWatched({required String showId});
+
   Future<List<ShowDetailsEpisode>> getEpisodes({required String seasonId});
 
   Future<List<ShowDetailsEpisode>> syncEpisodes({required String seasonId});

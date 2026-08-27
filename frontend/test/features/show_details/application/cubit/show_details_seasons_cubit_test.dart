@@ -1653,6 +1653,108 @@ void main() {
         await cubit.close();
       },
     );
+    test(
+      'refreshes aggregate progress without loading collapsed Season Episodes',
+      () async {
+        final _FakeShowDetailsSeasonsRepository repository =
+            _FakeShowDetailsSeasonsRepository();
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        await cubit.loadInitialProgress();
+
+        expect(repository.getSeasonsProgressCalls, 1);
+        expect(repository.getEpisodeProgressCalls, 0);
+
+        await cubit.refreshAfterShowWatched();
+
+        expect(repository.resolveLocalSeasonsCalls, 1);
+        expect(repository.getSeasonsProgressCalls, 2);
+
+        expect(repository.requestedProgressShowIds, <String>[
+          'show-uuid',
+          'show-uuid',
+        ]);
+
+        expect(repository.getEpisodeProgressCalls, 0);
+
+        expect(cubit.state[1]?.hasLoadedEpisodes, isFalse);
+        expect(cubit.state[2]?.hasLoadedEpisodes, isFalse);
+
+        await cubit.close();
+      },
+    );
+    test(
+      'refreshes Episode progress only for Seasons whose Episodes are loaded',
+      () async {
+        final _FakeShowDetailsSeasonsRepository repository =
+            _FakeShowDetailsSeasonsRepository();
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        await cubit.loadInitialProgress();
+
+        await cubit.toggleSeason(1);
+
+        expect(cubit.state[1]?.hasLoadedEpisodes, isTrue);
+        expect(cubit.state[2]?.hasLoadedEpisodes, isFalse);
+
+        final int episodeProgressCallsBeforeRefresh =
+            repository.getEpisodeProgressCalls;
+
+        await cubit.refreshAfterShowWatched();
+
+        expect(
+          repository.getEpisodeProgressCalls,
+          episodeProgressCallsBeforeRefresh + 1,
+        );
+
+        expect(
+          repository.requestedEpisodeProgressSeasonIds.last,
+          'season-1-uuid',
+        );
+
+        expect(
+          repository.requestedEpisodeProgressSeasonIds.where(
+            (String seasonId) => seasonId == 'season-2-uuid',
+          ),
+          isEmpty,
+        );
+
+        expect(cubit.state[1]?.hasLoadedEpisodes, isTrue);
+        expect(cubit.state[1]?.isExpanded, isTrue);
+
+        expect(cubit.state[2]?.hasLoadedEpisodes, isFalse);
+
+        await cubit.close();
+      },
+    );
+    test(
+      'reports whether a Season or Episode mutation is in progress',
+      () async {
+        final _FakeShowDetailsSeasonsRepository repository =
+            _FakeShowDetailsSeasonsRepository();
+
+        final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          repository: repository,
+          showTmdbId: 95396,
+        );
+
+        expect(cubit.hasMutationInProgress, isFalse);
+
+        await cubit.loadInitialProgress();
+
+        expect(cubit.hasMutationInProgress, isFalse);
+
+        await cubit.close();
+      },
+    );
   });
 }
 
@@ -1762,6 +1864,10 @@ final class _FakeShowDetailsSeasonsRepository
   int getEpisodesCalls = 0;
   int syncEpisodesCalls = 0;
   int getSeasonProgressCalls = 0;
+
+  int getEpisodeProgressCalls = 0;
+
+  final List<String> requestedEpisodeProgressSeasonIds = <String>[];
 
   final List<int> requestedShowTmdbIds = <int>[];
 
@@ -1895,6 +2001,8 @@ final class _FakeShowDetailsSeasonsRepository
   Future<List<ShowDetailsEpisodeProgress>> getEpisodeProgress({
     required String seasonId,
   }) async {
+    getEpisodeProgressCalls++;
+    requestedEpisodeProgressSeasonIds.add(seasonId);
     if (seasonId == 'season-1-uuid' && seasonMarkedWatched) {
       return <ShowDetailsEpisodeProgress>[
         ShowDetailsEpisodeProgress(
@@ -1959,6 +2067,9 @@ final class _FakeShowDetailsSeasonsRepository
   }) async {
     return const <ShowDetailsEpisodeWatchEvent>[];
   }
+
+  @override
+  Future<void> markShowWatched({required String showId}) async {}
 
   @override
   Future<void> deleteEpisodeWatchEvent({
@@ -2041,6 +2152,9 @@ final class _ControlledShowDetailsSeasonsRepository
       ],
     );
   }
+
+  @override
+  Future<void> markShowWatched({required String showId}) async {}
 
   @override
   Future<List<ShowDetailsSeasonProgress>> getSeasonsProgress({
@@ -2273,6 +2387,9 @@ final class _ManySeasonsRepository implements ShowDetailsSeasonsRepository {
   }
 
   @override
+  Future<void> markShowWatched({required String showId}) async {}
+
+  @override
   Future<List<ShowDetailsEpisode>> syncEpisodes({
     required String seasonId,
   }) async {
@@ -2469,6 +2586,9 @@ final class _WatchEventRemovalRepository
   }) async {
     return _seasonProgress();
   }
+
+  @override
+  Future<void> markShowWatched({required String showId}) async {}
 
   @override
   Future<List<ShowDetailsEpisodeProgress>> getEpisodeProgress({

@@ -1100,6 +1100,80 @@ void main() {
         );
       },
     );
+    test('marks all eligible Show Episodes as watched', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                expect(options.method, 'POST');
+                expect(options.path, '/shows/show-uuid/watched');
+
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <String, dynamic>{
+                      'show_id': 'show-uuid',
+                      'watched_episodes': 18,
+                      'total_episodes': 20,
+                      'progress_percentage': 90.0,
+                      'aired_episodes': 18,
+                      'watched_aired_episodes': 18,
+                      'aired_progress_percentage': 100.0,
+                      'caught_up': true,
+                    },
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiShowDetailsSeasonsRepository repository =
+          ApiShowDetailsSeasonsRepository(
+            ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+          );
+
+      await repository.markShowWatched(showId: 'show-uuid');
+    });
+    test('maps invalid mark Show watched response to invalidData', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                expect(options.method, 'POST');
+                expect(options.path, '/shows/show-uuid/watched');
+
+                handler.resolve(
+                  Response<List<dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <dynamic>[],
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiShowDetailsSeasonsRepository repository =
+          ApiShowDetailsSeasonsRepository(
+            ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+          );
+
+      expect(
+        repository.markShowWatched(showId: 'show-uuid'),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
+        ),
+      );
+    });
   });
   test('synchronizes and maps Season Episodes', () async {
     final Dio dio = Dio();

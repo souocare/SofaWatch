@@ -2005,3 +2005,212 @@ def test_mark_season_watched_does_not_create_rewatch_for_watched_episode(
 
     progress_repository.add.assert_not_called()
     watch_event_repository.add.assert_not_called()
+
+def test_mark_show_watched_returns_none_when_show_does_not_exist(
+    progress_service: EpisodeProgressService,
+    show_repository: Mock,
+    episode_repository: Mock,
+    progress_repository: Mock,
+    watch_event_repository: Mock,
+) -> None:
+    """Return None when the requested Show does not exist."""
+
+    user_id = uuid4()
+    show_id = uuid4()
+
+    show_repository.get_by_id.return_value = None
+
+    result = progress_service.mark_show_watched(
+        user_id=user_id,
+        show_id=show_id,
+    )
+
+    assert result is None
+
+    show_repository.get_by_id.assert_called_once_with(
+        show_id,
+    )
+
+    episode_repository.list_regular_by_show_id.assert_not_called()
+    progress_repository.list_by_user_and_show.assert_not_called()
+    watch_event_repository.add.assert_not_called()
+
+
+def test_mark_show_watched_marks_only_aired_unwatched_regular_episodes(
+    progress_service: EpisodeProgressService,
+    show_repository: Mock,
+    episode_repository: Mock,
+    progress_repository: Mock,
+    watch_event_repository: Mock,
+) -> None:
+    """Mark only aired regular Episodes that are not already watched."""
+
+    user_id = uuid4()
+    show_id = uuid4()
+
+    show_repository.get_by_id.return_value = SimpleNamespace(
+        id=show_id,
+    )
+
+    already_watched_episode = SimpleNamespace(
+        id=uuid4(),
+        air_date=date(2026, 8, 10),
+    )
+
+    unwatched_episode = SimpleNamespace(
+        id=uuid4(),
+        air_date=date(2026, 8, 11),
+    )
+
+    future_episode = SimpleNamespace(
+        id=uuid4(),
+        air_date=date(2026, 8, 20),
+    )
+
+    unknown_air_date_episode = SimpleNamespace(
+        id=uuid4(),
+        air_date=None,
+    )
+
+    episode_repository.list_regular_by_show_id.return_value = [
+        already_watched_episode,
+        unwatched_episode,
+        future_episode,
+        unknown_air_date_episode,
+    ]
+
+    original_watched_at = datetime(
+        2026,
+        8,
+        10,
+        20,
+        tzinfo=UTC,
+    )
+
+    already_watched_progress = SimpleNamespace(
+        episode_id=already_watched_episode.id,
+        is_watched=True,
+        watched_at=original_watched_at,
+    )
+
+    progress_repository.list_by_user_and_show.return_value = [
+        already_watched_progress,
+    ]
+
+    expected_progress = SimpleNamespace(
+        show_id=show_id,
+    )
+
+    progress_service.get_show_progress = Mock(
+        return_value=expected_progress,
+    )
+
+    result = progress_service.mark_show_watched(
+        user_id=user_id,
+        show_id=show_id,
+    )
+
+    assert result is expected_progress
+
+    progress_repository.add.assert_called_once()
+
+    created_progress = progress_repository.add.call_args.args[0]
+
+    assert isinstance(
+        created_progress,
+        EpisodeProgress,
+    )
+
+    assert created_progress.user_id == user_id
+    assert created_progress.episode_id == unwatched_episode.id
+    assert created_progress.is_watched is True
+    assert created_progress.watched_at is not None
+
+    watch_event_repository.add.assert_called_once()
+
+    created_event = watch_event_repository.add.call_args.args[0]
+
+    assert isinstance(
+        created_event,
+        EpisodeWatchEvent,
+    )
+
+    assert created_event.user_id == user_id
+    assert created_event.episode_id == unwatched_episode.id
+    assert created_event.watched_at == created_progress.watched_at
+
+    assert already_watched_progress.watched_at == original_watched_at
+
+    progress_service.get_show_progress.assert_called_once_with(
+        user_id=user_id,
+        show_id=show_id,
+    )
+
+
+def test_mark_show_watched_reuses_existing_unwatched_progress(
+    progress_service: EpisodeProgressService,
+    show_repository: Mock,
+    episode_repository: Mock,
+    progress_repository: Mock,
+    watch_event_repository: Mock,
+) -> None:
+    """Reuse an existing unwatched progress row."""
+
+    user_id = uuid4()
+    show_id = uuid4()
+    episode_id = uuid4()
+
+    show_repository.get_by_id.return_value = SimpleNamespace(
+        id=show_id,
+    )
+
+    episode_repository.list_regular_by_show_id.return_value = [
+        SimpleNamespace(
+            id=episode_id,
+            air_date=date(2026, 8, 10),
+        ),
+    ]
+
+    existing_progress = SimpleNamespace(
+        episode_id=episode_id,
+        is_watched=False,
+        watched_at=None,
+    )
+
+    progress_repository.list_by_user_and_show.return_value = [
+        existing_progress,
+    ]
+
+    expected_progress = SimpleNamespace(
+        show_id=show_id,
+    )
+
+    progress_service.get_show_progress = Mock(
+        return_value=expected_progress,
+    )
+
+    result = progress_service.mark_show_watched(
+        user_id=user_id,
+        show_id=show_id,
+    )
+
+    assert result is expected_progress
+
+    assert existing_progress.is_watched is True
+    assert existing_progress.watched_at is not None
+
+    progress_repository.add.assert_not_called()
+
+    watch_event_repository.add.assert_called_once()
+
+    created_event = watch_event_repository.add.call_args.args[0]
+
+    assert isinstance(
+        created_event,
+        EpisodeWatchEvent,
+    )
+
+    assert created_event.user_id == user_id
+    assert created_event.episode_id == episode_id
+    assert created_event.watched_at == existing_progress.watched_at
+
