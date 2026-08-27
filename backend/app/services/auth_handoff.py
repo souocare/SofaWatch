@@ -11,7 +11,6 @@ from app.core.security.session_credentials import (
 from app.models.auth_handoff import AuthHandoff
 from app.repositories.auth_handoff import AuthHandoffRepository
 
-
 _DEFAULT_HANDOFF_EXPIRATION = timedelta(minutes=2)
 
 
@@ -34,14 +33,11 @@ class AuthHandoffService:
         expiration: timedelta = _DEFAULT_HANDOFF_EXPIRATION,
     ) -> None:
         if expiration <= timedelta(0):
-            raise ValueError(
-                "Authentication handoff expiration must be positive."
-            )
+            raise ValueError("Authentication handoff expiration must be positive.")
 
         self._session = session
         self._repository = repository
         self._expiration = expiration
-
 
     @property
     def expiration(self) -> timedelta:

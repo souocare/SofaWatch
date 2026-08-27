@@ -403,17 +403,11 @@ def test_delete_viewing_keeps_movie_completed_when_history_remains(
         ),
     )
 
-    watch_event_repository.get_by_id_for_user_and_movie.return_value = (
-        deleted_event
-    )
+    watch_event_repository.get_by_id_for_user_and_movie.return_value = deleted_event
 
-    watch_event_repository.get_latest_for_user_and_movie.return_value = (
-        remaining_event
-    )
+    watch_event_repository.get_latest_for_user_and_movie.return_value = remaining_event
 
-    watch_event_repository.get_earliest_for_user_and_movie.return_value = (
-        remaining_event
-    )
+    watch_event_repository.get_earliest_for_user_and_movie.return_value = remaining_event
 
     library_repository.get_by_user_and_movie.return_value = entry
 
@@ -488,17 +482,11 @@ def test_delete_original_viewing_moves_completed_at_to_oldest_remaining_event(
         completed_at=original_event.watched_at,
     )
 
-    watch_event_repository.get_by_id_for_user_and_movie.return_value = (
-        original_event
-    )
+    watch_event_repository.get_by_id_for_user_and_movie.return_value = original_event
 
-    watch_event_repository.get_latest_for_user_and_movie.return_value = (
-        remaining_latest
-    )
+    watch_event_repository.get_latest_for_user_and_movie.return_value = remaining_latest
 
-    watch_event_repository.get_earliest_for_user_and_movie.return_value = (
-        remaining_oldest
-    )
+    watch_event_repository.get_earliest_for_user_and_movie.return_value = remaining_oldest
 
     library_repository.get_by_user_and_movie.return_value = entry
 

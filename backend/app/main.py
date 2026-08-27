@@ -4,14 +4,8 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 from fastapi import FastAPI
-
-from app.api.router import api_router
-
-from app.core.config import get_settings
-from app.core.logging_config import configure_logging
-
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.error_handlers import (
@@ -19,7 +13,10 @@ from app.api.error_handlers import (
     http_exception_handler,
     validation_exception_handler,
 )
+from app.api.router import api_router
+from app.core.config import get_settings
 from app.core.exceptions import APIError
+from app.core.logging_config import configure_logging
 
 configure_logging(
     component="api",

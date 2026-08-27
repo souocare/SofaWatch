@@ -17,7 +17,6 @@ from app.services.tmdb_movie_details import (
     TMDBMovieDetailsService,
 )
 
-
 TMDB_ID = 438631
 
 
@@ -69,9 +68,7 @@ def tmdb_movie_details_service(
         spec=TMDBMovieDetailsService,
     )
 
-    service.get_details.return_value = (
-        movie_details
-    )
+    service.get_details.return_value = movie_details
 
     return service
 
@@ -93,9 +90,7 @@ def movie_import_service(
         genre_repository=GenreRepository(
             db_session,
         ),
-        tmdb_movie_details_service=(
-            tmdb_movie_details_service
-        ),
+        tmdb_movie_details_service=(tmdb_movie_details_service),
     )
 
 
@@ -141,13 +136,9 @@ def test_import_movie_persists_metadata(
         tmdb_id=TMDB_ID,
     )
 
-    assert movie.overview == (
-        "Paul Atreides travels to Arrakis."
-    )
+    assert movie.overview == ("Paul Atreides travels to Arrakis.")
 
-    assert movie.tagline == (
-        "Beyond fear, destiny awaits."
-    )
+    assert movie.tagline == ("Beyond fear, destiny awaits.")
 
     assert movie.release_date == date(
         2021,
@@ -188,86 +179,46 @@ def test_import_movie_creates_and_associates_genres(
 
     assert genre_count == 2
 
-    genres_by_name = {
-        genre.name: genre
-        for genre in movie.genres
-    }
+    genres_by_name = {genre.name: genre for genre in movie.genres}
 
     assert set(genres_by_name) == {
         "Science Fiction",
         "Adventure",
     }
 
-    assert (
-        genres_by_name[
-            "Science Fiction"
-        ].slug
-        == "science-fiction"
-    )
+    assert genres_by_name["Science Fiction"].slug == "science-fiction"
 
-    assert (
-        genres_by_name[
-            "Adventure"
-        ].slug
-        == "adventure"
-    )
+    assert genres_by_name["Adventure"].slug == "adventure"
 
     mappings = list(
         db_session.scalars(
             select(
                 GenreProviderMapping,
             ).where(
-                GenreProviderMapping.provider
-                == "tmdb",
-                GenreProviderMapping.media_type
-                == "movie",
+                GenreProviderMapping.provider == "tmdb",
+                GenreProviderMapping.media_type == "movie",
             )
         ).all()
     )
 
-    mappings_by_provider_id = {
-        mapping.provider_genre_id: mapping
-        for mapping in mappings
-    }
+    mappings_by_provider_id = {mapping.provider_genre_id: mapping for mapping in mappings}
 
-    assert set(
-        mappings_by_provider_id
-    ) == {
+    assert set(mappings_by_provider_id) == {
         878,
         12,
     }
 
-    science_fiction_mapping = (
-        mappings_by_provider_id[878]
-    )
+    science_fiction_mapping = mappings_by_provider_id[878]
 
-    adventure_mapping = (
-        mappings_by_provider_id[12]
-    )
+    adventure_mapping = mappings_by_provider_id[12]
 
-    assert (
-        science_fiction_mapping.genre_id
-        == genres_by_name[
-            "Science Fiction"
-        ].id
-    )
+    assert science_fiction_mapping.genre_id == genres_by_name["Science Fiction"].id
 
-    assert (
-        adventure_mapping.genre_id
-        == genres_by_name[
-            "Adventure"
-        ].id
-    )
+    assert adventure_mapping.genre_id == genres_by_name["Adventure"].id
 
-    assert (
-        science_fiction_mapping.genre.name
-        == "Science Fiction"
-    )
+    assert science_fiction_mapping.genre.name == "Science Fiction"
 
-    assert (
-        adventure_mapping.genre.name
-        == "Adventure"
-    )
+    assert adventure_mapping.genre.name == "Adventure"
 
 
 def test_import_movie_does_not_create_duplicate(
@@ -277,16 +228,12 @@ def test_import_movie_does_not_create_duplicate(
 ) -> None:
     """Return the existing Movie instead of creating a duplicate."""
 
-    first_movie = (
-        movie_import_service.import_movie(
-            tmdb_id=TMDB_ID,
-        )
+    first_movie = movie_import_service.import_movie(
+        tmdb_id=TMDB_ID,
     )
 
-    second_movie = (
-        movie_import_service.import_movie(
-            tmdb_id=TMDB_ID,
-        )
+    second_movie = movie_import_service.import_movie(
+        tmdb_id=TMDB_ID,
     )
 
     movie_count = db_session.scalar(
@@ -341,9 +288,7 @@ def test_import_movie_returns_recent_movie_without_tmdb_request(
         genre_repository=GenreRepository(
             db_session,
         ),
-        tmdb_movie_details_service=(
-            tmdb_movie_details_service
-        ),
+        tmdb_movie_details_service=(tmdb_movie_details_service),
     )
 
     imported_movie = service.import_movie(
@@ -373,10 +318,7 @@ def test_import_movie_refreshes_old_metadata(
         metadata_updated_at=(
             datetime.now(UTC)
             - timedelta(
-                days=(
-                    settings.metadata_refresh_days
-                    + 1
-                ),
+                days=(settings.metadata_refresh_days + 1),
             )
         ),
     )
@@ -399,9 +341,7 @@ def test_import_movie_refreshes_old_metadata(
         genre_repository=GenreRepository(
             db_session,
         ),
-        tmdb_movie_details_service=(
-            tmdb_movie_details_service
-        ),
+        tmdb_movie_details_service=(tmdb_movie_details_service),
     )
 
     imported_movie = service.import_movie(
@@ -454,9 +394,7 @@ def test_import_movie_force_refreshes_recent_metadata(
         genre_repository=GenreRepository(
             db_session,
         ),
-        tmdb_movie_details_service=(
-            tmdb_movie_details_service
-        ),
+        tmdb_movie_details_service=(tmdb_movie_details_service),
     )
 
     imported_movie = service.import_movie(
@@ -503,13 +441,9 @@ def test_import_movie_rolls_back_when_persistence_fails(
         spec=MovieRepository,
     )
 
-    movie_repository.get_by_tmdb_id.return_value = (
-        None
-    )
+    movie_repository.get_by_tmdb_id.return_value = None
 
-    movie_repository.add.side_effect = RuntimeError(
-        "Database write failed."
-    )
+    movie_repository.add.side_effect = RuntimeError("Database write failed.")
 
     service = MovieImportService(
         session=db_session,
@@ -518,9 +452,7 @@ def test_import_movie_rolls_back_when_persistence_fails(
         genre_repository=GenreRepository(
             db_session,
         ),
-        tmdb_movie_details_service=(
-            tmdb_movie_details_service
-        ),
+        tmdb_movie_details_service=(tmdb_movie_details_service),
     )
 
     with pytest.raises(

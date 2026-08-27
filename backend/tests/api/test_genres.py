@@ -50,28 +50,19 @@ def test_list_genres_returns_genres_ordered_by_name(
 
     response_data = response.json()
 
-    assert [
-        genre["name"]
-        for genre in response_data
-    ] == [
+    assert [genre["name"] for genre in response_data] == [
         "Action",
         "Drama",
         "Science Fiction",
     ]
 
-    assert [
-        genre["slug"]
-        for genre in response_data
-    ] == [
+    assert [genre["slug"] for genre in response_data] == [
         "action",
         "drama",
         "science-fiction",
     ]
 
-    assert all(
-        isinstance(genre["id"], int)
-        for genre in response_data
-    )
+    assert all(isinstance(genre["id"], int) for genre in response_data)
 
 
 def test_list_genres_does_not_expose_provider_details(

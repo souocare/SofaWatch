@@ -8,9 +8,9 @@ from app.repositories.episode import (
     EpisodeRepository,
     TimelineEpisode,
 )
+from app.repositories.episode_progress import EpisodeProgressRepository
 from app.repositories.library import LibraryRepository
 from app.services.upcoming import UpcomingService
-from app.repositories.episode_progress import EpisodeProgressRepository
 
 
 def create_show(
@@ -458,6 +458,7 @@ def test_returns_empty_when_no_timeline_episodes_are_known() -> None:
 
     assert result == []
 
+
 def test_marks_upcoming_episode_as_watched_when_user_has_watched_it() -> None:
     """Expose whether an Upcoming Episode has already been watched."""
 
@@ -578,6 +579,7 @@ def test_marks_upcoming_episode_as_unwatched_when_user_has_not_watched_it() -> N
         user_id=user_id,
         episode_ids=[episode.id],
     )
+
 
 def test_forwards_explicit_limit_to_episode_repository() -> None:
     library_repository = Mock(spec=LibraryRepository)

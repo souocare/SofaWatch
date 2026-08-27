@@ -14,7 +14,6 @@ from app.services.image import (
 )
 from app.services.image_cache import ImageCacheError
 
-
 router = APIRouter(
     prefix="/images",
     tags=["Images"],

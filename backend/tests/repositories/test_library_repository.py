@@ -1,14 +1,15 @@
-from sqlalchemy.orm import Session
 from datetime import UTC, datetime, timedelta
+
+import pytest
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from app.models.enums import LibraryStatus
 from app.models.library import LibraryEntry
+from app.models.movie import Movie
 from app.models.show import Show
 from app.models.user import User
-from app.models.movie import Movie
 from app.repositories.library import LibraryRepository
-import pytest
-from sqlalchemy.exc import IntegrityError
 
 
 def create_user(
@@ -51,6 +52,7 @@ def create_show(
 
     return show
 
+
 def create_movie(
     db_session: Session,
     *,
@@ -79,6 +81,7 @@ def create_movie(
     db_session.refresh(movie)
 
     return movie
+
 
 def test_add_and_get_library_entry(
     db_session: Session,
@@ -351,6 +354,7 @@ def test_add_and_get_movie_library_entry(
 
     assert result.status == LibraryStatus.PLANNING
 
+
 def test_get_missing_movie_library_entry_returns_none(
     db_session: Session,
 ) -> None:
@@ -374,7 +378,6 @@ def test_get_missing_movie_library_entry_returns_none(
     )
 
     assert result is None
-
 
 
 def test_library_entry_requires_media_target(
@@ -433,7 +436,6 @@ def test_library_entry_rejects_multiple_media_targets(
         db_session.commit()
 
     db_session.rollback()
-
 
 
 def test_user_cannot_have_duplicate_movie_library_entry(
@@ -521,6 +523,7 @@ def test_get_show_tmdb_ids_in_library(
 
     assert breaking_bad.tmdb_id not in result
 
+
 def test_get_movie_tmdb_ids_in_library(
     db_session: Session,
 ) -> None:
@@ -577,15 +580,21 @@ def test_get_library_tmdb_ids_returns_empty_sets_for_empty_input(
         db_session,
     )
 
-    assert repository.get_show_tmdb_ids_in_library(
-        user_id=user.id,
-        tmdb_ids=set(),
-    ) == set()
+    assert (
+        repository.get_show_tmdb_ids_in_library(
+            user_id=user.id,
+            tmdb_ids=set(),
+        )
+        == set()
+    )
 
-    assert repository.get_movie_tmdb_ids_in_library(
-        user_id=user.id,
-        tmdb_ids=set(),
-    ) == set()
+    assert (
+        repository.get_movie_tmdb_ids_in_library(
+            user_id=user.id,
+            tmdb_ids=set(),
+        )
+        == set()
+    )
 
 
 def test_count_library_statistics_for_user(
@@ -663,17 +672,26 @@ def test_count_library_statistics_for_user(
         db_session,
     )
 
-    assert repository.count_shows_by_user(
-        user_id=user.id,
-    ) == 3
+    assert (
+        repository.count_shows_by_user(
+            user_id=user.id,
+        )
+        == 3
+    )
 
-    assert repository.count_movies_by_user(
-        user_id=user.id,
-    ) == 2
+    assert (
+        repository.count_movies_by_user(
+            user_id=user.id,
+        )
+        == 2
+    )
 
-    assert repository.count_completed_shows_by_user(
-        user_id=user.id,
-    ) == 1
+    assert (
+        repository.count_completed_shows_by_user(
+            user_id=user.id,
+        )
+        == 1
+    )
 
 
 def test_count_library_statistics_is_isolated_by_user(
@@ -735,17 +753,26 @@ def test_count_library_statistics_is_isolated_by_user(
         db_session,
     )
 
-    assert repository.count_shows_by_user(
-        user_id=user.id,
-    ) == 1
+    assert (
+        repository.count_shows_by_user(
+            user_id=user.id,
+        )
+        == 1
+    )
 
-    assert repository.count_movies_by_user(
-        user_id=user.id,
-    ) == 0
+    assert (
+        repository.count_movies_by_user(
+            user_id=user.id,
+        )
+        == 0
+    )
 
-    assert repository.count_completed_shows_by_user(
-        user_id=user.id,
-    ) == 1
+    assert (
+        repository.count_completed_shows_by_user(
+            user_id=user.id,
+        )
+        == 1
+    )
 
 
 def test_count_library_statistics_returns_zero_without_entries(
@@ -761,17 +788,26 @@ def test_count_library_statistics_returns_zero_without_entries(
         db_session,
     )
 
-    assert repository.count_shows_by_user(
-        user_id=user.id,
-    ) == 0
+    assert (
+        repository.count_shows_by_user(
+            user_id=user.id,
+        )
+        == 0
+    )
 
-    assert repository.count_movies_by_user(
-        user_id=user.id,
-    ) == 0
+    assert (
+        repository.count_movies_by_user(
+            user_id=user.id,
+        )
+        == 0
+    )
 
-    assert repository.count_completed_shows_by_user(
-        user_id=user.id,
-    ) == 0
+    assert (
+        repository.count_completed_shows_by_user(
+            user_id=user.id,
+        )
+        == 0
+    )
 
 
 def test_list_recent_shows_by_user_returns_latest_added_first(
@@ -826,10 +862,7 @@ def test_list_recent_shows_by_user_returns_latest_added_first(
         limit=10,
     )
 
-    assert [
-        entry.show_id
-        for entry in result
-    ] == [
+    assert [entry.show_id for entry in result] == [
         second_show.id,
         first_show.id,
     ]
@@ -931,10 +964,7 @@ def test_list_recent_shows_by_user_is_isolated_by_user(
         user_id=user.id,
     )
 
-    assert [
-        entry.show_id
-        for entry in result
-    ] == [
+    assert [entry.show_id for entry in result] == [
         requested_show.id,
     ]
 
@@ -993,10 +1023,7 @@ def test_list_recent_movies_by_user_returns_latest_added_first(
         limit=10,
     )
 
-    assert [
-        entry.movie_id
-        for entry in result
-    ] == [
+    assert [entry.movie_id for entry in result] == [
         second_movie.id,
         first_movie.id,
     ]
@@ -1059,12 +1086,18 @@ def test_list_recent_library_methods_return_empty_for_non_positive_limit(
         db_session,
     )
 
-    assert repository.list_recent_shows_by_user(
-        user_id=user.id,
-        limit=0,
-    ) == []
+    assert (
+        repository.list_recent_shows_by_user(
+            user_id=user.id,
+            limit=0,
+        )
+        == []
+    )
 
-    assert repository.list_recent_movies_by_user(
-        user_id=user.id,
-        limit=0,
-    ) == []
+    assert (
+        repository.list_recent_movies_by_user(
+            user_id=user.id,
+            limit=0,
+        )
+        == []
+    )

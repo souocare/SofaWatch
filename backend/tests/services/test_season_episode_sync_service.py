@@ -271,6 +271,7 @@ def test_sync_returns_existing_local_episodes_without_provider_request(
     session.commit.assert_not_called()
     session.rollback.assert_not_called()
 
+
 def test_sync_force_refreshes_existing_local_episodes(
     service: SeasonEpisodeSyncService,
     session: Mock,
@@ -319,6 +320,7 @@ def test_sync_force_refreshes_existing_local_episodes(
     session.commit.assert_called_once_with()
 
     assert result == [stored_episode]
+
 
 def test_sync_returns_none_when_season_does_not_exist(
     service: SeasonEpisodeSyncService,

@@ -11,12 +11,11 @@ from app.api.routes.library import router as library_router
 from app.api.routes.movies import router as movies_router
 from app.api.routes.search import router as search_router
 from app.api.routes.seasons import router as seasons_router
+from app.api.routes.security import router as security_router
 from app.api.routes.server import router as server_router
 from app.api.routes.shows import router as shows_router
 from app.api.routes.statistics import router as statistics_router
 from app.api.routes.users import router as users_router
-from app.api.routes.security import router as security_router
-
 
 api_router = APIRouter(
     prefix="/api/v1",
@@ -50,5 +49,3 @@ api_router.include_router(private_router)
 
 # Authentication/bootstrap endpoints must remain public.
 api_router.include_router(auth_router)
-
-

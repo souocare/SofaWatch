@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 from app.core.exceptions import APIError
 from app.main import app
 
-
 router = APIRouter()
 
 

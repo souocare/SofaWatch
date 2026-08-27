@@ -1,24 +1,23 @@
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import ANY, Mock
 from uuid import UUID, uuid4
-from datetime import UTC, datetime
 
 import pytest
-from app.repositories.episode_progress import EpisodeProgressRepository
 from sqlalchemy.orm import Session
 
 from app.models.enums import LibraryStatus
 from app.models.library import LibraryEntry
-from app.repositories.library import LibraryRepository
-from app.repositories.show import ShowRepository
-from app.services.library import LibraryService
-from app.repositories.movie import MovieRepository
-
+from app.models.movie import Movie
 from app.models.show import Show
 from app.models.user import User
-from app.models.movie import Movie
-
 from app.repositories.episode import EpisodeRepository
+from app.repositories.episode_progress import EpisodeProgressRepository
+from app.repositories.library import LibraryRepository
+from app.repositories.movie import MovieRepository
+from app.repositories.show import ShowRepository
+from app.services.library import LibraryService
+
 
 @pytest.fixture
 def library_repository() -> Mock:
@@ -57,6 +56,7 @@ def library_service(
         episode_progress_repository=episode_progress_repository,
     )
 
+
 @pytest.fixture
 def movie_repository() -> Mock:
     """Provide a mocked Movie repository."""
@@ -65,17 +65,20 @@ def movie_repository() -> Mock:
         spec=MovieRepository,
     )
 
+
 @pytest.fixture
 def episode_repository() -> Mock:
     """Provide a mocked Episode repository."""
 
     return Mock(spec=EpisodeRepository)
 
+
 @pytest.fixture
 def episode_progress_repository() -> Mock:
     """Provide a mocked Episode progress repository."""
 
     return Mock(spec=EpisodeProgressRepository)
+
 
 def make_show(
     *,
@@ -145,6 +148,7 @@ def make_entry(
         show_id=show_id,
         status=status,
     )
+
 
 def make_movie(
     *,
@@ -309,9 +313,7 @@ def test_add_show_returns_existing_entry_when_already_in_library(
         status=LibraryStatus.PLANNING,
     )
 
-    library_repository.get_by_user_and_show.return_value = (
-        existing_entry
-    )
+    library_repository.get_by_user_and_show.return_value = existing_entry
 
     result = library_service.add_show(
         user_id=user_id,
@@ -503,6 +505,7 @@ def test_update_status_updates_existing_entry(
     assert result is entry
     assert result.status == LibraryStatus.WATCHING
 
+
 def test_get_movie_entry_returns_library_entry(
     library_service: LibraryService,
     library_repository: Mock,
@@ -518,9 +521,7 @@ def test_get_movie_entry_returns_library_entry(
         status=LibraryStatus.PLANNING,
     )
 
-    library_repository.get_by_user_and_movie.return_value = (
-        entry
-    )
+    library_repository.get_by_user_and_movie.return_value = entry
 
     result = library_service.get_movie_entry(
         user_id=user_id,
@@ -562,7 +563,6 @@ def test_add_movie_returns_none_when_movie_does_not_exist(
     library_repository.add.assert_not_called()
 
 
-
 def test_add_movie_returns_existing_entry_when_already_in_library(
     library_service: LibraryService,
     library_repository: Mock,
@@ -583,9 +583,7 @@ def test_add_movie_returns_existing_entry_when_already_in_library(
         status=LibraryStatus.PLANNING,
     )
 
-    library_repository.get_by_user_and_movie.return_value = (
-        existing_entry
-    )
+    library_repository.get_by_user_and_movie.return_value = existing_entry
 
     result = library_service.add_movie(
         user_id=user_id,
@@ -595,6 +593,7 @@ def test_add_movie_returns_existing_entry_when_already_in_library(
     assert result is existing_entry
 
     library_repository.add.assert_not_called()
+
 
 def test_add_movie_creates_library_entry(
     db_session: Session,
@@ -662,6 +661,7 @@ def test_add_movie_creates_library_entry(
 
     library_repository.add.assert_called_once_with(result)
 
+
 def test_remove_movie_deletes_existing_entry(
     db_session: Session,
     library_repository: Mock,
@@ -699,9 +699,8 @@ def test_remove_movie_deletes_existing_entry(
 
     assert removed is True
 
-    library_repository.delete.assert_called_once_with(
-        entry
-    )
+    library_repository.delete.assert_called_once_with(entry)
+
 
 def test_update_movie_status_returns_none_when_entry_does_not_exist(
     library_service: LibraryService,
@@ -726,6 +725,7 @@ def test_update_movie_status_returns_none_when_entry_does_not_exist(
         user_id=user_id,
         movie_id=movie_id,
     )
+
 
 def test_update_movie_status_to_completed_sets_completed_at(
     db_session: Session,
@@ -796,6 +796,7 @@ def test_update_movie_status_to_completed_sets_completed_at(
     assert result.status == LibraryStatus.COMPLETED
     assert result.completed_at is not None
 
+
 def test_update_movie_status_to_planning_clears_completed_at(
     db_session: Session,
     library_repository: Mock,
@@ -865,6 +866,7 @@ def test_update_movie_status_to_planning_clears_completed_at(
     assert result is entry
     assert result.status == LibraryStatus.PLANNING
     assert result.completed_at is None
+
 
 def test_update_movie_status_keeps_existing_completed_at(
     db_session: Session,
@@ -937,6 +939,7 @@ def test_update_movie_status_keeps_existing_completed_at(
     assert result.completed_at is not None
 
     assert result.completed_at == original_completed_at.replace(tzinfo=None)
+
 
 def test_list_shows_for_user_includes_first_available_episode_for_planning_show(
     library_service: LibraryService,
@@ -1060,11 +1063,7 @@ def test_list_shows_for_user_only_requests_first_episode_for_planning_shows(
 
     episode_repository.get_first_aired_regular_for_shows.assert_called_once()
 
-    _, kwargs = (
-        episode_repository
-        .get_first_aired_regular_for_shows
-        .call_args
-    )
+    _, kwargs = episode_repository.get_first_aired_regular_for_shows.call_args
 
     assert kwargs["show_ids"] == [
         planning_show_id,
@@ -1072,7 +1071,6 @@ def test_list_shows_for_user_only_requests_first_episode_for_planning_shows(
 
     assert result[0].first_available_episode is None
     assert result[1].first_available_episode is None
-
 
 
 def test_get_preview_for_user_returns_recent_shows_movies_and_progress(
@@ -1185,11 +1183,7 @@ def test_get_preview_for_user_returns_recent_shows_movies_and_progress(
 
     episode_repository.get_aired_counts_by_show_ids.assert_called_once()
 
-    _, aired_kwargs = (
-        episode_repository
-        .get_aired_counts_by_show_ids
-        .call_args
-    )
+    _, aired_kwargs = episode_repository.get_aired_counts_by_show_ids.call_args
 
     assert aired_kwargs["show_ids"] == [
         first_show_id,
@@ -1198,11 +1192,7 @@ def test_get_preview_for_user_returns_recent_shows_movies_and_progress(
 
     episode_progress_repository.get_watched_aired_counts_by_show_ids.assert_called_once()
 
-    _, watched_kwargs = (
-        episode_progress_repository
-        .get_watched_aired_counts_by_show_ids
-        .call_args
-    )
+    _, watched_kwargs = episode_progress_repository.get_watched_aired_counts_by_show_ids.call_args
 
     assert watched_kwargs["user_id"] == user_id
     assert watched_kwargs["show_ids"] == [

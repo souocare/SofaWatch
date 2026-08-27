@@ -1,13 +1,21 @@
+import logging
 from datetime import datetime
 from uuid import UUID
-import logging
 
 from sqlalchemy.orm import Session
 
 from app.models.enums import LibraryStatus
+from app.models.episode_progress import EpisodeProgress
+from app.models.episode_watch_event import EpisodeWatchEvent
 from app.models.library import LibraryEntry
+from app.models.movie_watch_event import MovieWatchEvent
+from app.repositories.episode import EpisodeRepository
+from app.repositories.episode_progress import EpisodeProgressRepository
+from app.repositories.episode_watch_event import EpisodeWatchEventRepository
 from app.repositories.library import LibraryRepository
 from app.repositories.movie import MovieRepository
+from app.repositories.movie_watch_event import MovieWatchEventRepository
+from app.repositories.season import SeasonRepository
 from app.repositories.show import ShowRepository
 from app.schemas.data_export import (
     ExportEpisodeWatchEventResponse,
@@ -16,7 +24,6 @@ from app.schemas.data_export import (
     ExportMovieWatchEventResponse,
     SofaWatchExportResponse,
 )
-from app.models.episode_watch_event import EpisodeWatchEvent
 from app.schemas.data_import import (
     DataImportHistoryMediaSummaryResponse,
     DataImportHistoryResultResponse,
@@ -27,17 +34,11 @@ from app.schemas.data_import import (
     DataImportResultResponse,
 )
 from app.services.movie_import import MovieImportService
-from app.services.show_import import ShowImportService
-from app.models.movie_watch_event import MovieWatchEvent
-from app.repositories.movie_watch_event import MovieWatchEventRepository
-from app.repositories.episode import EpisodeRepository
-from app.repositories.episode_progress import EpisodeProgressRepository
-from app.repositories.episode_watch_event import EpisodeWatchEventRepository
-from app.repositories.season import SeasonRepository
 from app.services.season_episode_sync import SeasonEpisodeSyncService
-from app.models.episode_progress import EpisodeProgress
+from app.services.show_import import ShowImportService
 
 logger = logging.getLogger(__name__)
+
 
 class DataImportService:
     """Validate and import portable SofaWatch user data."""
@@ -245,10 +246,7 @@ class DataImportService:
                 episode_failed += 1
 
                 logger.exception(
-                    (
-                        "Failed to import Episode watch event "
-                        "for TMDB Episode ID %s."
-                    ),
+                    ("Failed to import Episode watch event for TMDB Episode ID %s."),
                     exported_event.episode_tmdb_id,
                 )
 
@@ -380,10 +378,7 @@ class DataImportService:
         else:
             progress.is_watched = True
 
-            if (
-                progress.watched_at is None
-                or exported_event.watched_at > progress.watched_at
-            ):
+            if progress.watched_at is None or exported_event.watched_at > progress.watched_at:
                 progress.watched_at = exported_event.watched_at
 
         self._session.commit()
@@ -548,18 +543,12 @@ class DataImportService:
             entry.status = status
             changed = True
 
-        if (
-            started_at is not None
-            and entry.started_at != started_at
-        ):
+        if started_at is not None and entry.started_at != started_at:
             entry.started_at = started_at
             changed = True
 
         if status == LibraryStatus.COMPLETED:
-            if (
-                completed_at is not None
-                and entry.completed_at != completed_at
-            ):
+            if completed_at is not None and entry.completed_at != completed_at:
                 entry.completed_at = completed_at
                 changed = True
         elif entry.completed_at is not None:

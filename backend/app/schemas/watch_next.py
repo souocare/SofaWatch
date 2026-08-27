@@ -35,6 +35,7 @@ class WatchNextProgressResponse(BaseModel):
         le=100,
     )
 
+
 class WatchNextShowResponse(BaseModel):
     """Next Episode available to watch for a Library TV series."""
 

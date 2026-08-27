@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from hashlib import sha256
 from secrets import token_urlsafe
 
-
 _SESSION_CREDENTIAL_BYTES = 32
 
 

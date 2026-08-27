@@ -141,11 +141,9 @@ class MovieWatchEventService:
                 entry.status = LibraryStatus.PLANNING
                 entry.completed_at = None
             else:
-                earliest_event = (
-                    self._watch_event_repository.get_earliest_for_user_and_movie(
-                        user_id=user_id,
-                        movie_id=movie_id,
-                    )
+                earliest_event = self._watch_event_repository.get_earliest_for_user_and_movie(
+                    user_id=user_id,
+                    movie_id=movie_id,
                 )
 
                 entry.status = LibraryStatus.COMPLETED
@@ -170,11 +168,9 @@ class MovieWatchEventService:
         The operation is idempotent.
         """
 
-        deleted_count = (
-            self._watch_event_repository.delete_all_for_user_and_movie(
-                user_id=user_id,
-                movie_id=movie_id,
-            )
+        deleted_count = self._watch_event_repository.delete_all_for_user_and_movie(
+            user_id=user_id,
+            movie_id=movie_id,
         )
 
         entry = self._library_repository.get_by_user_and_movie(

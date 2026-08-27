@@ -3,12 +3,12 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    JSON,
     DateTime,
     Enum,
     ForeignKey,
     Integer,
     Text,
-    JSON,
     Uuid,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship

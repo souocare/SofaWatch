@@ -1,41 +1,23 @@
 from datetime import UTC, date, datetime
+from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import uuid4
-from types import SimpleNamespace
 
+from app.repositories.episode import EpisodeRepository
+from app.repositories.episode_progress import EpisodeProgressRepository
 from app.repositories.episode_watch_event import EpisodeWatchEventRepository
+from app.repositories.library import LibraryRepository
 from app.repositories.movie_watch_event import MovieWatchEventRepository
-from app.services.statistics import StatisticsService
-from app.repositories.viewing_statistics import DailyViewingStatistics
-from app.schemas.statistics import StatisticsActivityPeriod
 from app.repositories.statistics_insights import (
     EpisodeViewingInsight,
     GenreViewingInsight,
     MovieViewingInsight,
     ShowViewingInsight,
 )
-from app.repositories.library import LibraryRepository
-from app.repositories.episode import EpisodeRepository
-from app.repositories.episode_progress import EpisodeProgressRepository
+from app.repositories.viewing_statistics import DailyViewingStatistics
+from app.schemas.statistics import StatisticsActivityPeriod
+from app.services.statistics import StatisticsService
 
-def create_statistics_service(
-    *,
-    episode_watch_event_repository: EpisodeWatchEventRepository,
-    movie_watch_event_repository: MovieWatchEventRepository,
-    library_repository: LibraryRepository | None = None,
-) -> StatisticsService:
-    """Create StatisticsService with isolated repository dependencies."""
-
-    return StatisticsService(
-        episode_watch_event_repository=episode_watch_event_repository,
-        movie_watch_event_repository=movie_watch_event_repository,
-        library_repository=(
-            library_repository
-            or Mock(
-                spec=LibraryRepository,
-            )
-        ),
-    )
 
 def create_statistics_service(
     *,
@@ -69,7 +51,6 @@ def create_statistics_service(
             )
         ),
     )
-
 
 
 def test_weekly_summary_combines_episode_and_movie_statistics() -> None:
@@ -314,8 +295,6 @@ def test_weekly_summary_rolls_over_on_next_monday() -> None:
     assert result.watch_time_minutes == 172
 
 
-
-
 def test_get_summary_combines_lifetime_viewing_statistics() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
@@ -328,19 +307,19 @@ def test_get_summary_combines_lifetime_viewing_statistics() -> None:
     episode_repository.count_watched_shows.return_value = 12
 
     episode_repository.get_all_time_statistics.return_value = (
-        125,   # watch_count
-        100,   # unique_count
-        25,    # rewatch_count
+        125,  # watch_count
+        100,  # unique_count
+        25,  # rewatch_count
         6250,  # watch_time_minutes
         1250,  # rewatch_time_minutes
     )
 
     movie_repository.get_all_time_statistics.return_value = (
-        34,    # watch_count
-        30,    # unique_count
-        4,     # rewatch_count
+        34,  # watch_count
+        30,  # unique_count
+        4,  # rewatch_count
         4200,  # watch_time_minutes
-        500,   # rewatch_time_minutes
+        500,  # rewatch_time_minutes
     )
 
     service = create_statistics_service(
@@ -371,7 +350,6 @@ def test_get_summary_combines_lifetime_viewing_statistics() -> None:
     assert result.watch_time_minutes == 10450
     assert result.rewatch_time_minutes == 1750
 
-
     episode_repository.count_watched_shows.assert_called_once_with(
         user_id=user_id,
     )
@@ -383,6 +361,7 @@ def test_get_summary_combines_lifetime_viewing_statistics() -> None:
     movie_repository.get_all_time_statistics.assert_called_once_with(
         user_id=user_id,
     )
+
 
 def test_get_summary_returns_zero_values_without_viewings() -> None:
     episode_repository = Mock(
@@ -436,6 +415,7 @@ def test_get_summary_returns_zero_values_without_viewings() -> None:
 
     assert result.watch_time_minutes == 0
     assert result.rewatch_time_minutes == 0
+
 
 def test_get_activity_combines_episode_and_movie_daily_statistics() -> None:
     episode_repository = Mock(
@@ -499,10 +479,7 @@ def test_get_activity_combines_episode_and_movie_daily_statistics() -> None:
 
     assert len(result.days) == 7
 
-    assert [
-        item.day
-        for item in result.days
-    ] == [
+    assert [item.day for item in result.days] == [
         date(2026, 8, 12),
         date(2026, 8, 13),
         date(2026, 8, 14),
@@ -591,7 +568,6 @@ def test_get_activity_supports_fourteen_days() -> None:
         reference_date=date(2026, 8, 18),
     )
 
-
     assert result.start_date == date(
         2026,
         8,
@@ -647,6 +623,7 @@ def test_get_activity_supports_thirty_day_period() -> None:
     )
 
     assert len(result.days) == 30
+
 
 def test_activity_supports_thirty_days() -> None:
     episode_repository = Mock(
@@ -728,6 +705,7 @@ def test_activity_supports_one_year() -> None:
     assert result.end_date == date(2026, 8, 18)
     assert len(result.days) == 365
 
+
 def test_activity_all_starts_at_earliest_viewing() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
@@ -736,26 +714,22 @@ def test_activity_all_starts_at_earliest_viewing() -> None:
         spec=MovieWatchEventRepository,
     )
 
-    episode_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2024,
-            5,
-            10,
-            20,
-            0,
-            tzinfo=UTC,
-        )
+    episode_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2024,
+        5,
+        10,
+        20,
+        0,
+        tzinfo=UTC,
     )
 
-    movie_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2023,
-            11,
-            2,
-            21,
-            0,
-            tzinfo=UTC,
-        )
+    movie_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2023,
+        11,
+        2,
+        21,
+        0,
+        tzinfo=UTC,
     )
 
     episode_repository.get_daily_statistics_for_period.return_value = []
@@ -775,10 +749,7 @@ def test_activity_all_starts_at_earliest_viewing() -> None:
     assert result.start_date == date(2023, 11, 2)
     assert result.end_date == date(2026, 8, 18)
 
-    expected_days = (
-        date(2026, 8, 18)
-        - date(2023, 11, 2)
-    ).days + 1
+    expected_days = (date(2026, 8, 18) - date(2023, 11, 2)).days + 1
 
     assert len(result.days) == expected_days
 
@@ -817,6 +788,7 @@ def test_activity_all_returns_today_without_viewing_history() -> None:
     assert result.days[0].movies_watched == 0
     assert result.days[0].watch_time_minutes == 0
 
+
 def test_get_habits_calculates_current_and_longest_streaks() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
@@ -826,13 +798,11 @@ def test_get_habits_calculates_current_and_longest_streaks() -> None:
         spec=MovieWatchEventRepository,
     )
 
-    episode_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            10,
-            tzinfo=UTC,
-        )
+    episode_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        10,
+        tzinfo=UTC,
     )
 
     movie_repository.get_earliest_watched_at_for_user.return_value = None
@@ -889,6 +859,7 @@ def test_get_habits_calculates_current_and_longest_streaks() -> None:
     assert result.current_streak_days == 3
     assert result.longest_streak_days == 3
 
+
 def test_get_habits_keeps_current_streak_alive_from_yesterday() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
@@ -898,13 +869,11 @@ def test_get_habits_keeps_current_streak_alive_from_yesterday() -> None:
         spec=MovieWatchEventRepository,
     )
 
-    episode_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            15,
-            tzinfo=UTC,
-        )
+    episode_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        15,
+        tzinfo=UTC,
     )
 
     movie_repository.get_earliest_watched_at_for_user.return_value = None
@@ -946,6 +915,7 @@ def test_get_habits_keeps_current_streak_alive_from_yesterday() -> None:
     assert result.current_streak_days == 3
     assert result.longest_streak_days == 3
 
+
 def test_get_habits_returns_zero_current_streak_when_last_activity_is_old() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
@@ -955,13 +925,11 @@ def test_get_habits_returns_zero_current_streak_when_last_activity_is_old() -> N
         spec=MovieWatchEventRepository,
     )
 
-    episode_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            10,
-            tzinfo=UTC,
-        )
+    episode_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        10,
+        tzinfo=UTC,
     )
 
     movie_repository.get_earliest_watched_at_for_user.return_value = None
@@ -1003,6 +971,7 @@ def test_get_habits_returns_zero_current_streak_when_last_activity_is_old() -> N
     assert result.current_streak_days == 0
     assert result.longest_streak_days == 3
 
+
 def test_get_habits_combines_episode_and_movie_active_days() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
@@ -1012,22 +981,18 @@ def test_get_habits_combines_episode_and_movie_active_days() -> None:
         spec=MovieWatchEventRepository,
     )
 
-    episode_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            15,
-            tzinfo=UTC,
-        )
+    episode_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        15,
+        tzinfo=UTC,
     )
 
-    movie_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            16,
-            tzinfo=UTC,
-        )
+    movie_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        16,
+        tzinfo=UTC,
     )
 
     episode_repository.get_daily_statistics_for_period.return_value = [
@@ -1073,6 +1038,7 @@ def test_get_habits_combines_episode_and_movie_active_days() -> None:
     assert result.current_streak_days == 4
     assert result.longest_streak_days == 4
 
+
 def test_get_habits_counts_shared_episode_and_movie_day_once() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
@@ -1089,13 +1055,9 @@ def test_get_habits_counts_shared_episode_and_movie_day_once() -> None:
         tzinfo=UTC,
     )
 
-    episode_repository.get_earliest_watched_at_for_user.return_value = (
-        watched_at
-    )
+    episode_repository.get_earliest_watched_at_for_user.return_value = watched_at
 
-    movie_repository.get_earliest_watched_at_for_user.return_value = (
-        watched_at
-    )
+    movie_repository.get_earliest_watched_at_for_user.return_value = watched_at
 
     episode_repository.get_daily_statistics_for_period.return_value = [
         SimpleNamespace(
@@ -1130,6 +1092,7 @@ def test_get_habits_counts_shared_episode_and_movie_day_once() -> None:
     assert result.current_streak_days == 1
     assert result.longest_streak_days == 1
 
+
 def test_get_habits_returns_zeroes_without_viewing_history() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
@@ -1163,8 +1126,7 @@ def test_get_habits_returns_zeroes_without_viewing_history() -> None:
     movie_repository.get_daily_statistics_for_period.assert_not_called()
 
 
-def test_get_habits_calculates_biggest_marathon_from_episode_and_movie_time(
-) -> None:
+def test_get_habits_calculates_biggest_marathon_from_episode_and_movie_time() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
     )
@@ -1173,22 +1135,18 @@ def test_get_habits_calculates_biggest_marathon_from_episode_and_movie_time(
         spec=MovieWatchEventRepository,
     )
 
-    episode_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            10,
-            tzinfo=UTC,
-        )
+    episode_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        10,
+        tzinfo=UTC,
     )
 
-    movie_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            10,
-            tzinfo=UTC,
-        )
+    movie_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        10,
+        tzinfo=UTC,
     )
 
     episode_repository.get_daily_statistics_for_period.return_value = [
@@ -1244,8 +1202,8 @@ def test_get_habits_calculates_biggest_marathon_from_episode_and_movie_time(
         12,
     )
 
-def test_get_habits_uses_most_recent_day_when_marathon_time_is_tied(
-) -> None:
+
+def test_get_habits_uses_most_recent_day_when_marathon_time_is_tied() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
     )
@@ -1254,13 +1212,11 @@ def test_get_habits_uses_most_recent_day_when_marathon_time_is_tied(
         spec=MovieWatchEventRepository,
     )
 
-    episode_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            10,
-            tzinfo=UTC,
-        )
+    episode_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        10,
+        tzinfo=UTC,
     )
 
     movie_repository.get_earliest_watched_at_for_user.return_value = None
@@ -1302,8 +1258,7 @@ def test_get_habits_uses_most_recent_day_when_marathon_time_is_tied(
     )
 
 
-def test_get_habits_returns_no_marathon_day_when_all_watch_time_is_unknown(
-) -> None:
+def test_get_habits_returns_no_marathon_day_when_all_watch_time_is_unknown() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
     )
@@ -1312,13 +1267,11 @@ def test_get_habits_returns_no_marathon_day_when_all_watch_time_is_unknown(
         spec=MovieWatchEventRepository,
     )
 
-    episode_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            18,
-            tzinfo=UTC,
-        )
+    episode_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        18,
+        tzinfo=UTC,
     )
 
     movie_repository.get_earliest_watched_at_for_user.return_value = None
@@ -1363,13 +1316,11 @@ def test_get_habits_calculates_longest_episode_binge() -> None:
         spec=MovieWatchEventRepository,
     )
 
-    episode_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            10,
-            tzinfo=UTC,
-        )
+    episode_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        10,
+        tzinfo=UTC,
     )
 
     movie_repository.get_earliest_watched_at_for_user.return_value = None
@@ -1417,8 +1368,7 @@ def test_get_habits_calculates_longest_episode_binge() -> None:
     )
 
 
-def test_get_habits_uses_most_recent_day_when_episode_binge_is_tied(
-) -> None:
+def test_get_habits_uses_most_recent_day_when_episode_binge_is_tied() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
     )
@@ -1427,13 +1377,11 @@ def test_get_habits_uses_most_recent_day_when_episode_binge_is_tied(
         spec=MovieWatchEventRepository,
     )
 
-    episode_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            10,
-            tzinfo=UTC,
-        )
+    episode_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        10,
+        tzinfo=UTC,
     )
 
     movie_repository.get_earliest_watched_at_for_user.return_value = None
@@ -1476,8 +1424,7 @@ def test_get_habits_uses_most_recent_day_when_episode_binge_is_tied(
     )
 
 
-def test_get_habits_returns_no_episode_binge_for_movie_only_history(
-) -> None:
+def test_get_habits_returns_no_episode_binge_for_movie_only_history() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
     )
@@ -1488,13 +1435,11 @@ def test_get_habits_returns_no_episode_binge_for_movie_only_history(
 
     episode_repository.get_earliest_watched_at_for_user.return_value = None
 
-    movie_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            18,
-            tzinfo=UTC,
-        )
+    movie_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        18,
+        tzinfo=UTC,
     )
 
     episode_repository.get_daily_statistics_for_period.return_value = []
@@ -1524,6 +1469,7 @@ def test_get_habits_returns_no_episode_binge_for_movie_only_history(
     assert result.longest_binge_episode_count == 0
     assert result.longest_binge_day is None
 
+
 def test_get_habits_calculates_average_active_day_watch_time() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
@@ -1533,22 +1479,18 @@ def test_get_habits_calculates_average_active_day_watch_time() -> None:
         spec=MovieWatchEventRepository,
     )
 
-    episode_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            10,
-            tzinfo=UTC,
-        )
+    episode_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        10,
+        tzinfo=UTC,
     )
 
-    movie_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            11,
-            tzinfo=UTC,
-        )
+    movie_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        11,
+        tzinfo=UTC,
     )
 
     episode_repository.get_daily_statistics_for_period.return_value = [
@@ -1600,8 +1542,7 @@ def test_get_habits_calculates_average_active_day_watch_time() -> None:
     assert result.average_active_day_watch_time_minutes == 120
 
 
-def test_get_habits_counts_zero_watch_time_day_in_active_day_average(
-) -> None:
+def test_get_habits_counts_zero_watch_time_day_in_active_day_average() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
     )
@@ -1610,13 +1551,11 @@ def test_get_habits_counts_zero_watch_time_day_in_active_day_average(
         spec=MovieWatchEventRepository,
     )
 
-    episode_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            17,
-            tzinfo=UTC,
-        )
+    episode_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        17,
+        tzinfo=UTC,
     )
 
     movie_repository.get_earliest_watched_at_for_user.return_value = None
@@ -1653,7 +1592,6 @@ def test_get_habits_counts_zero_watch_time_day_in_active_day_average(
     assert result.average_active_day_watch_time_minutes == 60
 
 
-
 def test_get_habits_calculates_most_active_weekday() -> None:
     episode_repository = Mock(
         spec=EpisodeWatchEventRepository,
@@ -1663,22 +1601,18 @@ def test_get_habits_calculates_most_active_weekday() -> None:
         spec=MovieWatchEventRepository,
     )
 
-    episode_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            10,
-            tzinfo=UTC,
-        )
+    episode_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        10,
+        tzinfo=UTC,
     )
 
-    movie_repository.get_earliest_watched_at_for_user.return_value = (
-        datetime(
-            2026,
-            8,
-            10,
-            tzinfo=UTC,
-        )
+    movie_repository.get_earliest_watched_at_for_user.return_value = datetime(
+        2026,
+        8,
+        10,
+        tzinfo=UTC,
     )
 
     episode_repository.get_daily_statistics_for_period.return_value = [
@@ -1777,10 +1711,7 @@ def test_get_content_insights_combines_all_rankings() -> None:
             season_number=1,
             episode_number=1,
             episode_title="Good News About Hell",
-            still_url=(
-                f"/api/v1/images/episodes/"
-                f"{episode_id}/still"
-            ),
+            still_url=(f"/api/v1/images/episodes/{episode_id}/still"),
             watch_count=4,
             rewatch_count=3,
         ),
@@ -1939,7 +1870,6 @@ def test_get_content_insights_returns_empty_rankings_without_history() -> None:
     assert result.top_movie_genres == []
 
 
-
 def test_get_library_statistics_returns_library_counts() -> None:
     """Return Shows, Movies and completed Show Library counts."""
 
@@ -2024,7 +1954,6 @@ def test_get_library_statistics_supports_empty_library() -> None:
     assert result.shows_completed == 0
 
 
-
 def test_get_backlog_statistics_combines_current_backlog_values() -> None:
     """Combine Episode and Movie backlog counts and known watch time."""
 
@@ -2055,9 +1984,7 @@ def test_get_backlog_statistics_combines_current_backlog_values() -> None:
         uuid4(),
     ]
 
-    library_repository.get_backlog_show_ids_for_user.return_value = (
-        show_ids
-    )
+    library_repository.get_backlog_show_ids_for_user.return_value = show_ids
 
     episode_progress_repository.get_unwatched_aired_statistics.return_value = (
         12,
@@ -2069,13 +1996,10 @@ def test_get_backlog_statistics_combines_current_backlog_values() -> None:
         360,
     )
 
-    episode_progress_repository.count_first_watched_regular_episodes_between.return_value = (
-        8
-    )
+    episode_progress_repository.count_first_watched_regular_episodes_between.return_value = 8
 
     episode_repository.list_regular_for_shows_between.return_value = [
-        SimpleNamespace()
-        for _ in range(6)
+        SimpleNamespace() for _ in range(6)
     ]
 
     service = create_statistics_service(
@@ -2134,9 +2058,7 @@ def test_get_backlog_statistics_reports_growing_backlog() -> None:
         uuid4(),
     ]
 
-    library_repository.get_backlog_show_ids_for_user.return_value = (
-        show_ids
-    )
+    library_repository.get_backlog_show_ids_for_user.return_value = show_ids
 
     episode_progress_repository.get_unwatched_aired_statistics.return_value = (
         7,
@@ -2148,13 +2070,10 @@ def test_get_backlog_statistics_reports_growing_backlog() -> None:
         0,
     )
 
-    episode_progress_repository.count_first_watched_regular_episodes_between.return_value = (
-        3
-    )
+    episode_progress_repository.count_first_watched_regular_episodes_between.return_value = 3
 
     episode_repository.list_regular_for_shows_between.return_value = [
-        SimpleNamespace()
-        for _ in range(7)
+        SimpleNamespace() for _ in range(7)
     ]
 
     service = create_statistics_service(
@@ -2219,13 +2138,10 @@ def test_get_backlog_statistics_reports_stable_backlog() -> None:
         240,
     )
 
-    episode_progress_repository.count_first_watched_regular_episodes_between.return_value = (
-        4
-    )
+    episode_progress_repository.count_first_watched_regular_episodes_between.return_value = 4
 
     episode_repository.list_regular_for_shows_between.return_value = [
-        SimpleNamespace()
-        for _ in range(4)
+        SimpleNamespace() for _ in range(4)
     ]
 
     service = create_statistics_service(
@@ -2290,9 +2206,7 @@ def test_get_backlog_statistics_returns_zeroes_without_backlog() -> None:
         0,
     )
 
-    episode_progress_repository.count_first_watched_regular_episodes_between.return_value = (
-        0
-    )
+    episode_progress_repository.count_first_watched_regular_episodes_between.return_value = 0
 
     episode_repository.list_regular_for_shows_between.return_value = []
 
@@ -2363,9 +2277,7 @@ def test_get_backlog_statistics_uses_twenty_eight_day_trend_window() -> None:
         0,
     )
 
-    episode_progress_repository.count_first_watched_regular_episodes_between.return_value = (
-        0
-    )
+    episode_progress_repository.count_first_watched_regular_episodes_between.return_value = 0
 
     episode_repository.list_regular_for_shows_between.return_value = []
 

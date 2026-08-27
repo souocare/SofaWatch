@@ -2,9 +2,9 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from app.core.security.passwords import hash_password, verify_password
 from app.models.user import User
 from app.repositories.user import UserRepository
-from app.core.security.passwords import hash_password, verify_password
 
 
 class CurrentPasswordInvalidError(Exception):
@@ -13,6 +13,7 @@ class CurrentPasswordInvalidError(Exception):
 
 class PasswordUnavailableError(Exception):
     """Raised when the account does not have a password that can be changed."""
+
 
 class UserService:
     """Business logic for SofaWatch users."""
@@ -93,7 +94,6 @@ class UserService:
 
         return user
 
-
     def update_password(
         self,
         *,
@@ -120,7 +120,6 @@ class UserService:
         self._session.refresh(user)
 
         return user
-
 
     def list_users(self) -> list[User]:
         """Return all SofaWatch users."""

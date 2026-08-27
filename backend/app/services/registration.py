@@ -51,11 +51,7 @@ class RegistrationService:
         normalized_username = username.strip().lower()
         normalized_display_name = display_name.strip()
 
-        normalized_email = (
-            email.strip().lower()
-            if email is not None and email.strip()
-            else None
-        )
+        normalized_email = email.strip().lower() if email is not None and email.strip() else None
 
         if self._user_repository.get_by_username(normalized_username) is not None:
             raise UsernameAlreadyExistsError

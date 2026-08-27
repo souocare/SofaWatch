@@ -3,7 +3,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 ServerHealthStatus = Literal[
     "healthy",
     "degraded",
@@ -79,6 +78,7 @@ class ServerTMDBHealthResponse(BaseModel):
         default=None,
         ge=0,
     )
+
 
 class ServerEnvironmentResponse(BaseModel):
     """Safe administrative application configuration."""
@@ -168,6 +168,7 @@ class ServerRuntimeResponse(BaseModel):
     python_version: str
     platform: str
     started_at: datetime
+
 
 class ServerHealthResponse(BaseModel):
     """Administrative operational health summary for SofaWatch."""

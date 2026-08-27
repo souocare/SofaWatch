@@ -9,11 +9,7 @@ from app.services.administrator_password_recovery import (
     AdministratorRecoveryUnavailableError,
 )
 
-
-_USAGE = (
-    "Usage: python -m app.admin.reset_password "
-    "<administrator_username_or_email>"
-)
+_USAGE = "Usage: python -m app.admin.reset_password <administrator_username_or_email>"
 
 
 def main() -> None:
@@ -37,19 +33,13 @@ def main() -> None:
         )
 
         if user is None:
-            raise SystemExit(
-                "Administrator account could not be found."
-            )
+            raise SystemExit("Administrator account could not be found.")
 
         if not user.is_admin:
-            raise SystemExit(
-                "Password recovery is only available for administrators."
-            )
+            raise SystemExit("Password recovery is only available for administrators.")
 
         if not user.is_active:
-            raise SystemExit(
-                "Password recovery is unavailable for an inactive administrator."
-            )
+            raise SystemExit("Password recovery is unavailable for an inactive administrator.")
 
         new_password = getpass.getpass(
             "New password: ",
@@ -60,19 +50,13 @@ def main() -> None:
         )
 
         if new_password != confirm_password:
-            raise SystemExit(
-                "Passwords do not match."
-            )
+            raise SystemExit("Passwords do not match.")
 
         if len(new_password) < 8:
-            raise SystemExit(
-                "Password must be at least 8 characters."
-            )
+            raise SystemExit("Password must be at least 8 characters.")
 
         if len(new_password) > 128:
-            raise SystemExit(
-                "Password must be 128 characters or fewer."
-            )
+            raise SystemExit("Password must be 128 characters or fewer.")
 
         service = AdministratorPasswordRecoveryService(
             session=session,
@@ -85,9 +69,7 @@ def main() -> None:
                 new_password=new_password,
             )
         except AdministratorRecoveryUnavailableError as error:
-            raise SystemExit(
-                "Administrator password recovery is unavailable."
-            ) from error
+            raise SystemExit("Administrator password recovery is unavailable.") from error
 
     print("Administrator password updated successfully.")
     print("Existing sessions have been revoked.")

@@ -12,14 +12,14 @@ from app.models.user import User
 from app.schemas.server import (
     ServerDatabaseHealthResponse,
     ServerDatabaseMigrationResponse,
-    ServerHealthResponse,
-    ServerTMDBHealthResponse,
     ServerEnvironmentResponse,
+    ServerHealthResponse,
     ServerImageCacheBreakdownResponse,
     ServerImageCacheCategoryResponse,
     ServerImageCacheResponse,
     ServerRuntimeResponse,
     ServerStorageResponse,
+    ServerTMDBHealthResponse,
 )
 
 
@@ -75,7 +75,6 @@ def test_get_server_health_returns_admin_health_summary(
             tzinfo=UTC,
         ),
         uptime_seconds=3600,
-
         environment=ServerEnvironmentResponse(
             app_name="SofaWatch",
             environment="production",
@@ -89,7 +88,6 @@ def test_get_server_health_returns_admin_health_summary(
             ],
             metadata_refresh_days=7,
         ),
-
         storage=ServerStorageResponse(
             data_directory="./data",
             writable=True,
@@ -116,7 +114,6 @@ def test_get_server_health_returns_admin_health_summary(
                 ),
             ),
         ),
-
         runtime=ServerRuntimeResponse(
             python_version="3.12.11",
             platform="Linux",
@@ -129,7 +126,6 @@ def test_get_server_health_returns_admin_health_summary(
                 tzinfo=UTC,
             ),
         ),
-
         database=ServerDatabaseHealthResponse(
             status="healthy",
             engine="sqlite",
@@ -143,7 +139,6 @@ def test_get_server_health_returns_admin_health_summary(
                 message="add admin flag to users",
             ),
         ),
-
         tmdb=ServerTMDBHealthResponse(
             status="healthy",
             configured=True,
@@ -151,9 +146,7 @@ def test_get_server_health_returns_admin_health_summary(
         ),
     )
 
-    app.dependency_overrides[
-        get_server_health_service
-    ] = lambda: service
+    app.dependency_overrides[get_server_health_service] = lambda: service
 
     try:
         response = client.get(
@@ -218,10 +211,7 @@ def test_get_server_health_returns_admin_health_summary(
     assert payload["storage"]["image_cache"]["total_size_bytes"] == 375
     assert payload["storage"]["image_cache"]["total_files"] == 4
 
-    assert (
-        payload["storage"]["image_cache"]["breakdown"]["shows"]["files"]
-        == 2
-    )
+    assert payload["storage"]["image_cache"]["breakdown"]["shows"]["files"] == 2
 
     assert payload["runtime"]["python_version"] == "3.12.11"
     assert payload["runtime"]["platform"] == "Linux"

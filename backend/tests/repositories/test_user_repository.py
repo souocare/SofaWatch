@@ -67,8 +67,6 @@ def test_get_by_id_returns_none_when_missing(
     assert result is None
 
 
-
-
 def test_get_by_username_returns_user(
     db_session,
 ) -> None:
@@ -182,10 +180,7 @@ def test_list_all_returns_users_ordered_by_display_name(
 
     result = repository.list_all()
 
-    assert [
-        user.display_name
-        for user in result
-    ] == [
+    assert [user.display_name for user in result] == [
         "Alice",
         "Bob",
         "Charlie",
@@ -198,5 +193,3 @@ def test_list_all_returns_empty_list_when_no_users_exist(
     repository = UserRepository(db_session)
 
     assert repository.list_all() == []
-
-

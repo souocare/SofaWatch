@@ -2,14 +2,15 @@ from datetime import date
 
 import pytest
 from pydantic import ValidationError
+
 from app.providers.tmdb.schemas import (
+    TMDBMovieDetails,
     TMDBMovieSearchResponse,
     TMDBMultiMovieSearchResult,
     TMDBMultiPersonSearchResult,
     TMDBMultiSearchResponse,
     TMDBMultiSearchResult,
     TMDBMultiTVSearchResult,
-    TMDBMovieDetails,
 )
 
 

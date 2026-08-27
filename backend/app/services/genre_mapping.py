@@ -26,12 +26,10 @@ class GenreMappingService:
         provider_genre_id: int,
         name: str,
     ) -> Genre:
-        existing_mapping = (
-            self._mapping_repository.get(
-                provider=provider,
-                media_type=media_type,
-                provider_genre_id=provider_genre_id,
-            )
+        existing_mapping = self._mapping_repository.get(
+            provider=provider,
+            media_type=media_type,
+            provider_genre_id=provider_genre_id,
         )
 
         if existing_mapping is not None:

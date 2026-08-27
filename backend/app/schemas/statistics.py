@@ -1,11 +1,13 @@
 from datetime import date
 from enum import StrEnum
-from pydantic import BaseModel, Field
 from uuid import UUID
+
+from pydantic import BaseModel, Field
 
 
 class WeeklyStatisticsResponse(BaseModel):
     """Viewing summary for one calendar week."""
+
     week_start: date
     week_end: date
 
@@ -18,8 +20,6 @@ class WeeklyStatisticsResponse(BaseModel):
     watch_time_minutes: int = Field(
         ge=0,
     )
-
-
 
 
 class MediaViewingStatisticsResponse(BaseModel):
@@ -45,6 +45,7 @@ class MediaViewingStatisticsResponse(BaseModel):
         ge=0,
     )
 
+
 class StatisticsSummaryResponse(BaseModel):
     """All-time viewing summary for a SofaWatch user."""
 
@@ -63,6 +64,7 @@ class StatisticsSummaryResponse(BaseModel):
     rewatch_time_minutes: int = Field(
         ge=0,
     )
+
 
 class DailyStatisticsResponse(BaseModel):
     """Viewing activity for one calendar day."""
@@ -113,6 +115,7 @@ class StatisticsActivityPeriod(StrEnum):
             StatisticsActivityPeriod.ALL: None,
         }[self]
 
+
 class StatisticsActivityResponse(BaseModel):
     """Viewing activity over a consecutive calendar-day range."""
 
@@ -153,6 +156,7 @@ class StatisticsHabitsResponse(BaseModel):
     most_active_weekday_watch_count: int = Field(
         ge=0,
     )
+
 
 class StatisticsShowInsightResponse(BaseModel):
     """Viewing insight for one Show."""
@@ -231,6 +235,7 @@ class StatisticsLibraryResponse(BaseModel):
     shows_completed: int = Field(
         ge=0,
     )
+
 
 class StatisticsBacklogTrend(StrEnum):
     """Direction of the recent Episode backlog."""

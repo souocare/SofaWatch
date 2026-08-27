@@ -2,7 +2,6 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Path, status
-from app.core.exceptions import APIError
 
 from app.api.dependencies import (
     CurrentUserDependency,
@@ -10,9 +9,9 @@ from app.api.dependencies import (
     EpisodeServiceDependency,
     SeasonEpisodeSyncServiceDependency,
 )
+from app.core.exceptions import APIError
 from app.schemas.episode import EpisodeResponse
 from app.schemas.episode_progress import (
-    EpisodeProgressResponse,
     EpisodeProgressWithWatchCountResponse,
 )
 from app.schemas.progress import SeasonProgressResponse
@@ -153,6 +152,7 @@ def sync_season_episodes(
         )
 
     return episodes
+
 
 @router.get(
     "/{season_id}/episodes/progress",

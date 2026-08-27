@@ -6,11 +6,11 @@ from sqlalchemy.orm import Session
 
 from app.models.episode import Episode
 from app.models.episode_watch_event import EpisodeWatchEvent
+from app.models.genre import Genre
 from app.models.season import Season
 from app.models.show import Show
 from app.models.user import User
 from app.repositories.episode_watch_event import EpisodeWatchEventRepository
-from app.models.genre import Genre
 
 
 def as_utc(value: datetime) -> datetime:
@@ -153,6 +153,7 @@ def create_watch_event(
 
     return event
 
+
 def create_genre(
     db_session: Session,
     *,
@@ -242,9 +243,12 @@ def test_add_episode_watch_event(
     assert persisted_event.user_id == user.id
     assert persisted_event.episode_id == episode.id
 
-    assert as_utc(
-        persisted_event.watched_at,
-    ) == watched_at
+    assert (
+        as_utc(
+            persisted_event.watched_at,
+        )
+        == watched_at
+    )
 
 
 def test_allows_multiple_watch_events_for_same_episode(
@@ -959,9 +963,7 @@ def test_list_watch_history_rejects_incomplete_cursor(
     except ValueError as error:
         assert "cursor" in str(error).lower()
     else:
-        raise AssertionError(
-            "Expected list_watch_history() to reject an incomplete cursor."
-        )
+        raise AssertionError("Expected list_watch_history() to reject an incomplete cursor.")
 
 
 def test_list_watch_history_returns_empty_page_for_non_positive_limit(
@@ -984,6 +986,7 @@ def test_list_watch_history_returns_empty_page_for_non_positive_limit(
 
     assert page.items == []
     assert page.has_more is False
+
 
 def test_get_counts_by_user_and_episode_ids(
     db_session: Session,
@@ -1086,6 +1089,7 @@ def test_get_counts_by_user_and_episode_ids(
         second_episode.id: 1,
     }
 
+
 def test_get_counts_by_user_and_episode_ids_returns_empty_for_empty_input(
     db_session: Session,
 ) -> None:
@@ -1101,6 +1105,7 @@ def test_get_counts_by_user_and_episode_ids_returns_empty_for_empty_input(
     )
 
     assert result == {}
+
 
 def test_get_statistics_for_period_counts_viewings_and_runtime(
     db_session: Session,
@@ -1274,6 +1279,7 @@ def test_get_statistics_for_period_counts_episode_without_runtime(
 
     assert count == 1
     assert watch_time == 0
+
 
 def test_get_all_time_statistics_counts_unique_episodes_and_rewatches(
     db_session: Session,
@@ -1941,6 +1947,7 @@ def test_get_daily_statistics_for_period_is_isolated_by_user(
     assert result[0].watch_count == 1
     assert result[0].watch_time_minutes == 50
 
+
 def test_get_earliest_watched_at_for_user(
     db_session: Session,
 ) -> None:
@@ -2180,6 +2187,7 @@ def test_get_most_watched_shows_ranks_by_episode_watch_events(
         ),
     ]
 
+
 def test_get_most_rewatched_shows_sums_episode_rewatches(
     db_session: Session,
 ) -> None:
@@ -2328,6 +2336,7 @@ def test_get_most_rewatched_shows_sums_episode_rewatches(
         ),
     ]
 
+
 def test_get_most_rewatched_episodes_excludes_single_viewings(
     db_session: Session,
 ) -> None:
@@ -2455,6 +2464,7 @@ def test_get_most_rewatched_episodes_excludes_single_viewings(
             1,
         ),
     ]
+
 
 def test_get_top_show_genres_counts_episode_watch_events_for_each_genre(
     db_session: Session,
@@ -2603,6 +2613,7 @@ def test_get_top_show_genres_counts_episode_watch_events_for_each_genre(
         ),
     ]
 
+
 def test_list_all_for_user_returns_complete_episode_history_in_chronological_order(
     db_session: Session,
 ) -> None:
@@ -2670,10 +2681,7 @@ def test_list_all_for_user_returns_complete_episode_history_in_chronological_ord
         user_id=user.id,
     )
 
-    assert [
-        item.event_id
-        for item in result
-    ] == [
+    assert [item.event_id for item in result] == [
         older_event.id,
         newer_event.id,
     ]
@@ -2766,6 +2774,7 @@ def test_list_all_for_user_preserves_specials_and_is_isolated_by_user(
     assert result[0].event_id == expected_event.id
     assert result[0].season_number == 0
 
+
 def test_list_all_for_user_returns_complete_episode_history(
     db_session: Session,
 ) -> None:
@@ -2852,28 +2861,16 @@ def test_list_all_for_user_returns_complete_episode_history(
         user_id=user.id,
     )
 
-    assert [
-        item.event_id
-        for item in result
-    ] == [
+    assert [item.event_id for item in result] == [
         older_event.id,
         newer_event.id,
     ]
 
-    assert all(
-        item.show.id == show.id
-        for item in result
-    )
+    assert all(item.show.id == show.id for item in result)
 
-    assert all(
-        item.episode.id == episode.id
-        for item in result
-    )
+    assert all(item.episode.id == episode.id for item in result)
 
-    assert all(
-        item.season_number == 1
-        for item in result
-    )
+    assert all(item.season_number == 1 for item in result)
 
 
 def test_exists_at_finds_exact_episode_watch_event(

@@ -11,7 +11,6 @@ from app.core.security.session_credentials import (
 from app.models.auth_session import AuthSession, AuthSessionType
 from app.repositories.auth_session import AuthSessionRepository
 
-
 _SESSION_RENEWAL_INTERVAL = timedelta(days=1)
 
 
@@ -34,9 +33,7 @@ class AuthSessionService:
         idle_expire_days: int,
     ) -> None:
         if idle_expire_days <= 0:
-            raise ValueError(
-                "Session idle expiration must be positive."
-            )
+            raise ValueError("Session idle expiration must be positive.")
 
         self._session = session
         self._repository = repository
@@ -125,14 +122,9 @@ class AuthSessionService:
             else None
         )
 
-        if (
-            last_used_at is None
-            or current_time - last_used_at >= _SESSION_RENEWAL_INTERVAL
-        ):
+        if last_used_at is None or current_time - last_used_at >= _SESSION_RENEWAL_INTERVAL:
             auth_session.last_used_at = current_time
-            auth_session.expires_at = (
-                current_time + self._idle_expiration
-            )
+            auth_session.expires_at = current_time + self._idle_expiration
 
             self._session.commit()
 
@@ -187,9 +179,7 @@ class AuthSessionService:
 
         auth_session.credential_hash = generated_credential.hash
         auth_session.last_used_at = current_time
-        auth_session.expires_at = (
-            current_time + self._idle_expiration
-        )
+        auth_session.expires_at = current_time + self._idle_expiration
 
         self._session.commit()
         self._session.refresh(
@@ -275,10 +265,7 @@ class AuthSessionService:
             session_id,
         )
 
-        if (
-            auth_session is None
-            or auth_session.user_id != user_id
-        ):
+        if auth_session is None or auth_session.user_id != user_id:
             return False
 
         if auth_session.revoked_at is not None:

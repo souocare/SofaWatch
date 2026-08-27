@@ -29,9 +29,7 @@ class PasswordRecoveryService:
         auth_session_repository: AuthSessionRepository,
     ) -> None:
         self._session = session
-        self._password_reset_token_repository = (
-            password_reset_token_repository
-        )
+        self._password_reset_token_repository = password_reset_token_repository
         self._user_repository = user_repository
         self._auth_session_repository = auth_session_repository
 
@@ -57,12 +55,9 @@ class PasswordRecoveryService:
             normalized_credential,
         )
 
-        reset_token = (
-            self._password_reset_token_repository
-            .consume_valid_by_credential_hash(
-                credential_hash,
-                used_at=current_time,
-            )
+        reset_token = self._password_reset_token_repository.consume_valid_by_credential_hash(
+            credential_hash,
+            used_at=current_time,
         )
 
         if reset_token is None:
@@ -72,11 +67,7 @@ class PasswordRecoveryService:
             reset_token.user_id,
         )
 
-        if (
-            user is None
-            or not user.is_active
-            or user.is_admin
-        ):
+        if user is None or not user.is_active or user.is_admin:
             self._session.rollback()
 
             raise PasswordRecoveryInvalidError

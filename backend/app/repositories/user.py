@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -53,13 +53,9 @@ class UserRepository:
     def exists_any(self) -> bool:
         """Return whether at least one SofaWatch user exists."""
 
-        user_id = self._session.scalar(
-            select(User.id).limit(1)
-        )
+        user_id = self._session.scalar(select(User.id).limit(1))
 
         return user_id is not None
-
-
 
     def add(
         self,
@@ -70,7 +66,6 @@ class UserRepository:
         self._session.add(user)
 
         return user
-
 
     def list_all(self) -> list[User]:
         """Return all SofaWatch users ordered by display name."""
@@ -83,4 +78,3 @@ class UserRepository:
                 )
             )
         )
-    

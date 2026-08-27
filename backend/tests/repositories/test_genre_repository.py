@@ -32,10 +32,7 @@ def test_list_all_returns_genres_ordered_by_name(
 
     genres = repository.list_all()
 
-    assert [
-        genre.name
-        for genre in genres
-    ] == [
+    assert [genre.name for genre in genres] == [
         "Action",
         "Drama",
         "Science Fiction",

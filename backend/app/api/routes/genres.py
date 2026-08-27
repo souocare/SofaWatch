@@ -1,9 +1,7 @@
-from fastapi import APIRouter, status
-from app.core.exceptions import APIError
+from fastapi import APIRouter
 
 from app.api.dependencies import GenreServiceDependency
 from app.schemas import GenreResponse
-
 
 router = APIRouter(
     prefix="/genres",
@@ -23,4 +21,3 @@ def list_genres(
     genres = service.list_genres()
 
     return [GenreResponse.model_validate(genre) for genre in genres]
-

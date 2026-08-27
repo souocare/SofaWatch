@@ -279,6 +279,7 @@ def test_list_runs_respects_limit(
 
     assert len(result) == 2
 
+
 def test_get_latest_run_returns_most_recent_execution(
     db_session: Session,
 ) -> None:
@@ -334,6 +335,7 @@ def test_get_latest_run_returns_most_recent_execution(
 
     assert result is not None
     assert result.id == latest_run.id
+
 
 def test_get_latest_run_returns_none_without_executions(
     db_session: Session,

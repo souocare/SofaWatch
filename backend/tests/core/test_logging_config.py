@@ -35,9 +35,7 @@ def test_safe_json_log_formatter_serializes_supported_fields() -> None:
 
     assert payload["level"] == "INFO"
     assert payload["logger"] == "app.jobs.executor"
-    assert payload["message"] == (
-        "Background job 'metadata_sync' completed."
-    )
+    assert payload["message"] == ("Background job 'metadata_sync' completed.")
 
     assert isinstance(
         payload["timestamp"],
@@ -133,11 +131,7 @@ def test_configure_logging_creates_component_log_file(
 
     logging.shutdown()
 
-    log_file = (
-        tmp_path
-        / "logs"
-        / "api.log"
-    )
+    log_file = tmp_path / "logs" / "api.log"
 
     assert log_file.is_file()
 
@@ -151,6 +145,4 @@ def test_configure_logging_creates_component_log_file(
 
     assert payload["level"] == "INFO"
     assert payload["logger"] == "test.logging"
-    assert payload["message"] == (
-        "Persistent test message."
-    )
+    assert payload["message"] == ("Persistent test message.")

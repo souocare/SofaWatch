@@ -1,5 +1,4 @@
-from datetime import UTC, datetime, timedelta, date
-
+from datetime import UTC, date, datetime, timedelta
 
 INACTIVITY_THRESHOLD_DAYS = 60
 
@@ -26,6 +25,7 @@ def is_stale_watching(
 
     return as_utc(watched_at) <= threshold
 
+
 def is_stale_pending_episode(
     air_date: date | None,
     *,
@@ -36,9 +36,7 @@ def is_stale_pending_episode(
     if air_date is None:
         return False
 
-    threshold_date = (
-        as_utc(now) - timedelta(days=INACTIVITY_THRESHOLD_DAYS)
-    ).date()
+    threshold_date = (as_utc(now) - timedelta(days=INACTIVITY_THRESHOLD_DAYS)).date()
 
     return air_date <= threshold_date
 

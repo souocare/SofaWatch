@@ -1,13 +1,7 @@
-# app/schemas/pagination.py
-
-from typing import Generic, TypeVar
-
 from pydantic import BaseModel, Field
 
-T = TypeVar("T")
 
-
-class PaginatedResponse(BaseModel, Generic[T]):
+class PaginatedResponse[T](BaseModel):
     """Paginated API response."""
 
     items: list[T] = Field(default_factory=list)

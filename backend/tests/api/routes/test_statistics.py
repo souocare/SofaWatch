@@ -4,16 +4,16 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.models.enums import LibraryStatus
 from app.models.episode import Episode
 from app.models.episode_watch_event import EpisodeWatchEvent
+from app.models.genre import Genre
+from app.models.library import LibraryEntry
 from app.models.movie import Movie
 from app.models.movie_watch_event import MovieWatchEvent
 from app.models.season import Season
 from app.models.show import Show
 from app.models.user import User
-from app.models.genre import Genre
-from app.models.enums import LibraryStatus
-from app.models.library import LibraryEntry
 
 
 def create_local_user(
@@ -570,13 +570,12 @@ def test_get_statistics_habits_returns_current_and_longest_streaks(
         "biggest_marathon_watch_time_minutes": 155,
         "biggest_marathon_day": today.isoformat(),
         "longest_binge_episode_count": 1,
-        "longest_binge_day": (
-            today - timedelta(days=1)
-        ).isoformat(),
+        "longest_binge_day": (today - timedelta(days=1)).isoformat(),
         "average_active_day_watch_time_minutes": 103,
         "most_active_weekday": expected_most_active_weekday,
         "most_active_weekday_watch_count": 1,
     }
+
 
 def test_get_statistics_habits_returns_zeroes_without_viewing_history(
     client: TestClient,
@@ -708,18 +707,13 @@ def test_get_statistics_habits_keeps_yesterday_streak_alive(
         "current_streak_days": 3,
         "longest_streak_days": 3,
         "biggest_marathon_watch_time_minutes": 50,
-        "biggest_marathon_day": (
-            today - timedelta(days=1)
-        ).isoformat(),
+        "biggest_marathon_day": (today - timedelta(days=1)).isoformat(),
         "longest_binge_episode_count": 1,
-        "longest_binge_day": (
-            today - timedelta(days=1)
-        ).isoformat(),
+        "longest_binge_day": (today - timedelta(days=1)).isoformat(),
         "average_active_day_watch_time_minutes": 50,
         "most_active_weekday": expected_most_active_weekday,
         "most_active_weekday_watch_count": 1,
     }
-
 
 
 def test_get_statistics_content_insights_returns_ranked_content(
@@ -934,7 +928,6 @@ def test_get_statistics_content_insights_returns_ranked_content(
                 episode_id=first_episode.id,
                 watched_at=base_time + timedelta(hours=2),
             ),
-
             # Second Severance Episode:
             # 2 watches -> 1 rewatch.
             EpisodeWatchEvent(
@@ -947,14 +940,12 @@ def test_get_statistics_content_insights_returns_ranked_content(
                 episode_id=second_episode.id,
                 watched_at=base_time + timedelta(hours=4),
             ),
-
             # Comedy Show: one watch.
             EpisodeWatchEvent(
                 user_id=user.id,
                 episode_id=comedy_episode.id,
                 watched_at=base_time + timedelta(hours=5),
             ),
-
             # Dune: 3 watches -> 2 rewatches.
             MovieWatchEvent(
                 user_id=user.id,
@@ -971,7 +962,6 @@ def test_get_statistics_content_insights_returns_ranked_content(
                 movie_id=dune.id,
                 watched_at=base_time + timedelta(hours=8),
             ),
-
             # Arrival: 2 watches -> 1 rewatch.
             MovieWatchEvent(
                 user_id=user.id,
@@ -1106,6 +1096,7 @@ def test_get_statistics_content_insights_returns_ranked_content(
         ),
     ]
 
+
 def test_get_statistics_content_insights_returns_empty_lists_without_history(
     client: TestClient,
     db_session: Session,
@@ -1217,6 +1208,7 @@ def test_get_statistics_library_returns_current_user_counts(
         "shows_completed": 1,
     }
 
+
 def test_get_statistics_library_returns_zeroes_for_empty_library(
     client: TestClient,
     db_session: Session,
@@ -1238,6 +1230,7 @@ def test_get_statistics_library_returns_zeroes_for_empty_library(
         "movies_added": 0,
         "shows_completed": 0,
     }
+
 
 def test_get_statistics_backlog_returns_current_backlog(
     client: TestClient,
@@ -1377,5 +1370,3 @@ def test_get_statistics_backlog_returns_zeroes_without_backlog(
         "backlog_trend": "stable",
         "backlog_trend_episode_delta": 0,
     }
-
-

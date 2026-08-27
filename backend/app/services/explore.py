@@ -1,12 +1,12 @@
+from uuid import UUID
+
 from app.core.config import Settings
 from app.providers.tmdb.client import TMDBClient
 from app.providers.tmdb.schemas import (
-    TMDBMovieSearchResult,
     TMDBMultiMovieSearchResult,
-    TMDBMultiPersonSearchResult,
     TMDBMultiTVSearchResult,
-    TMDBTVSearchResult,
 )
+from app.repositories.library import LibraryRepository
 from app.schemas.explore import (
     ExploreGenre,
     ExploreGenreOptions,
@@ -16,19 +16,6 @@ from app.schemas.explore import (
     ExploreTrendingResponse,
     ExploreTrendingWindow,
 )
-from app.schemas.explore import (
-    ExploreGenre,
-    ExploreGenresResponse,
-    ExploreMediaCollection,
-    ExploreMediaItem,
-    ExploreMediaType,
-    ExploreTrendingResponse,
-    ExploreTrendingWindow,
-)
-from uuid import UUID
-
-from app.repositories.library import LibraryRepository
-
 
 
 class ExploreService:
@@ -85,6 +72,7 @@ class ExploreService:
                 user_id=user_id,
             ),
         )
+
     def _map_show(
         self,
         item: TMDBMultiTVSearchResult,
@@ -145,10 +133,7 @@ class ExploreService:
         if path is None:
             return None
 
-        base_url = (
-            self._settings.tmdb_image_base_url
-            .rstrip("/")
-        )
+        base_url = self._settings.tmdb_image_base_url.rstrip("/")
 
         return f"{base_url}/{size}{path}"
 
@@ -163,30 +148,20 @@ class ExploreService:
         if not items:
             return items
 
-        show_tmdb_ids = {
-            item.tmdb_id
-            for item in items
-            if item.media_type is ExploreMediaType.SHOW
-        }
+        show_tmdb_ids = {item.tmdb_id for item in items if item.media_type is ExploreMediaType.SHOW}
 
         movie_tmdb_ids = {
-            item.tmdb_id
-            for item in items
-            if item.media_type is ExploreMediaType.MOVIE
+            item.tmdb_id for item in items if item.media_type is ExploreMediaType.MOVIE
         }
 
-        library_show_tmdb_ids = (
-            self._library_repository.get_show_tmdb_ids_in_library(
-                user_id=user_id,
-                tmdb_ids=show_tmdb_ids,
-            )
+        library_show_tmdb_ids = self._library_repository.get_show_tmdb_ids_in_library(
+            user_id=user_id,
+            tmdb_ids=show_tmdb_ids,
         )
 
-        library_movie_tmdb_ids = (
-            self._library_repository.get_movie_tmdb_ids_in_library(
-                user_id=user_id,
-                tmdb_ids=movie_tmdb_ids,
-            )
+        library_movie_tmdb_ids = self._library_repository.get_movie_tmdb_ids_in_library(
+            user_id=user_id,
+            tmdb_ids=movie_tmdb_ids,
         )
 
         return [
@@ -224,10 +199,7 @@ class ExploreService:
                 language=language,
             )
 
-        items = [
-            self._map_show(item)
-            for item in response.results
-        ]
+        items = [self._map_show(item) for item in response.results]
 
         return ExploreMediaCollection(
             items=self._enrich_library_state(
@@ -255,10 +227,7 @@ class ExploreService:
                 language=language,
             )
 
-        items = [
-            self._map_movie(item)
-            for item in response.results
-        ]
+        items = [self._map_movie(item) for item in response.results]
 
         return ExploreMediaCollection(
             items=self._enrich_library_state(
@@ -272,16 +241,12 @@ class ExploreService:
         *,
         language: str | None = None,
     ) -> ExploreGenreOptions:
-        tv_response = (
-            self._tmdb_client.get_tv_genres(
-                language=language,
-            )
+        tv_response = self._tmdb_client.get_tv_genres(
+            language=language,
         )
 
-        movie_response = (
-            self._tmdb_client.get_movie_genres(
-                language=language,
-            )
+        movie_response = self._tmdb_client.get_movie_genres(
+            language=language,
         )
 
         return ExploreGenreOptions(
@@ -300,5 +265,3 @@ class ExploreService:
                 for item in movie_response.genres
             ],
         )
-
-    

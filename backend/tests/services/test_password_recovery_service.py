@@ -173,10 +173,7 @@ def test_complete_password_recovery_consumes_token(
     except PasswordRecoveryInvalidError:
         pass
     else:
-        raise AssertionError(
-            "Expected an already-used password recovery token "
-            "to be rejected."
-        )
+        raise AssertionError("Expected an already-used password recovery token to be rejected.")
 
 
 def test_complete_password_recovery_rejects_expired_token(
@@ -212,10 +209,7 @@ def test_complete_password_recovery_rejects_expired_token(
     except PasswordRecoveryInvalidError:
         pass
     else:
-        raise AssertionError(
-            "Expected an expired password recovery token "
-            "to be rejected."
-        )
+        raise AssertionError("Expected an expired password recovery token to be rejected.")
 
     db_session.refresh(user)
 
@@ -240,10 +234,7 @@ def test_complete_password_recovery_rejects_invalid_token(
     except PasswordRecoveryInvalidError:
         pass
     else:
-        raise AssertionError(
-            "Expected an invalid password recovery token "
-            "to be rejected."
-        )
+        raise AssertionError("Expected an invalid password recovery token to be rejected.")
 
 
 def test_complete_password_recovery_revokes_existing_sessions(
@@ -333,10 +324,7 @@ def test_complete_password_recovery_rejects_inactive_user(
     except PasswordRecoveryInvalidError:
         pass
     else:
-        raise AssertionError(
-            "Expected password recovery for an inactive user "
-            "to be rejected."
-        )
+        raise AssertionError("Expected password recovery for an inactive user to be rejected.")
 
     db_session.refresh(user)
 
@@ -382,7 +370,4 @@ def test_complete_password_recovery_rejects_administrator(
     except PasswordRecoveryInvalidError:
         pass
     else:
-        raise AssertionError(
-            "Expected Web password recovery for an administrator "
-            "to be rejected."
-        )
+        raise AssertionError("Expected Web password recovery for an administrator to be rejected.")

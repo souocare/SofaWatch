@@ -4,23 +4,27 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from app.models.user import User
-from app.models.episode import Episode
-from app.models.season import Season
-from app.models.show import Show
-from app.repositories.episode_watch_event import EpisodeWatchEventRepository
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.episode import Episode
 from app.models.episode_progress import EpisodeProgress
+from app.models.episode_watch_event import EpisodeWatchEvent
+from app.models.season import Season
+from app.models.show import Show
+from app.models.user import User
 from app.repositories.episode import EpisodeRepository
 from app.repositories.episode_progress import EpisodeProgressRepository
+from app.repositories.episode_watch_event import EpisodeWatchEventRepository
 from app.repositories.season import SeasonRepository
 from app.repositories.show import ShowRepository
-from app.services.episode_progress import EpisodeNotWatchableError, EpisodeProgressService
-from app.models.episode_watch_event import EpisodeWatchEvent
+from app.services.episode_progress import (
+    EpisodeNotWatchableError,
+    EpisodeProgressService,
+)
 
 FIXED_TODAY = date(2026, 8, 15)
+
 
 def as_utc(
     value: datetime,
@@ -151,11 +155,13 @@ def progress_service(
         today=lambda: date(2026, 8, 15),
     )
 
+
 @pytest.fixture
 def watch_event_repository() -> Mock:
     """Provide a mocked episode watch event repository."""
 
     return Mock(spec=EpisodeWatchEventRepository)
+
 
 def test_mark_watched_returns_none_when_episode_does_not_exist(
     progress_service: EpisodeProgressService,
@@ -629,37 +635,6 @@ def test_get_show_progress_returns_none_when_show_does_not_exist(
     episode_repository.count_aired_by_show_id.assert_not_called()
     progress_repository.count_watched_for_show.assert_not_called()
     progress_repository.count_watched_aired_for_show.assert_not_called()
-
-
-def test_get_show_progress_handles_show_without_episodes(
-    progress_service: EpisodeProgressService,
-    show_repository: Mock,
-    episode_repository: Mock,
-    progress_repository: Mock,
-) -> None:
-    """Return zero percent when no local episodes exist for a TV series."""
-
-    user_id = uuid4()
-    show_id = uuid4()
-
-    show_repository.get_by_id.return_value = SimpleNamespace(
-        id=show_id,
-    )
-    episode_repository.count_regular_by_show_id.return_value = 0
-    episode_repository.count_aired_by_show_id.return_value = 0
-
-    progress_repository.count_watched_for_show.return_value = 0
-    progress_repository.count_watched_aired_for_show.return_value = 0
-
-    result = progress_service.get_show_progress(
-        user_id=user_id,
-        show_id=show_id,
-    )
-
-    assert result is not None
-    assert result.watched_episodes == 0
-    assert result.total_episodes == 0
-    assert result.progress_percentage == 0.0
 
 
 def test_get_next_episode_returns_none_when_show_does_not_exist(
@@ -1153,18 +1128,6 @@ def test_get_show_progress_calculates_percentage(
 
     assert result.caught_up is True
 
-from types import SimpleNamespace
-from unittest.mock import Mock
-from uuid import uuid4
-
-from sqlalchemy.orm import Session
-
-from app.repositories.episode import EpisodeRepository
-from app.repositories.episode_progress import EpisodeProgressRepository
-from app.repositories.season import SeasonRepository
-from app.repositories.show import ShowRepository
-from app.services.episode_progress import EpisodeProgressService
-
 
 def make_service(
     *,
@@ -1183,10 +1146,7 @@ def make_service(
         episode_repository=episode_repository,
         season_repository=season_repository,
         show_repository=show_repository,
-        watch_event_repository=(
-            watch_event_repository
-            or Mock(spec=EpisodeWatchEventRepository)
-        ),
+        watch_event_repository=(watch_event_repository or Mock(spec=EpisodeWatchEventRepository)),
     )
 
 
@@ -1449,6 +1409,7 @@ def test_get_episode_progress_for_season_returns_entries(
         ],
     )
 
+
 def test_get_episode_progress_for_season_skips_watch_count_query_when_empty(
     db_session: Session,
     progress_repository: Mock,
@@ -1643,6 +1604,7 @@ def test_mark_watched_records_every_watch_event_for_rewatch(
     assert events[1].episode_id == episode.id
     assert as_utc(events[1].watched_at) == second_watched_at
 
+
 def test_mark_watched_rejects_future_episode(
     db_session: Session,
     progress_service: EpisodeProgressService,
@@ -1681,6 +1643,7 @@ def test_mark_watched_rejects_future_episode(
     progress_repository.add.assert_not_called()
     watch_event_repository.add.assert_not_called()
 
+
 def test_mark_watched_rejects_episode_without_air_date(
     db_session: Session,
     progress_service: EpisodeProgressService,
@@ -1718,6 +1681,7 @@ def test_mark_watched_rejects_episode_without_air_date(
     progress_repository.get_by_user_and_episode.assert_not_called()
     progress_repository.add.assert_not_called()
     watch_event_repository.add.assert_not_called()
+
 
 def test_mark_watched_allows_episode_airing_today(
     db_session: Session,
@@ -1772,49 +1736,6 @@ def test_mark_watched_allows_episode_airing_today(
 
     progress_repository.add.assert_called_once()
     watch_event_repository.add.assert_called_once()
-
-
-def test_mark_watched_allows_episode_airing_today(
-    db_session: Session,
-    progress_service: EpisodeProgressService,
-    progress_repository: Mock,
-    episode_repository: Mock,
-) -> None:
-    """Allow marking an Episode watched when its air date is Today."""
-
-    user = persist_user(db_session)
-    show = persist_show(db_session)
-    season = persist_season(
-        db_session,
-        show=show,
-    )
-
-    episode = persist_episode(
-        db_session,
-        season=season,
-    )
-
-    episode.air_date = date(2026, 8, 15)
-    db_session.flush()
-
-    episode_repository.get_by_id.return_value = episode
-    progress_repository.get_by_user_and_episode.return_value = None
-
-    def add_progress(
-        progress: EpisodeProgress,
-    ) -> EpisodeProgress:
-        db_session.add(progress)
-        return progress
-
-    progress_repository.add.side_effect = add_progress
-
-    result = progress_service.mark_watched(
-        user_id=user.id,
-        episode_id=episode.id,
-    )
-
-    assert result is not None
-    assert result.is_watched is True
 
 
 def test_mark_season_watched_returns_none_when_season_does_not_exist(

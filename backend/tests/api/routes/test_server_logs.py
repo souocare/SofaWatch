@@ -24,11 +24,7 @@ def create_local_user(
     """Create the local user used by Server Logs authorization tests."""
 
     user = User(
-        display_name=(
-            "Administrator"
-            if is_admin
-            else "Regular User"
-        ),
+        display_name=("Administrator" if is_admin else "Regular User"),
         is_admin=is_admin,
     )
 
@@ -81,48 +77,44 @@ def test_get_server_logs_returns_paginated_logs(
 
     service = Mock()
 
-    service.list_logs.return_value = (
-        ServerLogsResponse(
-            items=[
-                ServerLogEntryResponse(
-                    timestamp=datetime(
-                        2026,
-                        8,
-                        20,
-                        15,
-                        30,
-                        tzinfo=UTC,
-                    ),
-                    level="ERROR",
-                    logger="app.jobs.executor",
-                    message="Metadata sync failed.",
-                    component="worker",
+    service.list_logs.return_value = ServerLogsResponse(
+        items=[
+            ServerLogEntryResponse(
+                timestamp=datetime(
+                    2026,
+                    8,
+                    20,
+                    15,
+                    30,
+                    tzinfo=UTC,
                 ),
-                ServerLogEntryResponse(
-                    timestamp=datetime(
-                        2026,
-                        8,
-                        20,
-                        15,
-                        0,
-                        tzinfo=UTC,
-                    ),
-                    level="INFO",
-                    logger="app.main",
-                    message="SofaWatch API starting",
-                    component="api",
+                level="ERROR",
+                logger="app.jobs.executor",
+                message="Metadata sync failed.",
+                component="worker",
+            ),
+            ServerLogEntryResponse(
+                timestamp=datetime(
+                    2026,
+                    8,
+                    20,
+                    15,
+                    0,
+                    tzinfo=UTC,
                 ),
-            ],
-            offset=0,
-            limit=50,
-            total=2,
-            has_next=False,
-        )
+                level="INFO",
+                logger="app.main",
+                message="SofaWatch API starting",
+                component="api",
+            ),
+        ],
+        offset=0,
+        limit=50,
+        total=2,
+        has_next=False,
     )
 
-    app.dependency_overrides[
-        get_server_logs_service
-    ] = lambda: service
+    app.dependency_overrides[get_server_logs_service] = lambda: service
 
     try:
         response = client.get(
@@ -181,19 +173,15 @@ def test_get_server_logs_passes_level_and_pagination(
 
     service = Mock()
 
-    service.list_logs.return_value = (
-        ServerLogsResponse(
-            items=[],
-            offset=25,
-            limit=25,
-            total=100,
-            has_next=True,
-        )
+    service.list_logs.return_value = ServerLogsResponse(
+        items=[],
+        offset=25,
+        limit=25,
+        total=100,
+        has_next=True,
     )
 
-    app.dependency_overrides[
-        get_server_logs_service
-    ] = lambda: service
+    app.dependency_overrides[get_server_logs_service] = lambda: service
 
     try:
         response = client.get(
@@ -259,7 +247,6 @@ def test_get_server_logs_passes_level_and_pagination(
         ),
     ],
 )
-
 def test_get_server_logs_rejects_invalid_query_parameters(
     client: TestClient,
     db_session: Session,
@@ -287,7 +274,4 @@ def test_get_server_logs_rejects_invalid_query_parameters(
 
     errors = payload["error"]["details"]
 
-    assert any(
-        detail["field"] == expected_location
-        for detail in errors
-    )
+    assert any(detail["field"] == expected_location for detail in errors)

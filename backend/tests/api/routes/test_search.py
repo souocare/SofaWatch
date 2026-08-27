@@ -10,25 +10,25 @@ from app.api.dependencies import (
     get_media_search_service,
     get_show_search_service,
 )
-from app.models.user import User
 from app.main import app
+from app.models.user import User
 from app.providers.tmdb.exceptions import (
     TMDBConfigurationError,
     TMDBRequestError,
     TMDBResponseError,
 )
-from app.schemas.tmdb_show import (
-    ShowSearchResponse,
-    ShowSearchResult,
-)
-from app.services.tmdb_show_search import ShowSearchService
 from app.schemas.search import (
     SearchMediaType,
     SearchMediaTypeFilter,
     SearchResponse,
     SearchResult,
 )
+from app.schemas.tmdb_show import (
+    ShowSearchResponse,
+    ShowSearchResult,
+)
 from app.services.media_search import MediaSearchService
+from app.services.tmdb_show_search import ShowSearchService
 
 SEARCH_SHOWS_URL = "/api/v1/search/shows"
 SEARCH_URL = "/api/v1/search"

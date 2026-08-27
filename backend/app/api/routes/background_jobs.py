@@ -1,15 +1,14 @@
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Path, Query, status
-from datetime import UTC, datetime
-
-from app.jobs.manual_runner import run_background_job_manually
 
 from app.api.dependencies import (
     AdminUserDependency,
     BackgroundJobRepositoryDependency,
 )
 from app.core.exceptions import APIError
+from app.jobs.manual_runner import run_background_job_manually
 from app.jobs.registry import BACKGROUND_JOBS, get_background_job
 from app.models.background_job import BackgroundJob
 from app.models.background_job_run import BackgroundJobRun
@@ -97,10 +96,7 @@ def list_background_jobs(
 
     del admin_user
 
-    jobs_by_key = {
-        job.key: job
-        for job in repository.list_all()
-    }
+    jobs_by_key = {job.key: job for job in repository.list_all()}
 
     jobs: list[BackgroundJob] = []
 

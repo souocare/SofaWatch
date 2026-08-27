@@ -5,7 +5,6 @@ from uuid import UUID
 import jwt
 from jwt.exceptions import InvalidTokenError
 
-
 _ACCESS_TOKEN_ALGORITHM = "HS256"
 _ACCESS_TOKEN_TYPE = "access"
 
@@ -97,14 +96,10 @@ class AccessTokenService:
                 },
             )
         except InvalidTokenError as error:
-            raise InvalidAccessTokenError(
-                "Access token is invalid or expired."
-            ) from error
+            raise InvalidAccessTokenError("Access token is invalid or expired.") from error
 
         if payload.get("type") != _ACCESS_TOKEN_TYPE:
-            raise InvalidAccessTokenError(
-                "Token is not an access token."
-            )
+            raise InvalidAccessTokenError("Token is not an access token.")
 
         try:
             user_id = UUID(payload["sub"])
@@ -117,9 +112,7 @@ class AccessTokenService:
                 tz=UTC,
             )
         except (KeyError, TypeError, ValueError, OverflowError) as error:
-            raise InvalidAccessTokenError(
-                "Access token contains invalid claims."
-            ) from error
+            raise InvalidAccessTokenError("Access token contains invalid claims.") from error
 
         return AccessTokenClaims(
             user_id=user_id,

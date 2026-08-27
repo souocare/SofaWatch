@@ -1,4 +1,6 @@
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 
 from sqlalchemy.orm import Session
 
@@ -10,6 +12,9 @@ from app.models.season import Season
 from app.models.show import Show
 from app.repositories.episode import EpisodeRepository
 from app.repositories.genre import GenreRepository
+from app.repositories.genre_provider_mapping import (
+    GenreProviderMappingRepository,
+)
 from app.repositories.network import NetworkRepository
 from app.repositories.season import SeasonRepository
 from app.repositories.show import ShowRepository
@@ -18,14 +23,9 @@ from app.schemas.tmdb_show import (
     ShowDetailsResponse,
     ShowSeasonSummary,
 )
+from app.services.genre_mapping import GenreMappingService
 from app.services.tmdb_season_details import TMDBSeasonDetailsService
 from app.services.tmdb_show_details import TMDBShowDetailsService
-from dataclasses import dataclass
-from enum import StrEnum
-from app.repositories.genre_provider_mapping import (
-    GenreProviderMappingRepository,
-)
-from app.services.genre_mapping import GenreMappingService
 
 
 class ShowSyncOutcome(StrEnum):
@@ -68,12 +68,8 @@ class ShowImportService:
         self._season_repository = season_repository
         self._episode_repository = episode_repository
 
-        self._tmdb_show_details_service = (
-            tmdb_show_details_service
-        )
-        self._tmdb_season_details_service = (
-            tmdb_season_details_service
-        )
+        self._tmdb_show_details_service = tmdb_show_details_service
+        self._tmdb_season_details_service = tmdb_season_details_service
 
         self._genre_mapping_service = GenreMappingService(
             genre_repository=genre_repository,

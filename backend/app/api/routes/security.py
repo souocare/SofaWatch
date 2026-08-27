@@ -9,7 +9,6 @@ from app.schemas.security import (
     SecuritySettingsUpdateRequest,
 )
 
-
 router = APIRouter(
     prefix="/security",
     tags=["security"],

@@ -1,10 +1,9 @@
-
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.core.security.passwords import hash_password
-from app.models.user import User
 from app.models.auth_session import AuthSessionType
+from app.models.user import User
 from app.repositories.auth_session import AuthSessionRepository
 from app.services.auth_session import AuthSessionService
 
@@ -68,6 +67,7 @@ def test_cached_images_require_authentication(
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "authentication_required"
 
+
 def test_private_endpoint_with_explicit_current_user_still_requires_authentication(
     unauthenticated_client: TestClient,
 ) -> None:
@@ -77,6 +77,7 @@ def test_private_endpoint_with_explicit_current_user_still_requires_authenticati
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "authentication_required"
+
 
 def test_private_endpoint_accepts_web_session_cookie(
     unauthenticated_client: TestClient,
@@ -181,6 +182,7 @@ def test_bearer_authentication_takes_precedence_over_web_session(
         }
     }
 
+
 def test_mobile_session_credential_is_not_accepted_as_web_cookie(
     unauthenticated_client: TestClient,
     db_session: Session,
@@ -222,4 +224,3 @@ def test_mobile_session_credential_is_not_accepted_as_web_cookie(
     assert response.status_code == 401
 
     assert response.json()["error"]["code"] == "invalid_session"
-

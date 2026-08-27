@@ -2,8 +2,12 @@ import os
 import platform
 import shutil
 from datetime import UTC, datetime
-from time import perf_counter
 from pathlib import Path
+from time import perf_counter
+
+from alembic.config import Config
+from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
@@ -18,20 +22,16 @@ from app.providers.tmdb.exceptions import (
 from app.schemas.server import (
     ServerDatabaseCheckStatus,
     ServerDatabaseHealthResponse,
-    ServerHealthResponse,
-    ServerTMDBHealthResponse,
     ServerDatabaseMigrationResponse,
     ServerEnvironmentResponse,
+    ServerHealthResponse,
     ServerImageCacheBreakdownResponse,
     ServerImageCacheCategoryResponse,
     ServerImageCacheResponse,
     ServerRuntimeResponse,
     ServerStorageResponse,
+    ServerTMDBHealthResponse,
 )
-from alembic.config import Config
-from alembic.migration import MigrationContext
-from alembic.script import ScriptDirectory
-
 
 
 class ServerHealthService:
@@ -73,12 +73,7 @@ class ServerHealthService:
 
         uptime_seconds = max(
             0,
-            int(
-                (
-                    checked_at
-                    - self._normalized_started_at()
-                ).total_seconds()
-            ),
+            int((checked_at - self._normalized_started_at()).total_seconds()),
         )
 
         return ServerHealthResponse(
@@ -154,24 +149,15 @@ class ServerHealthService:
         database_path = Path(database)
 
         try:
-            size_bytes = (
-                database_path.stat().st_size
-                if database_path.is_file()
-                else None
-            )
+            size_bytes = database_path.stat().st_size if database_path.is_file() else None
 
             wal_path = Path(f"{database_path}-wal")
 
-            wal_size_bytes = (
-                wal_path.stat().st_size
-                if wal_path.is_file()
-                else 0
-            )
+            wal_size_bytes = wal_path.stat().st_size if wal_path.is_file() else 0
         except OSError:
             return None, None
 
         return size_bytes, wal_size_bytes
-
 
     def _check_database_integrity(
         self,
@@ -459,16 +445,8 @@ class ServerHealthService:
         )
 
         return ServerImageCacheResponse(
-            total_size_bytes=(
-                shows.size_bytes
-                + seasons.size_bytes
-                + episodes.size_bytes
-            ),
-            total_files=(
-                shows.files
-                + seasons.files
-                + episodes.files
-            ),
+            total_size_bytes=(shows.size_bytes + seasons.size_bytes + episodes.size_bytes),
+            total_files=(shows.files + seasons.files + episodes.files),
             breakdown=ServerImageCacheBreakdownResponse(
                 shows=shows,
                 seasons=seasons,

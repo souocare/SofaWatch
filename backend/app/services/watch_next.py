@@ -1,5 +1,4 @@
 from datetime import UTC, date, datetime
-from app.services.watch_list_rules import belongs_to_stale_watching
 from uuid import UUID
 
 from app.models.enums import LibraryStatus
@@ -14,6 +13,7 @@ from app.schemas.watch_next import (
     WatchNextProgressResponse,
     WatchNextShowResponse,
 )
+from app.services.watch_list_rules import belongs_to_stale_watching
 
 
 class WatchNextService:
@@ -47,37 +47,26 @@ class WatchNextService:
         )
 
         eligible_entries = [
-            entry
-            for entry in entries
-            if entry.show_id is not None
-            and entry.show is not None
+            entry for entry in entries if entry.show_id is not None and entry.show is not None
         ]
 
         if not eligible_entries:
             return []
 
-        show_ids = [
-            entry.show_id
-            for entry in eligible_entries
-            if entry.show_id is not None
-        ]
+        show_ids = [entry.show_id for entry in eligible_entries if entry.show_id is not None]
 
         now = datetime.now(UTC)
         today = now.date()
 
-        next_by_show = (
-            self._progress_repository.list_next_unwatched_for_shows(
-                user_id=user_id,
-                show_ids=show_ids,
-                as_of=today,
-            )
+        next_by_show = self._progress_repository.list_next_unwatched_for_shows(
+            user_id=user_id,
+            show_ids=show_ids,
+            as_of=today,
         )
 
-        last_watched_by_show = (
-            self._progress_repository.list_last_watched_for_shows(
-                user_id=user_id,
-                show_ids=show_ids,
-            )
+        last_watched_by_show = self._progress_repository.list_last_watched_for_shows(
+            user_id=user_id,
+            show_ids=show_ids,
         )
 
         aired_counts = self._episode_repository.get_aired_counts_by_show_ids(
@@ -85,12 +74,10 @@ class WatchNextService:
             as_of=today,
         )
 
-        watched_aired_counts = (
-            self._progress_repository.get_watched_aired_counts_by_show_ids(
-                user_id=user_id,
-                show_ids=show_ids,
-                as_of=today,
-            )
+        watched_aired_counts = self._progress_repository.get_watched_aired_counts_by_show_ids(
+            user_id=user_id,
+            show_ids=show_ids,
+            as_of=today,
         )
 
         results: list[WatchNextShowResponse] = []
@@ -111,13 +98,10 @@ class WatchNextService:
 
             last_watched = last_watched_by_show.get(show_id)
 
-            if (
-                last_watched is not None
-                and belongs_to_stale_watching(
-                    watched_at=last_watched.watched_at,
-                    next_episode_air_date=candidate.episode.air_date,
-                    now=now,
-                )
+            if last_watched is not None and belongs_to_stale_watching(
+                watched_at=last_watched.watched_at,
+                next_episode_air_date=candidate.episode.air_date,
+                now=now,
             ):
                 continue
 
@@ -133,11 +117,7 @@ class WatchNextService:
                 0,
             )
 
-            percentage = (
-                watched_episodes / aired_episodes * 100
-                if aired_episodes > 0
-                else 0.0
-            )
+            percentage = watched_episodes / aired_episodes * 100 if aired_episodes > 0 else 0.0
 
             results.append(
                 WatchNextShowResponse(

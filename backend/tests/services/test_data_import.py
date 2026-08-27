@@ -4,6 +4,8 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 from app.models.enums import LibraryStatus
+from app.models.episode_progress import EpisodeProgress
+from app.models.episode_watch_event import EpisodeWatchEvent
 from app.models.library import LibraryEntry
 from app.models.movie_watch_event import MovieWatchEvent
 from app.schemas.data_export import (
@@ -17,8 +19,6 @@ from app.schemas.data_export import (
     SofaWatchExportResponse,
 )
 from app.services.data_import import DataImportService
-from app.models.episode_watch_event import EpisodeWatchEvent
-from app.models.episode_progress import EpisodeProgress
 
 
 def create_service(
@@ -60,27 +60,18 @@ def create_service(
     show_import_service = show_import_service or Mock()
     movie_import_service = movie_import_service or Mock()
 
-    movie_watch_event_repository = (
-        movie_watch_event_repository
-        or Mock()
-    )
+    movie_watch_event_repository = movie_watch_event_repository or Mock()
 
     season_repository = season_repository or Mock()
     episode_repository = episode_repository or Mock()
 
-    episode_watch_event_repository = (
-        episode_watch_event_repository
-        or Mock()
-    )
+    episode_watch_event_repository = episode_watch_event_repository or Mock()
 
     if episode_progress_repository is None:
         episode_progress_repository = Mock()
         episode_progress_repository.get_by_user_and_episode.return_value = None
 
-    season_episode_sync_service = (
-        season_episode_sync_service
-        or Mock()
-    )
+    season_episode_sync_service = season_episode_sync_service or Mock()
 
     service = DataImportService(
         session=session,
@@ -868,18 +859,13 @@ def test_import_history_preserves_movie_rewatches() -> None:
     assert movie_watch_event_repository.add.call_count == 2
     assert session.commit.call_count == 2
 
-    created_events = [
-        call.args[0]
-        for call in movie_watch_event_repository.add.call_args_list
-    ]
+    created_events = [call.args[0] for call in movie_watch_event_repository.add.call_args_list]
 
-    assert [
-        event.watched_at
-        for event in created_events
-    ] == [
+    assert [event.watched_at for event in created_events] == [
         first_watched_at,
         second_watched_at,
     ]
+
 
 def test_import_history_creates_missing_episode_watch_event() -> None:
     """Restore a missing historical Episode viewing."""
@@ -1104,6 +1090,7 @@ def test_import_history_skips_existing_episode_watch_event() -> None:
 
     session.commit.assert_not_called()
 
+
 def test_import_history_imports_missing_show_for_episode() -> None:
     """Materialize a missing Show before restoring Episode History."""
 
@@ -1316,6 +1303,7 @@ def test_import_history_syncs_missing_episode_metadata() -> None:
 
     episode_watch_event_repository.add.assert_called_once()
 
+
 def test_import_history_skips_episode_missing_after_season_sync() -> None:
     """Skip a historical Episode that cannot be resolved after metadata sync."""
 
@@ -1407,7 +1395,6 @@ def test_import_history_skips_episode_missing_after_season_sync() -> None:
     episode_watch_event_repository.add.assert_not_called()
 
     session.commit.assert_not_called()
-
 
 
 def test_import_history_creates_episode_progress() -> None:
@@ -1515,6 +1502,7 @@ def test_import_history_creates_episode_progress() -> None:
     assert progress.watched_at == watched_at
 
     session.commit.assert_called_once()
+
 
 def test_import_history_updates_episode_progress_with_newer_viewing() -> None:
     """Move Episode progress forward when importing a newer viewing."""
@@ -1628,6 +1616,7 @@ def test_import_history_updates_episode_progress_with_newer_viewing() -> None:
     episode_progress_repository.add.assert_not_called()
 
     session.commit.assert_called_once()
+
 
 def test_import_history_keeps_newer_episode_progress_when_importing_older_viewing() -> None:
     """Keep newer Episode progress when importing an older historical viewing."""
@@ -1880,15 +1869,9 @@ def test_import_history_episode_progress_uses_latest_viewing_regardless_of_event
 
     assert episode_watch_event_repository.add.call_count == 3
 
-    created_events = [
-        call.args[0]
-        for call in episode_watch_event_repository.add.call_args_list
-    ]
+    created_events = [call.args[0] for call in episode_watch_event_repository.add.call_args_list]
 
-    assert [
-        event.watched_at
-        for event in created_events
-    ] == [
+    assert [event.watched_at for event in created_events] == [
         first_watched_at,
         latest_watched_at,
         middle_watched_at,
@@ -1900,6 +1883,7 @@ def test_import_history_episode_progress_uses_latest_viewing_regardless_of_event
     episode_progress_repository.add.assert_not_called()
 
     assert session.commit.call_count == 3
+
 
 def test_import_user_data_imports_library_and_history() -> None:
     """Import all supported portable user data and return one final result."""
@@ -1930,6 +1914,7 @@ def test_import_user_data_imports_library_and_history() -> None:
     assert result.history.movies.created == 0
     assert result.history.movies.skipped == 0
     assert result.history.movies.failed == 0
+
 
 def test_import_user_data_restores_library_before_history() -> None:
     """Restore Library state before processing viewing History."""
@@ -1970,6 +1955,7 @@ def test_import_user_data_restores_library_before_history() -> None:
         "library",
         "history",
     ]
+
 
 def test_import_library_continues_after_show_failure() -> None:
     """Continue importing Library Shows after one Show fails."""
@@ -2283,5 +2269,3 @@ def test_import_history_continues_after_movie_failure() -> None:
 
     session.rollback.assert_called_once()
     session.commit.assert_called_once()
-
-

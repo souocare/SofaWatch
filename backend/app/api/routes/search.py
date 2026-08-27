@@ -3,9 +3,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, status
 
 from app.api.dependencies import (
+    CurrentUserDependency,
     get_media_search_service,
     get_show_search_service,
-    CurrentUserDependency,
 )
 from app.core.exceptions import APIError
 from app.providers.tmdb.exceptions import (

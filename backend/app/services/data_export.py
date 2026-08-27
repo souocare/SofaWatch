@@ -28,12 +28,8 @@ class DataExportService:
         movie_watch_event_repository: MovieWatchEventRepository,
     ) -> None:
         self._library_repository = library_repository
-        self._episode_watch_event_repository = (
-            episode_watch_event_repository
-        )
-        self._movie_watch_event_repository = (
-            movie_watch_event_repository
-        )
+        self._episode_watch_event_repository = episode_watch_event_repository
+        self._movie_watch_event_repository = movie_watch_event_repository
 
     def export_user_data(
         self,
@@ -112,16 +108,12 @@ class DataExportService:
         *,
         user_id: UUID,
     ) -> ExportWatchHistoryResponse:
-        episode_events = (
-            self._episode_watch_event_repository.list_all_for_user(
-                user_id=user_id,
-            )
+        episode_events = self._episode_watch_event_repository.list_all_for_user(
+            user_id=user_id,
         )
 
-        movie_events = (
-            self._movie_watch_event_repository.list_all_for_user(
-                user_id=user_id,
-            )
+        movie_events = self._movie_watch_event_repository.list_all_for_user(
+            user_id=user_id,
         )
 
         episodes = [

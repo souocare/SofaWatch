@@ -22,6 +22,7 @@ class BackgroundJobResultSummaryResponse(BaseModel):
         ge=0,
     )
 
+
 class BackgroundJobResponse(BaseModel):
     """Current state of a background job."""
 

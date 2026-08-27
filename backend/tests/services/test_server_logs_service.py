@@ -105,10 +105,7 @@ def test_list_logs_returns_api_and_worker_logs_newest_first(
     assert result.total == 2
     assert result.has_next is False
 
-    assert [
-        item.message
-        for item in result.items
-    ] == [
+    assert [item.message for item in result.items] == [
         "Worker message.",
         "API message.",
     ]
@@ -122,11 +119,7 @@ def test_list_logs_filters_by_level(
 ) -> None:
     """Filter entries by exact log level."""
 
-    log_file = (
-        tmp_path
-        / "logs"
-        / "api.log"
-    )
+    log_file = tmp_path / "logs" / "api.log"
 
     write_log(
         log_file,
@@ -161,18 +154,12 @@ def test_list_logs_applies_offset_and_limit(
 ) -> None:
     """Paginate Server logs."""
 
-    log_file = (
-        tmp_path
-        / "logs"
-        / "api.log"
-    )
+    log_file = tmp_path / "logs" / "api.log"
 
     for index in range(5):
         write_log(
             log_file,
-            timestamp=(
-                f"2026-08-20T10:0{index}:00Z"
-            ),
+            timestamp=(f"2026-08-20T10:0{index}:00Z"),
             message=f"Message {index}.",
         )
 
@@ -192,10 +179,7 @@ def test_list_logs_applies_offset_and_limit(
     assert result.total == 5
     assert result.has_next is True
 
-    assert [
-        item.message
-        for item in result.items
-    ] == [
+    assert [item.message for item in result.items] == [
         "Message 3.",
         "Message 2.",
     ]
@@ -228,10 +212,7 @@ def test_list_logs_includes_rotated_files(
 
     assert result.total == 2
 
-    assert [
-        item.message
-        for item in result.items
-    ] == [
+    assert [item.message for item in result.items] == [
         "Current.",
         "Rotated.",
     ]
@@ -242,11 +223,7 @@ def test_list_logs_ignores_invalid_lines(
 ) -> None:
     """Ignore malformed persisted log entries."""
 
-    log_file = (
-        tmp_path
-        / "logs"
-        / "api.log"
-    )
+    log_file = tmp_path / "logs" / "api.log"
 
     log_file.parent.mkdir(
         parents=True,
@@ -285,10 +262,7 @@ def test_list_logs_redacts_common_secret_values(
         tmp_path / "logs" / "api.log",
         timestamp="2026-08-20T10:00:00Z",
         level="ERROR",
-        message=(
-            "Request failed token=super-secret-value "
-            "password=hunter2"
-        ),
+        message=("Request failed token=super-secret-value password=hunter2"),
     )
 
     service = ServerLogsService(

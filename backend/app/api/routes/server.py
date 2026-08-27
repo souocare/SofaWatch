@@ -13,7 +13,6 @@ from app.schemas.server import (
     ServerLogsResponse,
 )
 
-
 router = APIRouter(
     prefix="/server",
     tags=["server"],
@@ -44,9 +43,7 @@ def get_server_health(
     "/logs",
     response_model=ServerLogsResponse,
     summary="Get Server logs",
-    description=(
-        "Return recent safe SofaWatch Server logs for administrators."
-    ),
+    description=("Return recent safe SofaWatch Server logs for administrators."),
 )
 def get_server_logs(
     admin_user: AdminUserDependency,

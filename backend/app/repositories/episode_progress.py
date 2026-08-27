@@ -1,16 +1,16 @@
+from dataclasses import dataclass
+from datetime import date, datetime
 from uuid import UUID
 
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
-from datetime import date, datetime
-from dataclasses import dataclass
 
+from app.models.enums import LibraryStatus
 from app.models.episode import Episode
 from app.models.episode_progress import EpisodeProgress
+from app.models.library import LibraryEntry
 from app.models.season import Season
 from app.models.show import Show
-from app.models.enums import LibraryStatus
-from app.models.library import LibraryEntry
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +21,7 @@ class NextUnwatchedEpisode:
     episode: Episode
     season_number: int
 
+
 @dataclass(frozen=True, slots=True)
 class LastWatchedEpisode:
     """Most recently watched Episode for a TV series."""
@@ -29,6 +30,7 @@ class LastWatchedEpisode:
     episode: Episode
     season_number: int
     watched_at: datetime
+
 
 @dataclass(frozen=True, slots=True)
 class WatchHistoryEpisode:
@@ -39,7 +41,6 @@ class WatchHistoryEpisode:
     episode: Episode
     season_number: int
     watched_at: datetime
-
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +64,7 @@ class MissedRecentlyEpisode:
     @property
     def show_id(self) -> UUID:
         return self.show.id
+
 
 class EpisodeProgressRepository:
     """Persistence operations for episode viewing progress."""
@@ -111,9 +113,7 @@ class EpisodeProgressRepository:
             )
         )
 
-        return list(
-            self._session.scalars(statement).all()
-        )
+        return list(self._session.scalars(statement).all())
 
     def add(
         self,
@@ -319,10 +319,7 @@ class EpisodeProgressRepository:
                 func.sum(
                     case(
                         (
-                            (
-                                Episode.air_date.is_not(None)
-                                & (Episode.air_date <= as_of)
-                            ),
+                            (Episode.air_date.is_not(None) & (Episode.air_date <= as_of)),
                             1,
                         ),
                         else_=0,
@@ -622,8 +619,7 @@ class EpisodeProgressRepository:
 
         if (before_watched_at is None) != (before_progress_id is None):
             raise ValueError(
-                "Watch History cursor requires both "
-                "before_watched_at and before_progress_id."
+                "Watch History cursor requires both before_watched_at and before_progress_id."
             )
 
         statement = (
@@ -657,18 +653,10 @@ class EpisodeProgressRepository:
 
         if before_watched_at is not None and before_progress_id is not None:
             statement = statement.where(
-                (
-                    EpisodeProgress.watched_at < before_watched_at
-                )
+                (EpisodeProgress.watched_at < before_watched_at)
                 | (
-                    (
-                        EpisodeProgress.watched_at
-                        == before_watched_at
-                    )
-                    & (
-                        EpisodeProgress.id
-                        < before_progress_id
-                    )
+                    (EpisodeProgress.watched_at == before_watched_at)
+                    & (EpisodeProgress.id < before_progress_id)
                 )
             )
 
@@ -802,7 +790,6 @@ class EpisodeProgressRepository:
                 episode,
             ) in rows
         ]
-    
 
     def get_watched_aired_counts_by_show_ids(
         self,
@@ -845,10 +832,7 @@ class EpisodeProgressRepository:
 
         rows = self._session.execute(statement).all()
 
-        return {
-            show_id: int(watched_episodes or 0)
-            for show_id, watched_episodes in rows
-        }
+        return {show_id: int(watched_episodes or 0) for show_id, watched_episodes in rows}
 
     def get_watched_episode_ids(
         self,
@@ -874,7 +858,6 @@ class EpisodeProgressRepository:
                 statement,
             ).all()
         )
-
 
     def get_unwatched_aired_statistics(
         self,
@@ -928,7 +911,6 @@ class EpisodeProgressRepository:
             int(row[1] or 0),
         )
 
-
     def count_first_watched_regular_episodes_between(
         self,
         *,
@@ -974,6 +956,4 @@ class EpisodeProgressRepository:
             )
         )
 
-        return len(
-            self._session.execute(statement).all()
-        )
+        return len(self._session.execute(statement).all())

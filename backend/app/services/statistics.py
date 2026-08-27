@@ -1,29 +1,28 @@
 from datetime import UTC, date, datetime, time, timedelta
 from uuid import UUID
 
+from app.repositories.episode import EpisodeRepository
+from app.repositories.episode_progress import EpisodeProgressRepository
 from app.repositories.episode_watch_event import EpisodeWatchEventRepository
+from app.repositories.library import LibraryRepository
 from app.repositories.movie_watch_event import MovieWatchEventRepository
 from app.schemas.statistics import (
     DailyStatisticsResponse,
     MediaViewingStatisticsResponse,
     StatisticsActivityPeriod,
     StatisticsActivityResponse,
-    StatisticsSummaryResponse,
-    WeeklyStatisticsResponse,
-    StatisticsHabitsResponse,
+    StatisticsBacklogResponse,
+    StatisticsBacklogTrend,
     StatisticsContentInsightsResponse,
     StatisticsEpisodeInsightResponse,
     StatisticsGenreInsightResponse,
+    StatisticsHabitsResponse,
+    StatisticsLibraryResponse,
     StatisticsMovieInsightResponse,
     StatisticsShowInsightResponse,
-    StatisticsLibraryResponse,
-    StatisticsBacklogResponse,
-    StatisticsBacklogTrend,
+    StatisticsSummaryResponse,
+    WeeklyStatisticsResponse,
 )
-from app.repositories.library import LibraryRepository
-from app.repositories.episode import EpisodeRepository
-from app.repositories.episode_progress import EpisodeProgressRepository
-from app.repositories.library import LibraryRepository
 
 
 class StatisticsService:
@@ -38,21 +37,15 @@ class StatisticsService:
         episode_repository: EpisodeRepository,
         episode_progress_repository: EpisodeProgressRepository,
     ) -> None:
-        self._episode_watch_event_repository = (
-            episode_watch_event_repository
-        )
+        self._episode_watch_event_repository = episode_watch_event_repository
 
-        self._movie_watch_event_repository = (
-            movie_watch_event_repository
-        )
+        self._movie_watch_event_repository = movie_watch_event_repository
 
         self._library_repository = library_repository
 
         self._episode_repository = episode_repository
 
-        self._episode_progress_repository = (
-            episode_progress_repository
-        )
+        self._episode_progress_repository = episode_progress_repository
 
     def get_weekly_summary(
         self,
@@ -120,10 +113,7 @@ class StatisticsService:
             week_end=week_end,
             episodes_watched=episodes_watched,
             movies_watched=movies_watched,
-            watch_time_minutes=(
-                episode_watch_time_minutes
-                + movie_watch_time_minutes
-            ),
+            watch_time_minutes=(episode_watch_time_minutes + movie_watch_time_minutes),
         )
 
     def get_summary(
@@ -133,10 +123,8 @@ class StatisticsService:
     ) -> StatisticsSummaryResponse:
         """Return the user's all-time viewing summary."""
 
-        shows_watched = (
-            self._episode_watch_event_repository.count_watched_shows(
-                user_id=user_id,
-            )
+        shows_watched = self._episode_watch_event_repository.count_watched_shows(
+            user_id=user_id,
         )
 
         (
@@ -175,16 +163,9 @@ class StatisticsService:
                 watch_time_minutes=movie_watch_time,
                 rewatch_time_minutes=movie_rewatch_time,
             ),
-            watch_time_minutes=(
-                episode_watch_time
-                + movie_watch_time
-            ),
-            rewatch_time_minutes=(
-                episode_rewatch_time
-                + movie_rewatch_time
-            ),
+            watch_time_minutes=(episode_watch_time + movie_watch_time),
+            rewatch_time_minutes=(episode_rewatch_time + movie_rewatch_time),
         )
-
 
     def get_activity(
         self,
@@ -202,23 +183,24 @@ class StatisticsService:
         receive a complete, chronological time series.
         """
 
-        current_date = reference_date or datetime.now(
-            UTC,
-        ).date()
+        current_date = (
+            reference_date
+            or datetime.now(
+                UTC,
+            ).date()
+        )
 
         days = period.days
 
         if days is None:
             episode_first_watched_at = (
-                self._episode_watch_event_repository
-                .get_earliest_watched_at_for_user(
+                self._episode_watch_event_repository.get_earliest_watched_at_for_user(
                     user_id=user_id,
                 )
             )
 
             movie_first_watched_at = (
-                self._movie_watch_event_repository
-                .get_earliest_watched_at_for_user(
+                self._movie_watch_event_repository.get_earliest_watched_at_for_user(
                     user_id=user_id,
                 )
             )
@@ -238,10 +220,8 @@ class StatisticsService:
                 )
 
                 if earliest_watched_at.tzinfo is None:
-                    earliest_watched_at = (
-                        earliest_watched_at.replace(
-                            tzinfo=UTC,
-                        )
+                    earliest_watched_at = earliest_watched_at.replace(
+                        tzinfo=UTC,
                     )
 
                 start_date = earliest_watched_at.astimezone(
@@ -273,51 +253,25 @@ class StatisticsService:
             tzinfo=UTC,
         )
 
-        episode_rows = (
-            self._episode_watch_event_repository
-            .get_daily_statistics_for_period(
-                user_id=user_id,
-                start_at=start_at,
-                end_at=end_at,
-            )
+        episode_rows = self._episode_watch_event_repository.get_daily_statistics_for_period(
+            user_id=user_id,
+            start_at=start_at,
+            end_at=end_at,
         )
 
-        movie_rows = (
-            self._movie_watch_event_repository
-            .get_daily_statistics_for_period(
-                user_id=user_id,
-                start_at=start_at,
-                end_at=end_at,
-            )
+        movie_rows = self._movie_watch_event_repository.get_daily_statistics_for_period(
+            user_id=user_id,
+            start_at=start_at,
+            end_at=end_at,
         )
 
-        episode_statistics_by_day = {
-            date.fromisoformat(row.day): row
-            for row in episode_rows
-        }
+        episodes_by_day = {date.fromisoformat(row.day): row for row in episode_rows}
 
-        movie_statistics_by_day = {
-            date.fromisoformat(row.day): row
-            for row in movie_rows
-        }
+        movies_by_day = {date.fromisoformat(row.day): row for row in movie_rows}
 
-        episodes_by_day = {
-            date.fromisoformat(row.day): row
-            for row in episode_rows
-        }
+        daily_statistics: list[DailyStatisticsResponse] = []
 
-        movies_by_day = {
-            date.fromisoformat(row.day): row
-            for row in movie_rows
-        }
-
-        daily_statistics: list[
-            DailyStatisticsResponse
-        ] = []
-
-        number_of_days = (
-            current_date - start_date
-        ).days + 1
+        number_of_days = (current_date - start_date).days + 1
 
         for offset in range(number_of_days):
             day = start_date + timedelta(
@@ -333,27 +287,17 @@ class StatisticsService:
             )
 
             episode_watch_count = (
-                episode_statistics.watch_count
-                if episode_statistics is not None
-                else 0
+                episode_statistics.watch_count if episode_statistics is not None else 0
             )
 
             episode_watch_time = (
-                episode_statistics.watch_time_minutes
-                if episode_statistics is not None
-                else 0
+                episode_statistics.watch_time_minutes if episode_statistics is not None else 0
             )
 
-            movie_watch_count = (
-                movie_statistics.watch_count
-                if movie_statistics is not None
-                else 0
-            )
+            movie_watch_count = movie_statistics.watch_count if movie_statistics is not None else 0
 
             movie_watch_time = (
-                movie_statistics.watch_time_minutes
-                if movie_statistics is not None
-                else 0
+                movie_statistics.watch_time_minutes if movie_statistics is not None else 0
             )
 
             daily_statistics.append(
@@ -361,16 +305,9 @@ class StatisticsService:
                     day=day,
                     episodes_watched=episode_watch_count,
                     movies_watched=movie_watch_count,
-                    episode_watch_time_minutes=(
-                        episode_watch_time
-                    ),
-                    movie_watch_time_minutes=(
-                        movie_watch_time
-                    ),
-                    watch_time_minutes=(
-                        episode_watch_time
-                        + movie_watch_time
-                    ),
+                    episode_watch_time_minutes=(episode_watch_time),
+                    movie_watch_time_minutes=(movie_watch_time),
+                    watch_time_minutes=(episode_watch_time + movie_watch_time),
                 )
             )
 
@@ -379,7 +316,6 @@ class StatisticsService:
             end_date=end_date,
             days=daily_statistics,
         )
-
 
     def get_habits(
         self,
@@ -400,20 +336,21 @@ class StatisticsService:
         today.
         """
 
-        current_date = reference_date or datetime.now(
-            UTC,
-        ).date()
+        current_date = (
+            reference_date
+            or datetime.now(
+                UTC,
+            ).date()
+        )
 
         episode_first_watched_at = (
-            self._episode_watch_event_repository
-            .get_earliest_watched_at_for_user(
+            self._episode_watch_event_repository.get_earliest_watched_at_for_user(
                 user_id=user_id,
             )
         )
 
         movie_first_watched_at = (
-            self._movie_watch_event_repository
-            .get_earliest_watched_at_for_user(
+            self._movie_watch_event_repository.get_earliest_watched_at_for_user(
                 user_id=user_id,
             )
         )
@@ -459,71 +396,54 @@ class StatisticsService:
             tzinfo=UTC,
         )
 
-        episode_rows = (
-            self._episode_watch_event_repository
-            .get_daily_statistics_for_period(
-                user_id=user_id,
-                start_at=start_at,
-                end_at=end_at,
-            )
+        episode_rows = self._episode_watch_event_repository.get_daily_statistics_for_period(
+            user_id=user_id,
+            start_at=start_at,
+            end_at=end_at,
         )
 
-        movie_rows = (
-            self._movie_watch_event_repository
-            .get_daily_statistics_for_period(
-                user_id=user_id,
-                start_at=start_at,
-                end_at=end_at,
-            )
+        movie_rows = self._movie_watch_event_repository.get_daily_statistics_for_period(
+            user_id=user_id,
+            start_at=start_at,
+            end_at=end_at,
         )
 
-        episode_statistics_by_day = {
-            date.fromisoformat(row.day): row
-            for row in episode_rows
-        }
+        episode_statistics_by_day = {date.fromisoformat(row.day): row for row in episode_rows}
 
-        movie_statistics_by_day = {
-            date.fromisoformat(row.day): row
-            for row in movie_rows
-        }
+        movie_statistics_by_day = {date.fromisoformat(row.day): row for row in movie_rows}
 
-        active_days = (
-            set(episode_statistics_by_day)
-            | set(movie_statistics_by_day)
+        active_days = set(episode_statistics_by_day) | set(movie_statistics_by_day)
+
+        (
+            biggest_marathon_watch_time_minutes,
+            biggest_marathon_day,
+        ) = _biggest_marathon(
+            active_days=active_days,
+            episode_statistics_by_day=episode_statistics_by_day,
+            movie_statistics_by_day=movie_statistics_by_day,
         )
 
         (
-        biggest_marathon_watch_time_minutes,
-        biggest_marathon_day,
-    ) = _biggest_marathon(
-        active_days=active_days,
-        episode_statistics_by_day=episode_statistics_by_day,
-        movie_statistics_by_day=movie_statistics_by_day,
-    )
+            longest_binge_episode_count,
+            longest_binge_day,
+        ) = _longest_episode_binge(
+            episode_statistics_by_day=episode_statistics_by_day,
+        )
 
-        (
-        longest_binge_episode_count,
-        longest_binge_day,
-    ) = _longest_episode_binge(
-        episode_statistics_by_day=episode_statistics_by_day,
-    )
-
-        average_active_day_watch_time_minutes = (
-            _average_active_day_watch_time(
-                active_days=active_days,
-                episode_statistics_by_day=episode_statistics_by_day,
-                movie_statistics_by_day=movie_statistics_by_day,
-            )
+        average_active_day_watch_time_minutes = _average_active_day_watch_time(
+            active_days=active_days,
+            episode_statistics_by_day=episode_statistics_by_day,
+            movie_statistics_by_day=movie_statistics_by_day,
         )
 
         (
-        most_active_weekday,
-        most_active_weekday_watch_count,
-    ) = _most_active_weekday(
-        active_days=active_days,
-        episode_statistics_by_day=episode_statistics_by_day,
-        movie_statistics_by_day=movie_statistics_by_day,
-    )
+            most_active_weekday,
+            most_active_weekday_watch_count,
+        ) = _most_active_weekday(
+            active_days=active_days,
+            episode_statistics_by_day=episode_statistics_by_day,
+            movie_statistics_by_day=movie_statistics_by_day,
+        )
 
         if not active_days:
             return StatisticsHabitsResponse(
@@ -543,21 +463,13 @@ class StatisticsService:
             longest_streak_days=_longest_streak_days(
                 active_days=active_days,
             ),
-            biggest_marathon_watch_time_minutes=(
-                biggest_marathon_watch_time_minutes
-            ),
+            biggest_marathon_watch_time_minutes=(biggest_marathon_watch_time_minutes),
             biggest_marathon_day=biggest_marathon_day,
-            longest_binge_episode_count=(
-                longest_binge_episode_count
-            ),
+            longest_binge_episode_count=(longest_binge_episode_count),
             longest_binge_day=longest_binge_day,
-            average_active_day_watch_time_minutes=(
-                average_active_day_watch_time_minutes
-            ),
+            average_active_day_watch_time_minutes=(average_active_day_watch_time_minutes),
             most_active_weekday=most_active_weekday,
-            most_active_weekday_watch_count=(
-                most_active_weekday_watch_count
-            ),
+            most_active_weekday_watch_count=(most_active_weekday_watch_count),
         )
 
     def get_content_insights(
@@ -568,52 +480,34 @@ class StatisticsService:
     ) -> StatisticsContentInsightsResponse:
         """Return ranked all-time content viewing insights."""
 
-        most_watched_shows = (
-            self._episode_watch_event_repository
-            .get_most_watched_shows(
-                user_id=user_id,
-                limit=limit,
-            )
+        most_watched_shows = self._episode_watch_event_repository.get_most_watched_shows(
+            user_id=user_id,
+            limit=limit,
         )
 
-        most_rewatched_shows = (
-            self._episode_watch_event_repository
-            .get_most_rewatched_shows(
-                user_id=user_id,
-                limit=limit,
-            )
+        most_rewatched_shows = self._episode_watch_event_repository.get_most_rewatched_shows(
+            user_id=user_id,
+            limit=limit,
         )
 
-        most_rewatched_episodes = (
-            self._episode_watch_event_repository
-            .get_most_rewatched_episodes(
-                user_id=user_id,
-                limit=limit,
-            )
+        most_rewatched_episodes = self._episode_watch_event_repository.get_most_rewatched_episodes(
+            user_id=user_id,
+            limit=limit,
         )
 
-        most_rewatched_movies = (
-            self._movie_watch_event_repository
-            .get_most_rewatched_movies(
-                user_id=user_id,
-                limit=limit,
-            )
+        most_rewatched_movies = self._movie_watch_event_repository.get_most_rewatched_movies(
+            user_id=user_id,
+            limit=limit,
         )
 
-        top_show_genres = (
-            self._episode_watch_event_repository
-            .get_top_show_genres(
-                user_id=user_id,
-                limit=limit,
-            )
+        top_show_genres = self._episode_watch_event_repository.get_top_show_genres(
+            user_id=user_id,
+            limit=limit,
         )
 
-        top_movie_genres = (
-            self._movie_watch_event_repository
-            .get_top_movie_genres(
-                user_id=user_id,
-                limit=limit,
-            )
+        top_movie_genres = self._movie_watch_event_repository.get_top_movie_genres(
+            user_id=user_id,
+            limit=limit,
         )
 
         return StatisticsContentInsightsResponse(
@@ -697,10 +591,8 @@ class StatisticsService:
             user_id=user_id,
         )
 
-        shows_completed = (
-            self._library_repository.count_completed_shows_by_user(
-                user_id=user_id,
-            )
+        shows_completed = self._library_repository.count_completed_shows_by_user(
+            user_id=user_id,
         )
 
         return StatisticsLibraryResponse(
@@ -708,7 +600,6 @@ class StatisticsService:
             movies_added=movies_added,
             shows_completed=shows_completed,
         )
-
 
     def get_backlog_statistics(
         self,
@@ -728,42 +619,35 @@ class StatisticsService:
         first watched during the same period.
         """
 
-        current_date = reference_date or datetime.now(
-            UTC,
-        ).date()
+        current_date = (
+            reference_date
+            or datetime.now(
+                UTC,
+            ).date()
+        )
 
-        backlog_show_ids = (
-            self._library_repository
-            .get_backlog_show_ids_for_user(
-                user_id=user_id,
-            )
+        backlog_show_ids = self._library_repository.get_backlog_show_ids_for_user(
+            user_id=user_id,
         )
 
         (
             unwatched_aired_episodes,
             unwatched_aired_watch_time_minutes,
-        ) = (
-            self._episode_progress_repository
-            .get_unwatched_aired_statistics(
-                user_id=user_id,
-                show_ids=backlog_show_ids,
-                as_of=current_date,
-            )
+        ) = self._episode_progress_repository.get_unwatched_aired_statistics(
+            user_id=user_id,
+            show_ids=backlog_show_ids,
+            as_of=current_date,
         )
 
         (
             planned_movies,
             planned_movie_watch_time_minutes,
-        ) = (
-            self._library_repository
-            .get_planned_movie_statistics(
-                user_id=user_id,
-            )
+        ) = self._library_repository.get_planned_movie_statistics(
+            user_id=user_id,
         )
 
         future_watch_time_minutes = (
-            unwatched_aired_watch_time_minutes
-            + planned_movie_watch_time_minutes
+            unwatched_aired_watch_time_minutes + planned_movie_watch_time_minutes
         )
 
         trend_window_days = 28
@@ -785,8 +669,7 @@ class StatisticsService:
         )
 
         first_watched_episodes = (
-            self._episode_progress_repository
-            .count_first_watched_regular_episodes_between(
+            self._episode_progress_repository.count_first_watched_regular_episodes_between(
                 user_id=user_id,
                 show_ids=backlog_show_ids,
                 start_at=trend_start_at,
@@ -794,13 +677,10 @@ class StatisticsService:
             )
         )
 
-        recently_aired_episodes = (
-            self._episode_repository
-            .list_regular_for_shows_between(
-                show_ids=backlog_show_ids,
-                from_date=trend_start_date,
-                to_date=current_date,
-            )
+        recently_aired_episodes = self._episode_repository.list_regular_for_shows_between(
+            show_ids=backlog_show_ids,
+            from_date=trend_start_date,
+            to_date=current_date,
         )
 
         aired_episode_count = len(
@@ -812,10 +692,7 @@ class StatisticsService:
             2,
         )
 
-        backlog_trend_episode_delta = (
-            aired_episode_count
-            - first_watched_episodes
-        )
+        backlog_trend_episode_delta = aired_episode_count - first_watched_episodes
 
         if backlog_trend_episode_delta > 0:
             backlog_trend = StatisticsBacklogTrend.GROWING
@@ -830,13 +707,9 @@ class StatisticsService:
             unwatched_aired_episodes=unwatched_aired_episodes,
             planned_movies=planned_movies,
             future_watch_time_minutes=future_watch_time_minutes,
-            catch_up_speed_episodes_per_week=(
-                catch_up_speed_episodes_per_week
-            ),
+            catch_up_speed_episodes_per_week=(catch_up_speed_episodes_per_week),
             backlog_trend=backlog_trend,
-            backlog_trend_episode_delta=(
-                backlog_trend_episode_delta
-            ),
+            backlog_trend_episode_delta=(backlog_trend_episode_delta),
         )
 
 
@@ -865,9 +738,7 @@ def _current_streak_days(
     if current_date in active_days:
         cursor = current_date
 
-    elif (
-        current_date - timedelta(days=1)
-    ) in active_days:
+    elif (current_date - timedelta(days=1)) in active_days:
         cursor = current_date - timedelta(
             days=1,
         )
@@ -917,32 +788,17 @@ def _biggest_marathon(
         )
 
         episode_minutes = (
-            episode_statistics.watch_time_minutes
-            if episode_statistics is not None
-            else 0
+            episode_statistics.watch_time_minutes if episode_statistics is not None else 0
         )
 
-        movie_minutes = (
-            movie_statistics.watch_time_minutes
-            if movie_statistics is not None
-            else 0
-        )
+        movie_minutes = movie_statistics.watch_time_minutes if movie_statistics is not None else 0
 
-        watch_time_minutes = (
-            episode_minutes
-            + movie_minutes
-        )
+        watch_time_minutes = episode_minutes + movie_minutes
 
-        if (
-            watch_time_minutes > biggest_minutes
-            or (
-                watch_time_minutes == biggest_minutes
-                and watch_time_minutes > 0
-                and (
-                    biggest_day is None
-                    or active_day > biggest_day
-                )
-            )
+        if watch_time_minutes > biggest_minutes or (
+            watch_time_minutes == biggest_minutes
+            and watch_time_minutes > 0
+            and (biggest_day is None or active_day > biggest_day)
         ):
             biggest_minutes = watch_time_minutes
             biggest_day = active_day
@@ -951,6 +807,7 @@ def _biggest_marathon(
         biggest_minutes,
         biggest_day,
     )
+
 
 def _longest_streak_days(
     *,
@@ -968,11 +825,7 @@ def _longest_streak_days(
     for active_day in sorted(
         active_days,
     ):
-        if (
-            previous_day is not None
-            and active_day
-            == previous_day + timedelta(days=1)
-        ):
+        if previous_day is not None and active_day == previous_day + timedelta(days=1):
             current += 1
         else:
             current = 1
@@ -1006,22 +859,14 @@ def _longest_episode_binge(
     for active_day in sorted(
         episode_statistics_by_day,
     ):
-        statistics = episode_statistics_by_day[
-            active_day
-        ]
+        statistics = episode_statistics_by_day[active_day]
 
         episode_count = statistics.watch_count
 
-        if (
-            episode_count > longest_binge_count
-            or (
-                episode_count == longest_binge_count
-                and episode_count > 0
-                and (
-                    longest_binge_day is None
-                    or active_day > longest_binge_day
-                )
-            )
+        if episode_count > longest_binge_count or (
+            episode_count == longest_binge_count
+            and episode_count > 0
+            and (longest_binge_day is None or active_day > longest_binge_day)
         ):
             longest_binge_count = episode_count
             longest_binge_day = active_day
@@ -1030,6 +875,7 @@ def _longest_episode_binge(
         longest_binge_count,
         longest_binge_day,
     )
+
 
 def _average_active_day_watch_time(
     *,
@@ -1062,20 +908,13 @@ def _average_active_day_watch_time(
         )
 
         if episode_statistics is not None:
-            total_watch_time_minutes += (
-                episode_statistics.watch_time_minutes
-            )
+            total_watch_time_minutes += episode_statistics.watch_time_minutes
 
         if movie_statistics is not None:
-            total_watch_time_minutes += (
-                movie_statistics.watch_time_minutes
-            )
+            total_watch_time_minutes += movie_statistics.watch_time_minutes
 
-    return int(
-        total_watch_time_minutes
-        / len(active_days)
-        + 0.5
-    )
+    return int(total_watch_time_minutes / len(active_days) + 0.5)
+
 
 def _most_active_weekday(
     *,
@@ -1110,22 +949,14 @@ def _most_active_weekday(
         )
 
         if episode_statistics is not None:
-            weekday_counts[weekday_index] += (
-                episode_statistics.watch_count
-            )
+            weekday_counts[weekday_index] += episode_statistics.watch_count
 
-            weekday_watch_times[weekday_index] += (
-                episode_statistics.watch_time_minutes
-            )
+            weekday_watch_times[weekday_index] += episode_statistics.watch_time_minutes
 
         if movie_statistics is not None:
-            weekday_counts[weekday_index] += (
-                movie_statistics.watch_count
-            )
+            weekday_counts[weekday_index] += movie_statistics.watch_count
 
-            weekday_watch_times[weekday_index] += (
-                movie_statistics.watch_time_minutes
-            )
+            weekday_watch_times[weekday_index] += movie_statistics.watch_time_minutes
 
     best_index = max(
         range(7),

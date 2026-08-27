@@ -1,23 +1,20 @@
 from datetime import UTC, date, datetime
-from uuid import uuid4
+from typing import cast
+from uuid import UUID, uuid4
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
-from sqlalchemy import select
-
-from app.models.episode import Episode
-from app.models.season import Season
-from app.models.show import Show
-from typing import cast
-from uuid import UUID
-from app.models.episode_progress import EpisodeProgress
-from app.models.user import User
-from app.models.episode_watch_event import EpisodeWatchEvent
-
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_season_episode_sync_service
+from app.models.episode import Episode
+from app.models.episode_progress import EpisodeProgress
+from app.models.episode_watch_event import EpisodeWatchEvent
+from app.models.season import Season
+from app.models.show import Show
+from app.models.user import User
 
 
 def create_local_show(
@@ -70,6 +67,7 @@ def create_local_season(
 
     return season
 
+
 def create_local_user(
     db_session: Session,
 ) -> User:
@@ -84,6 +82,7 @@ def create_local_user(
     db_session.refresh(user)
 
     return user
+
 
 def create_episode_progress(
     db_session: Session,
@@ -107,6 +106,7 @@ def create_episode_progress(
     db_session.refresh(progress)
 
     return progress
+
 
 class FakeSeasonEpisodeSyncService:
     """Controllable Season Episode sync service for route tests."""
@@ -137,6 +137,7 @@ class FakeSeasonEpisodeSyncService:
 
         return self.episodes
 
+
 def override_season_episode_sync_service(
     client: TestClient,
     service: FakeSeasonEpisodeSyncService,
@@ -148,11 +149,10 @@ def override_season_episode_sync_service(
         client.app,
     )
 
-    app.dependency_overrides[
-        get_season_episode_sync_service
-    ] = lambda: service
+    app.dependency_overrides[get_season_episode_sync_service] = lambda: service
 
     return app
+
 
 def create_local_episode(
     db_session: Session,
@@ -491,6 +491,7 @@ def test_list_season_episodes_rejects_invalid_season_id(
 
     assert response.status_code == 422
 
+
 def test_sync_season_episodes_returns_synced_episodes(
     client: TestClient,
     db_session: Session,
@@ -562,10 +563,9 @@ def test_sync_season_episodes_returns_synced_episodes(
         "vote_count": 42,
         "tmdb_still_path": "/episode-1.jpg",
         "local_still_path": None,
-        "still_url": (
-            f"/api/v1/images/episodes/{episode.id}/still"
-        ),
+        "still_url": (f"/api/v1/images/episodes/{episode.id}/still"),
     }
+
 
 def test_sync_season_episodes_syncs_only_requested_season(
     client: TestClient,
@@ -619,6 +619,7 @@ def test_sync_season_episodes_syncs_only_requested_season(
         first_season.id,
     ]
 
+
 def test_sync_season_episodes_returns_404_when_season_does_not_exist(
     client: TestClient,
 ) -> None:
@@ -658,6 +659,7 @@ def test_sync_season_episodes_returns_404_when_season_does_not_exist(
         season_id,
     ]
 
+
 @pytest.mark.parametrize(
     "season_id",
     [
@@ -677,7 +679,6 @@ def test_sync_season_episodes_rejects_invalid_season_id(
     )
 
     assert response.status_code == 422
-
 
 
 def test_list_season_episode_progress_returns_user_progress(
@@ -874,10 +875,7 @@ def test_mark_season_watched_marks_aired_episodes(
         )
     ).all()
 
-    progress_by_episode_id = {
-        progress.episode_id: progress
-        for progress in progress_entries
-    }
+    progress_by_episode_id = {progress.episode_id: progress for progress in progress_entries}
 
     assert progress_by_episode_id[aired_episode_1.id].is_watched is True
     assert progress_by_episode_id[aired_episode_2.id].is_watched is True
@@ -890,10 +888,7 @@ def test_mark_season_watched_marks_aired_episodes(
         )
     ).all()
 
-    assert {
-        event.episode_id
-        for event in watch_events
-    } == {
+    assert {event.episode_id for event in watch_events} == {
         aired_episode_1.id,
         aired_episode_2.id,
     }
@@ -980,26 +975,6 @@ def test_mark_season_watched_does_not_rewatch_already_watched_episode(
     db_session.refresh(progress)
 
     assert progress.is_watched is True
-
-
-def test_mark_season_watched_returns_404_when_season_does_not_exist(
-    client: TestClient,
-    local_user: User,
-) -> None:
-    """Return 404 for an unknown Season."""
-
-    response = client.post(
-        f"/api/v1/seasons/{uuid4()}/watched",
-    )
-
-    assert response.status_code == 404
-
-    assert response.json() == {
-        "error": {
-            "code": "season_not_found",
-            "message": "TV season not found.",
-        }
-    }
 
 
 def test_mark_season_watched_marks_all_aired_unwatched_episodes(
@@ -1106,17 +1081,11 @@ def test_mark_season_watched_marks_all_aired_unwatched_episodes(
 
     assert progress_entries[already_watched_episode.id].is_watched is True
 
-    assert (
-        progress_entries[already_watched_episode.id].watched_at
-        is not None
-    )
+    assert progress_entries[already_watched_episode.id].watched_at is not None
 
     assert progress_entries[unwatched_episode.id].is_watched is True
 
-    assert (
-        progress_entries[unwatched_episode.id].watched_at
-        is not None
-    )
+    assert progress_entries[unwatched_episode.id].watched_at is not None
 
     assert future_episode.id not in progress_entries
 
@@ -1313,4 +1282,3 @@ def test_mark_season_watched_returns_404_when_season_does_not_exist(
             "message": "TV season not found.",
         }
     }
-

@@ -4,6 +4,7 @@ from unittest.mock import Mock
 from uuid import UUID, uuid4
 
 from app.models.enums import LibraryStatus
+from app.repositories.episode import EpisodeRepository
 from app.repositories.episode_progress import (
     EpisodeProgressRepository,
     LastWatchedEpisode,
@@ -11,7 +12,6 @@ from app.repositories.episode_progress import (
 )
 from app.repositories.library import LibraryRepository
 from app.services.watch_next import WatchNextService
-from app.repositories.episode import EpisodeRepository
 
 
 def create_show(
@@ -79,9 +79,7 @@ def create_service(
     progress_repository: Mock,
     last_watched_by_show: dict[UUID, LastWatchedEpisode] | None = None,
 ) -> WatchNextService:
-    progress_repository.list_last_watched_for_shows.return_value = (
-        last_watched_by_show or {}
-    )
+    progress_repository.list_last_watched_for_shows.return_value = last_watched_by_show or {}
 
     return WatchNextService(
         library_repository=library_repository,
@@ -175,11 +173,7 @@ def test_lists_next_episode_for_watching_shows() -> None:
 
     progress_repository.list_next_unwatched_for_shows.assert_called_once()
 
-    call = (
-        progress_repository
-        .list_next_unwatched_for_shows
-        .call_args
-    )
+    call = progress_repository.list_next_unwatched_for_shows.call_args
 
     assert call.kwargs["user_id"] == user_id
     assert call.kwargs["show_ids"] == [
@@ -196,11 +190,7 @@ def test_lists_next_episode_for_watching_shows() -> None:
 
     progress_repository.get_watched_aired_counts_by_show_ids.assert_called_once()
 
-    watched_call = (
-        progress_repository
-        .get_watched_aired_counts_by_show_ids
-        .call_args
-    )
+    watched_call = progress_repository.get_watched_aired_counts_by_show_ids.call_args
 
     assert watched_call.kwargs["user_id"] == user_id
     assert watched_call.kwargs["show_ids"] == [
@@ -428,16 +418,13 @@ def test_returns_multiple_watch_next_items() -> None:
         second_show.id,
     ]
 
-    watched_call = (
-        progress_repository
-        .get_watched_aired_counts_by_show_ids
-        .call_args
-    )
+    watched_call = progress_repository.get_watched_aired_counts_by_show_ids.call_args
 
     assert watched_call.kwargs["show_ids"] == [
         first_show.id,
         second_show.id,
     ]
+
 
 def test_excludes_stale_show_from_watch_next() -> None:
     """A stale Watching Show belongs to Stale Watching, not Watch Next."""
@@ -497,6 +484,7 @@ def test_excludes_stale_show_from_watch_next() -> None:
 
     assert result == []
 
+
 def test_keeps_recently_watched_show_in_watch_next() -> None:
     """A recently watched Show with an available Episode stays in Watch Next."""
 
@@ -553,6 +541,7 @@ def test_keeps_recently_watched_show_in_watch_next() -> None:
     assert len(result) == 1
     assert result[0].show.id == show.id
     assert result[0].next_episode.id == episode.id
+
 
 def test_orders_watch_next_by_episode_air_date() -> None:
     """Order Watch Next by oldest available Episode air date first."""
@@ -628,6 +617,7 @@ def test_orders_watch_next_by_episode_air_date() -> None:
         "Severance",
         "The Last of Us",
     ]
+
 
 def test_orders_same_air_date_by_show_title() -> None:
     """Use Show title as deterministic tie-breaker for equal air dates."""
@@ -705,6 +695,7 @@ def test_orders_same_air_date_by_show_title() -> None:
         "Alpha",
         "Zebra",
     ]
+
 
 def test_caught_up_show_returns_to_watch_next_when_new_episode_airs() -> None:
     """A caught-up Watching Show returns when a new aired Episode is available."""

@@ -521,18 +521,12 @@ def test_export_user_data_preserves_episode_rewatches() -> None:
 
     assert len(result.history.episodes) == 2
 
-    assert [
-        event.episode_tmdb_id
-        for event in result.history.episodes
-    ] == [
+    assert [event.episode_tmdb_id for event in result.history.episodes] == [
         2101,
         2101,
     ]
 
-    assert [
-        event.watched_at
-        for event in result.history.episodes
-    ] == [
+    assert [event.watched_at for event in result.history.episodes] == [
         datetime(
             2026,
             7,
@@ -601,18 +595,12 @@ def test_export_user_data_preserves_movie_rewatches() -> None:
 
     assert len(result.history.movies) == 2
 
-    assert [
-        event.movie_tmdb_id
-        for event in result.history.movies
-    ] == [
+    assert [event.movie_tmdb_id for event in result.history.movies] == [
         438631,
         438631,
     ]
 
-    assert [
-        event.watched_at
-        for event in result.history.movies
-    ] == [
+    assert [event.watched_at for event in result.history.movies] == [
         datetime(
             2026,
             8,

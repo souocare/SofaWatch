@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta, date
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import UUID, uuid4
@@ -145,6 +145,7 @@ def test_includes_show_when_activity_and_pending_episode_are_stale() -> None:
 
     assert item.next_episode.episode_number == 4
 
+
 def test_excludes_show_when_pending_episode_is_recent() -> None:
     """Keep newly available content out of stale Watching."""
 
@@ -196,6 +197,7 @@ def test_excludes_show_when_pending_episode_is_recent() -> None:
     )
 
     assert result == []
+
 
 def test_excludes_show_when_last_watched_less_than_60_days_ago() -> None:
     """Exclude a Watching Show that was viewed recently."""
@@ -406,6 +408,7 @@ def test_orders_oldest_activity_first() -> None:
 
     assert result[0].last_watched.watched_at == older_watched_at
     assert result[1].last_watched.watched_at == newer_watched_at
+
 
 def test_empty_watching_library_does_not_query_progress() -> None:
     """Avoid progress queries when there are no Watching Shows."""

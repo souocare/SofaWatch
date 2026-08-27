@@ -1,20 +1,20 @@
 from datetime import UTC, date, datetime, timedelta
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from uuid import UUID, uuid4
 
 from app.models.enums import LibraryStatus
-from app.models.library import LibraryEntry
-from app.models.movie import Movie
-from app.models.show import Show
-from app.models.user import User
 from app.models.episode import Episode
 from app.models.episode_progress import EpisodeProgress
-from app.models.season import Season
 from app.models.episode_watch_event import EpisodeWatchEvent
+from app.models.library import LibraryEntry
+from app.models.movie import Movie
 from app.models.movie_watch_event import MovieWatchEvent
+from app.models.season import Season
+from app.models.show import Show
+from app.models.user import User
 
 
 def as_utc(
@@ -30,6 +30,7 @@ def as_utc(
     return value.astimezone(
         UTC,
     )
+
 
 def create_local_user(
     db_session: Session,
@@ -167,6 +168,7 @@ def create_episode(
 
     return episode
 
+
 def create_episode_watch_event(
     db_session: Session,
     *,
@@ -187,6 +189,7 @@ def create_episode_watch_event(
     db_session.refresh(event)
 
     return event
+
 
 def create_episode_progress(
     db_session: Session,
@@ -209,6 +212,7 @@ def create_episode_progress(
     db_session.refresh(progress)
 
     return progress
+
 
 def create_movie(
     db_session: Session,
@@ -238,6 +242,7 @@ def create_movie(
     db_session.refresh(movie)
 
     return movie
+
 
 def create_movie_library_entry(
     db_session: Session,
@@ -281,7 +286,6 @@ def create_movie_watch_event(
     db_session.refresh(event)
 
     return event
-
 
 
 def test_add_show_to_library(
@@ -738,6 +742,7 @@ def test_library_isolated_between_users(
     assert len(body) == 1
     assert body[0]["show_id"] == str(local_show.id)
 
+
 def test_add_movie_to_library(
     client: TestClient,
     db_session: Session,
@@ -780,6 +785,7 @@ def test_add_movie_to_library(
     assert entry.show_id is None
     assert entry.movie_id == movie.id
     assert entry.status == LibraryStatus.PLANNING
+
 
 def test_add_movie_to_library_returns_404_when_movie_does_not_exist(
     client: TestClient,
@@ -861,6 +867,7 @@ def test_add_movie_to_library_rejects_invalid_movie_id(
     )
 
     assert response.status_code == 422
+
 
 def test_get_movie_library_entry(
     client: TestClient,
@@ -980,6 +987,7 @@ def test_remove_movie_from_library(
 
     assert entry is None
 
+
 def test_remove_movie_from_library_returns_404_when_missing(
     client: TestClient,
     db_session: Session,
@@ -1052,6 +1060,7 @@ def test_update_movie_library_status_to_completed(
     assert entry.status == LibraryStatus.COMPLETED
     assert entry.completed_at is not None
 
+
 def test_update_movie_library_status_to_planning(
     client: TestClient,
     db_session: Session,
@@ -1098,6 +1107,7 @@ def test_update_movie_library_status_to_planning(
     assert entry.status == LibraryStatus.PLANNING
     assert entry.completed_at is None
 
+
 def test_update_movie_library_status_returns_404_when_missing(
     client: TestClient,
     db_session: Session,
@@ -1128,6 +1138,7 @@ def test_update_movie_library_status_returns_404_when_missing(
         }
     }
 
+
 def test_update_movie_library_status_rejects_invalid_status(
     client: TestClient,
     db_session: Session,
@@ -1156,6 +1167,7 @@ def test_update_movie_library_status_rejects_invalid_status(
     )
 
     assert response.status_code == 422
+
 
 def test_get_show_library_entry(
     client: TestClient,
@@ -1191,6 +1203,7 @@ def test_get_show_library_entry(
     assert body["movie_id"] is None
     assert body["status"] == "watching"
 
+
 def test_get_show_library_entry_returns_404_when_missing(
     client: TestClient,
     db_session: Session,
@@ -1217,6 +1230,7 @@ def test_get_show_library_entry_returns_404_when_missing(
             "message": "TV series is not in the library.",
         }
     }
+
 
 def test_list_library_shows_returns_show_metadata(
     client: TestClient,
@@ -1257,6 +1271,7 @@ def test_list_library_shows_returns_show_metadata(
     assert item["show"]["id"] == str(show.id)
     assert item["show"]["tmdb_id"] == 95396
     assert item["show"]["title"] == "Severance"
+
 
 def test_list_library_shows_excludes_movies(
     client: TestClient,
@@ -1300,6 +1315,7 @@ def test_list_library_shows_excludes_movies(
 
     assert len(body) == 1
     assert body[0]["show"]["tmdb_id"] == 95396
+
 
 def test_list_library_shows_filters_by_status(
     client: TestClient,
@@ -1674,6 +1690,7 @@ def test_start_library_show_returns_404_when_show_is_not_in_library(
 
     assert progress is None
 
+
 def test_list_watch_next_returns_next_unwatched_episode(
     client: TestClient,
     db_session: Session,
@@ -1896,6 +1913,7 @@ def test_list_watch_next_excludes_future_episode(
 
     assert response.status_code == 200
     assert response.json() == []
+
 
 def test_list_stale_watching_returns_inactive_show_with_next_episode(
     client: TestClient,
@@ -2343,11 +2361,14 @@ def test_list_watch_history_returns_recently_watched_episodes(
     assert newest["episode"]["title"] == "Half Loop"
     assert newest["episode"]["watch_count"] == 1
 
-    assert as_utc(
-        datetime.fromisoformat(
-            newest["episode"]["watched_at"],
+    assert (
+        as_utc(
+            datetime.fromisoformat(
+                newest["episode"]["watched_at"],
+            )
         )
-    ) == second_watched_at
+        == second_watched_at
+    )
 
     oldest = body["items"][1]
 
@@ -2356,11 +2377,14 @@ def test_list_watch_history_returns_recently_watched_episodes(
     assert oldest["episode"]["episode_number"] == 1
     assert oldest["episode"]["watch_count"] == 1
 
-    assert as_utc(
-        datetime.fromisoformat(
-            oldest["episode"]["watched_at"],
+    assert (
+        as_utc(
+            datetime.fromisoformat(
+                oldest["episode"]["watched_at"],
+            )
         )
-    ) == first_watched_at
+        == first_watched_at
+    )
 
 
 def test_list_watch_history_supports_cursor_pagination(
@@ -2505,6 +2529,7 @@ def test_list_watch_history_returns_400_for_invalid_cursor(
         }
     }
 
+
 def test_list_watch_history_rejects_invalid_limit(
     client: TestClient,
     db_session: Session,
@@ -2521,7 +2546,6 @@ def test_list_watch_history_rejects_invalid_limit(
     )
 
     assert response.status_code == 422
-
 
 
 def test_list_library_shows_includes_first_available_episode_for_planning_show(
@@ -2639,6 +2663,7 @@ def test_list_library_shows_returns_null_first_episode_when_none_has_aired(
 
     assert len(body) == 1
     assert body[0]["first_available_episode"] is None
+
 
 def test_list_havent_started_returns_planning_show_with_first_episode(
     client: TestClient,
@@ -2872,6 +2897,7 @@ def test_list_upcoming_returns_multiple_future_episodes_for_same_show(
         str(second_episode.id),
     ]
 
+
 def test_list_upcoming_excludes_completed_dropped_and_paused_shows(
     client: TestClient,
     db_session: Session,
@@ -2978,6 +3004,7 @@ def test_list_upcoming_excludes_unknown_dates_and_shows_without_future_episodes(
 
     assert response.status_code == 200
     assert response.json() == []
+
 
 def test_list_upcoming_supports_past_and_future_date_range(
     client: TestClient,
@@ -3126,6 +3153,7 @@ def test_list_upcoming_date_range_is_inclusive(
     assert body[-1]["episode"]["id"] == str(last.id)
     assert len(body) == 3
 
+
 def test_list_upcoming_supports_past_only_range(
     client: TestClient,
     db_session: Session,
@@ -3214,6 +3242,7 @@ def test_list_upcoming_rejects_invalid_date_range(
         }
     }
 
+
 def test_list_upcoming_uses_today_when_only_to_date_is_provided(
     client: TestClient,
     db_session: Session,
@@ -3277,6 +3306,7 @@ def test_list_upcoming_uses_today_when_only_to_date_is_provided(
     assert len(body) == 1
     assert body[0]["episode"]["id"] == str(today_episode.id)
 
+
 def test_list_library_movies_returns_current_users_movies(
     client: TestClient,
     db_session: Session,
@@ -3319,6 +3349,7 @@ def test_list_library_movies_returns_current_users_movies(
     assert body[0]["movie"]["original_title"] == "Dune"
     assert body[0]["movie"]["status"] == "Released"
     assert body[0]["movie"]["vote_average"] == 8.0
+
 
 def test_list_library_movies_does_not_return_shows(
     client: TestClient,
@@ -3466,6 +3497,7 @@ def test_list_library_movies_filters_completed_movies(
     assert body[0]["status"] == "completed"
     assert body[0]["movie"]["id"] == str(completed_movie.id)
 
+
 def test_list_library_movies_only_returns_current_users_movies(
     client: TestClient,
     db_session: Session,
@@ -3516,6 +3548,7 @@ def test_list_library_movies_only_returns_current_users_movies(
 
     assert len(body) == 1
     assert body[0]["movie"]["id"] == str(local_movie.id)
+
 
 def test_list_library_movies_returns_empty_list_when_library_has_no_movies(
     client: TestClient,
@@ -3634,9 +3667,12 @@ def test_record_movie_rewatch_creates_another_event(
 
     assert entry.status == LibraryStatus.COMPLETED
 
-    assert as_utc(
-        entry.completed_at,
-    ) == original_completed_at
+    assert (
+        as_utc(
+            entry.completed_at,
+        )
+        == original_completed_at
+    )
 
 
 def test_record_movie_watch_event_returns_404_when_movie_does_not_exist(
@@ -4098,7 +4134,7 @@ def test_delete_movie_watch_event_cannot_delete_another_users_event(
         movie=movie,
     )
 
-    other_entry = create_movie_library_entry(
+    create_movie_library_entry(
         db_session,
         user=other_user,
         movie=movie,
@@ -4141,7 +4177,6 @@ def test_delete_movie_watch_event_cannot_delete_another_users_event(
 
     assert stored_event is not None
     assert stored_event.user_id == other_user.id
-
 
 
 def test_delete_all_movie_watch_events_returns_movie_to_watchlist(
@@ -4249,6 +4284,7 @@ def test_delete_all_movie_watch_events_is_idempotent(
     assert entry.status == LibraryStatus.PLANNING
     assert entry.completed_at is None
 
+
 def test_list_missed_recently_returns_home_collection(
     client: TestClient,
     db_session: Session,
@@ -4312,6 +4348,7 @@ def test_list_missed_recently_returns_home_collection(
     assert item["episode"]["title"] == "Who Is Alive?"
     assert item["episode"]["is_watched"] is False
 
+
 def test_list_upcoming_respects_limit(
     client: TestClient,
     db_session: Session,
@@ -4366,6 +4403,7 @@ def test_list_upcoming_respects_limit(
     assert body[0]["episode"]["episode_number"] == 1
     assert body[1]["episode"]["episode_number"] == 2
 
+
 def test_get_library_preview_returns_recent_shows_and_movies(
     client: TestClient,
     db_session: Session,
@@ -4382,7 +4420,7 @@ def test_get_library_preview_returns_recent_shows_and_movies(
         title="Severance",
     )
 
-    show_entry = create_library_entry(
+    create_library_entry(
         db_session,
         user=user,
         show=show,
@@ -4428,7 +4466,7 @@ def test_get_library_preview_returns_recent_shows_and_movies(
         title="Dune",
     )
 
-    movie_entry = create_movie_library_entry(
+    create_movie_library_entry(
         db_session,
         user=user,
         movie=movie,
@@ -4452,16 +4490,13 @@ def test_get_library_preview_returns_recent_shows_and_movies(
 
     show_item = body["shows"][0]
 
-
     assert show_item["show"]["id"] == str(show.id)
     assert show_item["show"]["tmdb_id"] == 95396
     assert show_item["show"]["title"] == "Severance"
 
-
     assert len(body["movies"]) == 1
 
     movie_item = body["movies"][0]
-
 
     assert movie_item["movie"]["id"] == str(movie.id)
     assert movie_item["movie"]["tmdb_id"] == 438631
@@ -4488,6 +4523,7 @@ def test_get_library_preview_returns_empty_collections_for_empty_library(
         "shows": [],
         "movies": [],
     }
+
 
 def test_get_library_preview_returns_ten_most_recent_shows_and_movies(
     client: TestClient,
@@ -4565,10 +4601,7 @@ def test_get_library_preview_returns_ten_most_recent_shows_and_movies(
     assert len(body["shows"]) == 10
     assert len(body["movies"]) == 10
 
-    assert [
-        item["show"]["tmdb_id"]
-        for item in body["shows"]
-    ] == [
+    assert [item["show"]["tmdb_id"] for item in body["shows"]] == [
         100011,
         100010,
         100009,
@@ -4581,10 +4614,7 @@ def test_get_library_preview_returns_ten_most_recent_shows_and_movies(
         100002,
     ]
 
-    assert [
-        item["movie"]["tmdb_id"]
-        for item in body["movies"]
-    ] == [
+    assert [item["movie"]["tmdb_id"] for item in body["movies"]] == [
         200011,
         200010,
         200009,
@@ -4669,19 +4699,14 @@ def test_get_library_preview_is_isolated_to_current_user(
 
     body = response.json()
 
-    assert [
-        item["show"]["tmdb_id"]
-        for item in body["shows"]
-    ] == [
+    assert [item["show"]["tmdb_id"] for item in body["shows"]] == [
         95396,
     ]
 
-    assert [
-        item["movie"]["tmdb_id"]
-        for item in body["movies"]
-    ] == [
+    assert [item["movie"]["tmdb_id"] for item in body["movies"]] == [
         438631,
     ]
+
 
 def test_get_library_preview_limits_shows_and_movies_independently(
     client: TestClient,
@@ -4839,6 +4864,7 @@ def test_get_history_preview_returns_recent_episode_and_movie_events(
     assert movie_item["movie"]["tmdb_id"] == 438631
     assert movie_item["movie"]["title"] == "Dune"
 
+
 def test_list_history_combines_episode_and_movie_events_newest_first(
     client: TestClient,
     db_session: Session,
@@ -4937,23 +4963,18 @@ def test_list_history_combines_episode_and_movie_events_newest_first(
     assert body["has_more"] is False
     assert body["next_cursor"] is None
 
-    assert [
-        item["event_id"]
-        for item in body["items"]
-    ] == [
+    assert [item["event_id"] for item in body["items"]] == [
         str(newer_movie_event.id),
         str(episode_event.id),
         str(older_movie_event.id),
     ]
 
-    assert [
-        item["media_type"]
-        for item in body["items"]
-    ] == [
+    assert [item["media_type"] for item in body["items"]] == [
         "movie",
         "episode",
         "movie",
     ]
+
 
 def test_list_history_supports_cursor_pagination(
     client: TestClient,
@@ -5002,10 +5023,7 @@ def test_list_history_supports_cursor_pagination(
 
     first_body = first_response.json()
 
-    assert [
-        item["event_id"]
-        for item in first_body["items"]
-    ] == [
+    assert [item["event_id"] for item in first_body["items"]] == [
         str(events[0].id),
         str(events[1].id),
     ]
@@ -5025,15 +5043,13 @@ def test_list_history_supports_cursor_pagination(
 
     second_body = second_response.json()
 
-    assert [
-        item["event_id"]
-        for item in second_body["items"]
-    ] == [
+    assert [item["event_id"] for item in second_body["items"]] == [
         str(events[2].id),
     ]
 
     assert second_body["has_more"] is False
     assert second_body["next_cursor"] is None
+
 
 def test_list_history_returns_400_for_invalid_cursor(
     client: TestClient,

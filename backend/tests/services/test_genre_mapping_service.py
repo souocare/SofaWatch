@@ -59,14 +59,10 @@ def test_resolve_reuses_existing_mapping(
 
     assert result.id == genre.id
 
-    genre_count = db_session.scalar(
-        select(func.count())
-        .select_from(Genre)
-    )
+    genre_count = db_session.scalar(select(func.count()).select_from(Genre))
 
     mapping_count = db_session.scalar(
-        select(func.count())
-        .select_from(
+        select(func.count()).select_from(
             GenreProviderMapping,
         )
     )
@@ -166,10 +162,7 @@ def test_show_and_movie_mappings_share_same_local_genre(
 
     assert show_genre.id == movie_genre.id
 
-    genre_count = db_session.scalar(
-        select(func.count())
-        .select_from(Genre)
-    )
+    genre_count = db_session.scalar(select(func.count()).select_from(Genre))
 
     mappings = list(
         db_session.scalars(
@@ -184,18 +177,12 @@ def test_show_and_movie_mappings_share_same_local_genre(
     assert genre_count == 1
     assert len(mappings) == 2
 
-    assert {
-        mapping.media_type
-        for mapping in mappings
-    } == {
+    assert {mapping.media_type for mapping in mappings} == {
         "show",
         "movie",
     }
 
-    assert all(
-        mapping.genre_id == show_genre.id
-        for mapping in mappings
-    )
+    assert all(mapping.genre_id == show_genre.id for mapping in mappings)
 
 
 def test_different_provider_genres_create_different_local_genres(

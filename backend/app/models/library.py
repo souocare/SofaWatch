@@ -100,10 +100,7 @@ class LibraryEntry(TimestampMixin, Base):
             LibraryStatus,
             name="library_status",
             native_enum=False,
-            values_callable=lambda enum: [
-                member.value
-                for member in enum
-            ],
+            values_callable=lambda enum: [member.value for member in enum],
         ),
         nullable=False,
         default=LibraryStatus.PLANNING,

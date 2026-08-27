@@ -14,11 +14,8 @@ class GenreRepository:
     def list_all(
         self,
     ) -> list[Genre]:
-        statement = (
-            select(Genre)
-            .order_by(
-                Genre.name.asc(),
-            )
+        statement = select(Genre).order_by(
+            Genre.name.asc(),
         )
 
         return list(
@@ -31,11 +28,8 @@ class GenreRepository:
         self,
         name: str,
     ) -> Genre | None:
-        statement = (
-            select(Genre)
-            .where(
-                Genre.name == name,
-            )
+        statement = select(Genre).where(
+            Genre.name == name,
         )
 
         return self._session.scalar(
@@ -66,11 +60,7 @@ class GenreRepository:
         if existing is not None:
             return existing
 
-        slug = (
-            name.strip()
-            .lower()
-            .replace(" ", "-")
-        )
+        slug = name.strip().lower().replace(" ", "-")
 
         genre = Genre(
             name=name,

@@ -63,9 +63,7 @@ class WatchHistoryCursorCodec:
             json.JSONDecodeError,
             binascii.Error,
         ) as error:
-            raise ValueError(
-                "Invalid Watch History cursor."
-            ) from error
+            raise ValueError("Invalid Watch History cursor.") from error
 
         return WatchHistoryCursor(
             watched_at=watched_at,

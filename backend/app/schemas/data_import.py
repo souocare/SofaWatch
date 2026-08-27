@@ -62,6 +62,7 @@ class DataImportHistoryResultResponse(BaseModel):
     episodes: DataImportHistoryMediaSummaryResponse
     movies: DataImportHistoryMediaSummaryResponse
 
+
 class DataImportResultResponse(BaseModel):
     """Final result of importing portable SofaWatch user data."""
 

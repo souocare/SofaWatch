@@ -2,27 +2,26 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
-
 from sqlalchemy.orm import Session
 
-from app.core.security.tokens import AccessTokenService
 from app.core.config import get_settings
-from app.core.security.session_credentials import hash_session_credential
-from app.repositories.auth_session import AuthSessionRepository
-from app.services.auth_session import AuthSessionService
-from app.models.authentication_settings import AuthenticationSettings
 from app.core.security.passwords import (
     hash_password,
     verify_password,
 )
+from app.core.security.session_credentials import hash_session_credential
+from app.core.security.tokens import AccessTokenService
 from app.models.auth_session import (
     AuthSession,
     AuthSessionType,
 )
+from app.models.authentication_settings import AuthenticationSettings
 from app.models.user import User
+from app.repositories.auth_session import AuthSessionRepository
 from app.repositories.password_reset_token import (
     PasswordResetTokenRepository,
 )
+from app.services.auth_session import AuthSessionService
 from app.services.password_reset_token import (
     PasswordResetTokenService,
 )
@@ -53,7 +52,7 @@ def test_login_returns_access_token_for_valid_credentials(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    user = _create_user(
+    _create_user(
         db_session,
     )
 
@@ -181,6 +180,7 @@ def test_login_rejects_inactive_user_without_disclosing_status(
         }
     }
 
+
 def test_setup_status_reports_existing_installation(
     client: TestClient,
     db_session: Session,
@@ -206,6 +206,7 @@ def test_setup_status_reports_existing_installation(
         "setup_required": False,
     }
 
+
 def test_setup_status_reports_setup_required_when_no_users_exist(
     client: TestClient,
 ) -> None:
@@ -218,8 +219,6 @@ def test_setup_status_reports_setup_required_when_no_users_exist(
     assert response.json() == {
         "setup_required": True,
     }
-
-
 
 
 def test_initial_setup_creates_first_administrator(
@@ -286,6 +285,7 @@ def test_initial_setup_is_closed_after_first_user(
         }
     }
 
+
 def test_login_creates_persistent_web_session(
     client: TestClient,
     db_session: Session,
@@ -323,9 +323,7 @@ def test_login_creates_persistent_web_session(
     assert auth_session.session_type == AuthSessionType.WEB
     assert auth_session.revoked_at is None
 
-    assert auth_session.credential_hash == (
-        hash_session_credential(credential)
-    )
+    assert auth_session.credential_hash == (hash_session_credential(credential))
 
 
 def test_login_session_cookie_is_http_only(
@@ -415,15 +413,11 @@ def test_initial_setup_creates_persistent_web_session(
 
     assert credential is not None
 
-    auth_session = db_session.scalar(
-        select(AuthSession)
-    )
+    auth_session = db_session.scalar(select(AuthSession))
 
     assert auth_session is not None
     assert auth_session.session_type == AuthSessionType.WEB
-    assert auth_session.credential_hash == (
-        hash_session_credential(credential)
-    )
+    assert auth_session.credential_hash == (hash_session_credential(credential))
 
 
 def test_restore_web_session_returns_new_access_token(
@@ -489,6 +483,7 @@ def test_restore_web_session_requires_session_cookie(
             "message": "An authenticated session is required.",
         }
     }
+
 
 def test_restore_web_session_rejects_invalid_cookie(
     unauthenticated_client: TestClient,
@@ -559,6 +554,7 @@ def test_restore_web_session_rejects_revoked_session(
         }
     }
 
+
 def test_restore_web_session_rejects_inactive_user(
     client: TestClient,
     db_session: Session,
@@ -595,6 +591,7 @@ def test_restore_web_session_rejects_inactive_user(
             "message": "The authentication session is invalid or expired.",
         }
     }
+
 
 def test_restore_web_session_rejects_expired_session(
     client: TestClient,
@@ -640,6 +637,7 @@ def test_restore_web_session_rejects_expired_session(
     assert response.status_code == 401
 
     assert response.json()["error"]["code"] == "invalid_session"
+
 
 def test_restore_web_session_reuses_existing_auth_session(
     client: TestClient,
@@ -687,6 +685,7 @@ def test_restore_web_session_reuses_existing_auth_session(
 
     assert len(sessions_after) == 1
     assert sessions_after[0].id == sessions_before[0].id
+
 
 def test_logout_revokes_current_web_session(
     client: TestClient,
@@ -750,9 +749,12 @@ def test_logout_clears_web_session_cookie(
 
     assert login_response.status_code == 200
 
-    assert client.cookies.get(
-        "sofawatch_session",
-    ) is not None
+    assert (
+        client.cookies.get(
+            "sofawatch_session",
+        )
+        is not None
+    )
 
     response = client.post(
         "/api/v1/auth/logout",
@@ -760,9 +762,12 @@ def test_logout_clears_web_session_cookie(
 
     assert response.status_code == 204
 
-    assert client.cookies.get(
-        "sofawatch_session",
-    ) is None
+    assert (
+        client.cookies.get(
+            "sofawatch_session",
+        )
+        is None
+    )
 
 
 def test_logged_out_web_session_cannot_be_restored(
@@ -925,6 +930,7 @@ def test_logout_all_does_not_revoke_other_users_sessions(
     assert current_session.session.revoked_at is not None
     assert other_session.session.revoked_at is None
 
+
 def test_logout_all_clears_current_web_session_cookie(
     client: TestClient,
     db_session: Session,
@@ -945,9 +951,12 @@ def test_logout_all_clears_current_web_session_cookie(
 
     assert login_response.status_code == 200
 
-    assert client.cookies.get(
-        "sofawatch_session",
-    ) is not None
+    assert (
+        client.cookies.get(
+            "sofawatch_session",
+        )
+        is not None
+    )
 
     response = client.post(
         "/api/v1/auth/logout-all",
@@ -955,9 +964,12 @@ def test_logout_all_clears_current_web_session_cookie(
 
     assert response.status_code == 204
 
-    assert client.cookies.get(
-        "sofawatch_session",
-    ) is None
+    assert (
+        client.cookies.get(
+            "sofawatch_session",
+        )
+        is None
+    )
 
 
 def test_logout_all_prevents_restoring_previous_web_session(
@@ -1003,10 +1015,6 @@ def test_logout_all_prevents_restoring_previous_web_session(
 
     assert restore_response.status_code == 401
     assert restore_response.json()["error"]["code"] == "invalid_session"
-
-
-
-
 
 
 def test_mobile_login_creates_persistent_mobile_session(
@@ -1078,9 +1086,7 @@ def test_mobile_login_stores_only_refresh_credential_hash(
     assert auth_session is not None
 
     assert auth_session.credential_hash != refresh_token
-    assert auth_session.credential_hash == (
-        hash_session_credential(refresh_token)
-    )
+    assert auth_session.credential_hash == (hash_session_credential(refresh_token))
 
 
 def test_mobile_login_does_not_create_web_session_cookie(
@@ -1103,9 +1109,12 @@ def test_mobile_login_does_not_create_web_session_cookie(
 
     assert response.status_code == 200
 
-    assert response.cookies.get(
-        "sofawatch_session",
-    ) is None
+    assert (
+        response.cookies.get(
+            "sofawatch_session",
+        )
+        is None
+    )
 
 
 def test_mobile_login_rejects_invalid_credentials(
@@ -1135,11 +1144,7 @@ def test_mobile_login_rejects_invalid_credentials(
         }
     }
 
-    sessions = list(
-        db_session.scalars(
-            select(AuthSession)
-        ).all()
-    )
+    sessions = list(db_session.scalars(select(AuthSession)).all())
 
     assert sessions == []
 
@@ -1164,9 +1169,7 @@ def test_mobile_refresh_rotates_refresh_token(
 
     assert login_response.status_code == 200
 
-    original_refresh_token = login_response.json()[
-        "refresh_token"
-    ]
+    original_refresh_token = login_response.json()["refresh_token"]
 
     response = client.post(
         "/api/v1/auth/refresh",
@@ -1219,9 +1222,7 @@ def test_mobile_refresh_rejects_reused_previous_refresh_token(
         },
     )
 
-    original_refresh_token = login_response.json()[
-        "refresh_token"
-    ]
+    original_refresh_token = login_response.json()["refresh_token"]
 
     first_refresh_response = client.post(
         "/api/v1/auth/refresh",
@@ -1249,7 +1250,6 @@ def test_mobile_refresh_rejects_reused_previous_refresh_token(
     }
 
 
-
 def test_mobile_refresh_accepts_rotated_refresh_token(
     client: TestClient,
     db_session: Session,
@@ -1271,9 +1271,7 @@ def test_mobile_refresh_accepts_rotated_refresh_token(
     first_refresh = client.post(
         "/api/v1/auth/refresh",
         json={
-            "refresh_token": login_response.json()[
-                "refresh_token"
-            ],
+            "refresh_token": login_response.json()["refresh_token"],
         },
     )
 
@@ -1282,17 +1280,14 @@ def test_mobile_refresh_accepts_rotated_refresh_token(
     second_refresh = client.post(
         "/api/v1/auth/refresh",
         json={
-            "refresh_token": first_refresh.json()[
-                "refresh_token"
-            ],
+            "refresh_token": first_refresh.json()["refresh_token"],
         },
     )
 
     assert second_refresh.status_code == 200
 
-    assert second_refresh.json()["refresh_token"] != (
-        first_refresh.json()["refresh_token"]
-    )
+    assert second_refresh.json()["refresh_token"] != (first_refresh.json()["refresh_token"])
+
 
 def test_mobile_refresh_rejects_revoked_session(
     client: TestClient,
@@ -1312,9 +1307,7 @@ def test_mobile_refresh_rejects_revoked_session(
         },
     )
 
-    refresh_token = login_response.json()[
-        "refresh_token"
-    ]
+    refresh_token = login_response.json()["refresh_token"]
 
     auth_session = db_session.scalar(
         select(AuthSession).where(
@@ -1335,9 +1328,7 @@ def test_mobile_refresh_rejects_revoked_session(
     )
 
     assert response.status_code == 401
-    assert response.json()["error"]["code"] == (
-        "invalid_refresh_token"
-    )
+    assert response.json()["error"]["code"] == ("invalid_refresh_token")
 
 
 def test_mobile_refresh_rejects_expired_session(
@@ -1358,9 +1349,7 @@ def test_mobile_refresh_rejects_expired_session(
         },
     )
 
-    refresh_token = login_response.json()[
-        "refresh_token"
-    ]
+    refresh_token = login_response.json()["refresh_token"]
 
     auth_session = db_session.scalar(
         select(AuthSession).where(
@@ -1387,9 +1376,7 @@ def test_mobile_refresh_rejects_expired_session(
     )
 
     assert response.status_code == 401
-    assert response.json()["error"]["code"] == (
-        "invalid_refresh_token"
-    )
+    assert response.json()["error"]["code"] == ("invalid_refresh_token")
 
 
 def test_mobile_refresh_rejects_inactive_user(
@@ -1410,9 +1397,7 @@ def test_mobile_refresh_rejects_inactive_user(
         },
     )
 
-    refresh_token = login_response.json()[
-        "refresh_token"
-    ]
+    refresh_token = login_response.json()["refresh_token"]
 
     user.is_active = False
     db_session.commit()
@@ -1441,7 +1426,6 @@ def test_mobile_refresh_rejects_inactive_user(
 
     assert auth_session is not None
     assert auth_session.revoked_at is not None
-
 
 
 def test_mobile_logout_revokes_current_mobile_session(
@@ -1497,6 +1481,7 @@ def test_mobile_logout_is_idempotent_for_unknown_session(
 
     assert response.status_code == 204
 
+
 def test_create_auth_handoff_requires_authentication(
     unauthenticated_client: TestClient,
 ) -> None:
@@ -1512,6 +1497,7 @@ def test_create_auth_handoff_requires_authentication(
             "message": "Authentication is required.",
         }
     }
+
 
 def test_create_auth_handoff_for_authenticated_user(
     client: TestClient,
@@ -1682,7 +1668,6 @@ def test_auth_handoff_can_only_be_exchanged_once(
     }
 
 
-
 def test_exchange_rejects_invalid_auth_handoff(
     client: TestClient,
 ) -> None:
@@ -1701,7 +1686,6 @@ def test_exchange_rejects_invalid_auth_handoff(
             "message": "The authentication handoff is invalid or expired.",
         }
     }
-
 
 
 def test_registration_status_is_closed_by_default(
@@ -1737,6 +1721,7 @@ def test_registration_status_reports_open_registration(
         "open_registration": True,
     }
 
+
 def test_registration_is_rejected_when_closed(
     client: TestClient,
     db_session: Session,
@@ -1759,6 +1744,7 @@ def test_registration_is_rejected_when_closed(
     }
 
     assert db_session.query(User).count() == 0
+
 
 def test_registration_creates_regular_user_when_open(
     client: TestClient,
@@ -1802,6 +1788,7 @@ def test_registration_creates_regular_user_when_open(
     assert user.is_admin is False
     assert user.password_hash is not None
 
+
 def test_registration_creates_persistent_web_session(
     client: TestClient,
     db_session: Session,
@@ -1831,15 +1818,11 @@ def test_registration_creates_persistent_web_session(
     assert credential is not None
     assert credential
 
-    auth_session = db_session.scalar(
-        select(AuthSession)
-    )
+    auth_session = db_session.scalar(select(AuthSession))
 
     assert auth_session is not None
     assert auth_session.session_type == AuthSessionType.WEB
-    assert auth_session.credential_hash == (
-        hash_session_credential(credential)
-    )
+    assert auth_session.credential_hash == (hash_session_credential(credential))
 
     assert credential not in response.text
 
@@ -1882,6 +1865,7 @@ def test_registration_rejects_duplicate_username(
         }
     }
 
+
 def test_registration_rejects_duplicate_email(
     client: TestClient,
     db_session: Session,
@@ -1921,6 +1905,7 @@ def test_registration_rejects_duplicate_email(
             "message": "That email address is already in use.",
         }
     }
+
 
 def test_complete_password_recovery_changes_password(
     unauthenticated_client: TestClient,
@@ -2017,9 +2002,7 @@ def test_complete_password_recovery_rejects_invalid_token(
 
     assert response.status_code == 400
 
-    assert response.json()["error"]["code"] == (
-        "password_recovery_invalid"
-    )
+    assert response.json()["error"]["code"] == ("password_recovery_invalid")
 
 
 def test_complete_password_recovery_rejects_used_token(
@@ -2065,9 +2048,7 @@ def test_complete_password_recovery_rejects_used_token(
 
     assert second_response.status_code == 400
 
-    assert second_response.json()["error"]["code"] == (
-        "password_recovery_invalid"
-    )
+    assert second_response.json()["error"]["code"] == ("password_recovery_invalid")
 
 
 def test_complete_password_recovery_rejects_expired_token(
@@ -2104,9 +2085,7 @@ def test_complete_password_recovery_rejects_expired_token(
 
     assert response.status_code == 400
 
-    assert response.json()["error"]["code"] == (
-        "password_recovery_invalid"
-    )
+    assert response.json()["error"]["code"] == ("password_recovery_invalid")
 
     db_session.refresh(user)
 

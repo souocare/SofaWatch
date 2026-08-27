@@ -2,17 +2,19 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete as sqlalchemy_delete, func, select
+from sqlalchemy import delete as sqlalchemy_delete
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models.movie_watch_event import MovieWatchEvent
-from app.models.movie import Movie
-from app.repositories.viewing_statistics import DailyViewingStatistics
 from app.models.genre import Genre
+from app.models.movie import Movie
+from app.models.movie_watch_event import MovieWatchEvent
 from app.repositories.statistics_insights import (
     GenreViewingInsight,
     MovieViewingInsight,
 )
+from app.repositories.viewing_statistics import DailyViewingStatistics
+
 
 @dataclass(frozen=True, slots=True)
 class MovieWatchHistoryEvent:
@@ -29,6 +31,7 @@ class MovieWatchHistoryEventPage:
 
     items: list[MovieWatchHistoryEvent]
     has_more: bool
+
 
 class MovieWatchEventRepository:
     """Persistence operations for historical Movie watch events."""
@@ -171,8 +174,7 @@ class MovieWatchEventRepository:
 
         if (before_watched_at is None) != (before_event_id is None):
             raise ValueError(
-                "Movie History cursor requires both "
-                "before_watched_at and before_event_id."
+                "Movie History cursor requires both before_watched_at and before_event_id."
             )
 
         statement = (
@@ -193,19 +195,10 @@ class MovieWatchEventRepository:
 
         if before_watched_at is not None and before_event_id is not None:
             statement = statement.where(
-                (
-                    MovieWatchEvent.watched_at
-                    < before_watched_at
-                )
+                (MovieWatchEvent.watched_at < before_watched_at)
                 | (
-                    (
-                        MovieWatchEvent.watched_at
-                        == before_watched_at
-                    )
-                    & (
-                        MovieWatchEvent.id
-                        < before_event_id
-                    )
+                    (MovieWatchEvent.watched_at == before_watched_at)
+                    & (MovieWatchEvent.id < before_event_id)
                 )
             )
 
@@ -237,7 +230,6 @@ class MovieWatchEventRepository:
             items=items,
             has_more=has_more,
         )
-
 
     def exists_at(
         self,
@@ -641,15 +633,13 @@ class MovieWatchEventRepository:
                 ),
                 func.coalesce(
                     func.sum(
-                        per_movie.c.watch_count
-                        * per_movie.c.runtime,
+                        per_movie.c.watch_count * per_movie.c.runtime,
                     ),
                     0,
                 ),
                 func.coalesce(
                     func.sum(
-                        (per_movie.c.watch_count - 1)
-                        * per_movie.c.runtime,
+                        (per_movie.c.watch_count - 1) * per_movie.c.runtime,
                     ),
                     0,
                 ),

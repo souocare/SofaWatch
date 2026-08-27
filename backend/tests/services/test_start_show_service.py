@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 from app.models.enums import LibraryStatus
 from app.repositories.episode import EpisodeRepository
 from app.repositories.episode_progress import EpisodeProgressRepository
+from app.repositories.episode_watch_event import EpisodeWatchEventRepository
 from app.repositories.library import LibraryRepository
 from app.services.start_show import StartShowService
-from app.repositories.episode_watch_event import EpisodeWatchEventRepository
 
 
 def create_service(
@@ -26,10 +26,7 @@ def create_service(
         library_repository=library_repository,
         episode_repository=episode_repository,
         progress_repository=progress_repository,
-        watch_event_repository=(
-            watch_event_repository
-            or Mock(spec=EpisodeWatchEventRepository)
-        ),
+        watch_event_repository=(watch_event_repository or Mock(spec=EpisodeWatchEventRepository)),
     )
 
 
@@ -155,9 +152,7 @@ def test_reuses_existing_unwatched_progress() -> None:
         1,
     )
 
-    progress_repository.get_by_user_and_episode.return_value = (
-        existing_progress
-    )
+    progress_repository.get_by_user_and_episode.return_value = existing_progress
 
     watch_event_repository = Mock(spec=EpisodeWatchEventRepository)
 

@@ -16,9 +16,7 @@ class AuthenticationSettingsRepository:
     def get(self) -> AuthenticationSettings | None:
         """Return the installation authentication settings, if they exist."""
 
-        return self._session.scalar(
-            select(AuthenticationSettings).limit(1)
-        )
+        return self._session.scalar(select(AuthenticationSettings).limit(1))
 
     def add(
         self,

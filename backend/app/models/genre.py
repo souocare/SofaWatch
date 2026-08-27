@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Integer, String
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.associations import movie_genres, show_genres
@@ -8,11 +8,11 @@ from app.db.base import Base
 from app.db.mixins import TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.movie import Movie
-    from app.models.show import Show
     from app.models.genre_provider_mapping import (
         GenreProviderMapping,
     )
+    from app.models.movie import Movie
+    from app.models.show import Show
 
 
 class Genre(TimestampMixin, Base):
@@ -47,9 +47,7 @@ class Genre(TimestampMixin, Base):
         back_populates="genres",
     )
 
-    provider_mappings: Mapped[
-        list["GenreProviderMapping"]
-    ] = relationship(
+    provider_mappings: Mapped[list["GenreProviderMapping"]] = relationship(
         back_populates="genre",
         cascade="all, delete-orphan",
     )

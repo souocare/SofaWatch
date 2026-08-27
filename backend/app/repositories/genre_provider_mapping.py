@@ -25,8 +25,7 @@ class GenreProviderMappingRepository:
         ).where(
             GenreProviderMapping.provider == provider,
             GenreProviderMapping.media_type == media_type,
-            GenreProviderMapping.provider_genre_id
-            == provider_genre_id,
+            GenreProviderMapping.provider_genre_id == provider_genre_id,
         )
 
         return self._session.scalar(statement)

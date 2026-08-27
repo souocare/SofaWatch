@@ -2,18 +2,17 @@ from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
 import pytest
-
 from sqlalchemy.orm import Session
 
+from app.models.enums import LibraryStatus
 from app.models.episode import Episode
 from app.models.episode_progress import EpisodeProgress
+from app.models.library import LibraryEntry
 from app.models.season import Season
 from app.models.show import Show
 from app.models.user import User
 from app.repositories.episode_progress import EpisodeProgressRepository
 
-from app.models.enums import LibraryStatus
-from app.models.library import LibraryEntry
 
 def create_user(
     db_session: Session,
@@ -55,6 +54,7 @@ def create_show(
 
     return show
 
+
 def create_library_entry(
     db_session: Session,
     *,
@@ -75,6 +75,7 @@ def create_library_entry(
     db_session.refresh(entry)
 
     return entry
+
 
 def create_season(
     db_session: Session,
@@ -1311,6 +1312,7 @@ def test_get_next_upcoming_for_show_returns_none_when_no_future_episode_exists(
 
     assert result is None
 
+
 def test_get_watched_counts_by_show_id_groups_progress_by_season(
     db_session: Session,
 ) -> None:
@@ -1510,6 +1512,7 @@ def test_get_watched_counts_by_show_id_isolated_by_user(
         season.id: (1, 1),
     }
 
+
 def test_list_by_user_and_season_returns_only_requested_season_progress(
     db_session: Session,
 ) -> None:
@@ -1609,6 +1612,7 @@ def test_list_by_user_and_season_returns_only_requested_season_progress(
         first_progress,
         second_progress,
     ]
+
 
 def test_list_next_unwatched_for_shows_returns_next_episode_for_each_show(
     db_session: Session,
@@ -1958,6 +1962,7 @@ def test_list_last_watched_for_shows_returns_latest_watched_episode(
         tzinfo=UTC,
     )
 
+
 def test_list_last_watched_for_shows_returns_each_show_independently(
     db_session: Session,
 ) -> None:
@@ -2095,6 +2100,7 @@ def test_list_last_watched_for_shows_excludes_never_started_show(
     )
 
     assert result == {}
+
 
 def test_list_watch_history_returns_watched_episodes_newest_first(
     db_session: Session,
@@ -2422,6 +2428,7 @@ def test_list_watch_history_respects_limit(
     assert page.items[0].episode.id == episodes[2].id
     assert page.items[1].episode.id == episodes[1].id
 
+
 def test_list_watch_history_loads_next_page_from_cursor(
     db_session: Session,
 ) -> None:
@@ -2487,15 +2494,9 @@ def test_list_watch_history_loads_next_page_from_cursor(
     assert len(first_page.items) == 2
     assert first_page.has_more is True
 
-    assert (
-        first_page.items[0].episode.id
-        == episodes[4].id
-    )
+    assert first_page.items[0].episode.id == episodes[4].id
 
-    assert (
-        first_page.items[1].episode.id
-        == episodes[3].id
-    )
+    assert first_page.items[1].episode.id == episodes[3].id
 
     cursor = first_page.items[-1]
 
@@ -2509,15 +2510,9 @@ def test_list_watch_history_loads_next_page_from_cursor(
     assert len(second_page.items) == 2
     assert second_page.has_more is True
 
-    assert (
-        second_page.items[0].episode.id
-        == episodes[2].id
-    )
+    assert second_page.items[0].episode.id == episodes[2].id
 
-    assert (
-        second_page.items[1].episode.id
-        == episodes[1].id
-    )
+    assert second_page.items[1].episode.id == episodes[1].id
 
     cursor = second_page.items[-1]
 
@@ -2531,10 +2526,8 @@ def test_list_watch_history_loads_next_page_from_cursor(
     assert len(third_page.items) == 1
     assert third_page.has_more is False
 
-    assert (
-        third_page.items[0].episode.id
-        == episodes[0].id
-    )
+    assert third_page.items[0].episode.id == episodes[0].id
+
 
 def test_list_watch_history_cursor_handles_equal_watched_timestamps(
     db_session: Session,
@@ -2600,10 +2593,7 @@ def test_list_watch_history_cursor_handles_equal_watched_timestamps(
     assert len(first_page.items) == 2
     assert first_page.has_more is True
 
-    first_page_ids = {
-        item.progress_id
-        for item in first_page.items
-    }
+    first_page_ids = {item.progress_id for item in first_page.items}
 
     cursor = first_page.items[-1]
 
@@ -2617,10 +2607,8 @@ def test_list_watch_history_cursor_handles_equal_watched_timestamps(
     assert len(second_page.items) == 1
     assert second_page.has_more is False
 
-    assert (
-        second_page.items[0].progress_id
-        not in first_page_ids
-    )
+    assert second_page.items[0].progress_id not in first_page_ids
+
 
 def test_list_watch_history_rejects_partial_cursor(
     db_session: Session,
@@ -2641,6 +2629,7 @@ def test_list_watch_history_rejects_partial_cursor(
             user_id=user.id,
             before_watched_at=datetime.now(UTC),
         )
+
 
 def test_get_watched_aired_counts_by_show_ids_groups_counts_by_show(
     db_session: Session,
@@ -2946,6 +2935,7 @@ def test_get_watched_aired_counts_by_show_ids_returns_empty_for_empty_input(
 
     assert result == {}
 
+
 def test_get_watched_episode_ids_returns_only_watched_requested_episodes(
     db_session: Session,
 ) -> None:
@@ -3146,6 +3136,7 @@ def test_list_missed_recently_excludes_watched_episodes(
         unwatched_episode.id,
     ]
 
+
 def test_list_missed_recently_keeps_explicitly_unwatched_progress(
     db_session: Session,
 ) -> None:
@@ -3266,6 +3257,7 @@ def test_list_missed_recently_only_returns_watching_shows(
     assert [item.episode.id for item in result] == [
         expected_episode_id,
     ]
+
 
 def test_list_missed_recently_excludes_special_episodes(
     db_session: Session,
@@ -3412,6 +3404,7 @@ def test_list_missed_recently_uses_inclusive_date_range(
     assert before.id not in ids
     assert after.id not in ids
 
+
 def test_list_missed_recently_orders_newest_first(
     db_session: Session,
 ) -> None:
@@ -3527,4 +3520,3 @@ def test_list_missed_recently_respects_limit(
     )
 
     assert len(result) == 10
-

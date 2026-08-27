@@ -13,7 +13,6 @@ from app.repositories.password_reset_token import (
     PasswordResetTokenRepository,
 )
 
-
 _DEFAULT_PASSWORD_RESET_EXPIRATION = timedelta(minutes=30)
 
 
@@ -36,9 +35,7 @@ class PasswordResetTokenService:
         expiration: timedelta = _DEFAULT_PASSWORD_RESET_EXPIRATION,
     ) -> None:
         if expiration <= timedelta(0):
-            raise ValueError(
-                "Password reset token expiration must be positive."
-            )
+            raise ValueError("Password reset token expiration must be positive.")
 
         self._session = session
         self._repository = repository

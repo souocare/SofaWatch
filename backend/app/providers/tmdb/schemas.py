@@ -368,6 +368,7 @@ class TMDBMovieDetails(BaseModel):
 
         return None if value == "" else value
 
+
 class TMDBGenre(BaseModel):
     id: int
     name: str
@@ -383,6 +384,7 @@ class TMDBGenreListResponse(BaseModel):
     model_config = ConfigDict(
         extra="ignore",
     )
+
 
 class TMDBHealthResponse(BaseModel):
     """Minimal validation model used by the TMDB health check."""

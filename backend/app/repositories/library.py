@@ -82,9 +82,7 @@ class LibraryRepository:
             LibraryEntry.created_at.desc(),
         )
 
-        return list(
-            self._session.scalars(statement).all()
-        )
+        return list(self._session.scalars(statement).all())
 
     def list_shows_by_user(
         self,
@@ -115,10 +113,7 @@ class LibraryRepository:
             LibraryEntry.created_at.desc(),
         )
 
-        return list(
-            self._session.scalars(statement).all()
-        )
-
+        return list(self._session.scalars(statement).all())
 
     def list_movies_by_user(
         self,
@@ -149,9 +144,7 @@ class LibraryRepository:
             LibraryEntry.created_at.desc(),
         )
 
-        return list(
-            self._session.scalars(statement).all()
-        )
+        return list(self._session.scalars(statement).all())
 
     def count_shows_by_user(
         self,
@@ -261,9 +254,7 @@ class LibraryRepository:
             )
         )
 
-        return set(
-            self._session.scalars(statement).all()
-        )
+        return set(self._session.scalars(statement).all())
 
     def get_movie_tmdb_ids_in_library(
         self,
@@ -288,10 +279,7 @@ class LibraryRepository:
             )
         )
 
-        return set(
-            self._session.scalars(statement).all()
-        )
-
+        return set(self._session.scalars(statement).all())
 
     def get_backlog_show_ids_for_user(
         self,
@@ -309,11 +297,8 @@ class LibraryRepository:
         )
 
         return [
-            show_id
-            for show_id in self._session.scalars(statement).all()
-            if show_id is not None
+            show_id for show_id in self._session.scalars(statement).all() if show_id is not None
         ]
-
 
     def get_planned_movie_statistics(
         self,
@@ -347,7 +332,6 @@ class LibraryRepository:
             int(row[1] or 0),
         )
 
-
     def list_recent_shows_by_user(
         self,
         *,
@@ -375,9 +359,7 @@ class LibraryRepository:
             .limit(limit)
         )
 
-        return list(
-            self._session.scalars(statement).all()
-        )
+        return list(self._session.scalars(statement).all())
 
     def list_recent_movies_by_user(
         self,
@@ -406,6 +388,4 @@ class LibraryRepository:
             .limit(limit)
         )
 
-        return list(
-            self._session.scalars(statement).all()
-        )
+        return list(self._session.scalars(statement).all())

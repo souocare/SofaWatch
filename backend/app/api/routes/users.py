@@ -3,32 +3,30 @@ from uuid import UUID
 from fastapi import APIRouter, Response, status
 
 from app.api.dependencies import (
+    AdminUserDependency,
     CurrentUserDependency,
     DataExportServiceDependency,
     DataImportServiceDependency,
-    UserServiceDependency,
-    AdminUserDependency,
     PasswordResetTokenServiceDependency,
+    UserServiceDependency,
 )
+from app.core.exceptions import APIError
 from app.schemas.data_export import SofaWatchExportResponse
 from app.schemas.data_import import (
     DataImportPreviewResponse,
     DataImportResultResponse,
 )
 from app.schemas.user import (
+    AdminUserResponse,
     CurrentUserPasswordUpdateRequest,
     CurrentUserResponse,
     CurrentUserUpdateRequest,
     PasswordRecoveryResponse,
-    AdminUserResponse,
 )
 from app.services.user import (
     CurrentPasswordInvalidError,
     PasswordUnavailableError,
 )
-from app.core.exceptions import APIError
-
-
 
 router = APIRouter(
     prefix="/users",
@@ -50,16 +48,11 @@ def get_current_user_profile(
     return CurrentUserResponse.model_validate(current_user)
 
 
-
-
 @router.patch(
     "/me",
     response_model=CurrentUserResponse,
     summary="Update current user",
-    description=(
-        "Update mutable profile information belonging to the "
-        "current SofaWatch user."
-    ),
+    description=("Update mutable profile information belonging to the current SofaWatch user."),
 )
 def update_current_user_profile(
     payload: CurrentUserUpdateRequest,
@@ -75,13 +68,13 @@ def update_current_user_profile(
 
     return CurrentUserResponse.model_validate(user)
 
+
 @router.put(
     "/me/password",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Change current user password",
     description=(
-        "Change the authenticated SofaWatch user's password after "
-        "verifying the current password."
+        "Change the authenticated SofaWatch user's password after verifying the current password."
     ),
 )
 def change_current_user_password(
@@ -130,10 +123,7 @@ def list_users(
 
     users = user_service.list_users()
 
-    return [
-        AdminUserResponse.model_validate(user)
-        for user in users
-    ]
+    return [AdminUserResponse.model_validate(user) for user in users]
 
 
 @router.post(
@@ -181,9 +171,7 @@ def start_user_password_recovery(
         raise APIError(
             status_code=status.HTTP_400_BAD_REQUEST,
             code="inactive_user_password_recovery_unavailable",
-            message=(
-                "Password recovery is not available for an inactive account."
-            ),
+            message=("Password recovery is not available for an inactive account."),
         )
 
     created = password_reset_service.create(
@@ -194,7 +182,6 @@ def start_user_password_recovery(
         token=created.credential,
         expires_at=created.reset_token.expires_at,
     )
-
 
 
 @router.get(
@@ -223,11 +210,7 @@ def export_current_user_data(
         user=current_user,
     )
 
-    filename = (
-        "sofawatch-export-"
-        f"{export.exported_at.strftime('%Y-%m-%d-%H%M%S')}"
-        ".json"
-    )
+    filename = f"sofawatch-export-{export.exported_at.strftime('%Y-%m-%d-%H%M%S')}.json"
 
     return Response(
         content=export.model_dump_json(
@@ -235,11 +218,10 @@ def export_current_user_data(
         ),
         media_type="application/json",
         headers={
-            "Content-Disposition": (
-                f'attachment; filename="{filename}"'
-            ),
+            "Content-Disposition": (f'attachment; filename="{filename}"'),
         },
     )
+
 
 @router.post(
     "/me/import/preview",
@@ -262,6 +244,7 @@ def preview_current_user_data_import(
     return service.preview(
         export=export,
     )
+
 
 @router.post(
     "/me/import",

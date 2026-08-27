@@ -12,7 +12,6 @@ from app.schemas.server import (
     ServerLogsResponse,
 )
 
-
 _LOG_COMPONENTS: tuple[ServerLogComponent, ...] = (
     "api",
     "worker",
@@ -46,10 +45,7 @@ class ServerLogsService:
         *,
         settings: Settings,
     ) -> None:
-        self._log_directory = (
-            Path(settings.data_storage_path)
-            / "logs"
-        ).resolve()
+        self._log_directory = (Path(settings.data_storage_path) / "logs").resolve()
 
     def list_logs(
         self,
@@ -63,11 +59,7 @@ class ServerLogsService:
         entries = self._read_entries()
 
         if level is not None:
-            entries = [
-                entry
-                for entry in entries
-                if entry.level == level
-            ]
+            entries = [entry for entry in entries if entry.level == level]
 
         entries.sort(
             key=lambda entry: entry.timestamp,
@@ -76,9 +68,7 @@ class ServerLogsService:
 
         total = len(entries)
 
-        items = entries[
-            offset : offset + limit
-        ]
+        items = entries[offset : offset + limit]
 
         return ServerLogsResponse(
             items=items,
@@ -117,10 +107,7 @@ class ServerLogsService:
 
         paths: list[Path] = []
 
-        active_path = (
-            self._log_directory
-            / f"{component}.log"
-        )
+        active_path = self._log_directory / f"{component}.log"
 
         if active_path.is_file():
             paths.append(
@@ -130,13 +117,8 @@ class ServerLogsService:
         paths.extend(
             sorted(
                 path
-                for path in self._log_directory.glob(
-                    f"{component}.log.*"
-                )
-                if path.is_file()
-                and path.name.removeprefix(
-                    f"{component}.log."
-                ).isdigit()
+                for path in self._log_directory.glob(f"{component}.log.*")
+                if path.is_file() and path.name.removeprefix(f"{component}.log.").isdigit()
             )
         )
 
@@ -268,9 +250,7 @@ class ServerLogsService:
 
         for pattern in _SECRET_PATTERNS:
             sanitized = pattern.sub(
-                lambda match: (
-                    f"{match.group(1)}=[REDACTED]"
-                ),
+                lambda match: f"{match.group(1)}=[REDACTED]",
                 sanitized,
             )
 

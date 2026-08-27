@@ -855,6 +855,7 @@ def test_count_aired_by_show_id_excludes_future_unknown_and_specials(
         == 1
     )
 
+
 def test_get_counts_by_show_id_groups_episode_counts_by_season(
     db_session: Session,
 ) -> None:
@@ -1164,6 +1165,7 @@ def test_get_aired_counts_by_show_ids_returns_empty_for_empty_input(
 
     assert result == {}
 
+
 def test_list_regular_for_shows_between_returns_inclusive_date_range(
     db_session: Session,
 ) -> None:
@@ -1211,12 +1213,14 @@ def test_list_regular_for_shows_between_returns_inclusive_date_range(
         air_date=date(2026, 8, 16),
     )
 
-    db_session.add_all([
-        before,
-        first,
-        second,
-        after,
-    ])
+    db_session.add_all(
+        [
+            before,
+            first,
+            second,
+            after,
+        ]
+    )
     db_session.commit()
 
     repository = EpisodeRepository(db_session)
@@ -1269,10 +1273,12 @@ def test_list_regular_for_shows_between_returns_all_known_future_episodes(
         air_date=date(2026, 8, 22),
     )
 
-    db_session.add_all([
-        first,
-        second,
-    ])
+    db_session.add_all(
+        [
+            first,
+            second,
+        ]
+    )
     db_session.commit()
 
     repository = EpisodeRepository(db_session)
@@ -1336,11 +1342,13 @@ def test_list_regular_for_shows_between_excludes_specials_and_unknown_dates(
         air_date=date(2026, 8, 17),
     )
 
-    db_session.add_all([
-        special_episode,
-        unknown_date,
-        valid_episode,
-    ])
+    db_session.add_all(
+        [
+            special_episode,
+            unknown_date,
+            valid_episode,
+        ]
+    )
     db_session.commit()
 
     repository = EpisodeRepository(db_session)
@@ -1355,6 +1363,7 @@ def test_list_regular_for_shows_between_excludes_specials_and_unknown_dates(
     ]
 
     assert result[0].season_number == 1
+
 
 def test_list_regular_for_shows_between_excludes_unrequested_shows(
     db_session: Session,
@@ -1403,10 +1412,12 @@ def test_list_regular_for_shows_between_excludes_unrequested_shows(
         air_date=date(2026, 8, 16),
     )
 
-    db_session.add_all([
-        requested_episode,
-        other_episode,
-    ])
+    db_session.add_all(
+        [
+            requested_episode,
+            other_episode,
+        ]
+    )
     db_session.commit()
 
     repository = EpisodeRepository(db_session)
@@ -1419,6 +1430,7 @@ def test_list_regular_for_shows_between_excludes_unrequested_shows(
     assert [item.episode.id for item in result] == [
         requested_episode.id,
     ]
+
 
 def test_list_regular_for_shows_between_orders_chronologically(
     db_session: Session,
@@ -1467,10 +1479,12 @@ def test_list_regular_for_shows_between_orders_chronologically(
         air_date=date(2026, 8, 16),
     )
 
-    db_session.add_all([
-        later_episode,
-        earlier_episode,
-    ])
+    db_session.add_all(
+        [
+            later_episode,
+            earlier_episode,
+        ]
+    )
     db_session.commit()
 
     repository = EpisodeRepository(db_session)
@@ -1488,6 +1502,7 @@ def test_list_regular_for_shows_between_orders_chronologically(
         later_episode.id,
     ]
 
+
 def test_list_regular_for_shows_between_returns_empty_for_empty_input(
     db_session: Session,
 ) -> None:
@@ -1501,6 +1516,7 @@ def test_list_regular_for_shows_between_returns_empty_for_empty_input(
     )
 
     assert result == []
+
 
 def test_list_regular_for_shows_between_respects_limit(
     db_session: Session,
@@ -1560,7 +1576,4 @@ def test_list_regular_for_shows_between_respects_limit(
 
     assert len(result) == 2
 
-    assert [
-        item.episode.episode_number
-        for item in result
-    ] == [1, 2]
+    assert [item.episode.episode_number for item in result] == [1, 2]

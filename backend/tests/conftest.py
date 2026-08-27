@@ -8,15 +8,13 @@ from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-
 import app.models  # noqa: F401
+from app.api.dependencies import get_current_user
 from app.core.config import Settings
 from app.db.base import Base
 from app.db.dependencies import get_db_session
 from app.main import app
-from app.api.dependencies import get_current_user
 from app.models.user import User
-
 
 TEST_DATABASE_URL = "sqlite://"
 
@@ -116,11 +114,7 @@ def client(
     def override_get_current_user() -> User:
         # Route tests that explicitly persist a user use the first created
         # account as the authenticated current-user fixture.
-        user = db_session.scalar(
-            select(User)
-            .order_by(User.created_at)
-            .limit(1)
-        )
+        user = db_session.scalar(select(User).order_by(User.created_at).limit(1))
 
         if user is not None:
             return user
@@ -149,7 +143,6 @@ def client(
         yield test_client
 
     app.dependency_overrides.clear()
-
 
 
 @pytest.fixture

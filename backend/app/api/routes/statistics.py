@@ -9,14 +9,13 @@ from app.api.dependencies import (
 from app.schemas.statistics import (
     StatisticsActivityPeriod,
     StatisticsActivityResponse,
+    StatisticsBacklogResponse,
     StatisticsContentInsightsResponse,
     StatisticsHabitsResponse,
+    StatisticsLibraryResponse,
     StatisticsSummaryResponse,
     WeeklyStatisticsResponse,
-    StatisticsLibraryResponse,
-    StatisticsBacklogResponse,
 )
-
 
 router = APIRouter(
     prefix="/statistics",
@@ -103,6 +102,7 @@ def get_statistics_library(
         user_id=current_user.id,
     )
 
+
 @router.get(
     "/backlog",
     response_model=StatisticsBacklogResponse,
@@ -122,6 +122,7 @@ def get_statistics_backlog(
     return service.get_backlog_statistics(
         user_id=current_user.id,
     )
+
 
 @router.get(
     "/activity",
@@ -157,8 +158,7 @@ def get_statistics_activity(
     response_model=WeeklyStatisticsResponse,
     summary="Get weekly viewing statistics",
     description=(
-        "Return the current user's viewing summary for the current "
-        "Monday-to-Sunday calendar week."
+        "Return the current user's viewing summary for the current Monday-to-Sunday calendar week."
     ),
 )
 def get_weekly_statistics(

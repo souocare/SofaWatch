@@ -112,11 +112,7 @@ def test_mapping_distinguishes_media_type(
 
     assert show_result.id != movie_result.id
 
-    assert (
-        show_result.genre_id
-        == movie_result.genre_id
-        == genre.id
-    )
+    assert show_result.genre_id == movie_result.genre_id == genre.id
 
 
 def test_duplicate_provider_mapping_is_rejected(

@@ -3,15 +3,11 @@ from unittest.mock import Mock
 from uuid import UUID, uuid4
 
 import pytest
-
-from app.repositories.user import UserRepository
-from app.services.user import UserService
-from app.models.user import User
-from unittest.mock import Mock
-
-import pytest
 from sqlalchemy.orm import Session
+
 from app.core.security.passwords import hash_password, verify_password
+from app.models.user import User
+from app.repositories.user import UserRepository
 from app.services.user import (
     CurrentPasswordInvalidError,
     PasswordUnavailableError,
@@ -101,8 +97,6 @@ def test_get_by_id_returns_none_when_missing(
     )
 
 
-
-
 def test_get_by_username_normalizes_username(
     user_service,
     user_repository,
@@ -165,8 +159,6 @@ def test_get_by_email_rejects_empty_email(
     user_repository.get_by_email.assert_not_called()
 
 
-
-
 def test_requires_initial_setup_when_no_user_exists(
     user_service: UserService,
     user_repository: Mock,
@@ -216,6 +208,7 @@ def test_update_display_name_updates_and_persists_user(
     db_session.commit.assert_called_once_with()
     db_session.refresh.assert_called_once_with(user)
 
+
 def test_update_display_name_rejects_blank_value(
     user_service: UserService,
     db_session: Mock,
@@ -239,6 +232,7 @@ def test_update_display_name_rejects_blank_value(
 
     db_session.commit.assert_not_called()
     db_session.refresh.assert_not_called()
+
 
 def test_update_password_changes_password(
     user_service: UserService,
@@ -271,7 +265,6 @@ def test_update_password_changes_password(
         "old-password",
         user.password_hash,
     )
-
 
 
 def test_update_password_rejects_incorrect_current_password(
@@ -310,6 +303,3 @@ def test_update_password_rejects_account_without_password(
             current_password="anything",
             new_password="new-password",
         )
-
-
-

@@ -59,9 +59,7 @@ def test_create_password_reset_token(
     assert created.credential
     assert created.reset_token.user_id == user.id
     assert created.reset_token.used_at is None
-    assert created.reset_token.expires_at == (
-        now + timedelta(minutes=30)
-    )
+    assert created.reset_token.expires_at == (now + timedelta(minutes=30))
 
 
 def test_create_password_reset_token_stores_only_hash(
@@ -252,11 +250,8 @@ def test_password_reset_expiration_must_be_positive(
             expiration=timedelta(0),
         )
     except ValueError as error:
-        assert str(error) == (
-            "Password reset token expiration must be positive."
-        )
+        assert str(error) == ("Password reset token expiration must be positive.")
     else:
         raise AssertionError(
-            "Expected PasswordResetTokenService to reject "
-            "a non-positive expiration."
+            "Expected PasswordResetTokenService to reject a non-positive expiration."
         )

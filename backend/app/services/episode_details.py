@@ -75,11 +75,9 @@ class EpisodeDetailsService:
             episode_id=episode_id,
         )
 
-        latest_watch_event = (
-            self._watch_event_repository.get_latest_for_user_and_episode(
-                user_id=user_id,
-                episode_id=episode_id,
-            )
+        latest_watch_event = self._watch_event_repository.get_latest_for_user_and_episode(
+            user_id=user_id,
+            episode_id=episode_id,
         )
 
         return EpisodeDetailsResponse(
@@ -98,9 +96,7 @@ class EpisodeDetailsService:
                 watched_at=progress.watched_at if progress is not None else None,
                 watch_count=watch_count,
                 last_watched_at=(
-                    latest_watch_event.watched_at
-                    if latest_watch_event is not None
-                    else None
+                    latest_watch_event.watched_at if latest_watch_event is not None else None
                 ),
             ),
         )

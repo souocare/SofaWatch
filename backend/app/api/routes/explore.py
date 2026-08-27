@@ -13,12 +13,6 @@ from app.providers.tmdb.exceptions import (
     TMDBResponseError,
 )
 from app.schemas.explore import (
-    ExploreGenreOptions,
-    ExploreMediaCollection,
-    ExploreTrendingResponse,
-    ExploreTrendingWindow,
-)
-from app.schemas.explore import (
     ExploreGenresResponse,
     ExploreMediaCollection,
     ExploreTrendingResponse,
@@ -183,7 +177,6 @@ def get_popular_movies(
             code="tmdb_invalid_response",
             message="TMDB returned an invalid response.",
         ) from error
-
 
 
 @router.get(

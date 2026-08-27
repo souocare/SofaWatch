@@ -37,6 +37,7 @@ def _create_service(
         idle_expire_days=180,
     )
 
+
 def _as_utc(value: datetime) -> datetime:
     """Normalize SQLite datetime values to aware UTC datetimes."""
 
@@ -74,9 +75,12 @@ def test_create_persists_session_without_plaintext_credential(
     assert created.session.session_type == AuthSessionType.WEB
     assert created.session.last_used_at is not None
 
-    assert _as_utc(
-        created.session.last_used_at,
-    ) == now
+    assert (
+        _as_utc(
+            created.session.last_used_at,
+        )
+        == now
+    )
 
     assert _as_utc(
         created.session.expires_at,
@@ -172,9 +176,12 @@ def test_resolve_does_not_renew_before_interval(
     assert result is not None
     assert result.last_used_at is not None
 
-    assert _as_utc(
-        result.last_used_at,
-    ) == created_at
+    assert (
+        _as_utc(
+            result.last_used_at,
+        )
+        == created_at
+    )
 
     assert _as_utc(
         result.expires_at,
@@ -218,9 +225,12 @@ def test_resolve_renews_session_after_interval(
     assert result is not None
     assert result.last_used_at is not None
 
-    assert _as_utc(
-        result.last_used_at,
-    ) == renewed_at
+    assert (
+        _as_utc(
+            result.last_used_at,
+        )
+        == renewed_at
+    )
 
     assert _as_utc(
         result.expires_at,
@@ -361,20 +371,29 @@ def test_revoke_all_for_user_does_not_revoke_other_users_sessions(
 
     assert revoked_count == 2
 
-    assert service.resolve(
-        first.credential,
-        now=now + timedelta(hours=2),
-    ) is None
+    assert (
+        service.resolve(
+            first.credential,
+            now=now + timedelta(hours=2),
+        )
+        is None
+    )
 
-    assert service.resolve(
-        second.credential,
-        now=now + timedelta(hours=2),
-    ) is None
+    assert (
+        service.resolve(
+            second.credential,
+            now=now + timedelta(hours=2),
+        )
+        is None
+    )
 
-    assert service.resolve(
-        other.credential,
-        now=now + timedelta(hours=2),
-    ) is not None
+    assert (
+        service.resolve(
+            other.credential,
+            now=now + timedelta(hours=2),
+        )
+        is not None
+    )
 
 
 def test_revoke_by_credential_invalidates_session(
@@ -407,10 +426,13 @@ def test_revoke_by_credential_invalidates_session(
 
     assert revoked is True
 
-    assert service.resolve(
-        created.credential,
-        now=created_at + timedelta(hours=2),
-    ) is None
+    assert (
+        service.resolve(
+            created.credential,
+            now=created_at + timedelta(hours=2),
+        )
+        is None
+    )
 
 
 def test_revoke_by_credential_returns_false_for_unknown_credential(
@@ -461,15 +483,21 @@ def test_rotate_mobile_credential_replaces_previous_credential(
     assert rotated.session.id == created.session.id
     assert rotated.credential != original_credential
 
-    assert service.resolve(
-        original_credential,
-        now=now + timedelta(hours=2),
-    ) is None
+    assert (
+        service.resolve(
+            original_credential,
+            now=now + timedelta(hours=2),
+        )
+        is None
+    )
 
-    assert service.resolve(
-        rotated.credential,
-        now=now + timedelta(hours=2),
-    ) is not None
+    assert (
+        service.resolve(
+            rotated.credential,
+            now=now + timedelta(hours=2),
+        )
+        is not None
+    )
 
 
 def test_rotate_mobile_credential_rejects_web_session(
@@ -528,10 +556,13 @@ def test_revoke_for_user_revokes_owned_session(
 
     assert revoked is True
 
-    assert service.resolve(
-        created.credential,
-        now=now + timedelta(hours=2),
-    ) is None
+    assert (
+        service.resolve(
+            created.credential,
+            now=now + timedelta(hours=2),
+        )
+        is None
+    )
 
 
 def test_revoke_for_user_does_not_revoke_other_users_session(
@@ -576,10 +607,13 @@ def test_revoke_for_user_does_not_revoke_other_users_session(
 
     assert revoked is False
 
-    assert service.resolve(
-        created.credential,
-        now=now + timedelta(hours=2),
-    ) is not None
+    assert (
+        service.resolve(
+            created.credential,
+            now=now + timedelta(hours=2),
+        )
+        is not None
+    )
 
 
 def test_revoke_for_user_returns_false_for_unknown_session(

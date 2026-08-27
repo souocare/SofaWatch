@@ -7,7 +7,6 @@ from typing import Literal
 
 from app.core.config import get_settings
 
-
 LogComponent = Literal[
     "api",
     "worker",
@@ -48,36 +47,23 @@ def configure_logging(
 
     settings = get_settings()
 
-    log_level = (
-        "DEBUG"
-        if settings.debug
-        else "INFO"
-    )
+    log_level = "DEBUG" if settings.debug else "INFO"
 
-    log_directory = (
-        Path(settings.data_storage_path)
-        / "logs"
-    ).resolve()
+    log_directory = (Path(settings.data_storage_path) / "logs").resolve()
 
     log_directory.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    log_file = (
-        log_directory
-        / f"{component}.log"
-    )
+    log_file = log_directory / f"{component}.log"
 
     logging_config = {
         "version": 1,
         "disable_existing_loggers": False,
         "formatters": {
             "console": {
-                "format": (
-                    "%(asctime)s | %(levelname)s | "
-                    "%(name)s | %(message)s"
-                ),
+                "format": ("%(asctime)s | %(levelname)s | %(name)s | %(message)s"),
                 "datefmt": "%Y-%m-%d %H:%M:%S",
             },
             "file": {

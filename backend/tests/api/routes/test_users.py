@@ -3,11 +3,15 @@ from unittest.mock import Mock
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from app.core.security.passwords import hash_password, verify_password
 
 from app.api.dependencies import get_data_export_service
+from app.core.security.passwords import hash_password, verify_password
+from app.core.security.session_credentials import (
+    hash_session_credential,
+)
 from app.main import app
 from app.models.enums import LibraryStatus
+from app.models.password_reset_token import PasswordResetToken
 from app.models.user import User
 from app.schemas.data_export import (
     ExportEpisodeWatchEventResponse,
@@ -19,10 +23,6 @@ from app.schemas.data_export import (
     ExportWatchHistoryResponse,
     SofaWatchExportResponse,
 )
-from app.core.security.session_credentials import (
-    hash_session_credential,
-)
-from app.models.password_reset_token import PasswordResetToken
 
 
 def test_get_current_user_returns_local_user(
@@ -55,6 +55,7 @@ def test_get_current_user_returns_local_user(
         "is_active": True,
         "is_admin": False,
     }
+
 
 def test_get_current_user_ignores_non_local_users(
     client: TestClient,
@@ -90,7 +91,6 @@ def test_get_current_user_ignores_non_local_users(
     assert payload["id"] == str(local_user.id)
     assert payload["display_name"] == "Gonçalo"
     assert payload["is_admin"] is False
-
 
 
 def test_export_current_user_data_downloads_portable_export(
@@ -186,9 +186,7 @@ def test_export_current_user_data_downloads_portable_export(
         ),
     )
 
-    app.dependency_overrides[
-        get_data_export_service
-    ] = lambda: service
+    app.dependency_overrides[get_data_export_service] = lambda: service
 
     try:
         response = client.get(
@@ -207,8 +205,7 @@ def test_export_current_user_data_downloads_portable_export(
     )
 
     assert response.headers["content-disposition"] == (
-        'attachment; filename="'
-        'sofawatch-export-2026-08-20-153045.json"'
+        'attachment; filename="sofawatch-export-2026-08-20-153045.json"'
     )
 
     payload = response.json()
@@ -283,9 +280,7 @@ def test_export_current_user_data_does_not_require_admin(
         ),
     )
 
-    app.dependency_overrides[
-        get_data_export_service
-    ] = lambda: service
+    app.dependency_overrides[get_data_export_service] = lambda: service
 
     try:
         response = client.get(
@@ -382,6 +377,7 @@ def test_preview_current_user_data_import_returns_summary(
         },
     }
 
+
 def test_preview_current_user_data_import_rejects_unknown_format(
     client: TestClient,
     db_session: Session,
@@ -456,6 +452,7 @@ def test_preview_current_user_data_import_rejects_unsupported_version(
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "validation_error"
+
 
 def test_import_current_user_data_returns_import_summary(
     client: TestClient,
@@ -562,6 +559,7 @@ def test_import_current_user_data_rejects_invalid_export_version(
 
     assert response.status_code == 422
 
+
 def test_current_user_can_update_display_name(
     client: TestClient,
     db_session: Session,
@@ -662,7 +660,6 @@ def test_update_current_user_rejects_blank_display_name(
     assert user.display_name == "Existing Name"
 
 
-
 def test_change_current_user_password(
     client: TestClient,
     db_session: Session,
@@ -699,7 +696,6 @@ def test_change_current_user_password(
         "current-password",
         user.password_hash,
     )
-
 
 
 def test_change_current_user_password_rejects_wrong_current_password(
@@ -764,7 +760,6 @@ def test_change_current_user_password_rejects_short_new_password(
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "validation_error"
-
 
 
 def test_admin_can_start_regular_user_password_recovery(
@@ -859,9 +854,7 @@ def test_admin_password_recovery_rejects_missing_user(
     db_session.commit()
 
     response = client.post(
-        "/api/v1/users/"
-        "11111111-2222-3333-4444-555555555555"
-        "/password-recovery",
+        "/api/v1/users/11111111-2222-3333-4444-555555555555/password-recovery",
     )
 
     assert response.status_code == 404
@@ -897,9 +890,7 @@ def test_admin_cannot_start_web_password_recovery_for_administrator(
 
     assert response.status_code == 400
 
-    assert response.json()["error"]["code"] == (
-        "administrator_password_recovery_unavailable"
-    )
+    assert response.json()["error"]["code"] == ("administrator_password_recovery_unavailable")
 
 
 def test_admin_cannot_start_password_recovery_for_inactive_user(
@@ -930,9 +921,8 @@ def test_admin_cannot_start_password_recovery_for_inactive_user(
 
     assert response.status_code == 400
 
-    assert response.json()["error"]["code"] == (
-        "inactive_user_password_recovery_unavailable"
-    )
+    assert response.json()["error"]["code"] == ("inactive_user_password_recovery_unavailable")
+
 
 def test_admin_can_list_users(
     client: TestClient,
@@ -1028,6 +1018,7 @@ def test_regular_user_cannot_list_users(
     assert response.status_code == 403
 
     assert response.json()["error"]["code"] == "admin_required"
+
 
 def test_admin_user_list_does_not_expose_sensitive_fields(
     client: TestClient,

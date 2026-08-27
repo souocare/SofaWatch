@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
@@ -20,24 +20,23 @@ from app.api.dependencies import (
 from app.core.exceptions import APIError
 from app.models.enums import LibraryStatus
 from app.schemas.havent_started import HaventStartedShowResponse
-from app.schemas.movie_watch_event import MovieWatchEventResponse
+from app.schemas.history import (
+    HistoryPageResponse,
+    HistoryPreviewResponse,
+)
 from app.schemas.library import (
     LibraryEntryResponse,
     LibraryMovieResponse,
+    LibraryPreviewResponse,
     LibraryShowResponse,
     LibraryStatusUpdate,
-    LibraryPreviewResponse,
 )
+from app.schemas.movie_watch_event import MovieWatchEventResponse
 from app.schemas.stale_watching import StaleWatchingShowResponse
 from app.schemas.start_show import StartShowResponse
 from app.schemas.upcoming import UpcomingItemResponse
 from app.schemas.watch_history import WatchHistoryPageResponse
 from app.schemas.watch_next import WatchNextShowResponse
-from app.schemas.history import (
-    HistoryPageResponse,
-    HistoryPreviewResponse,
-)
-
 
 router = APIRouter(
     prefix="/library",
@@ -72,13 +71,13 @@ def list_library_shows(
         status=library_status,
     )
 
+
 @router.get(
     "/shows/havent-started",
     response_model=list[HaventStartedShowResponse],
     summary="List Haven't Started TV series",
     description=(
-        "Return Planning TV series with their first aired regular Episode "
-        "available to start."
+        "Return Planning TV series with their first aired regular Episode available to start."
     ),
 )
 def list_havent_started_shows(
@@ -112,7 +111,6 @@ def list_havent_started_shows(
 #     )
 
 
-
 @router.get(
     "/shows/upcoming",
     response_model=list[UpcomingItemResponse],
@@ -128,10 +126,7 @@ def list_upcoming_episodes(
     from_date: Annotated[
         date | None,
         Query(
-            description=(
-                "Inclusive first air date to return. "
-                "Defaults to today when omitted."
-            ),
+            description=("Inclusive first air date to return. Defaults to today when omitted."),
         ),
     ] = None,
     to_date: Annotated[
@@ -154,11 +149,7 @@ def list_upcoming_episodes(
 ) -> list[UpcomingItemResponse]:
     """Return the current user's Upcoming Episode timeline."""
 
-    if (
-        from_date is not None
-        and to_date is not None
-        and from_date > to_date
-    ):
+    if from_date is not None and to_date is not None and from_date > to_date:
         raise APIError(
             status_code=status.HTTP_400_BAD_REQUEST,
             code="invalid_upcoming_date_range",
@@ -210,9 +201,7 @@ def list_watch_next_shows(
         Query(
             ge=1,
             le=100,
-            description=(
-                "Maximum number of Watch Next items to return."
-            ),
+            description=("Maximum number of Watch Next items to return."),
         ),
     ] = None,
 ) -> list[WatchNextShowResponse]:
@@ -222,6 +211,7 @@ def list_watch_next_shows(
         user_id=current_user.id,
         limit=limit,
     )
+
 
 @router.get(
     "/shows/stale-watching",
@@ -307,13 +297,13 @@ def get_library_preview(
         limit=10,
     )
 
+
 @router.get(
     "/history/preview",
     response_model=HistoryPreviewResponse,
     summary="Get History preview",
     description=(
-        "Return the most recent Episode and Movie viewing events "
-        "for the Profile History preview."
+        "Return the most recent Episode and Movie viewing events for the Profile History preview."
     ),
 )
 def get_history_preview(
@@ -371,7 +361,6 @@ def list_history(
         ) from error
 
 
-
 @router.post(
     "/shows/{show_id}",
     response_model=LibraryEntryResponse,
@@ -406,8 +395,6 @@ def add_show_to_library(
     return entry
 
 
-
-
 @router.delete(
     "/shows/{show_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -437,6 +424,7 @@ def remove_show_from_library(
             code="library_entry_not_found",
             message="TV series is not in the library.",
         )
+
 
 @router.get(
     "/shows/{show_id}",
@@ -468,6 +456,7 @@ def get_show_library_entry(
         )
 
     return entry
+
 
 @router.patch(
     "/shows/{show_id}/status",
@@ -530,13 +519,13 @@ def list_library(
         status=library_status,
     )
 
+
 @router.get(
     "/movies",
     response_model=list[LibraryMovieResponse],
     summary="List library movies",
     description=(
-        "Return Movies in the current user's library, "
-        "optionally filtered by tracking status."
+        "Return Movies in the current user's library, optionally filtered by tracking status."
     ),
 )
 def list_library_movies(
@@ -556,6 +545,7 @@ def list_library_movies(
         current_user.id,
         status=library_status,
     )
+
 
 @router.post(
     "/movies/{movie_id}",
@@ -585,6 +575,7 @@ def add_movie_to_library(
 
     return entry
 
+
 @router.delete(
     "/movies/{movie_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -608,6 +599,7 @@ def remove_movie_from_library(
             code="library_entry_not_found",
             message="The movie is not in the user's library.",
         )
+
 
 @router.get(
     "/movies/{movie_id}",
@@ -725,8 +717,7 @@ def list_movie_watch_events(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete all Movie watch events",
     description=(
-        "Delete every historical viewing of a Movie and return it "
-        "to the user's Watchlist."
+        "Delete every historical viewing of a Movie and return it to the user's Watchlist."
     ),
 )
 def delete_all_movie_watch_events(
@@ -747,8 +738,7 @@ def delete_all_movie_watch_events(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete Movie watch event",
     description=(
-        "Delete one historical Movie viewing and synchronize "
-        "the Movie's current Library state."
+        "Delete one historical Movie viewing and synchronize the Movie's current Library state."
     ),
 )
 def delete_movie_watch_event(
@@ -809,4 +799,3 @@ def start_library_show(
         )
 
     return result
-

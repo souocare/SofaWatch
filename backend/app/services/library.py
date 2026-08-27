@@ -12,7 +12,6 @@ from app.repositories.movie import MovieRepository
 from app.repositories.show import ShowRepository
 from app.schemas.library import (
     LibraryFirstEpisodeResponse,
-    LibraryMovieResponse,
     LibraryPreviewMovieResponse,
     LibraryPreviewResponse,
     LibraryPreviewShowResponse,
@@ -69,24 +68,17 @@ class LibraryService:
 
         today = date.today()
 
-        show_ids = [
-            entry.show_id
-            for entry in entries
-            if entry.show_id is not None
-        ]
+        show_ids = [entry.show_id for entry in entries if entry.show_id is not None]
 
         planning_show_ids = [
             entry.show_id
             for entry in entries
-            if entry.status == LibraryStatus.PLANNING
-            and entry.show_id is not None
+            if entry.status == LibraryStatus.PLANNING and entry.show_id is not None
         ]
 
-        first_episode_by_show = (
-            self._episode_repository.get_first_aired_regular_for_shows(
-                show_ids=planning_show_ids,
-                as_of=today,
-            )
+        first_episode_by_show = self._episode_repository.get_first_aired_regular_for_shows(
+            show_ids=planning_show_ids,
+            as_of=today,
         )
 
         aired_counts = self._episode_repository.get_aired_counts_by_show_ids(
@@ -137,16 +129,9 @@ class LibraryService:
                 0,
             )
 
-            percentage = (
-                watched_episodes / aired_episodes * 100
-                if aired_episodes > 0
-                else 0.0
-            )
+            percentage = watched_episodes / aired_episodes * 100 if aired_episodes > 0 else 0.0
 
-            caught_up = (
-                aired_episodes > 0
-                and watched_episodes == aired_episodes
-            )
+            caught_up = aired_episodes > 0 and watched_episodes == aired_episodes
 
             results.append(
                 LibraryShowResponse(
@@ -433,11 +418,7 @@ class LibraryService:
             limit=limit,
         )
 
-        show_ids = [
-            entry.show_id
-            for entry in show_entries
-            if entry.show_id is not None
-        ]
+        show_ids = [entry.show_id for entry in show_entries if entry.show_id is not None]
 
         today = date.today()
 
@@ -446,13 +427,10 @@ class LibraryService:
             as_of=today,
         )
 
-        watched_counts = (
-            self._episode_progress_repository
-            .get_watched_aired_counts_by_show_ids(
-                user_id=user_id,
-                show_ids=show_ids,
-                as_of=today,
-            )
+        watched_counts = self._episode_progress_repository.get_watched_aired_counts_by_show_ids(
+            user_id=user_id,
+            show_ids=show_ids,
+            as_of=today,
         )
 
         shows: list[LibraryPreviewShowResponse] = []

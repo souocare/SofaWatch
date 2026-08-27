@@ -9,7 +9,6 @@ from app.core.security.tokens import (
     InvalidAccessTokenError,
 )
 
-
 _SECRET_KEY = "test-secret-key-that-is-long-enough-for-tests"
 _OTHER_SECRET_KEY = "another-test-secret-key-long-enough-here"
 
@@ -37,9 +36,7 @@ def test_create_and_validate_access_token(
 
     assert claims.user_id == user_id
     assert claims.issued_at == now.replace(microsecond=0)
-    assert claims.expires_at == (
-        now + timedelta(minutes=15)
-    ).replace(microsecond=0)
+    assert claims.expires_at == (now + timedelta(minutes=15)).replace(microsecond=0)
 
 
 def test_access_token_contains_expected_claims(
@@ -62,9 +59,7 @@ def test_access_token_contains_expected_claims(
     assert payload["sub"] == str(user_id)
     assert payload["type"] == "access"
     assert payload["iat"] == int(now.timestamp())
-    assert payload["exp"] == int(
-        (now + timedelta(minutes=15)).timestamp()
-    )
+    assert payload["exp"] == int((now + timedelta(minutes=15)).timestamp())
 
 
 def test_validate_rejects_expired_access_token() -> None:

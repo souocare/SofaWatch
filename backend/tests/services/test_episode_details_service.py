@@ -229,9 +229,7 @@ def test_get_details_returns_current_progress_and_watch_history(
 
     progress_repository.get_by_user_and_episode.return_value = progress
     watch_event_repository.count_by_user_and_episode.return_value = 2
-    watch_event_repository.get_latest_for_user_and_episode.return_value = (
-        latest_event
-    )
+    watch_event_repository.get_latest_for_user_and_episode.return_value = latest_event
 
     result = service.get_details(
         user_id=user_id,
@@ -286,9 +284,7 @@ def test_get_details_preserves_history_when_episode_is_currently_unwatched(
 
     progress_repository.get_by_user_and_episode.return_value = progress
     watch_event_repository.count_by_user_and_episode.return_value = 3
-    watch_event_repository.get_latest_for_user_and_episode.return_value = (
-        latest_event
-    )
+    watch_event_repository.get_latest_for_user_and_episode.return_value = latest_event
 
     result = service.get_details(
         user_id=user_id,

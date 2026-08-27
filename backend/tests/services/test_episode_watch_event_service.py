@@ -229,13 +229,9 @@ def test_delete_intermediate_event_keeps_latest_progress(
         watched_at=latest_watched_at,
     )
 
-    watch_event_repository.get_by_id_for_user_and_episode.return_value = (
-        deleted_event
-    )
+    watch_event_repository.get_by_id_for_user_and_episode.return_value = deleted_event
 
-    watch_event_repository.get_latest_for_user_and_episode.return_value = (
-        latest_event
-    )
+    watch_event_repository.get_latest_for_user_and_episode.return_value = latest_event
 
     progress_repository.get_by_user_and_episode.return_value = progress
 
@@ -317,13 +313,9 @@ def test_delete_latest_event_moves_progress_to_previous_watch(
         watched_at=latest_event.watched_at,
     )
 
-    watch_event_repository.get_by_id_for_user_and_episode.return_value = (
-        latest_event
-    )
+    watch_event_repository.get_by_id_for_user_and_episode.return_value = latest_event
 
-    watch_event_repository.get_latest_for_user_and_episode.return_value = (
-        previous_event
-    )
+    watch_event_repository.get_latest_for_user_and_episode.return_value = previous_event
 
     progress_repository.get_by_user_and_episode.return_value = progress
 
@@ -507,6 +499,7 @@ def test_delete_all_removes_every_viewing_and_clears_progress(
     assert progress.watched_at is None
 
     session.commit.assert_called_once_with()
+
 
 def test_delete_all_is_idempotent_when_no_viewings_remain(
     service: EpisodeWatchEventService,

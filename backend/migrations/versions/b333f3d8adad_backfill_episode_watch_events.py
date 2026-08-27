@@ -6,17 +6,18 @@ Create Date: 2026-08-14
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from uuid import uuid4
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "b333f3d8adad"
-down_revision: Union[str, Sequence[str], None] = "1fcb1074a10c"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "1fcb1074a10c"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
+
 
 def upgrade() -> None:
     """Backfill historical watch events from existing Episode progress."""

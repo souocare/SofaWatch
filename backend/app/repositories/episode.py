@@ -1,12 +1,13 @@
+from dataclasses import dataclass
+from datetime import date
 from uuid import UUID
 
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
-from datetime import date
-from dataclasses import dataclass
 
 from app.models.episode import Episode
 from app.models.season import Season
+
 
 @dataclass(frozen=True, slots=True)
 class TimelineEpisode:
@@ -15,6 +16,7 @@ class TimelineEpisode:
     show_id: UUID
     episode: Episode
     season_number: int
+
 
 class EpisodeRepository:
     """Persistence operations for locally stored TV episodes."""
@@ -213,10 +215,7 @@ class EpisodeRepository:
                 func.sum(
                     case(
                         (
-                            (
-                                Episode.air_date.is_not(None)
-                                & (Episode.air_date <= as_of)
-                            ),
+                            (Episode.air_date.is_not(None) & (Episode.air_date <= as_of)),
                             1,
                         ),
                         else_=0,
@@ -381,10 +380,7 @@ class EpisodeRepository:
 
         rows = self._session.execute(statement).all()
 
-        return {
-            show_id: int(aired_episodes or 0)
-            for show_id, aired_episodes in rows
-        }
+        return {show_id: int(aired_episodes or 0) for show_id, aired_episodes in rows}
 
     def list_regular_for_shows_between(
         self,
@@ -454,7 +450,6 @@ class EpisodeRepository:
             )
             for show_id, season_number, episode in rows
         ]
-
 
     def count_regular_for_shows_between(
         self,

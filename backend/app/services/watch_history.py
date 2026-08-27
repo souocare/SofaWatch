@@ -45,30 +45,15 @@ class WatchHistoryService:
         page = self._watch_event_repository.list_watch_history(
             user_id=user_id,
             limit=limit,
-            before_watched_at=(
-                decoded_cursor.watched_at
-                if decoded_cursor is not None
-                else None
-            ),
-            before_event_id=(
-                decoded_cursor.event_id
-                if decoded_cursor is not None
-                else None
-            ),
+            before_watched_at=(decoded_cursor.watched_at if decoded_cursor is not None else None),
+            before_event_id=(decoded_cursor.event_id if decoded_cursor is not None else None),
         )
 
-        episode_ids = list(
-            dict.fromkeys(
-                history_item.episode.id
-                for history_item in page.items
-            )
-        )
+        episode_ids = list(dict.fromkeys(history_item.episode.id for history_item in page.items))
 
-        watch_counts = (
-            self._watch_event_repository.get_counts_by_user_and_episode_ids(
-                user_id=user_id,
-                episode_ids=episode_ids,
-            )
+        watch_counts = self._watch_event_repository.get_counts_by_user_and_episode_ids(
+            user_id=user_id,
+            episode_ids=episode_ids,
         )
 
         items = [

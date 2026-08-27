@@ -667,10 +667,7 @@ def test_delete_intermediate_watch_event_preserves_latest_progress(
     )
 
     response = client.delete(
-        (
-            f"/api/v1/episodes/{episode.id}/watch-events/"
-            f"{older_event.id}"
-        ),
+        (f"/api/v1/episodes/{episode.id}/watch-events/{older_event.id}"),
     )
 
     assert response.status_code == 204
@@ -759,10 +756,7 @@ def test_delete_latest_watch_event_moves_progress_to_previous_event(
     )
 
     response = client.delete(
-        (
-            f"/api/v1/episodes/{episode.id}/watch-events/"
-            f"{latest_event.id}"
-        ),
+        (f"/api/v1/episodes/{episode.id}/watch-events/{latest_event.id}"),
     )
 
     assert response.status_code == 204
@@ -827,10 +821,7 @@ def test_delete_only_watch_event_marks_episode_unwatched(
     )
 
     response = client.delete(
-        (
-            f"/api/v1/episodes/{episode.id}/watch-events/"
-            f"{event.id}"
-        ),
+        (f"/api/v1/episodes/{episode.id}/watch-events/{event.id}"),
     )
 
     assert response.status_code == 204
@@ -871,10 +862,7 @@ def test_delete_watch_event_returns_404_when_event_does_not_exist(
     )
 
     response = client.delete(
-        (
-            f"/api/v1/episodes/{episode.id}/watch-events/"
-            f"{uuid4()}"
-        ),
+        (f"/api/v1/episodes/{episode.id}/watch-events/{uuid4()}"),
     )
 
     assert response.status_code == 404
@@ -939,10 +927,7 @@ def test_delete_watch_event_returns_404_for_event_from_another_episode(
     )
 
     response = client.delete(
-        (
-            f"/api/v1/episodes/{second_episode.id}/watch-events/"
-            f"{event.id}"
-        ),
+        (f"/api/v1/episodes/{second_episode.id}/watch-events/{event.id}"),
     )
 
     assert response.status_code == 404
@@ -1110,6 +1095,7 @@ def test_delete_all_watch_events_clears_history_and_progress(
     assert progress.is_watched is False
     assert progress.watched_at is None
 
+
 def test_delete_all_watch_events_is_idempotent(
     client: TestClient,
     db_session: Session,
@@ -1233,6 +1219,7 @@ def test_delete_all_watch_events_preserves_other_episode_history(
     assert db_session.get(EpisodeWatchEvent, first_event.id) is None
     assert db_session.get(EpisodeWatchEvent, second_event.id) is not None
 
+
 def test_mark_future_episode_watched_returns_conflict(
     client: TestClient,
     db_session: Session,
@@ -1278,6 +1265,8 @@ def test_mark_future_episode_watched_returns_conflict(
             "message": "TV episode cannot be marked as watched yet.",
         }
     }
+
+
 def test_mark_episode_airing_today_watched_returns_success(
     client: TestClient,
     db_session: Session,
@@ -1419,17 +1408,24 @@ def test_get_episode_details_returns_episode_context_and_progress(
     assert payload["progress"]["is_watched"] is True
     assert payload["progress"]["watch_count"] == 2
 
-    assert as_utc(
-        datetime.fromisoformat(
-            payload["progress"]["watched_at"],
+    assert (
+        as_utc(
+            datetime.fromisoformat(
+                payload["progress"]["watched_at"],
+            )
         )
-    ) == latest_watch
+        == latest_watch
+    )
 
-    assert as_utc(
-        datetime.fromisoformat(
-            payload["progress"]["last_watched_at"],
+    assert (
+        as_utc(
+            datetime.fromisoformat(
+                payload["progress"]["last_watched_at"],
+            )
         )
-    ) == latest_watch
+        == latest_watch
+    )
+
 
 def test_get_episode_details_returns_unwatched_state_without_history(
     client: TestClient,
@@ -1547,11 +1543,14 @@ def test_get_episode_details_preserves_history_when_currently_unwatched(
 
     assert payload["progress"]["watch_count"] == 1
 
-    assert as_utc(
-        datetime.fromisoformat(
-            payload["progress"]["last_watched_at"],
+    assert (
+        as_utc(
+            datetime.fromisoformat(
+                payload["progress"]["last_watched_at"],
+            )
         )
-    ) == previous_watch
+        == previous_watch
+    )
 
 
 def test_get_episode_details_returns_404_when_episode_does_not_exist(

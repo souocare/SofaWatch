@@ -2,7 +2,6 @@ from datetime import date
 from unittest.mock import Mock
 from uuid import uuid4
 
-
 import pytest
 
 from app.core.config import Settings
@@ -17,12 +16,12 @@ from app.providers.tmdb.schemas import (
     TMDBTVSearchResponse,
     TMDBTVSearchResult,
 )
+from app.repositories.library import LibraryRepository
 from app.schemas.search import (
     SearchMediaType,
     SearchMediaTypeFilter,
 )
 from app.services.media_search import MediaSearchService
-from app.repositories.library import LibraryRepository
 
 USER_ID = uuid4()
 
@@ -335,13 +334,9 @@ def test_search_image_urls_support_a_trailing_base_slash(
         media_type=SearchMediaTypeFilter.MOVIE,
     )
 
-    assert response.results[0].poster_url == (
-        "https://image.tmdb.org/t/p/w500/poster.jpg"
-    )
+    assert response.results[0].poster_url == ("https://image.tmdb.org/t/p/w500/poster.jpg")
 
-    assert response.results[0].backdrop_url == (
-        "https://image.tmdb.org/t/p/original/backdrop.jpg"
-    )
+    assert response.results[0].backdrop_url == ("https://image.tmdb.org/t/p/original/backdrop.jpg")
 
 
 def test_search_marks_result_as_not_in_library(

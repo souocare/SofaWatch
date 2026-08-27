@@ -1,5 +1,6 @@
-from uuid import UUID
 from datetime import datetime
+from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -54,6 +55,7 @@ class CurrentUserPasswordUpdateRequest(BaseModel):
         min_length=8,
         max_length=128,
     )
+
 
 class PasswordRecoveryResponse(BaseModel):
     """Temporary credential created by an administrator for password recovery."""

@@ -84,10 +84,7 @@ def create_service(
     watch_event_repository: Mock,
 ) -> WatchHistoryService:
     watch_event_repository.get_counts_by_user_and_episode_ids.side_effect = (
-        lambda *, user_id, episode_ids: {
-            episode_id: 1
-            for episode_id in episode_ids
-        }
+        lambda *, user_id, episode_ids: {episode_id: 1 for episode_id in episode_ids}
     )
 
     return WatchHistoryService(
@@ -102,11 +99,9 @@ def test_lists_first_watch_history_page() -> None:
 
     history_item = create_history_item()
 
-    watch_event_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[history_item],
-            has_more=False,
-        )
+    watch_event_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[history_item],
+        has_more=False,
     )
 
     service = create_service(
@@ -171,14 +166,12 @@ def test_returns_next_cursor_when_more_history_exists() -> None:
         ),
     )
 
-    watch_event_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[
-                first_item,
-                second_item,
-            ],
-            has_more=True,
-        )
+    watch_event_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[
+            first_item,
+            second_item,
+        ],
+        has_more=True,
     )
 
     service = create_service(
@@ -206,11 +199,9 @@ def test_decodes_cursor_and_forwards_it_to_repository() -> None:
         spec=EpisodeWatchEventRepository,
     )
 
-    watch_event_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[],
-            has_more=False,
-        )
+    watch_event_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[],
+        has_more=False,
     )
 
     service = create_service(
@@ -257,11 +248,9 @@ def test_supports_empty_watch_history() -> None:
         spec=EpisodeWatchEventRepository,
     )
 
-    watch_event_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[],
-            has_more=False,
-        )
+    watch_event_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[],
+        has_more=False,
     )
 
     service = create_service(
@@ -325,22 +314,20 @@ def test_maps_multiple_history_items() -> None:
         title="Long, Long Time",
     )
 
-    watch_event_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[
-                create_history_item(
-                    show=first_show,
-                    episode=first_episode,
-                    season_number=2,
-                ),
-                create_history_item(
-                    show=second_show,
-                    episode=second_episode,
-                    season_number=1,
-                ),
-            ],
-            has_more=False,
-        )
+    watch_event_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[
+            create_history_item(
+                show=first_show,
+                episode=first_episode,
+                season_number=2,
+            ),
+            create_history_item(
+                show=second_show,
+                episode=second_episode,
+                season_number=1,
+            ),
+        ],
+        has_more=False,
     )
 
     service = create_service(
@@ -398,14 +385,12 @@ def test_preserves_multiple_watches_of_same_episode() -> None:
         ),
     )
 
-    watch_event_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[
-                first_watch,
-                previous_watch,
-            ],
-            has_more=False,
-        )
+    watch_event_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[
+            first_watch,
+            previous_watch,
+        ],
+        has_more=False,
     )
 
     service = create_service(
@@ -425,15 +410,9 @@ def test_preserves_multiple_watches_of_same_episode() -> None:
     assert result.items[0].episode.id == episode.id
     assert result.items[1].episode.id == episode.id
 
-    assert (
-        result.items[0].episode.watched_at
-        == first_watch.watched_at
-    )
+    assert result.items[0].episode.watched_at == first_watch.watched_at
 
-    assert (
-        result.items[1].episode.watched_at
-        == previous_watch.watched_at
-    )
+    assert result.items[1].episode.watched_at == previous_watch.watched_at
 
     assert result.items[0].event_id == first_watch.event_id
     assert result.items[1].event_id == previous_watch.event_id

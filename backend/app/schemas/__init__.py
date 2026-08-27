@@ -1,4 +1,10 @@
 from app.schemas.genre import GenreResponse
+from app.schemas.search import (
+    SearchMediaType,
+    SearchMediaTypeFilter,
+    SearchResponse,
+    SearchResult,
+)
 from app.schemas.show import ShowResponse, ShowSummaryResponse
 from app.schemas.tmdb_show import (
     ShowCountry,
@@ -9,12 +15,6 @@ from app.schemas.tmdb_show import (
     ShowSearchResponse,
     ShowSearchResult,
     ShowSeasonSummary,
-)
-from app.schemas.search import (
-    SearchMediaType,
-    SearchMediaTypeFilter,
-    SearchResponse,
-    SearchResult,
 )
 
 __all__ = [

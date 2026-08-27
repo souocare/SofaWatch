@@ -2,7 +2,6 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Query, status
-from app.core.exceptions import APIError
 
 from app.api.dependencies import (
     CurrentUserDependency,
@@ -17,6 +16,7 @@ from app.api.params.show import (
     ShowListParams,
     get_show_list_params,
 )
+from app.core.exceptions import APIError
 from app.providers.tmdb.exceptions import (
     TMDBConfigurationError,
     TMDBNotFoundError,
@@ -30,7 +30,6 @@ from app.schemas.progress import (
     SeasonProgressResponse,
     ShowProgressResponse,
 )
-
 from app.schemas.season import SeasonResponse
 from app.schemas.show import ShowResponse, ShowSummaryResponse
 from app.schemas.tmdb_show import ShowDetailsResponse
@@ -457,6 +456,7 @@ def refresh_show(
             code="tmdb_invalid_response",
             message="TMDB returned an invalid response.",
         ) from error
+
 
 @router.get(
     "/{show_id}/seasons/progress",

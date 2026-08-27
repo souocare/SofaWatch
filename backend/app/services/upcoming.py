@@ -2,17 +2,17 @@ from datetime import date
 from uuid import UUID
 
 from app.models.enums import LibraryStatus
+from app.models.library import LibraryEntry
 from app.repositories.episode import (
     EpisodeRepository,
     TimelineEpisode,
 )
-from app.models.library import LibraryEntry
+from app.repositories.episode_progress import EpisodeProgressRepository
 from app.repositories.library import LibraryRepository
 from app.schemas.upcoming import (
     UpcomingEpisodeResponse,
     UpcomingItemResponse,
 )
-from app.repositories.episode_progress import EpisodeProgressRepository
 
 
 class UpcomingService:
@@ -73,26 +73,19 @@ class UpcomingService:
             return []
 
         entries_by_show_id = {
-            entry.show_id: entry
-            for entry in eligible_entries
-            if entry.show_id is not None
+            entry.show_id: entry for entry in eligible_entries if entry.show_id is not None
         }
 
-        timeline_episodes = (
-            self._episode_repository.list_regular_for_shows_between(
-                show_ids=list(entries_by_show_id),
-                from_date=timeline_start,
-                to_date=to_date,
-                limit=limit,
-            )
+        timeline_episodes = self._episode_repository.list_regular_for_shows_between(
+            show_ids=list(entries_by_show_id),
+            from_date=timeline_start,
+            to_date=to_date,
+            limit=limit,
         )
 
         watched_episode_ids = self._progress_repository.get_watched_episode_ids(
             user_id=user_id,
-            episode_ids=[
-                timeline_episode.episode.id
-                for timeline_episode in timeline_episodes
-            ],
+            episode_ids=[timeline_episode.episode.id for timeline_episode in timeline_episodes],
         )
 
         results: list[UpcomingItemResponse] = []
@@ -109,10 +102,7 @@ class UpcomingService:
                 self._build_item(
                     entry=entry,
                     timeline_episode=timeline_episode,
-                    is_watched=(
-                        timeline_episode.episode.id
-                        in watched_episode_ids
-                    ),
+                    is_watched=(timeline_episode.episode.id in watched_episode_ids),
                 )
             )
 
@@ -138,23 +128,21 @@ class UpcomingService:
         episode = timeline_episode.episode
 
         if episode.air_date is None:
-            raise ValueError(
-                "Upcoming timeline Episode must have an air date."
-            )
+            raise ValueError("Upcoming timeline Episode must have an air date.")
 
         return UpcomingItemResponse(
-        library_entry_id=entry.id,
-        library_status=entry.status,
-        show=entry.show,
-        episode=UpcomingEpisodeResponse(
-            id=episode.id,
-            tmdb_id=episode.tmdb_id,
-            season_number=timeline_episode.season_number,
-            episode_number=episode.episode_number,
-            title=episode.title,
-            air_date=episode.air_date,
-            runtime=episode.runtime,
-            still_url=episode.still_url,
-            is_watched=is_watched,
-        ),
-    )
+            library_entry_id=entry.id,
+            library_status=entry.status,
+            show=entry.show,
+            episode=UpcomingEpisodeResponse(
+                id=episode.id,
+                tmdb_id=episode.tmdb_id,
+                season_number=timeline_episode.season_number,
+                episode_number=episode.episode_number,
+                title=episode.title,
+                air_date=episode.air_date,
+                runtime=episode.runtime,
+                still_url=episode.still_url,
+                is_watched=is_watched,
+            ),
+        )

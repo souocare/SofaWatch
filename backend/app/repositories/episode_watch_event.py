@@ -2,21 +2,21 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete as sqlalchemy_delete, func, select
+from sqlalchemy import delete as sqlalchemy_delete
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.episode import Episode
 from app.models.episode_watch_event import EpisodeWatchEvent
+from app.models.genre import Genre
 from app.models.season import Season
 from app.models.show import Show
-from app.repositories.viewing_statistics import DailyViewingStatistics
-from app.models.genre import Genre
 from app.repositories.statistics_insights import (
     EpisodeViewingInsight,
     GenreViewingInsight,
     ShowViewingInsight,
-    
 )
+from app.repositories.viewing_statistics import DailyViewingStatistics
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,7 +36,6 @@ class WatchHistoryEventPage:
 
     items: list[WatchHistoryEvent]
     has_more: bool
-
 
 
 class EpisodeWatchEventRepository:
@@ -273,8 +272,7 @@ class EpisodeWatchEventRepository:
 
         if (before_watched_at is None) != (before_event_id is None):
             raise ValueError(
-                "Watch History cursor requires both "
-                "before_watched_at and before_event_id."
+                "Watch History cursor requires both before_watched_at and before_event_id."
             )
 
         statement = (
@@ -306,19 +304,10 @@ class EpisodeWatchEventRepository:
 
         if before_watched_at is not None and before_event_id is not None:
             statement = statement.where(
-                (
-                    EpisodeWatchEvent.watched_at
-                    < before_watched_at
-                )
+                (EpisodeWatchEvent.watched_at < before_watched_at)
                 | (
-                    (
-                        EpisodeWatchEvent.watched_at
-                        == before_watched_at
-                    )
-                    & (
-                        EpisodeWatchEvent.id
-                        < before_event_id
-                    )
+                    (EpisodeWatchEvent.watched_at == before_watched_at)
+                    & (EpisodeWatchEvent.id < before_event_id)
                 )
             )
 
@@ -386,10 +375,7 @@ class EpisodeWatchEventRepository:
             statement,
         ).all()
 
-        return {
-            episode_id: int(watch_count or 0)
-            for episode_id, watch_count in rows
-        }
+        return {episode_id: int(watch_count or 0) for episode_id, watch_count in rows}
 
     def get_statistics_for_period(
         self,
@@ -433,7 +419,6 @@ class EpisodeWatchEventRepository:
             int(row[0] or 0),
             int(row[1] or 0),
         )
-
 
     def get_daily_statistics_for_period(
         self,
@@ -502,7 +487,6 @@ class EpisodeWatchEventRepository:
                 watch_time_minutes,
             ) in rows
         ]
-
 
     def get_all_time_statistics(
         self,
@@ -578,15 +562,13 @@ class EpisodeWatchEventRepository:
                 ),
                 func.coalesce(
                     func.sum(
-                        per_episode.c.watch_count
-                        * per_episode.c.runtime,
+                        per_episode.c.watch_count * per_episode.c.runtime,
                     ),
                     0,
                 ),
                 func.coalesce(
                     func.sum(
-                        (per_episode.c.watch_count - 1)
-                        * per_episode.c.runtime,
+                        (per_episode.c.watch_count - 1) * per_episode.c.runtime,
                     ),
                     0,
                 ),
@@ -600,7 +582,6 @@ class EpisodeWatchEventRepository:
             int(row[3] or 0),
             int(row[4] or 0),
         )
-
 
     def count_watched_shows(
         self,
@@ -632,7 +613,6 @@ class EpisodeWatchEventRepository:
         )
 
         return int(count or 0)
-
 
     def get_lifetime_statistics(
         self,
@@ -707,7 +687,7 @@ class EpisodeWatchEventRepository:
         *,
         user_id: UUID,
         limit: int = 5,
-        ) -> list[ShowViewingInsight]:
+    ) -> list[ShowViewingInsight]:
         """Return Shows ranked by total Episode watch events."""
 
         watch_count = func.count(
@@ -1025,7 +1005,6 @@ class EpisodeWatchEventRepository:
                 total_watch_count,
             ) in rows
         ]
-
 
     def list_watch_history_before_timestamp(
         self,

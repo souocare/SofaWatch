@@ -1,33 +1,31 @@
 from datetime import date
+from types import SimpleNamespace
 from unittest.mock import Mock
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.dependencies import get_explore_service
+from app.api.dependencies import (
+    get_current_user,
+    get_explore_service,
+)
 from app.main import app
 from app.providers.tmdb.exceptions import (
     TMDBConfigurationError,
     TMDBRequestError,
     TMDBResponseError,
 )
-from app.services.explore import ExploreService
 from app.schemas.explore import (
+    ExploreGenre,
+    ExploreGenreOptions,
     ExploreMediaCollection,
     ExploreMediaItem,
     ExploreMediaType,
     ExploreTrendingResponse,
     ExploreTrendingWindow,
-    ExploreGenre,
-    ExploreGenreOptions,
 )
-from types import SimpleNamespace
-from uuid import uuid4
-
-from app.api.dependencies import (
-    get_current_user,
-    get_explore_service,
-)
+from app.services.explore import ExploreService
 
 TEST_USER_ID = uuid4()
 
@@ -52,13 +50,9 @@ def client_with_explore_service(
             id=TEST_USER_ID,
         )
 
-    app.dependency_overrides[
-        get_explore_service
-    ] = override_get_explore_service
+    app.dependency_overrides[get_explore_service] = override_get_explore_service
 
-    app.dependency_overrides[
-        get_current_user
-    ] = override_get_current_user
+    app.dependency_overrides[get_current_user] = override_get_current_user
 
     yield client
 
@@ -77,45 +71,39 @@ def test_get_trending_returns_ordered_mixed_media(
     client_with_explore_service: TestClient,
     explore_service: Mock,
 ) -> None:
-    explore_service.get_trending.return_value = (
-        ExploreTrendingResponse(
-            items=[
-                ExploreMediaItem(
-                    media_type=ExploreMediaType.SHOW,
-                    tmdb_id=95396,
-                    title="Severance",
-                    original_title="Severance",
-                    overview="Employees undergo a severance procedure.",
-                    release_date=date(2022, 2, 17),
-                    poster_url=(
-                        "https://image.tmdb.org/t/p/w500/severance.jpg"
-                    ),
-                    backdrop_url=None,
-                    original_language="en",
-                    genre_ids=[18, 9648],
-                    popularity=120.5,
-                    vote_average=8.4,
-                    vote_count=2100,
-                ),
-                ExploreMediaItem(
-                    media_type=ExploreMediaType.MOVIE,
-                    tmdb_id=438631,
-                    title="Dune",
-                    original_title="Dune",
-                    overview="Paul Atreides travels to Arrakis.",
-                    release_date=date(2021, 9, 15),
-                    poster_url=(
-                        "https://image.tmdb.org/t/p/w500/dune.jpg"
-                    ),
-                    backdrop_url=None,
-                    original_language="en",
-                    genre_ids=[878, 12],
-                    popularity=95.4,
-                    vote_average=7.8,
-                    vote_count=13000,
-                ),
-            ],
-        )
+    explore_service.get_trending.return_value = ExploreTrendingResponse(
+        items=[
+            ExploreMediaItem(
+                media_type=ExploreMediaType.SHOW,
+                tmdb_id=95396,
+                title="Severance",
+                original_title="Severance",
+                overview="Employees undergo a severance procedure.",
+                release_date=date(2022, 2, 17),
+                poster_url=("https://image.tmdb.org/t/p/w500/severance.jpg"),
+                backdrop_url=None,
+                original_language="en",
+                genre_ids=[18, 9648],
+                popularity=120.5,
+                vote_average=8.4,
+                vote_count=2100,
+            ),
+            ExploreMediaItem(
+                media_type=ExploreMediaType.MOVIE,
+                tmdb_id=438631,
+                title="Dune",
+                original_title="Dune",
+                overview="Paul Atreides travels to Arrakis.",
+                release_date=date(2021, 9, 15),
+                poster_url=("https://image.tmdb.org/t/p/w500/dune.jpg"),
+                backdrop_url=None,
+                original_language="en",
+                genre_ids=[878, 12],
+                popularity=95.4,
+                vote_average=7.8,
+                vote_count=13000,
+            ),
+        ],
     )
 
     response = client_with_explore_service.get(
@@ -147,9 +135,7 @@ def test_get_trending_forwards_language(
     client_with_explore_service: TestClient,
     explore_service: Mock,
 ) -> None:
-    explore_service.get_trending.return_value = (
-        ExploreTrendingResponse()
-    )
+    explore_service.get_trending.return_value = ExploreTrendingResponse()
 
     response = client_with_explore_service.get(
         EXPLORE_TRENDING_URL,
@@ -238,9 +224,7 @@ def test_get_trending_supports_day_window(
     client_with_explore_service: TestClient,
     explore_service: Mock,
 ) -> None:
-    explore_service.get_trending.return_value = (
-        ExploreTrendingResponse()
-    )
+    explore_service.get_trending.return_value = ExploreTrendingResponse()
 
     response = client_with_explore_service.get(
         "/api/v1/explore/trending",
@@ -257,13 +241,12 @@ def test_get_trending_supports_day_window(
         language=None,
     )
 
+
 def test_get_trending_defaults_to_week(
     client_with_explore_service: TestClient,
     explore_service: Mock,
 ) -> None:
-    explore_service.get_trending.return_value = (
-        ExploreTrendingResponse()
-    )
+    explore_service.get_trending.return_value = ExploreTrendingResponse()
 
     response = client_with_explore_service.get(
         "/api/v1/explore/trending",
@@ -277,34 +260,33 @@ def test_get_trending_defaults_to_week(
         language=None,
     )
 
+
 def test_get_popular_shows_returns_items(
     client_with_explore_service: TestClient,
     explore_service: Mock,
 ) -> None:
-    explore_service.get_popular_shows.return_value = (
-        ExploreMediaCollection(
-            items=[
-                ExploreMediaItem(
-                    media_type=ExploreMediaType.SHOW,
-                    tmdb_id=95396,
-                    title="Severance",
-                    original_title="Severance",
-                    overview="",
-                    release_date=date(
-                        2022,
-                        2,
-                        17,
-                    ),
-                    poster_url=None,
-                    backdrop_url=None,
-                    original_language="en",
-                    genre_ids=[18],
-                    popularity=120,
-                    vote_average=8.4,
-                    vote_count=2100,
+    explore_service.get_popular_shows.return_value = ExploreMediaCollection(
+        items=[
+            ExploreMediaItem(
+                media_type=ExploreMediaType.SHOW,
+                tmdb_id=95396,
+                title="Severance",
+                original_title="Severance",
+                overview="",
+                release_date=date(
+                    2022,
+                    2,
+                    17,
                 ),
-            ],
-        )
+                poster_url=None,
+                backdrop_url=None,
+                original_language="en",
+                genre_ids=[18],
+                popularity=120,
+                vote_average=8.4,
+                vote_count=2100,
+            ),
+        ],
     )
 
     response = client_with_explore_service.get(
@@ -325,13 +307,12 @@ def test_get_popular_shows_returns_items(
         language=None,
     )
 
+
 def test_get_popular_shows_forwards_language(
     client_with_explore_service: TestClient,
     explore_service: Mock,
 ) -> None:
-    explore_service.get_popular_shows.return_value = (
-        ExploreMediaCollection()
-    )
+    explore_service.get_popular_shows.return_value = ExploreMediaCollection()
 
     response = client_with_explore_service.get(
         "/api/v1/explore/popular/shows",
@@ -348,39 +329,35 @@ def test_get_popular_shows_forwards_language(
         language="pt-PT",
     )
 
+
 def test_get_popular_movies_returns_items(
     client_with_explore_service: TestClient,
     explore_service: Mock,
 ) -> None:
     """Return popular Movies."""
 
-    explore_service.get_popular_movies.return_value = (
-        ExploreMediaCollection(
-            items=[
-                ExploreMediaItem(
-                    media_type=ExploreMediaType.MOVIE,
-                    tmdb_id=438631,
-                    title="Dune",
-                    original_title="Dune",
-                    overview=(
-                        "Paul Atreides travels "
-                        "to Arrakis."
-                    ),
-                    release_date=date(
-                        2021,
-                        9,
-                        15,
-                    ),
-                    poster_url=None,
-                    backdrop_url=None,
-                    original_language="en",
-                    genre_ids=[878],
-                    popularity=95.4,
-                    vote_average=7.8,
-                    vote_count=13000,
+    explore_service.get_popular_movies.return_value = ExploreMediaCollection(
+        items=[
+            ExploreMediaItem(
+                media_type=ExploreMediaType.MOVIE,
+                tmdb_id=438631,
+                title="Dune",
+                original_title="Dune",
+                overview=("Paul Atreides travels to Arrakis."),
+                release_date=date(
+                    2021,
+                    9,
+                    15,
                 ),
-            ],
-        )
+                poster_url=None,
+                backdrop_url=None,
+                original_language="en",
+                genre_ids=[878],
+                popularity=95.4,
+                vote_average=7.8,
+                vote_count=13000,
+            ),
+        ],
     )
 
     response = client_with_explore_service.get(
@@ -402,16 +379,15 @@ def test_get_popular_movies_returns_items(
         language=None,
     )
 
+
 def test_get_popular_movies_forwards_language(
     client_with_explore_service: TestClient,
     explore_service: Mock,
 ) -> None:
     """Forward language to the Explore service."""
 
-    explore_service.get_popular_movies.return_value = (
-        ExploreMediaCollection(
-            items=[],
-        )
+    explore_service.get_popular_movies.return_value = ExploreMediaCollection(
+        items=[],
     )
 
     response = client_with_explore_service.get(
@@ -429,39 +405,36 @@ def test_get_popular_movies_forwards_language(
         language="pt-PT",
     )
 
+
 def test_get_explore_genres_returns_show_and_movie_options(
     client_with_explore_service: TestClient,
     explore_service: Mock,
 ) -> None:
-    explore_service.get_genres.return_value = (
-        ExploreGenreOptions(
-            shows=[
-                ExploreGenre(
-                    id=18,
-                    name="Drama",
-                ),
-                ExploreGenre(
-                    id=35,
-                    name="Comedy",
-                ),
-            ],
-            movies=[
-                ExploreGenre(
-                    id=28,
-                    name="Action",
-                ),
-                ExploreGenre(
-                    id=878,
-                    name="Science Fiction",
-                ),
-            ],
-        )
+    explore_service.get_genres.return_value = ExploreGenreOptions(
+        shows=[
+            ExploreGenre(
+                id=18,
+                name="Drama",
+            ),
+            ExploreGenre(
+                id=35,
+                name="Comedy",
+            ),
+        ],
+        movies=[
+            ExploreGenre(
+                id=28,
+                name="Action",
+            ),
+            ExploreGenre(
+                id=878,
+                name="Science Fiction",
+            ),
+        ],
     )
 
-    response = (
-        client_with_explore_service.get(
-            "/api/v1/explore/genres",
-        )
+    response = client_with_explore_service.get(
+        "/api/v1/explore/genres",
     )
 
     assert response.status_code == 200
@@ -496,17 +469,13 @@ def test_get_explore_genres_forwards_language(
     client_with_explore_service: TestClient,
     explore_service: Mock,
 ) -> None:
-    explore_service.get_genres.return_value = (
-        ExploreGenreOptions()
-    )
+    explore_service.get_genres.return_value = ExploreGenreOptions()
 
-    response = (
-        client_with_explore_service.get(
-            "/api/v1/explore/genres",
-            params={
-                "language": "pt-PT",
-            },
-        )
+    response = client_with_explore_service.get(
+        "/api/v1/explore/genres",
+        params={
+            "language": "pt-PT",
+        },
     )
 
     assert response.status_code == 200
@@ -514,6 +483,7 @@ def test_get_explore_genres_forwards_language(
     explore_service.get_genres.assert_called_once_with(
         language="pt-PT",
     )
+
 
 def test_get_popular_shows_forwards_genre_id(
     client_with_explore_service: TestClient,

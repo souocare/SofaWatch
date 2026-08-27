@@ -1347,13 +1347,8 @@ def test_get_trending_all_returns_daily_mixed_results(
         request: httpx.Request,
     ) -> httpx.Response:
         assert request.method == "GET"
-        assert request.url.path.endswith(
-            "/trending/all/day"
-        )
-        assert (
-            request.url.params["language"]
-            == "en-US"
-        )
+        assert request.url.path.endswith("/trending/all/day")
+        assert request.url.params["language"] == "en-US"
 
         return httpx.Response(
             status_code=200,
@@ -1423,9 +1418,7 @@ def test_get_trending_all_supports_week_window(
     def handler(
         request: httpx.Request,
     ) -> httpx.Response:
-        assert request.url.path.endswith(
-            "/trending/all/week"
-        )
+        assert request.url.path.endswith("/trending/all/week")
 
         return httpx.Response(
             status_code=200,
@@ -1449,6 +1442,7 @@ def test_get_trending_all_supports_week_window(
         )
     finally:
         http_client.close()
+
 
 @pytest.mark.parametrize(
     "time_window",
@@ -1485,14 +1479,9 @@ def test_get_popular_tv_shows_returns_validated_response(
         request: httpx.Request,
     ) -> httpx.Response:
         assert request.method == "GET"
-        assert request.url.path.endswith(
-            "/tv/popular"
-        )
+        assert request.url.path.endswith("/tv/popular")
         assert request.url.params["page"] == "1"
-        assert (
-            request.url.params["language"]
-            == "en-US"
-        )
+        assert request.url.params["language"] == "en-US"
 
         return httpx.Response(
             status_code=200,
@@ -1504,15 +1493,10 @@ def test_get_popular_tv_shows_returns_validated_response(
                         "id": 95396,
                         "name": "Severance",
                         "original_name": "Severance",
-                        "overview": (
-                            "Employees undergo a "
-                            "severance procedure."
-                        ),
+                        "overview": ("Employees undergo a severance procedure."),
                         "first_air_date": "2022-02-17",
                         "poster_path": "/severance.jpg",
-                        "backdrop_path": (
-                            "/severance-backdrop.jpg"
-                        ),
+                        "backdrop_path": ("/severance-backdrop.jpg"),
                         "original_language": "en",
                         "genre_ids": [18, 9648],
                         "popularity": 120.5,
@@ -1531,9 +1515,7 @@ def test_get_popular_tv_shows_returns_validated_response(
     )
 
     try:
-        response = (
-            tmdb_client.get_popular_tv_shows()
-        )
+        response = tmdb_client.get_popular_tv_shows()
 
         assert response.page == 1
         assert len(response.results) == 1
@@ -1544,6 +1526,7 @@ def test_get_popular_tv_shows_returns_validated_response(
         assert show.name == "Severance"
     finally:
         http_client.close()
+
 
 @pytest.mark.parametrize(
     "page",
@@ -1586,9 +1569,7 @@ def test_get_popular_movies_returns_validated_response(
     ) -> httpx.Response:
         assert request.method == "GET"
 
-        assert request.url.path.endswith(
-            "/movie/popular"
-        )
+        assert request.url.path.endswith("/movie/popular")
 
         assert request.url.params["page"] == "1"
 
@@ -1602,15 +1583,10 @@ def test_get_popular_movies_returns_validated_response(
                         "id": 438631,
                         "title": "Dune",
                         "original_title": "Dune",
-                        "overview": (
-                            "Paul Atreides travels "
-                            "to Arrakis."
-                        ),
+                        "overview": ("Paul Atreides travels to Arrakis."),
                         "release_date": "2021-09-15",
                         "poster_path": "/dune.jpg",
-                        "backdrop_path": (
-                            "/dune-backdrop.jpg"
-                        ),
+                        "backdrop_path": ("/dune-backdrop.jpg"),
                         "original_language": "en",
                         "genre_ids": [878, 12],
                         "popularity": 95.4,
@@ -1678,6 +1654,7 @@ def test_get_popular_movies_forwards_language(
     finally:
         http_client.close()
 
+
 def test_get_tv_genres_returns_validated_response(
     settings: Settings,
 ) -> None:
@@ -1688,14 +1665,9 @@ def test_get_tv_genres_returns_validated_response(
     ) -> httpx.Response:
         assert request.method == "GET"
 
-        assert request.url.path.endswith(
-            "/genre/tv/list"
-        )
+        assert request.url.path.endswith("/genre/tv/list")
 
-        assert (
-            request.url.params["language"]
-            == "en-US"
-        )
+        assert request.url.params["language"] == "en-US"
 
         return httpx.Response(
             status_code=200,
@@ -1743,10 +1715,7 @@ def test_get_tv_genres_forwards_language(
     def handler(
         request: httpx.Request,
     ) -> httpx.Response:
-        assert (
-            request.url.params["language"]
-            == "pt-PT"
-        )
+        assert request.url.params["language"] == "pt-PT"
 
         return httpx.Response(
             status_code=200,
@@ -1781,14 +1750,9 @@ def test_get_movie_genres_returns_validated_response(
     ) -> httpx.Response:
         assert request.method == "GET"
 
-        assert request.url.path.endswith(
-            "/genre/movie/list"
-        )
+        assert request.url.path.endswith("/genre/movie/list")
 
-        assert (
-            request.url.params["language"]
-            == "en-US"
-        )
+        assert request.url.params["language"] == "en-US"
 
         return httpx.Response(
             status_code=200,
@@ -1813,9 +1777,7 @@ def test_get_movie_genres_returns_validated_response(
     )
 
     try:
-        response = (
-            tmdb_client.get_movie_genres()
-        )
+        response = tmdb_client.get_movie_genres()
 
         assert len(response.genres) == 2
 
@@ -1823,10 +1785,7 @@ def test_get_movie_genres_returns_validated_response(
         assert response.genres[0].name == "Action"
 
         assert response.genres[1].id == 878
-        assert (
-            response.genres[1].name
-            == "Science Fiction"
-        )
+        assert response.genres[1].name == "Science Fiction"
 
     finally:
         tmdb_client.close()
@@ -1841,10 +1800,7 @@ def test_get_movie_genres_forwards_language(
     def handler(
         request: httpx.Request,
     ) -> httpx.Response:
-        assert (
-            request.url.params["language"]
-            == "pt-PT"
-        )
+        assert request.url.params["language"] == "pt-PT"
 
         return httpx.Response(
             status_code=200,

@@ -34,11 +34,7 @@ class InitialSetupService:
 
         normalized_username = username.strip().lower()
         normalized_display_name = display_name.strip()
-        normalized_email = (
-            email.strip().lower()
-            if email is not None and email.strip()
-            else None
-        )
+        normalized_email = email.strip().lower() if email is not None and email.strip() else None
 
         try:
             # SofaWatch currently uses SQLite.

@@ -3,9 +3,9 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from app.models.enums import LibraryStatus
 from app.models.episode_progress import EpisodeProgress
 from app.models.episode_watch_event import EpisodeWatchEvent
-from app.models.enums import LibraryStatus
 from app.repositories.episode import EpisodeRepository
 from app.repositories.episode_progress import EpisodeProgressRepository
 from app.repositories.episode_watch_event import EpisodeWatchEventRepository
@@ -51,11 +51,9 @@ class StartShowService:
         if entry is None:
             return None
 
-        first_episode_result = (
-            self._episode_repository.get_first_aired_regular_for_show(
-                show_id=show_id,
-                as_of=date.today(),
-            )
+        first_episode_result = self._episode_repository.get_first_aired_regular_for_show(
+            show_id=show_id,
+            as_of=date.today(),
         )
 
         if first_episode_result is None:

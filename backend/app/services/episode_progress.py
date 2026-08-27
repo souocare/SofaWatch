@@ -212,10 +212,7 @@ class EpisodeProgressService:
             season_id=season_id,
         )
 
-        progress_by_episode_id = {
-            progress.episode_id: progress
-            for progress in progress_entries
-        }
+        progress_by_episode_id = {progress.episode_id: progress for progress in progress_entries}
 
         for episode in episodes:
             air_date = episode.air_date
@@ -308,30 +305,19 @@ class EpisodeProgressService:
             as_of=today,
         )
 
-        watched_aired_episodes = (
-            self._progress_repository.count_watched_aired_for_season(
-                user_id=user_id,
-                season_id=season_id,
-                as_of=today,
-            )
+        watched_aired_episodes = self._progress_repository.count_watched_aired_for_season(
+            user_id=user_id,
+            season_id=season_id,
+            as_of=today,
         )
 
-        progress_percentage = (
-            watched_episodes / total_episodes * 100
-            if total_episodes > 0
-            else 0.0
-        )
+        progress_percentage = watched_episodes / total_episodes * 100 if total_episodes > 0 else 0.0
 
         aired_progress_percentage = (
-            watched_aired_episodes / aired_episodes * 100
-            if aired_episodes > 0
-            else 0.0
+            watched_aired_episodes / aired_episodes * 100 if aired_episodes > 0 else 0.0
         )
 
-        caught_up = (
-            aired_episodes > 0
-            and watched_aired_episodes == aired_episodes
-        )
+        caught_up = aired_episodes > 0 and watched_aired_episodes == aired_episodes
 
         return SeasonProgressResponse(
             season_id=season_id,
@@ -377,16 +363,11 @@ class EpisodeProgressService:
         if not progress_entries:
             return []
 
-        episode_ids = [
-            progress.episode_id
-            for progress in progress_entries
-        ]
+        episode_ids = [progress.episode_id for progress in progress_entries]
 
-        watch_counts = (
-            self._watch_event_repository.get_counts_by_user_and_episode_ids(
-                user_id=user_id,
-                episode_ids=episode_ids,
-            )
+        watch_counts = self._watch_event_repository.get_counts_by_user_and_episode_ids(
+            user_id=user_id,
+            episode_ids=episode_ids,
         )
 
         return [
@@ -435,12 +416,10 @@ class EpisodeProgressService:
             as_of=today,
         )
 
-        watched_counts = (
-            self._progress_repository.get_watched_counts_by_show_id(
-                user_id=user_id,
-                show_id=show_id,
-                as_of=today,
-            )
+        watched_counts = self._progress_repository.get_watched_counts_by_show_id(
+            user_id=user_id,
+            show_id=show_id,
+            as_of=today,
         )
 
         results: list[SeasonProgressResponse] = []
@@ -457,21 +436,14 @@ class EpisodeProgressService:
             )
 
             progress_percentage = (
-                watched_episodes / total_episodes * 100
-                if total_episodes > 0
-                else 0.0
+                watched_episodes / total_episodes * 100 if total_episodes > 0 else 0.0
             )
 
             aired_progress_percentage = (
-                watched_aired_episodes / aired_episodes * 100
-                if aired_episodes > 0
-                else 0.0
+                watched_aired_episodes / aired_episodes * 100 if aired_episodes > 0 else 0.0
             )
 
-            caught_up = (
-                aired_episodes > 0
-                and watched_aired_episodes == aired_episodes
-            )
+            caught_up = aired_episodes > 0 and watched_aired_episodes == aired_episodes
 
             results.append(
                 SeasonProgressResponse(
@@ -519,30 +491,19 @@ class EpisodeProgressService:
             as_of=today,
         )
 
-        watched_aired_episodes = (
-            self._progress_repository.count_watched_aired_for_show(
-                user_id=user_id,
-                show_id=show_id,
-                as_of=today,
-            )
+        watched_aired_episodes = self._progress_repository.count_watched_aired_for_show(
+            user_id=user_id,
+            show_id=show_id,
+            as_of=today,
         )
 
-        progress_percentage = (
-            watched_episodes / total_episodes * 100
-            if total_episodes > 0
-            else 0.0
-        )
+        progress_percentage = watched_episodes / total_episodes * 100 if total_episodes > 0 else 0.0
 
         aired_progress_percentage = (
-            watched_aired_episodes / aired_episodes * 100
-            if aired_episodes > 0
-            else 0.0
+            watched_aired_episodes / aired_episodes * 100 if aired_episodes > 0 else 0.0
         )
 
-        caught_up = (
-            aired_episodes > 0
-            and watched_aired_episodes == aired_episodes
-        )
+        caught_up = aired_episodes > 0 and watched_aired_episodes == aired_episodes
 
         return ShowProgressResponse(
             show_id=show_id,

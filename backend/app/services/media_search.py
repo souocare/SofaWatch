@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from app.core.config import Settings
 from app.providers.tmdb import TMDBClient
 from app.providers.tmdb.schemas import (
@@ -7,14 +9,13 @@ from app.providers.tmdb.schemas import (
     TMDBMultiTVSearchResult,
     TMDBTVSearchResult,
 )
+from app.repositories.library import LibraryRepository
 from app.schemas.search import (
     SearchMediaType,
     SearchMediaTypeFilter,
     SearchResponse,
     SearchResult,
 )
-from uuid import UUID
-from app.repositories.library import LibraryRepository
 
 
 class MediaSearchService:
@@ -220,7 +221,6 @@ class MediaSearchService:
 
         return f"{base_url}/{size}{image_path}"
 
-
     def _enrich_library_state(
         self,
         *,
@@ -241,18 +241,14 @@ class MediaSearchService:
             if result.media_type is SearchMediaType.MOVIE
         }
 
-        library_show_tmdb_ids = (
-            self._library_repository.get_show_tmdb_ids_in_library(
-                user_id=user_id,
-                tmdb_ids=show_tmdb_ids,
-            )
+        library_show_tmdb_ids = self._library_repository.get_show_tmdb_ids_in_library(
+            user_id=user_id,
+            tmdb_ids=show_tmdb_ids,
         )
 
-        library_movie_tmdb_ids = (
-            self._library_repository.get_movie_tmdb_ids_in_library(
-                user_id=user_id,
-                tmdb_ids=movie_tmdb_ids,
-            )
+        library_movie_tmdb_ids = self._library_repository.get_movie_tmdb_ids_in_library(
+            user_id=user_id,
+            tmdb_ids=movie_tmdb_ids,
         )
 
         enriched_results = [

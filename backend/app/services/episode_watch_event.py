@@ -47,12 +47,10 @@ class EpisodeWatchEventService:
         or belongs to another Episode.
         """
 
-        event = (
-            self._watch_event_repository.get_by_id_for_user_and_episode(
-                event_id=event_id,
-                user_id=user_id,
-                episode_id=episode_id,
-            )
+        event = self._watch_event_repository.get_by_id_for_user_and_episode(
+            event_id=event_id,
+            user_id=user_id,
+            episode_id=episode_id,
         )
 
         if event is None:
@@ -66,11 +64,9 @@ class EpisodeWatchEventService:
         # selecting the latest remaining event.
         self._session.flush()
 
-        latest_event = (
-            self._watch_event_repository.get_latest_for_user_and_episode(
-                user_id=user_id,
-                episode_id=episode_id,
-            )
+        latest_event = self._watch_event_repository.get_latest_for_user_and_episode(
+            user_id=user_id,
+            episode_id=episode_id,
         )
 
         progress = self._progress_repository.get_by_user_and_episode(
@@ -90,7 +86,6 @@ class EpisodeWatchEventService:
 
         return True
 
-
     def delete_all(
         self,
         *,
@@ -105,11 +100,9 @@ class EpisodeWatchEventService:
         Returns the number of deleted watch events.
         """
 
-        deleted_count = (
-            self._watch_event_repository.delete_all_for_user_and_episode(
-                user_id=user_id,
-                episode_id=episode_id,
-            )
+        deleted_count = self._watch_event_repository.delete_all_for_user_and_episode(
+            user_id=user_id,
+            episode_id=episode_id,
         )
 
         progress = self._progress_repository.get_by_user_and_episode(

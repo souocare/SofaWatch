@@ -2,7 +2,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Query, status
 
-from app.api.dependencies import get_movie_details_service
+from app.api.dependencies import (
+    get_movie_details_service,
+    get_movie_import_service,
+)
 from app.core.exceptions import APIError
 from app.providers.tmdb.exceptions import (
     TMDBConfigurationError,
@@ -10,14 +13,10 @@ from app.providers.tmdb.exceptions import (
     TMDBRequestError,
     TMDBResponseError,
 )
-from app.schemas.tmdb_movie import MovieDetailsResponse
-from app.services.tmdb_movie_details import TMDBMovieDetailsService
-from app.api.dependencies import (
-    get_movie_details_service,
-    get_movie_import_service,
-)
 from app.schemas.movie import MovieResponse
+from app.schemas.tmdb_movie import MovieDetailsResponse
 from app.services.movie_import import MovieImportService
+from app.services.tmdb_movie_details import TMDBMovieDetailsService
 
 router = APIRouter(
     prefix="/movies",
@@ -96,8 +95,7 @@ def get_movie_details(
     response_model=MovieResponse,
     summary="Import movie",
     description=(
-        "Ensure a movie from TMDB exists in the local database "
-        "and return the locally stored movie."
+        "Ensure a movie from TMDB exists in the local database and return the locally stored movie."
     ),
     status_code=status.HTTP_200_OK,
 )
@@ -119,9 +117,7 @@ def import_movie(
         Query(
             min_length=2,
             max_length=10,
-            description=(
-                "Language used when importing TMDB metadata."
-            ),
+            description=("Language used when importing TMDB metadata."),
             examples=[
                 "en-US",
                 "pt-PT",

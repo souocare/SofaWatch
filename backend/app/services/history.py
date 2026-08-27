@@ -23,7 +23,6 @@ from app.services.history_cursor import (
     HistoryCursorCodec,
 )
 
-
 _HISTORY_MEDIA_RANK = {
     "episode": 0,
     "movie": 1,
@@ -50,29 +49,19 @@ class HistoryService:
     ) -> HistoryPreviewResponse:
         """Return compact recent Episode and Movie History collections."""
 
-        episode_page = (
-            self._episode_watch_event_repository.list_watch_history(
-                user_id=user_id,
-                limit=limit,
-            )
+        episode_page = self._episode_watch_event_repository.list_watch_history(
+            user_id=user_id,
+            limit=limit,
         )
 
-        movie_page = (
-            self._movie_watch_event_repository.list_watch_history(
-                user_id=user_id,
-                limit=limit,
-            )
+        movie_page = self._movie_watch_event_repository.list_watch_history(
+            user_id=user_id,
+            limit=limit,
         )
 
         return HistoryPreviewResponse(
-            episodes=[
-                self._build_episode_item(item)
-                for item in episode_page.items
-            ],
-            movies=[
-                self._build_movie_item(item)
-                for item in movie_page.items
-            ],
+            episodes=[self._build_episode_item(item) for item in episode_page.items],
+            movies=[self._build_movie_item(item) for item in movie_page.items],
         )
 
     def list_for_user(
@@ -91,11 +80,7 @@ class HistoryService:
                 has_more=False,
             )
 
-        decoded_cursor = (
-            HistoryCursorCodec.decode(cursor)
-            if cursor is not None
-            else None
-        )
+        decoded_cursor = HistoryCursorCodec.decode(cursor) if cursor is not None else None
 
         # /*
         #  * Each source contributes at most ``limit + 1`` candidates.
@@ -117,17 +102,9 @@ class HistoryService:
             cursor=decoded_cursor,
         )
 
-        combined: list[
-            HistoryEpisodeItemResponse | HistoryMovieItemResponse
-        ] = [
-            *[
-                self._build_episode_item(item)
-                for item in episode_page.items
-            ],
-            *[
-                self._build_movie_item(item)
-                for item in movie_page.items
-            ],
+        combined: list[HistoryEpisodeItemResponse | HistoryMovieItemResponse] = [
+            *[self._build_episode_item(item) for item in episode_page.items],
+            *[self._build_movie_item(item) for item in movie_page.items],
         ]
 
         # /*
@@ -153,11 +130,7 @@ class HistoryService:
             reverse=True,
         )
 
-        has_more = (
-            len(combined) > limit
-            or episode_page.has_more
-            or movie_page.has_more
-        )
+        has_more = len(combined) > limit or episode_page.has_more or movie_page.has_more
 
         page_items = combined[:limit]
 
@@ -213,14 +186,11 @@ class HistoryService:
         #  * Therefore, after a Movie cursor, Episodes occurring at exactly the
         #  * same timestamp still belong to the following combined page.
         #  */
-        return (
-            self._episode_watch_event_repository
-            .list_watch_history_before_timestamp(
-                user_id=user_id,
-                limit=limit,
-                watched_at=cursor.watched_at,
-                inclusive=True,
-            )
+        return self._episode_watch_event_repository.list_watch_history_before_timestamp(
+            user_id=user_id,
+            limit=limit,
+            watched_at=cursor.watched_at,
+            inclusive=True,
         )
 
     def _load_movie_candidates(
@@ -256,14 +226,11 @@ class HistoryService:
         #  * Therefore, after an Episode cursor, Movies from the same timestamp
         #  * were already before the cursor and must not be returned again.
         #  */
-        return (
-            self._movie_watch_event_repository
-            .list_watch_history_before_timestamp(
-                user_id=user_id,
-                limit=limit,
-                watched_at=cursor.watched_at,
-                inclusive=False,
-            )
+        return self._movie_watch_event_repository.list_watch_history_before_timestamp(
+            user_id=user_id,
+            limit=limit,
+            watched_at=cursor.watched_at,
+            inclusive=False,
         )
 
     @staticmethod

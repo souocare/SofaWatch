@@ -12,7 +12,6 @@ from app.core.exceptions import APIError
 from app.core.security.tokens import AccessTokenService
 from app.models.auth_session import AuthSessionType
 
-
 _TEST_SECRET = "test-secret-key-that-is-at-least-32-characters-long"
 
 
@@ -356,9 +355,7 @@ def test_get_current_user_rejects_invalid_web_session() -> None:
 
     assert error.status_code == 401
     assert error.code == "invalid_session"
-    assert error.message == (
-        "The authentication session is invalid or expired."
-    )
+    assert error.message == ("The authentication session is invalid or expired.")
 
     auth_session_service.resolve.assert_called_once_with(
         "invalid-session",
@@ -395,9 +392,7 @@ def test_get_current_user_rejects_mobile_session_as_web_cookie() -> None:
 
     assert error.status_code == 401
     assert error.code == "invalid_session"
-    assert error.message == (
-        "The authentication session is invalid or expired."
-    )
+    assert error.message == ("The authentication session is invalid or expired.")
 
     auth_session_service.resolve.assert_called_once_with(
         "mobile-session",
@@ -435,9 +430,7 @@ def test_get_current_user_rejects_unknown_web_session_user() -> None:
 
     assert error.status_code == 401
     assert error.code == "invalid_session"
-    assert error.message == (
-        "The authentication session is invalid or expired."
-    )
+    assert error.message == ("The authentication session is invalid or expired.")
 
     user_service.get_by_id.assert_called_once_with(
         user_id,
@@ -475,9 +468,7 @@ def test_get_current_user_rejects_inactive_web_session_user() -> None:
 
     assert error.status_code == 401
     assert error.code == "invalid_session"
-    assert error.message == (
-        "The authentication session is invalid or expired."
-    )
+    assert error.message == ("The authentication session is invalid or expired.")
 
     user_service.get_by_id.assert_called_once_with(
         user.id,

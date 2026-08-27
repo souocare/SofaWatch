@@ -114,6 +114,7 @@ def test_regular_user_cannot_access_security_settings(
         }
     }
 
+
 def test_regular_user_cannot_change_security_settings(
     client: TestClient,
 ) -> None:
@@ -132,6 +133,7 @@ def test_regular_user_cannot_change_security_settings(
             "message": "Administrator access is required.",
         }
     }
+
 
 def test_disabling_open_registration_blocks_new_registrations(
     client: TestClient,

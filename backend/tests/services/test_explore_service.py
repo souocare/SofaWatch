@@ -1,11 +1,14 @@
 from datetime import date
 from unittest.mock import Mock
+from uuid import uuid4
 
 import pytest
 
 from app.core.config import Settings
 from app.providers.tmdb import TMDBClient
 from app.providers.tmdb.schemas import (
+    TMDBGenre,
+    TMDBGenreListResponse,
     TMDBMovieSearchResponse,
     TMDBMovieSearchResult,
     TMDBMultiMovieSearchResult,
@@ -15,17 +18,12 @@ from app.providers.tmdb.schemas import (
     TMDBTVSearchResponse,
     TMDBTVSearchResult,
 )
+from app.repositories.library import LibraryRepository
 from app.schemas.explore import ExploreMediaType, ExploreTrendingWindow
 from app.services.explore import ExploreService
-from app.providers.tmdb.schemas import (
-    TMDBGenre,
-    TMDBGenreListResponse,
-)
-from uuid import uuid4
-
-from app.repositories.library import LibraryRepository
 
 USER_ID = uuid4()
+
 
 @pytest.fixture
 def settings() -> Settings:
@@ -69,50 +67,48 @@ def test_get_trending_preserves_mixed_media_order_and_filters_people(
 ) -> None:
     """Preserve provider ranking while excluding people."""
 
-    tmdb_client.get_trending_all.return_value = (
-        TMDBMultiSearchResponse(
-            page=1,
-            results=[
-                TMDBMultiMovieSearchResult(
-                    id=438631,
-                    media_type="movie",
-                    title="Dune",
-                    original_title="Dune",
-                    overview="",
-                    release_date=date(2021, 9, 15),
-                    poster_path=None,
-                    backdrop_path=None,
-                    original_language="en",
-                    genre_ids=[878],
-                    popularity=95.4,
-                    vote_average=7.8,
-                    vote_count=13000,
-                ),
-                TMDBMultiPersonSearchResult(
-                    id=1,
-                    media_type="person",
-                    name="Someone",
-                    popularity=90,
-                ),
-                TMDBMultiTVSearchResult(
-                    id=95396,
-                    media_type="tv",
-                    name="Severance",
-                    original_name="Severance",
-                    overview="",
-                    first_air_date=date(2022, 2, 17),
-                    poster_path=None,
-                    backdrop_path=None,
-                    original_language="en",
-                    genre_ids=[18],
-                    popularity=120,
-                    vote_average=8.4,
-                    vote_count=2100,
-                ),
-            ],
-            total_pages=1,
-            total_results=3,
-        )
+    tmdb_client.get_trending_all.return_value = TMDBMultiSearchResponse(
+        page=1,
+        results=[
+            TMDBMultiMovieSearchResult(
+                id=438631,
+                media_type="movie",
+                title="Dune",
+                original_title="Dune",
+                overview="",
+                release_date=date(2021, 9, 15),
+                poster_path=None,
+                backdrop_path=None,
+                original_language="en",
+                genre_ids=[878],
+                popularity=95.4,
+                vote_average=7.8,
+                vote_count=13000,
+            ),
+            TMDBMultiPersonSearchResult(
+                id=1,
+                media_type="person",
+                name="Someone",
+                popularity=90,
+            ),
+            TMDBMultiTVSearchResult(
+                id=95396,
+                media_type="tv",
+                name="Severance",
+                original_name="Severance",
+                overview="",
+                first_air_date=date(2022, 2, 17),
+                poster_path=None,
+                backdrop_path=None,
+                original_language="en",
+                genre_ids=[18],
+                popularity=120,
+                vote_average=8.4,
+                vote_count=2100,
+            ),
+        ],
+        total_pages=1,
+        total_results=3,
     )
 
     result = service.get_trending(
@@ -122,15 +118,11 @@ def test_get_trending_preserves_mixed_media_order_and_filters_people(
 
     assert len(result.items) == 2
 
-    assert result.items[0].media_type is (
-        ExploreMediaType.MOVIE
-    )
+    assert result.items[0].media_type is (ExploreMediaType.MOVIE)
 
     assert result.items[0].title == "Dune"
 
-    assert result.items[1].media_type is (
-        ExploreMediaType.SHOW
-    )
+    assert result.items[1].media_type is (ExploreMediaType.SHOW)
 
     assert result.items[1].title == "Severance"
 
@@ -146,29 +138,27 @@ def test_get_trending_preserves_missing_images(
 ) -> None:
     """Keep missing provider artwork as null."""
 
-    tmdb_client.get_trending_all.return_value = (
-        TMDBMultiSearchResponse(
-            page=1,
-            results=[
-                TMDBMultiTVSearchResult(
-                    id=95396,
-                    media_type="tv",
-                    name="Severance",
-                    original_name="Severance",
-                    overview="",
-                    first_air_date=None,
-                    poster_path=None,
-                    backdrop_path=None,
-                    original_language="en",
-                    genre_ids=[],
-                    popularity=0,
-                    vote_average=0,
-                    vote_count=0,
-                ),
-            ],
-            total_pages=1,
-            total_results=1,
-        )
+    tmdb_client.get_trending_all.return_value = TMDBMultiSearchResponse(
+        page=1,
+        results=[
+            TMDBMultiTVSearchResult(
+                id=95396,
+                media_type="tv",
+                name="Severance",
+                original_name="Severance",
+                overview="",
+                first_air_date=None,
+                poster_path=None,
+                backdrop_path=None,
+                original_language="en",
+                genre_ids=[],
+                popularity=0,
+                vote_average=0,
+                vote_count=0,
+            ),
+        ],
+        total_pages=1,
+        total_results=1,
     )
 
     result = service.get_trending(
@@ -204,30 +194,27 @@ def test_get_trending_supports_trailing_image_base_slash(
         library_repository=library_repository,
     )
 
-
-    tmdb_client.get_trending_all.return_value = (
-        TMDBMultiSearchResponse(
-            page=1,
-            results=[
-                TMDBMultiTVSearchResult(
-                    id=95396,
-                    media_type="tv",
-                    name="Severance",
-                    original_name="Severance",
-                    overview="",
-                    first_air_date=None,
-                    poster_path="/poster.jpg",
-                    backdrop_path="/backdrop.jpg",
-                    original_language="en",
-                    genre_ids=[],
-                    popularity=0,
-                    vote_average=0,
-                    vote_count=0,
-                ),
-            ],
-            total_pages=1,
-            total_results=1,
-        )
+    tmdb_client.get_trending_all.return_value = TMDBMultiSearchResponse(
+        page=1,
+        results=[
+            TMDBMultiTVSearchResult(
+                id=95396,
+                media_type="tv",
+                name="Severance",
+                original_name="Severance",
+                overview="",
+                first_air_date=None,
+                poster_path="/poster.jpg",
+                backdrop_path="/backdrop.jpg",
+                original_language="en",
+                genre_ids=[],
+                popularity=0,
+                vote_average=0,
+                vote_count=0,
+            ),
+        ],
+        total_pages=1,
+        total_results=1,
     )
 
     result = service.get_trending(
@@ -239,49 +226,44 @@ def test_get_trending_supports_trailing_image_base_slash(
 
     item = result.items[0]
 
-    assert (
-        item.poster_url
-        == "https://image.tmdb.org/t/p/w500/poster.jpg"
-    )
+    assert item.poster_url == "https://image.tmdb.org/t/p/w500/poster.jpg"
 
-    assert (
-        item.backdrop_url
-        == "https://image.tmdb.org/t/p/original/backdrop.jpg"
-    )
+    assert item.backdrop_url == "https://image.tmdb.org/t/p/original/backdrop.jpg"
+
 
 def test_get_popular_shows_maps_tmdb_results(
     service: ExploreService,
     tmdb_client: Mock,
 ) -> None:
-    tmdb_client.get_popular_tv_shows.return_value = (
-        TMDBTVSearchResponse(
-            page=1,
-            results=[
-                TMDBTVSearchResult(
-                    id=95396,
-                    name="Severance",
-                    original_name="Severance",
-                    overview="",
-                    first_air_date=date(
-                        2022,
-                        2,
-                        17,
-                    ),
-                    poster_path="/poster.jpg",
-                    backdrop_path="/backdrop.jpg",
-                    original_language="en",
-                    genre_ids=[18],
-                    popularity=120,
-                    vote_average=8.4,
-                    vote_count=2100,
+    tmdb_client.get_popular_tv_shows.return_value = TMDBTVSearchResponse(
+        page=1,
+        results=[
+            TMDBTVSearchResult(
+                id=95396,
+                name="Severance",
+                original_name="Severance",
+                overview="",
+                first_air_date=date(
+                    2022,
+                    2,
+                    17,
                 ),
-            ],
-            total_pages=1,
-            total_results=1,
-        )
+                poster_path="/poster.jpg",
+                backdrop_path="/backdrop.jpg",
+                original_language="en",
+                genre_ids=[18],
+                popularity=120,
+                vote_average=8.4,
+                vote_count=2100,
+            ),
+        ],
+        total_pages=1,
+        total_results=1,
     )
 
-    result = service.get_popular_shows(user_id=USER_ID,)
+    result = service.get_popular_shows(
+        user_id=USER_ID,
+    )
 
     assert len(result.items) == 1
 
@@ -300,48 +282,44 @@ def test_get_popular_shows_maps_tmdb_results(
         language=None,
     )
 
+
 def test_get_popular_movies_maps_tmdb_movies(
     service: ExploreService,
     tmdb_client: Mock,
 ) -> None:
     """Map popular TMDB Movies into Explore items."""
 
-    tmdb_client.get_popular_movies.return_value = (
-        TMDBMovieSearchResponse(
-            page=1,
-            results=[
-                TMDBMovieSearchResult(
-                    id=438631,
-                    title="Dune",
-                    original_title="Dune",
-                    overview=(
-                        "Paul Atreides travels "
-                        "to Arrakis."
-                    ),
-                    release_date=date(
-                        2021,
-                        9,
-                        15,
-                    ),
-                    poster_path="/dune.jpg",
-                    backdrop_path=(
-                        "/dune-backdrop.jpg"
-                    ),
-                    original_language="en",
-                    genre_ids=[878, 12],
-                    popularity=95.4,
-                    vote_average=7.8,
-                    vote_count=13000,
-                    adult=False,
-                    video=False,
+    tmdb_client.get_popular_movies.return_value = TMDBMovieSearchResponse(
+        page=1,
+        results=[
+            TMDBMovieSearchResult(
+                id=438631,
+                title="Dune",
+                original_title="Dune",
+                overview=("Paul Atreides travels to Arrakis."),
+                release_date=date(
+                    2021,
+                    9,
+                    15,
                 ),
-            ],
-            total_pages=1,
-            total_results=1,
-        )
+                poster_path="/dune.jpg",
+                backdrop_path=("/dune-backdrop.jpg"),
+                original_language="en",
+                genre_ids=[878, 12],
+                popularity=95.4,
+                vote_average=7.8,
+                vote_count=13000,
+                adult=False,
+                video=False,
+            ),
+        ],
+        total_pages=1,
+        total_results=1,
     )
 
-    result = service.get_popular_movies(user_id=USER_ID,)
+    result = service.get_popular_movies(
+        user_id=USER_ID,
+    )
 
     assert len(result.items) == 1
 
@@ -355,70 +333,55 @@ def test_get_popular_movies_maps_tmdb_movies(
         language=None,
     )
 
+
 def test_get_genres_returns_independent_show_and_movie_genres(
     service: ExploreService,
     tmdb_client: Mock,
 ) -> None:
-    tmdb_client.get_tv_genres.return_value = (
-        TMDBGenreListResponse(
-            genres=[
-                TMDBGenre(
-                    id=18,
-                    name="Drama",
-                ),
-                TMDBGenre(
-                    id=35,
-                    name="Comedy",
-                ),
-            ],
-        )
+    tmdb_client.get_tv_genres.return_value = TMDBGenreListResponse(
+        genres=[
+            TMDBGenre(
+                id=18,
+                name="Drama",
+            ),
+            TMDBGenre(
+                id=35,
+                name="Comedy",
+            ),
+        ],
     )
 
-    tmdb_client.get_movie_genres.return_value = (
-        TMDBGenreListResponse(
-            genres=[
-                TMDBGenre(
-                    id=28,
-                    name="Action",
-                ),
-                TMDBGenre(
-                    id=878,
-                    name="Science Fiction",
-                ),
-            ],
-        )
+    tmdb_client.get_movie_genres.return_value = TMDBGenreListResponse(
+        genres=[
+            TMDBGenre(
+                id=28,
+                name="Action",
+            ),
+            TMDBGenre(
+                id=878,
+                name="Science Fiction",
+            ),
+        ],
     )
 
     result = service.get_genres()
 
-    assert [
-        genre.id
-        for genre in result.shows
-    ] == [
+    assert [genre.id for genre in result.shows] == [
         18,
         35,
     ]
 
-    assert [
-        genre.name
-        for genre in result.shows
-    ] == [
+    assert [genre.name for genre in result.shows] == [
         "Drama",
         "Comedy",
     ]
 
-    assert [
-        genre.id
-        for genre in result.movies
-    ] == [
+    assert [genre.id for genre in result.movies] == [
         28,
         878,
     ]
 
-    assert [
-        genre.name
-        for genre in result.movies
-    ] == [
+    assert [genre.name for genre in result.movies] == [
         "Action",
         "Science Fiction",
     ]
@@ -428,16 +391,12 @@ def test_get_genres_forwards_language(
     service: ExploreService,
     tmdb_client: Mock,
 ) -> None:
-    tmdb_client.get_tv_genres.return_value = (
-        TMDBGenreListResponse(
-            genres=[],
-        )
+    tmdb_client.get_tv_genres.return_value = TMDBGenreListResponse(
+        genres=[],
     )
 
-    tmdb_client.get_movie_genres.return_value = (
-        TMDBGenreListResponse(
-            genres=[],
-        )
+    tmdb_client.get_movie_genres.return_value = TMDBGenreListResponse(
+        genres=[],
     )
 
     service.get_genres(

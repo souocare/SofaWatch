@@ -43,11 +43,9 @@ class HaventStartedService:
             if show_id is None or show is None:
                 continue
 
-            first_episode_result = (
-                self._episode_repository.get_first_aired_regular_for_show(
-                    show_id=show_id,
-                    as_of=today,
-                )
+            first_episode_result = self._episode_repository.get_first_aired_regular_for_show(
+                show_id=show_id,
+                as_of=today,
             )
 
             if first_episode_result is None:

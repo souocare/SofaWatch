@@ -42,8 +42,6 @@ class ExploreMediaItem(BaseModel):
     )
 
 
-
-
 class ExploreTrendingWindow(StrEnum):
     """Supported TMDB trending time windows."""
 
@@ -58,12 +56,14 @@ class ExploreTrendingResponse(BaseModel):
         default_factory=list,
     )
 
+
 class ExploreMediaCollection(BaseModel):
     """A collection of media items exposed by Explore."""
 
     items: list[ExploreMediaItem] = Field(
         default_factory=list,
     )
+
 
 class ExploreGenre(BaseModel):
     """Genre available as an Explore filter."""
@@ -82,6 +82,7 @@ class ExploreGenresResponse(BaseModel):
     movies: list[ExploreGenre] = Field(
         default_factory=list,
     )
+
 
 class ExploreGenreOptions(BaseModel):
     shows: list[ExploreGenre] = Field(

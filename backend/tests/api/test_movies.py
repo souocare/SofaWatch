@@ -32,9 +32,7 @@ def override_movie_import_service(
 ) -> None:
     """Override the Movie import dependency for API tests."""
 
-    app.dependency_overrides[
-        get_movie_import_service
-    ] = lambda: movie_import_service
+    app.dependency_overrides[get_movie_import_service] = lambda: movie_import_service
 
     yield
 
@@ -161,9 +159,7 @@ def test_import_movie_maps_tmdb_not_found(
 ) -> None:
     """Map a missing TMDB Movie to the public API error contract."""
 
-    movie_import_service.import_movie.side_effect = (
-        TMDBNotFoundError("Movie not found.")
-    )
+    movie_import_service.import_movie.side_effect = TMDBNotFoundError("Movie not found.")
 
     response = client.post(
         "/api/v1/movies/import/tmdb/438631",
@@ -185,10 +181,8 @@ def test_import_movie_maps_tmdb_configuration_error(
 ) -> None:
     """Hide TMDB configuration details from API consumers."""
 
-    movie_import_service.import_movie.side_effect = (
-        TMDBConfigurationError(
-            "Secret TMDB configuration details."
-        )
+    movie_import_service.import_movie.side_effect = TMDBConfigurationError(
+        "Secret TMDB configuration details."
     )
 
     response = client.post(
@@ -213,10 +207,8 @@ def test_import_movie_maps_tmdb_request_error(
 ) -> None:
     """Map an unavailable TMDB provider to a safe API response."""
 
-    movie_import_service.import_movie.side_effect = (
-        TMDBRequestError(
-            "Upstream timeout with technical information."
-        )
+    movie_import_service.import_movie.side_effect = TMDBRequestError(
+        "Upstream timeout with technical information."
     )
 
     response = client.post(
@@ -241,10 +233,8 @@ def test_import_movie_maps_invalid_tmdb_response(
 ) -> None:
     """Map an invalid provider response without exposing details."""
 
-    movie_import_service.import_movie.side_effect = (
-        TMDBResponseError(
-            "Unexpected TMDB payload structure."
-        )
+    movie_import_service.import_movie.side_effect = TMDBResponseError(
+        "Unexpected TMDB payload structure."
     )
 
     response = client.post(

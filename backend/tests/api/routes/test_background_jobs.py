@@ -1,18 +1,16 @@
 from datetime import UTC, datetime
+from unittest.mock import patch
 
 import pytest
-from unittest.mock import patch
-from app.repositories.background_job import BackgroundJobRepository
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-
 
 from app.jobs.registry import BACKGROUND_JOBS
 from app.models.background_job import BackgroundJob
 from app.models.background_job_run import BackgroundJobRun
 from app.models.enums import BackgroundJobStatus
 from app.models.user import User
-
+from app.repositories.background_job import BackgroundJobRepository
 
 
 def create_local_user(
@@ -126,11 +124,7 @@ def test_list_background_jobs_returns_registered_jobs(
 
     assert len(body) == len(BACKGROUND_JOBS)
 
-    metadata_sync = next(
-        item
-        for item in body
-        if item["key"] == "metadata_sync"
-    )
+    metadata_sync = next(item for item in body if item["key"] == "metadata_sync")
 
     assert metadata_sync["name"] == "Metadata sync"
     assert metadata_sync["schedule"] == "Every 8h"
@@ -176,11 +170,7 @@ def test_list_background_jobs_returns_persisted_state(
 
     assert response.status_code == 200
 
-    metadata_sync = next(
-        item
-        for item in response.json()
-        if item["key"] == "metadata_sync"
-    )
+    metadata_sync = next(item for item in response.json() if item["key"] == "metadata_sync")
 
     assert metadata_sync["status"] == "success"
     assert metadata_sync["last_duration_ms"] == 125
@@ -248,10 +238,7 @@ def test_list_background_job_runs_returns_history(
 
     assert len(body) == 2
 
-    returned_ids = {
-        item["id"]
-        for item in body
-    }
+    returned_ids = {item["id"] for item in body}
 
     assert returned_ids == {
         str(first_run.id),
@@ -435,6 +422,7 @@ def test_run_background_job_now_returns_409_when_job_is_running(
         }
     }
 
+
 def test_list_background_jobs_returns_last_result_from_failed_run(
     client: TestClient,
     db_session: Session,
@@ -469,11 +457,7 @@ def test_list_background_jobs_returns_last_result_from_failed_run(
 
     assert response.status_code == 200
 
-    metadata_sync = next(
-        item
-        for item in response.json()
-        if item["key"] == "metadata_sync"
-    )
+    metadata_sync = next(item for item in response.json() if item["key"] == "metadata_sync")
 
     assert metadata_sync["status"] == "failed"
 
@@ -515,11 +499,7 @@ def test_list_background_jobs_ignores_unsupported_last_result(
 
     assert response.status_code == 200
 
-    metadata_sync = next(
-        item
-        for item in response.json()
-        if item["key"] == "metadata_sync"
-    )
+    metadata_sync = next(item for item in response.json() if item["key"] == "metadata_sync")
 
     assert metadata_sync["last_result"] is None
 
@@ -554,6 +534,7 @@ def test_run_background_job_now_accepts_manual_execution(
     runner.assert_called_once_with(
         "metadata_sync",
     )
+
 
 def test_run_background_job_now_persists_running_state(
     client: TestClient,

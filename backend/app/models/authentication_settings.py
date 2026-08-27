@@ -26,8 +26,5 @@ class AuthenticationSettings(TimestampMixin, Base):
 
     def __repr__(self) -> str:
         return (
-            "AuthenticationSettings("
-            f"id={self.id!r}, "
-            f"open_registration={self.open_registration!r}"
-            ")"
+            f"AuthenticationSettings(id={self.id!r}, open_registration={self.open_registration!r})"
         )

@@ -2,24 +2,23 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Path, status
-from app.core.exceptions import APIError
 
 from app.api.dependencies import (
     CurrentUserDependency,
+    EpisodeDetailsServiceDependency,
     EpisodeProgressServiceDependency,
     EpisodeServiceDependency,
     EpisodeWatchEventServiceDependency,
-    EpisodeDetailsServiceDependency,
 )
+from app.core.exceptions import APIError
 from app.schemas.episode import EpisodeResponse
-from app.schemas.episode_watch_event import EpisodeWatchEventResponse
+from app.schemas.episode_details import EpisodeDetailsResponse
 from app.schemas.episode_progress import (
     EpisodeProgressResponse,
     EpisodeWatchedRequest,
 )
+from app.schemas.episode_watch_event import EpisodeWatchEventResponse
 from app.services.episode_progress import EpisodeNotWatchableError
-from app.schemas.episode_details import EpisodeDetailsResponse
-
 
 router = APIRouter(
     prefix="/episodes",
@@ -56,7 +55,6 @@ def get_episode(
         )
 
     return episode
-
 
 
 @router.get(
@@ -169,6 +167,7 @@ def mark_episode_unwatched(
 
     return progress
 
+
 @router.get(
     "/{episode_id}/watch-events",
     response_model=list[EpisodeWatchEventResponse],
@@ -195,6 +194,7 @@ def list_episode_watch_events(
         episode_id=episode_id,
     )
 
+
 @router.delete(
     "/{episode_id}/watch-events",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -220,6 +220,7 @@ def delete_all_episode_watch_events(
         user_id=current_user.id,
         episode_id=episode_id,
     )
+
 
 @router.delete(
     "/{episode_id}/watch-events/{event_id}",

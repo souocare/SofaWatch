@@ -1,15 +1,16 @@
 from collections.abc import Generator
 from typing import Annotated
 
-from app.repositories.genre_provider_mapping import GenreProviderMappingRepository
-from app.services.genre_mapping import GenreMappingService
 from fastapi import Depends, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from app.core.exceptions import APIError
 
 from app.core.config import Settings, get_settings
+from app.core.exceptions import APIError
+from app.core.security.tokens import AccessTokenService, InvalidAccessTokenError
+from app.core.storage import ImageStorage
 from app.db.dependencies import DatabaseSession
 from app.jobs.executor import BackgroundJobExecutor
+from app.models.auth_session import AuthSessionType
 from app.models.user import User
 from app.providers.tmdb import TMDBClient
 from app.repositories import (
@@ -17,16 +18,21 @@ from app.repositories import (
     EpisodeRepository,
     GenreRepository,
     LibraryRepository,
+    MovieRepository,
     SeasonRepository,
     ShowRepository,
     UserRepository,
-    MovieRepository,
 )
+from app.repositories.auth_handoff import AuthHandoffRepository
+from app.repositories.auth_session import AuthSessionRepository
 from app.repositories.authentication_settings import (
     AuthenticationSettingsRepository,
 )
 from app.repositories.background_job import BackgroundJobRepository
+from app.repositories.episode_watch_event import EpisodeWatchEventRepository
+from app.repositories.movie_watch_event import MovieWatchEventRepository
 from app.repositories.network import NetworkRepository
+from app.repositories.password_reset_token import PasswordResetTokenRepository
 from app.services import (
     EpisodeProgressService,
     EpisodeService,
@@ -35,70 +41,41 @@ from app.services import (
     SeasonService,
     UserService,
 )
-from app.services.authentication_settings import (
-    AuthenticationSettingsService,
-)
+from app.services.auth_handoff import AuthHandoffService
+from app.services.auth_session import AuthSessionService
+from app.services.authentication import AuthenticationService
+from app.services.authentication_settings import AuthenticationSettingsService
+from app.services.data_export import DataExportService
+from app.services.data_import import DataImportService
+from app.services.episode_details import EpisodeDetailsService
+from app.services.episode_watch_event import EpisodeWatchEventService
+from app.services.explore import ExploreService
+from app.services.havent_started import HaventStartedService
+from app.services.history import HistoryService
+from app.services.image import ImageService
+from app.services.image_cache import ImageCacheService
+from app.services.initial_setup import InitialSetupService
+from app.services.media_search import MediaSearchService
+from app.services.missed_recently import MissedRecentlyService
+from app.services.movie_import import MovieImportService
+from app.services.movie_watch_event import MovieWatchEventService
+from app.services.password_recovery import PasswordRecoveryService
+from app.services.password_reset_token import PasswordResetTokenService
+from app.services.registration import RegistrationService
+from app.services.season_episode_sync import SeasonEpisodeSyncService
+from app.services.server_health import ServerHealthService
+from app.services.server_logs import ServerLogsService
 from app.services.show_import import ShowImportService
+from app.services.stale_watching import StaleWatchingService
+from app.services.start_show import StartShowService
+from app.services.statistics import StatisticsService
+from app.services.tmdb_movie_details import TMDBMovieDetailsService
 from app.services.tmdb_season_details import TMDBSeasonDetailsService
 from app.services.tmdb_show_details import TMDBShowDetailsService
 from app.services.tmdb_show_search import ShowSearchService
-from app.services.tmdb_movie_details import TMDBMovieDetailsService
-from app.services.media_search import MediaSearchService
-from app.core.storage import ImageStorage
-from app.services.image import ImageService
-from app.services.image_cache import ImageCacheService
-from app.repositories.movie import MovieRepository
-from app.services.movie_import import MovieImportService
-from app.services.tmdb_movie_details import (
-    TMDBMovieDetailsService,
-)
-from app.services.explore import ExploreService
-from app.services.season_episode_sync import SeasonEpisodeSyncService
-from app.services.watch_next import WatchNextService
-from app.services.stale_watching import StaleWatchingService
-from app.services.watch_history import WatchHistoryService
-from app.services.start_show import StartShowService
-from app.repositories.episode_watch_event import EpisodeWatchEventRepository
-from app.services.episode_watch_event import EpisodeWatchEventService
-from app.services.havent_started import HaventStartedService
 from app.services.upcoming import UpcomingService
-from app.services.episode_details import EpisodeDetailsService
-from app.repositories.movie_watch_event import MovieWatchEventRepository
-from app.services.movie_watch_event import MovieWatchEventService
-from app.services.statistics import StatisticsService
-from app.services.missed_recently import MissedRecentlyService
-from app.services.history import HistoryService
-from app.services.server_health import ServerHealthService
-from app.services.server_logs import ServerLogsService
-from app.services.data_export import DataExportService
-from app.services.data_import import DataImportService
-from app.core.security.tokens import (
-    AccessTokenService,
-    InvalidAccessTokenError,
-)
-from app.services.authentication import AuthenticationService
-from app.services.initial_setup import InitialSetupService
-from app.repositories.auth_session import AuthSessionRepository
-from app.services.auth_session import AuthSessionService
-from app.models.auth_session import AuthSessionType
-from app.repositories.auth_handoff import AuthHandoffRepository
-from app.services.auth_handoff import AuthHandoffService
-from app.repositories.authentication_settings import (
-    AuthenticationSettingsRepository,
-)
-from app.services.authentication_settings import (
-    AuthenticationSettingsService,
-)
-from app.services.registration import RegistrationService
-from app.repositories.password_reset_token import (
-    PasswordResetTokenRepository,
-)
-from app.services.password_reset_token import (
-    PasswordResetTokenService,
-)
-from app.services.password_recovery import (
-    PasswordRecoveryService,
-)
+from app.services.watch_history import WatchHistoryService
+from app.services.watch_next import WatchNextService
 
 
 def get_genre_service(
@@ -137,7 +114,7 @@ TMDBClientDependency = Annotated[
 
 
 def get_media_search_service(
-    session: DatabaseSession, # type: ignore
+    session: DatabaseSession,  # type: ignore
     settings: Annotated[
         Settings,
         Depends(get_settings),
@@ -306,6 +283,7 @@ EpisodeServiceDependency = Annotated[
     Depends(get_episode_service),
 ]
 
+
 def get_episode_details_service(
     session: DatabaseSession,
 ) -> EpisodeDetailsService:
@@ -324,6 +302,7 @@ EpisodeDetailsServiceDependency = Annotated[
     EpisodeDetailsService,
     Depends(get_episode_details_service),
 ]
+
 
 def get_movie_details_service(
     settings: Annotated[
@@ -380,7 +359,6 @@ MovieImportServiceDependency = Annotated[
 ]
 
 
-
 def get_movie_watch_event_service(
     session: DatabaseSession,
 ) -> MovieWatchEventService:
@@ -398,7 +376,6 @@ MovieWatchEventServiceDependency = Annotated[
     MovieWatchEventService,
     Depends(get_movie_watch_event_service),
 ]
-
 
 
 def get_user_service(
@@ -455,6 +432,7 @@ AuthSessionServiceDependency = Annotated[
     Depends(get_auth_session_service),
 ]
 
+
 def get_auth_handoff_service(
     session: DatabaseSession,
 ) -> AuthHandoffService:
@@ -470,6 +448,7 @@ AuthHandoffServiceDependency = Annotated[
     AuthHandoffService,
     Depends(get_auth_handoff_service),
 ]
+
 
 def get_password_reset_token_service(
     session: DatabaseSession,
@@ -553,6 +532,7 @@ _bearer_scheme = HTTPBearer(
     auto_error=False,
 )
 _SESSION_COOKIE_NAME = "sofawatch_session"
+
 
 def get_current_user(
     request: Request,
@@ -647,10 +627,7 @@ def _resolve_web_session_user(
         session_credential,
     )
 
-    if (
-        auth_session is None
-        or auth_session.session_type != AuthSessionType.WEB
-    ):
+    if auth_session is None or auth_session.session_type != AuthSessionType.WEB:
         raise APIError(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="invalid_session",
@@ -708,6 +685,7 @@ AuthenticationSettingsServiceDependency = Annotated[
     Depends(get_authentication_settings_service),
 ]
 
+
 def get_registration_service(
     session: DatabaseSession,
     authentication_settings_service: AuthenticationSettingsServiceDependency,
@@ -725,6 +703,7 @@ RegistrationServiceDependency = Annotated[
     RegistrationService,
     Depends(get_registration_service),
 ]
+
 
 def get_library_service(
     session: DatabaseSession,
@@ -745,6 +724,7 @@ LibraryServiceDependency = Annotated[
     LibraryService,
     Depends(get_library_service),
 ]
+
 
 def get_start_show_service(
     session: DatabaseSession,
@@ -786,6 +766,7 @@ EpisodeProgressServiceDependency = Annotated[
     Depends(get_episode_progress_service),
 ]
 
+
 def get_episode_watch_event_service(
     session: DatabaseSession,
 ) -> EpisodeWatchEventService:
@@ -802,6 +783,7 @@ EpisodeWatchEventServiceDependency = Annotated[
     EpisodeWatchEventService,
     Depends(get_episode_watch_event_service),
 ]
+
 
 def get_background_job_repository(
     session: DatabaseSession,
@@ -900,6 +882,7 @@ ExploreServiceDependency = Annotated[
     Depends(get_explore_service),
 ]
 
+
 def get_season_episode_sync_service(
     session: DatabaseSession,
     season_details_service: Annotated[
@@ -917,10 +900,12 @@ def get_season_episode_sync_service(
         tmdb_season_details_service=season_details_service,
     )
 
+
 SeasonEpisodeSyncServiceDependency = Annotated[
     SeasonEpisodeSyncService,
     Depends(get_season_episode_sync_service),
 ]
+
 
 def get_watch_next_service(
     session: DatabaseSession,
@@ -956,6 +941,7 @@ HaventStartedServiceDependency = Annotated[
     Depends(get_havent_started_service),
 ]
 
+
 def get_upcoming_service(
     session: DatabaseSession,
 ) -> UpcomingService:
@@ -972,6 +958,7 @@ UpcomingServiceDependency = Annotated[
     UpcomingService,
     Depends(get_upcoming_service),
 ]
+
 
 def get_missed_recently_service(
     session: DatabaseSession,
@@ -1004,6 +991,7 @@ StaleWatchingServiceDependency = Annotated[
     StaleWatchingService,
     Depends(get_stale_watching_service),
 ]
+
 
 def get_watch_history_service(
     session: DatabaseSession,
@@ -1071,6 +1059,7 @@ StatisticsServiceDependency = Annotated[
     Depends(get_statistics_service),
 ]
 
+
 def get_server_health_service(
     request: Request,
     session: DatabaseSession,
@@ -1125,6 +1114,7 @@ ServerLogsServiceDependency = Annotated[
     Depends(get_server_logs_service),
 ]
 
+
 def get_data_export_service(
     session: DatabaseSession,
 ) -> DataExportService:
@@ -1147,6 +1137,7 @@ DataExportServiceDependency = Annotated[
     DataExportService,
     Depends(get_data_export_service),
 ]
+
 
 def get_data_import_service(
     session: DatabaseSession,

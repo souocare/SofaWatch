@@ -1,11 +1,12 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, model_validator, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.enums import LibraryStatus
-from app.schemas.show import ShowSummaryResponse
 from app.schemas.movie import MovieSummaryResponse
+from app.schemas.show import ShowSummaryResponse
+
 
 class LibraryEntryResponse(BaseModel):
     """Library entry returned by the API."""
@@ -35,9 +36,7 @@ class LibraryEntryResponse(BaseModel):
         has_movie = self.movie_id is not None
 
         if has_show == has_movie:
-            raise ValueError(
-                "A library entry must reference exactly one media item."
-            )
+            raise ValueError("A library entry must reference exactly one media item.")
 
         return self
 
@@ -69,6 +68,7 @@ class LibraryShowProgressResponse(BaseModel):
     )
 
     caught_up: bool
+
 
 class LibraryShowResponse(BaseModel):
     """TV series stored in the current user's library."""
@@ -137,6 +137,7 @@ class LibraryPreviewResponse(BaseModel):
 
     shows: list[LibraryPreviewShowResponse]
     movies: list[LibraryPreviewMovieResponse]
+
 
 class LibraryStatusUpdate(BaseModel):
     """Library tracking status update."""

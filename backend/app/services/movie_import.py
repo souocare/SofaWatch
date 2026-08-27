@@ -6,13 +6,13 @@ from app.core.config import Settings
 from app.models.genre import Genre
 from app.models.movie import Movie
 from app.repositories.genre import GenreRepository
-from app.repositories.movie import MovieRepository
-from app.schemas.tmdb_movie import MovieDetailsResponse
-from app.services.tmdb_movie_details import TMDBMovieDetailsService
 from app.repositories.genre_provider_mapping import (
     GenreProviderMappingRepository,
 )
+from app.repositories.movie import MovieRepository
+from app.schemas.tmdb_movie import MovieDetailsResponse
 from app.services.genre_mapping import GenreMappingService
+from app.services.tmdb_movie_details import TMDBMovieDetailsService
 
 
 class MovieImportService:
@@ -33,9 +33,7 @@ class MovieImportService:
         self._movie_repository = movie_repository
         self._genre_repository = genre_repository
 
-        self._tmdb_movie_details_service = (
-            tmdb_movie_details_service
-        )
+        self._tmdb_movie_details_service = tmdb_movie_details_service
 
         self._genre_mapping_service = GenreMappingService(
             genre_repository=genre_repository,
@@ -53,20 +51,13 @@ class MovieImportService:
     ) -> Movie:
         """Import a movie or refresh its locally stored metadata."""
 
-        metadata_language = (
-            language
-            or self._settings.default_language
-        )
+        metadata_language = language or self._settings.default_language
 
         movie = self._movie_repository.get_by_tmdb_id(
             tmdb_id,
         )
 
-        if (
-            movie is not None
-            and not force_refresh
-            and not self._should_refresh(movie)
-        ):
+        if movie is not None and not force_refresh and not self._should_refresh(movie):
             return movie
 
         details = self._tmdb_movie_details_service.get_details(
@@ -135,21 +126,14 @@ class MovieImportService:
         if movie.metadata_updated_at is None:
             return True
 
-        metadata_updated_at = (
-            movie.metadata_updated_at
-        )
+        metadata_updated_at = movie.metadata_updated_at
 
         if metadata_updated_at.tzinfo is None:
-            metadata_updated_at = (
-                metadata_updated_at.replace(
-                    tzinfo=UTC,
-                )
+            metadata_updated_at = metadata_updated_at.replace(
+                tzinfo=UTC,
             )
 
-        return (
-            datetime.now(UTC)
-            - metadata_updated_at
-        ) >= timedelta(
+        return (datetime.now(UTC) - metadata_updated_at) >= timedelta(
             days=self._settings.metadata_refresh_days,
         )
 
@@ -207,9 +191,7 @@ class MovieImportService:
         movie.tmdb_poster_path = details.poster_path
         movie.tmdb_backdrop_path = details.backdrop_path
 
-        movie.original_language = (
-            details.original_language
-        )
+        movie.original_language = details.original_language
 
         movie.runtime = details.runtime
         movie.status = details.status

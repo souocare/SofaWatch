@@ -4,11 +4,11 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.genre import Genre
 from app.models.movie import Movie
 from app.models.movie_watch_event import MovieWatchEvent
 from app.models.user import User
 from app.repositories.movie_watch_event import MovieWatchEventRepository
-from app.models.genre import Genre
 
 
 def as_utc(value: datetime) -> datetime:
@@ -98,6 +98,7 @@ def create_watch_event(
 
     return event
 
+
 def create_genre(
     db_session: Session,
     *,
@@ -169,9 +170,12 @@ def test_add_movie_watch_event(
     assert persisted_event.user_id == user.id
     assert persisted_event.movie_id == movie.id
 
-    assert as_utc(
-        persisted_event.watched_at,
-    ) == watched_at
+    assert (
+        as_utc(
+            persisted_event.watched_at,
+        )
+        == watched_at
+    )
 
 
 def test_allows_multiple_watch_events_for_same_movie(
@@ -794,18 +798,11 @@ def test_delete_all_for_user_and_movie_is_scoped(
 
     assert deleted_count == 2
 
-    remaining = list(
-        db_session.scalars(
-            select(MovieWatchEvent)
-        ).all()
-    )
+    remaining = list(db_session.scalars(select(MovieWatchEvent)).all())
 
     assert len(remaining) == 2
 
-    remaining_ids = {
-        event.id
-        for event in remaining
-    }
+    remaining_ids = {event.id for event in remaining}
 
     assert remaining_ids == {
         other_user_event.id,
@@ -978,6 +975,7 @@ def test_get_statistics_for_period_counts_movie_without_runtime(
 
     assert count == 1
     assert watch_time == 0
+
 
 def test_get_all_time_statistics_counts_unique_movies_and_rewatches(
     db_session: Session,
@@ -1240,6 +1238,7 @@ def test_get_all_time_statistics_is_isolated_by_user(
         0,
     )
 
+
 def test_get_daily_statistics_for_period_groups_movie_activity_by_day(
     db_session: Session,
 ) -> None:
@@ -1477,6 +1476,7 @@ def test_get_earliest_watched_at_for_user_returns_none_without_history(
         )
         is None
     )
+
 
 def test_get_most_rewatched_movies_excludes_single_viewings(
     db_session: Session,
@@ -1719,6 +1719,7 @@ def test_get_top_movie_genres_counts_movie_watch_events_for_each_genre(
             3,
         ),
     ]
+
 
 def test_list_watch_history_returns_newest_events_first(
     db_session: Session,
@@ -2137,13 +2138,10 @@ def test_list_watch_history_rejects_incomplete_cursor(
         )
     except ValueError as error:
         assert str(error) == (
-            "Movie History cursor requires both "
-            "before_watched_at and before_event_id."
+            "Movie History cursor requires both before_watched_at and before_event_id."
         )
     else:
-        raise AssertionError(
-            "Expected incomplete Movie History cursor to be rejected."
-        )
+        raise AssertionError("Expected incomplete Movie History cursor to be rejected.")
 
 
 def test_list_watch_history_returns_empty_page_for_non_positive_limit(
@@ -2237,10 +2235,7 @@ def test_list_all_for_user_returns_complete_movie_history_in_chronological_order
         user_id=user.id,
     )
 
-    assert [
-        item.event_id
-        for item in result
-    ] == [
+    assert [item.event_id for item in result] == [
         older_event.id,
         newer_event.id,
     ]
@@ -2308,6 +2303,7 @@ def test_list_all_for_user_is_isolated_by_user(
 
     assert len(result) == 1
     assert result[0].event_id == expected_event.id
+
 
 def test_list_all_for_user_returns_complete_movie_history(
     db_session: Session,
@@ -2379,18 +2375,13 @@ def test_list_all_for_user_returns_complete_movie_history(
         user_id=user.id,
     )
 
-    assert [
-        item.event_id
-        for item in result
-    ] == [
+    assert [item.event_id for item in result] == [
         older_event.id,
         newer_event.id,
     ]
 
-    assert all(
-        item.movie.id == movie.id
-        for item in result
-    )
+    assert all(item.movie.id == movie.id for item in result)
+
 
 def test_exists_at_finds_exact_movie_watch_event(
     db_session: Session,

@@ -5,17 +5,17 @@ Revises: 3d2e5ddca103
 Create Date: 2026-08-26 11:10:44.078571
 
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '3bf29b95c63a'
-down_revision: Union[str, Sequence[str], None] = '3d2e5ddca103'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "3bf29b95c63a"
+down_revision: str | Sequence[str] | None = "3d2e5ddca103"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

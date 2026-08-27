@@ -1,10 +1,5 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from uuid import UUID
-from app.services.watch_list_rules import (
-    as_utc,
-    belongs_to_stale_watching,
-    is_stale_watching,
-)
 
 from app.models.enums import LibraryStatus
 from app.repositories.episode_progress import (
@@ -17,6 +12,11 @@ from app.schemas.stale_watching import (
     LastWatchedEpisodeResponse,
     StaleWatchingEpisodeResponse,
     StaleWatchingShowResponse,
+)
+from app.services.watch_list_rules import (
+    as_utc,
+    belongs_to_stale_watching,
+    is_stale_watching,
 )
 
 
@@ -45,26 +45,17 @@ class StaleWatchingService:
         )
 
         eligible_entries = [
-            entry
-            for entry in entries
-            if entry.show_id is not None
-            and entry.show is not None
+            entry for entry in entries if entry.show_id is not None and entry.show is not None
         ]
 
         if not eligible_entries:
             return []
 
-        show_ids = [
-            entry.show_id
-            for entry in eligible_entries
-            if entry.show_id is not None
-        ]
+        show_ids = [entry.show_id for entry in eligible_entries if entry.show_id is not None]
 
-        last_watched_by_show = (
-            self._progress_repository.list_last_watched_for_shows(
-                user_id=user_id,
-                show_ids=show_ids,
-            )
+        last_watched_by_show = self._progress_repository.list_last_watched_for_shows(
+            user_id=user_id,
+            show_ids=show_ids,
         )
 
         if not last_watched_by_show:
@@ -84,12 +75,10 @@ class StaleWatchingService:
         if not stale_show_ids:
             return []
 
-        next_by_show = (
-            self._progress_repository.list_next_unwatched_for_shows(
-                user_id=user_id,
-                show_ids=stale_show_ids,
-                as_of=now.date(),
-            )
+        next_by_show = self._progress_repository.list_next_unwatched_for_shows(
+            user_id=user_id,
+            show_ids=stale_show_ids,
+            as_of=now.date(),
         )
 
         results: list[StaleWatchingShowResponse] = []
@@ -101,13 +90,9 @@ class StaleWatchingService:
             if show_id is None or show is None:
                 continue
 
-            last_watched: LastWatchedEpisode | None = (
-                last_watched_by_show.get(show_id)
-            )
+            last_watched: LastWatchedEpisode | None = last_watched_by_show.get(show_id)
 
-            next_episode: NextUnwatchedEpisode | None = (
-                next_by_show.get(show_id)
-            )
+            next_episode: NextUnwatchedEpisode | None = next_by_show.get(show_id)
 
             if last_watched is None or next_episode is None:
                 continue

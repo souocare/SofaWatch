@@ -7,9 +7,8 @@ Create Date: 2026-08-24 11:20:17.133695
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "d4249dca22a9"
@@ -101,18 +100,10 @@ def downgrade() -> None:
         "auth_handoffs",
         schema=None,
     ) as batch_op:
-        batch_op.drop_index(
-            batch_op.f("ix_auth_handoffs_user_id")
-        )
-        batch_op.drop_index(
-            batch_op.f("ix_auth_handoffs_used_at")
-        )
-        batch_op.drop_index(
-            batch_op.f("ix_auth_handoffs_expires_at")
-        )
-        batch_op.drop_index(
-            batch_op.f("ix_auth_handoffs_credential_hash")
-        )
+        batch_op.drop_index(batch_op.f("ix_auth_handoffs_user_id"))
+        batch_op.drop_index(batch_op.f("ix_auth_handoffs_used_at"))
+        batch_op.drop_index(batch_op.f("ix_auth_handoffs_expires_at"))
+        batch_op.drop_index(batch_op.f("ix_auth_handoffs_credential_hash"))
 
     op.drop_table(
         "auth_handoffs",

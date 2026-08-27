@@ -36,9 +36,7 @@ class AdministratorPasswordRecoveryService:
             raise AdministratorRecoveryUnavailableError
 
         if len(new_password) < 8 or len(new_password) > 128:
-            raise ValueError(
-                "Password must contain between 8 and 128 characters."
-            )
+            raise ValueError("Password must contain between 8 and 128 characters.")
 
         revoked_at = now or datetime.now(UTC)
 

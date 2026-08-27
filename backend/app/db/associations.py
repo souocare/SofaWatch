@@ -2,7 +2,6 @@ from sqlalchemy import Column, ForeignKey, Table
 
 from app.db.base import Base
 
-
 show_genres = Table(
     "show_genres",
     Base.metadata,

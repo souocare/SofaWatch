@@ -5,16 +5,18 @@ from fastapi import APIRouter, Depends, Request, Response, status
 from app.api.dependencies import (
     AccessTokenServiceDependency,
     AuthenticationServiceDependency,
+    AuthenticationSettingsServiceDependency,
     AuthHandoffServiceDependency,
     AuthSessionServiceDependency,
     CurrentUserDependency,
     InitialSetupServiceDependency,
-    UserServiceDependency,
-    AuthenticationSettingsServiceDependency,
-    RegistrationServiceDependency,
     PasswordRecoveryServiceDependency,
+    RegistrationServiceDependency,
+    UserServiceDependency,
 )
+from app.core.config import Settings, get_settings
 from app.core.exceptions import APIError
+from app.models.auth_session import AuthSessionType
 from app.schemas.auth import (
     AccessTokenResponse,
     AuthHandoffExchangeRequest,
@@ -23,21 +25,19 @@ from app.schemas.auth import (
     LoginRequest,
     MobileAuthenticationResponse,
     MobileRefreshRequest,
-    SetupStatusResponse,
+    PasswordRecoveryCompleteRequest,
     RegistrationRequest,
     RegistrationStatusResponse,
-    PasswordRecoveryCompleteRequest,
+    SetupStatusResponse,
 )
 from app.services.initial_setup import InitialSetupAlreadyCompletedError
-from app.core.config import Settings, get_settings
-from app.models.auth_session import AuthSessionType
+from app.services.password_recovery import (
+    PasswordRecoveryInvalidError,
+)
 from app.services.registration import (
     EmailAlreadyExistsError,
     RegistrationClosedError,
     UsernameAlreadyExistsError,
-)
-from app.services.password_recovery import (
-    PasswordRecoveryInvalidError,
 )
 
 router = APIRouter(
@@ -61,10 +61,7 @@ def _set_web_session_cookie(
     response.set_cookie(
         key=_SESSION_COOKIE_NAME,
         value=credential,
-        max_age=(
-            settings.session_idle_expire_days
-            * _SECONDS_PER_DAY
-        ),
+        max_age=(settings.session_idle_expire_days * _SECONDS_PER_DAY),
         httponly=True,
         secure=settings.is_production,
         samesite="lax",
@@ -172,8 +169,7 @@ def create_initial_admin(
     response_model=RegistrationStatusResponse,
     summary="Get registration availability",
     description=(
-        "Return whether this SofaWatch installation currently allows "
-        "public account registration."
+        "Return whether this SofaWatch installation currently allows public account registration."
     ),
 )
 def get_registration_status(
@@ -186,6 +182,7 @@ def get_registration_status(
     return RegistrationStatusResponse(
         open_registration=settings.open_registration,
     )
+
 
 @router.post(
     "/register",
@@ -264,8 +261,7 @@ def register(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Complete password recovery",
     description=(
-        "Set a new password using a valid short-lived one-time "
-        "password recovery credential."
+        "Set a new password using a valid short-lived one-time password recovery credential."
     ),
 )
 def complete_password_recovery(
@@ -283,9 +279,7 @@ def complete_password_recovery(
         raise APIError(
             status_code=status.HTTP_400_BAD_REQUEST,
             code="password_recovery_invalid",
-            message=(
-                "This password recovery link is invalid or has expired."
-            ),
+            message=("This password recovery link is invalid or has expired."),
         ) from error
 
 
@@ -344,6 +338,7 @@ def login(
             access_token_service.expiration.total_seconds(),
         ),
     )
+
 
 @router.post(
     "/mobile/login",
@@ -507,6 +502,7 @@ def exchange_auth_handoff(
         ),
     )
 
+
 @router.post(
     "/refresh",
     response_model=MobileAuthenticationResponse,
@@ -596,10 +592,7 @@ def restore_web_session(
         credential,
     )
 
-    if (
-        auth_session is None
-        or auth_session.session_type != AuthSessionType.WEB
-    ):
+    if auth_session is None or auth_session.session_type != AuthSessionType.WEB:
         raise APIError(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="invalid_session",
@@ -634,8 +627,7 @@ def restore_web_session(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Log out current Web session",
     description=(
-        "Revoke the current persistent SofaWatch Web session "
-        "and remove its authentication cookie."
+        "Revoke the current persistent SofaWatch Web session and remove its authentication cookie."
     ),
 )
 def logout(

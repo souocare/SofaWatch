@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
-from unittest.mock import Mock, patch
 from pathlib import Path
+from unittest.mock import Mock, patch
+
 import pytest
 from pydantic import SecretStr
 from sqlalchemy.orm import Session
@@ -61,9 +62,7 @@ def test_get_health_returns_healthy_when_dependencies_are_available(
     ) as tmdb_client_class:
         tmdb_client = Mock()
 
-        tmdb_client_class.return_value.__enter__.return_value = (
-            tmdb_client
-        )
+        tmdb_client_class.return_value.__enter__.return_value = tmdb_client
 
         result = service.get_health()
 
@@ -114,12 +113,7 @@ def test_get_health_returns_healthy_when_dependencies_are_available(
 
     assert result.runtime.started_at.tzinfo is not None
 
-    assert abs(
-        (
-            result.runtime.started_at
-            - started_at
-        ).total_seconds()
-    ) < 1
+    assert abs((result.runtime.started_at - started_at).total_seconds()) < 1
 
     assert result.uptime_seconds >= 299
     assert result.uptime_seconds <= 301
@@ -179,9 +173,7 @@ def test_get_health_reports_tmdb_connectivity_failure(
             "TMDB could not be reached.",
         )
 
-        tmdb_client_class.return_value.__enter__.return_value = (
-            tmdb_client
-        )
+        tmdb_client_class.return_value.__enter__.return_value = tmdb_client
 
         result = service.get_health()
 
@@ -217,9 +209,7 @@ def test_get_health_reports_database_failure(
     ) as tmdb_client_class:
         tmdb_client = Mock()
 
-        tmdb_client_class.return_value.__enter__.return_value = (
-            tmdb_client
-        )
+        tmdb_client_class.return_value.__enter__.return_value = tmdb_client
 
         result = service.get_health()
 
@@ -255,9 +245,7 @@ def test_get_health_supports_naive_start_timestamp(
     with patch(
         "app.services.server_health.TMDBClient",
     ) as tmdb_client_class:
-        tmdb_client_class.return_value.__enter__.return_value = (
-            Mock()
-        )
+        tmdb_client_class.return_value.__enter__.return_value = Mock()
 
         result = service.get_health()
 
@@ -338,7 +326,6 @@ def test_get_health_reports_zero_when_sqlite_wal_is_absent(
     assert result.database.wal_size_bytes == 0
 
 
-
 def test_database_integrity_check_reports_failed_when_sqlite_reports_problem(
     server_settings: Settings,
 ) -> None:
@@ -378,6 +365,7 @@ def test_database_integrity_check_reports_unavailable_when_query_fails(
 
     assert result == "unavailable"
 
+
 def test_database_foreign_key_check_reports_failed_when_violation_exists(
     server_settings: Settings,
 ) -> None:
@@ -401,6 +389,7 @@ def test_database_foreign_key_check_reports_failed_when_violation_exists(
 
     assert result == "failed"
 
+
 def test_database_foreign_key_check_reports_unavailable_when_query_fails(
     server_settings: Settings,
 ) -> None:
@@ -420,6 +409,7 @@ def test_database_foreign_key_check_reports_unavailable_when_query_fails(
     result = service._check_database_foreign_keys()
 
     assert result == "unavailable"
+
 
 def test_get_health_is_degraded_when_database_integrity_check_fails(
     db_session: Session,
@@ -453,6 +443,7 @@ def test_get_health_is_degraded_when_database_integrity_check_fails(
 
     assert result.status == "degraded"
 
+
 def test_database_migration_reports_revision_and_message(
     db_session: Session,
     server_settings: Settings,
@@ -474,9 +465,7 @@ def test_database_migration_reports_revision_and_message(
         ) as script_directory_class,
     ):
         migration_context = Mock()
-        migration_context.get_current_revision.return_value = (
-            "bb784a0a2cdc"
-        )
+        migration_context.get_current_revision.return_value = "bb784a0a2cdc"
         migration_context_class.configure.return_value = migration_context
 
         script = Mock()
@@ -494,6 +483,7 @@ def test_database_migration_reports_revision_and_message(
     script_directory.get_revision.assert_called_once_with(
         "bb784a0a2cdc",
     )
+
 
 def test_database_migration_reports_empty_state_without_revision(
     db_session: Session,
@@ -519,6 +509,7 @@ def test_database_migration_reports_empty_state_without_revision(
     assert result.revision is None
     assert result.message is None
 
+
 def test_database_migration_reports_empty_state_when_lookup_fails(
     db_session: Session,
     server_settings: Settings,
@@ -541,6 +532,7 @@ def test_database_migration_reports_empty_state_when_lookup_fails(
 
     assert result.revision is None
     assert result.message is None
+
 
 def test_get_health_does_not_expose_secrets(
     db_session: Session,
@@ -594,6 +586,7 @@ def test_get_health_does_not_expose_secrets(
     assert "super-secret-tvdb-key" not in serialized
     assert "super-secret-tvdb-pin" not in serialized
 
+
 def test_get_health_reports_storage_usage(
     db_session: Session,
     server_settings: Settings,
@@ -634,6 +627,7 @@ def test_get_health_reports_storage_usage(
 
     assert result.storage.usage_percentage is not None
     assert 0 <= result.storage.usage_percentage <= 100
+
 
 def test_get_health_reports_image_cache_usage(
     db_session: Session,
@@ -702,6 +696,7 @@ def test_get_health_reports_image_cache_usage(
     assert cache.breakdown.episodes.files == 1
     assert cache.breakdown.episodes.size_bytes == 25
 
+
 def test_get_health_reports_empty_image_cache_without_creating_directory(
     db_session: Session,
     server_settings: Settings,
@@ -741,6 +736,7 @@ def test_get_health_reports_empty_image_cache_without_creating_directory(
     assert cache.breakdown.episodes.files == 0
 
     assert image_path.exists() is False
+
 
 def test_get_health_is_degraded_when_data_storage_is_not_writable(
     db_session: Session,

@@ -30,10 +30,13 @@ def test_verify_password_accepts_matching_password() -> None:
     password = "Correct-Horse-Battery-Staple-42"
     password_hash = hash_password(password)
 
-    assert verify_password(
-        password,
-        password_hash,
-    ) is True
+    assert (
+        verify_password(
+            password,
+            password_hash,
+        )
+        is True
+    )
 
 
 def test_verify_password_rejects_wrong_password() -> None:
@@ -41,14 +44,20 @@ def test_verify_password_rejects_wrong_password() -> None:
         "Correct-Horse-Battery-Staple-42",
     )
 
-    assert verify_password(
-        "Wrong-Password",
-        password_hash,
-    ) is False
+    assert (
+        verify_password(
+            "Wrong-Password",
+            password_hash,
+        )
+        is False
+    )
 
 
 def test_verify_password_rejects_missing_hash() -> None:
-    assert verify_password(
-        "Correct-Horse-Battery-Staple-42",
-        None,
-    ) is False
+    assert (
+        verify_password(
+            "Correct-Horse-Battery-Staple-42",
+            None,
+        )
+        is False
+    )

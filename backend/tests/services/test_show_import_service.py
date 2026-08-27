@@ -247,75 +247,46 @@ def test_import_show_creates_and_associates_genres(
 
     assert genre_count == 2
 
-    genres_by_name = {
-        genre.name: genre
-        for genre in show.genres
-    }
+    genres_by_name = {genre.name: genre for genre in show.genres}
 
     assert set(genres_by_name) == {
         "Drama",
         "Mystery",
     }
 
-    assert (
-        genres_by_name["Drama"].slug
-        == "drama"
-    )
+    assert genres_by_name["Drama"].slug == "drama"
 
-    assert (
-        genres_by_name["Mystery"].slug
-        == "mystery"
-    )
+    assert genres_by_name["Mystery"].slug == "mystery"
 
     mappings = list(
         db_session.scalars(
             select(
                 GenreProviderMapping,
             ).where(
-                GenreProviderMapping.provider
-                == "tmdb",
-                GenreProviderMapping.media_type
-                == "show",
+                GenreProviderMapping.provider == "tmdb",
+                GenreProviderMapping.media_type == "show",
             )
         ).all()
     )
 
-    mappings_by_provider_id = {
-        mapping.provider_genre_id: mapping
-        for mapping in mappings
-    }
+    mappings_by_provider_id = {mapping.provider_genre_id: mapping for mapping in mappings}
 
-    assert set(
-        mappings_by_provider_id
-    ) == {
+    assert set(mappings_by_provider_id) == {
         18,
         9648,
     }
 
-    drama_mapping = (
-        mappings_by_provider_id[18]
-    )
+    drama_mapping = mappings_by_provider_id[18]
 
-    mystery_mapping = (
-        mappings_by_provider_id[9648]
-    )
+    mystery_mapping = mappings_by_provider_id[9648]
 
-    assert (
-        drama_mapping.genre_id
-        == genres_by_name["Drama"].id
-    )
+    assert drama_mapping.genre_id == genres_by_name["Drama"].id
 
-    assert (
-        mystery_mapping.genre_id
-        == genres_by_name["Mystery"].id
-    )
+    assert mystery_mapping.genre_id == genres_by_name["Mystery"].id
 
     assert drama_mapping.genre.name == "Drama"
 
-    assert (
-        mystery_mapping.genre.name
-        == "Mystery"
-    )
+    assert mystery_mapping.genre.name == "Mystery"
 
 
 def test_import_show_does_not_create_duplicate(
@@ -689,7 +660,7 @@ def test_import_show_adds_new_season_during_refresh(
 ) -> None:
     """Create newly released seasons during a metadata refresh."""
 
-    show = show_import_service.import_show(
+    show_import_service.import_show(
         tmdb_id=TMDB_ID,
     )
 
@@ -1083,6 +1054,7 @@ def test_import_show_does_not_request_episode_metadata(
 
     tmdb_season_details_service.get_episodes.assert_not_called()
 
+
 def test_import_show_does_not_create_episodes(
     db_session: Session,
     show_import_service: ShowImportService,
@@ -1103,6 +1075,7 @@ def test_import_show_does_not_create_episodes(
     )
 
     assert episode_count == 0
+
 
 def test_import_show_creates_and_associates_networks(
     db_session: Session,
@@ -1548,6 +1521,7 @@ def test_failed_refresh_does_not_persist_new_metadata_timestamp(
 
     assert stored_timestamp == original_timestamp
 
+
 def test_import_show_returns_existing_recent_show_without_creating_duplicate(
     db_session: Session,
     show_import_service: ShowImportService,
@@ -1574,9 +1548,7 @@ def test_import_show_returns_existing_recent_show_without_creating_duplicate(
 
     assert result.id == existing_show.id
 
-    show_count = db_session.scalar(
-        select(func.count()).select_from(Show)
-    )
+    show_count = db_session.scalar(select(func.count()).select_from(Show))
 
     assert show_count == 1
 

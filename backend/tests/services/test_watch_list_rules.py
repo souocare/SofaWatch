@@ -85,6 +85,7 @@ def test_naive_watched_at_is_interpreted_as_utc() -> None:
         now=now,
     )
 
+
 def test_recent_pending_episode_does_not_belong_to_stale_watching() -> None:
     """Old viewing activity alone must not make newly available content stale."""
 

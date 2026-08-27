@@ -21,7 +21,6 @@ from app.services.history_cursor import (
     HistoryCursorCodec,
 )
 
-
 USER_ID = UUID(
     "00000000-0000-0000-0000-000000000001",
 )
@@ -209,22 +208,18 @@ def test_get_preview_returns_recent_episode_and_movie_history(
         ),
     )
 
-    episode_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[
-                episode_event,
-            ],
-            has_more=False,
-        )
+    episode_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[
+            episode_event,
+        ],
+        has_more=False,
     )
 
-    movie_repository.list_watch_history.return_value = (
-        MovieWatchHistoryEventPage(
-            items=[
-                movie_event,
-            ],
-            has_more=False,
-        )
+    movie_repository.list_watch_history.return_value = MovieWatchHistoryEventPage(
+        items=[
+            movie_event,
+        ],
+        has_more=False,
     )
 
     result = service.get_preview(
@@ -275,18 +270,14 @@ def test_get_preview_forwards_custom_limit(
 ) -> None:
     """Forward the requested preview limit independently to both sources."""
 
-    episode_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[],
-            has_more=False,
-        )
+    episode_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[],
+        has_more=False,
     )
 
-    movie_repository.list_watch_history.return_value = (
-        MovieWatchHistoryEventPage(
-            items=[],
-            has_more=False,
-        )
+    movie_repository.list_watch_history.return_value = MovieWatchHistoryEventPage(
+        items=[],
+        has_more=False,
     )
 
     result = service.get_preview(
@@ -315,18 +306,14 @@ def test_get_preview_supports_empty_history(
 ) -> None:
     """Return usable empty preview collections."""
 
-    episode_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[],
-            has_more=False,
-        )
+    episode_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[],
+        has_more=False,
     )
 
-    movie_repository.list_watch_history.return_value = (
-        MovieWatchHistoryEventPage(
-            items=[],
-            has_more=False,
-        )
+    movie_repository.list_watch_history.return_value = MovieWatchHistoryEventPage(
+        items=[],
+        has_more=False,
     )
 
     result = service.get_preview(
@@ -383,23 +370,19 @@ def test_list_for_user_merges_episode_and_movie_history_newest_first(
         ),
     )
 
-    episode_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[
-                middle_episode,
-            ],
-            has_more=False,
-        )
+    episode_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[
+            middle_episode,
+        ],
+        has_more=False,
     )
 
-    movie_repository.list_watch_history.return_value = (
-        MovieWatchHistoryEventPage(
-            items=[
-                newest_movie,
-                oldest_movie,
-            ],
-            has_more=False,
-        )
+    movie_repository.list_watch_history.return_value = MovieWatchHistoryEventPage(
+        items=[
+            newest_movie,
+            oldest_movie,
+        ],
+        has_more=False,
     )
 
     result = service.list_for_user(
@@ -409,19 +392,13 @@ def test_list_for_user_merges_episode_and_movie_history_newest_first(
 
     assert len(result.items) == 3
 
-    assert [
-        item.media_type
-        for item in result.items
-    ] == [
+    assert [item.media_type for item in result.items] == [
         "movie",
         "episode",
         "movie",
     ]
 
-    assert [
-        item.event_id
-        for item in result.items
-    ] == [
+    assert [item.event_id for item in result.items] == [
         newest_movie.event_id,
         middle_episode.event_id,
         oldest_movie.event_id,
@@ -486,24 +463,20 @@ def test_list_for_user_preserves_rewatches_as_independent_items(
         ),
     )
 
-    episode_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[
-                newer_episode_watch,
-                older_episode_watch,
-            ],
-            has_more=False,
-        )
+    episode_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[
+            newer_episode_watch,
+            older_episode_watch,
+        ],
+        has_more=False,
     )
 
-    movie_repository.list_watch_history.return_value = (
-        MovieWatchHistoryEventPage(
-            items=[
-                newer_movie_watch,
-                older_movie_watch,
-            ],
-            has_more=False,
-        )
+    movie_repository.list_watch_history.return_value = MovieWatchHistoryEventPage(
+        items=[
+            newer_movie_watch,
+            older_movie_watch,
+        ],
+        has_more=False,
     )
 
     result = service.list_for_user(
@@ -513,10 +486,7 @@ def test_list_for_user_preserves_rewatches_as_independent_items(
 
     assert len(result.items) == 4
 
-    assert {
-        item.event_id
-        for item in result.items
-    } == {
+    assert {item.event_id for item in result.items} == {
         newer_episode_watch.event_id,
         older_episode_watch.event_id,
         newer_movie_watch.event_id,
@@ -531,18 +501,14 @@ def test_list_for_user_returns_empty_history(
 ) -> None:
     """Return a usable empty combined History."""
 
-    episode_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[],
-            has_more=False,
-        )
+    episode_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[],
+        has_more=False,
     )
 
-    movie_repository.list_watch_history.return_value = (
-        MovieWatchHistoryEventPage(
-            items=[],
-            has_more=False,
-        )
+    movie_repository.list_watch_history.return_value = MovieWatchHistoryEventPage(
+        items=[],
+        has_more=False,
     )
 
     result = service.list_for_user(
@@ -617,23 +583,19 @@ def test_list_for_user_limits_combined_page_and_returns_cursor(
         ),
     )
 
-    episode_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[
-                episode_event,
-            ],
-            has_more=False,
-        )
+    episode_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[
+            episode_event,
+        ],
+        has_more=False,
     )
 
-    movie_repository.list_watch_history.return_value = (
-        MovieWatchHistoryEventPage(
-            items=[
-                newest_movie,
-                oldest_movie,
-            ],
-            has_more=False,
-        )
+    movie_repository.list_watch_history.return_value = MovieWatchHistoryEventPage(
+        items=[
+            newest_movie,
+            oldest_movie,
+        ],
+        has_more=False,
     )
 
     result = service.list_for_user(
@@ -641,10 +603,7 @@ def test_list_for_user_limits_combined_page_and_returns_cursor(
         limit=2,
     )
 
-    assert [
-        item.event_id
-        for item in result.items
-    ] == [
+    assert [item.event_id for item in result.items] == [
         newest_movie.event_id,
         episode_event.event_id,
     ]
@@ -716,22 +675,18 @@ def test_list_for_user_applies_combined_cursor_without_duplicates(
         ),
     )
 
-    episode_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[
-                older_episode,
-            ],
-            has_more=False,
-        )
+    episode_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[
+            older_episode,
+        ],
+        has_more=False,
     )
 
-    movie_repository.list_watch_history_before_timestamp.return_value = (
-        MovieWatchHistoryEventPage(
-            items=[
-                older_movie,
-            ],
-            has_more=False,
-        )
+    movie_repository.list_watch_history_before_timestamp.return_value = MovieWatchHistoryEventPage(
+        items=[
+            older_movie,
+        ],
+        has_more=False,
     )
 
     cursor = HistoryCursorCodec.encode(
@@ -748,18 +703,12 @@ def test_list_for_user_applies_combined_cursor_without_duplicates(
         cursor=cursor,
     )
 
-    assert [
-        item.event_id
-        for item in result.items
-    ] == [
+    assert [item.event_id for item in result.items] == [
         older_movie.event_id,
         older_episode.event_id,
     ]
 
-    assert cursor_episode.event_id not in {
-        item.event_id
-        for item in result.items
-    }
+    assert cursor_episode.event_id not in {item.event_id for item in result.items}
 
     assert result.has_more is False
     assert result.next_cursor is None
@@ -807,22 +756,18 @@ def test_list_for_user_uses_media_type_and_event_id_to_break_timestamp_ties(
 
     # First page has no cursor, so both repositories use their normal
     # newest-first History query.
-    episode_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[
-                episode_event,
-            ],
-            has_more=False,
-        )
+    episode_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[
+            episode_event,
+        ],
+        has_more=False,
     )
 
-    movie_repository.list_watch_history.return_value = (
-        MovieWatchHistoryEventPage(
-            items=[
-                movie_event,
-            ],
-            has_more=False,
-        )
+    movie_repository.list_watch_history.return_value = MovieWatchHistoryEventPage(
+        items=[
+            movie_event,
+        ],
+        has_more=False,
     )
 
     first_page = service.list_for_user(
@@ -841,22 +786,18 @@ def test_list_for_user_uses_media_type_and_event_id_to_break_timestamp_ties(
     #
     # Episodes at the exact same watched_at must remain eligible because
     # "movie" sorts after "episode" in the combined deterministic key.
-    episode_repository.list_watch_history_before_timestamp.return_value = (
-        WatchHistoryEventPage(
-            items=[
-                episode_event,
-            ],
-            has_more=False,
-        )
+    episode_repository.list_watch_history_before_timestamp.return_value = WatchHistoryEventPage(
+        items=[
+            episode_event,
+        ],
+        has_more=False,
     )
 
     # Movies use their own event-id cursor and therefore must exclude the
     # Movie that produced the previous page cursor.
-    movie_repository.list_watch_history.return_value = (
-        MovieWatchHistoryEventPage(
-            items=[],
-            has_more=False,
-        )
+    movie_repository.list_watch_history.return_value = MovieWatchHistoryEventPage(
+        items=[],
+        has_more=False,
     )
 
     second_page = service.list_for_user(
@@ -915,21 +856,17 @@ def test_list_for_user_orders_same_media_type_timestamp_by_event_id(
         watched_at=watched_at,
     )
 
-    episode_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[
-                lower_id_event,
-                higher_id_event,
-            ],
-            has_more=False,
-        )
+    episode_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[
+            lower_id_event,
+            higher_id_event,
+        ],
+        has_more=False,
     )
 
-    movie_repository.list_watch_history.return_value = (
-        MovieWatchHistoryEventPage(
-            items=[],
-            has_more=False,
-        )
+    movie_repository.list_watch_history.return_value = MovieWatchHistoryEventPage(
+        items=[],
+        has_more=False,
     )
 
     result = service.list_for_user(
@@ -937,10 +874,7 @@ def test_list_for_user_orders_same_media_type_timestamp_by_event_id(
         limit=10,
     )
 
-    assert [
-        item.event_id
-        for item in result.items
-    ] == [
+    assert [item.event_id for item in result.items] == [
         higher_id_event.event_id,
         lower_id_event.event_id,
     ]
@@ -953,18 +887,14 @@ def test_list_for_user_forwards_current_user_to_both_repositories(
 ) -> None:
     """Scope every History source to the requested user."""
 
-    episode_repository.list_watch_history.return_value = (
-        WatchHistoryEventPage(
-            items=[],
-            has_more=False,
-        )
+    episode_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[],
+        has_more=False,
     )
 
-    movie_repository.list_watch_history.return_value = (
-        MovieWatchHistoryEventPage(
-            items=[],
-            has_more=False,
-        )
+    movie_repository.list_watch_history.return_value = MovieWatchHistoryEventPage(
+        items=[],
+        has_more=False,
     )
 
     service.list_for_user(

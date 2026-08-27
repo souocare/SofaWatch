@@ -215,9 +215,7 @@ def test_list_show_seasons_returns_stored_seasons(
         "vote_average": 8.4,
         "tmdb_poster_path": "/season-one.jpg",
         "local_poster_path": None,
-        "poster_url": (
-            f"/api/v1/images/seasons/{season.id}/poster"
-        ),
+        "poster_url": (f"/api/v1/images/seasons/{season.id}/poster"),
     }
 
 
@@ -265,10 +263,7 @@ def test_list_show_seasons_orders_by_season_number(
 
     body = response.json()
 
-    assert [
-        season["season_number"]
-        for season in body
-    ] == [
+    assert [season["season_number"] for season in body] == [
         0,
         1,
         2,
@@ -441,15 +436,9 @@ def test_list_show_seasons_returns_local_poster_path(
 
     body = response.json()
 
-    assert (
-        body[0]["tmdb_poster_path"]
-        == "/tmdb-season-one.jpg"
-    )
+    assert body[0]["tmdb_poster_path"] == "/tmdb-season-one.jpg"
 
-    assert (
-        body[0]["local_poster_path"]
-        == "/media/shows/severance/season-one.jpg"
-    )
+    assert body[0]["local_poster_path"] == "/media/shows/severance/season-one.jpg"
 
 
 def test_list_show_seasons_returns_404_when_show_does_not_exist(
@@ -667,10 +656,7 @@ def test_get_show_seasons_progress_orders_by_season_number(
 
     body = response.json()
 
-    assert [
-        item["season_id"]
-        for item in body
-    ] == [
+    assert [item["season_id"] for item in body] == [
         str(specials.id),
         str(season_one.id),
         str(season_two.id),
