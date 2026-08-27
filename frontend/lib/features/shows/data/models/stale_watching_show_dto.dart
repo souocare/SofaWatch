@@ -4,6 +4,17 @@ import 'package:sofawatch/features/shows/data/models/watch_next_episode_dto.dart
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
 
 final class StaleWatchingShowDto {
+  const StaleWatchingShowDto({
+    required this.libraryEntryId,
+    required this.libraryStatus,
+    required this.showId,
+    required this.showTmdbId,
+    required this.showTitle,
+    required this.lastWatched,
+    required this.nextEpisode,
+    this.posterUrl,
+    this.backdropUrl,
+  });
   factory StaleWatchingShowDto.fromJson(Map<String, dynamic> json) {
     final Map<String, dynamic> show = _requiredMap(json, 'show');
 
@@ -25,17 +36,6 @@ final class StaleWatchingShowDto {
       nextEpisode: WatchNextEpisodeDto.fromJson(nextEpisode),
     );
   }
-  const StaleWatchingShowDto({
-    required this.libraryEntryId,
-    required this.libraryStatus,
-    required this.showId,
-    required this.showTmdbId,
-    required this.showTitle,
-    required this.lastWatched,
-    required this.nextEpisode,
-    this.posterUrl,
-    this.backdropUrl,
-  });
 
   final String libraryEntryId;
   final LibraryStatus libraryStatus;

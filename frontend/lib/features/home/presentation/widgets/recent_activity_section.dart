@@ -3,11 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
+import 'package:sofawatch/core/widgets/section_failure_card.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
-import 'package:sofawatch/core/widgets/section_failure_card.dart';
+import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 
 class RecentActivitySection extends StatelessWidget {
   const RecentActivitySection({super.key});
@@ -233,35 +233,6 @@ class _RecentActivityLoading extends StatelessWidget {
       key: ValueKey<String>('home-recent-activity-loading'),
       height: 96,
       child: Center(child: CircularProgressIndicator()),
-    );
-  }
-}
-
-class _RecentActivityFailure extends StatelessWidget {
-  const _RecentActivityFailure();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('home-recent-activity-failure'),
-      padding: AppSpacing.cardPadding,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderLarge,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Row(
-        children: <Widget>[
-          const Expanded(child: Text('Could not load recent activity.')),
-          TextButton(
-            key: const ValueKey<String>('home-recent-activity-retry'),
-            onPressed: () {
-              context.read<HomeCubit>().retryRecentActivity();
-            },
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
     );
   }
 }

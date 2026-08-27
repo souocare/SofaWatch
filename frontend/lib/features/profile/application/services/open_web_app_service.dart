@@ -5,12 +5,10 @@ import 'package:sofawatch/features/auth/domain/repositories/auth_handoff_reposit
 
 final class OpenWebAppService {
   const OpenWebAppService({
-    required ApiClient apiClient,
-    required AuthHandoffRepository authHandoffRepository,
-    required WebAppLauncher launcher,
-  }) : _apiClient = apiClient,
-       _authHandoffRepository = authHandoffRepository,
-       _launcher = launcher;
+    required this._apiClient,
+    required this._authHandoffRepository,
+    required this._launcher,
+  });
 
   final ApiClient _apiClient;
   final AuthHandoffRepository _authHandoffRepository;

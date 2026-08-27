@@ -1,13 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
-import 'package:sofawatch/features/server/data/models/server_health_dto.dart';
-import 'package:sofawatch/features/server/domain/models/server_health.dart';
-import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
 import 'package:sofawatch/features/server/data/models/background_job_dto.dart';
-import 'package:sofawatch/features/server/domain/models/background_job.dart';
+import 'package:sofawatch/features/server/data/models/server_health_dto.dart';
 import 'package:sofawatch/features/server/data/models/server_logs_dto.dart';
+import 'package:sofawatch/features/server/domain/models/background_job.dart';
+import 'package:sofawatch/features/server/domain/models/server_health.dart';
 import 'package:sofawatch/features/server/domain/models/server_logs.dart';
+import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
 
 final class ApiServerRepository implements ServerRepository {
   const ApiServerRepository(this._apiClient);

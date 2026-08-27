@@ -6,9 +6,8 @@ import 'package:sofawatch/features/statistics/domain/repositories/statistics_rep
 
 final class StatisticsContentInsightsCubit
     extends Cubit<StatisticsContentInsightsState> {
-  StatisticsContentInsightsCubit({required StatisticsRepository repository})
-    : _repository = repository,
-      super(const StatisticsContentInsightsInitial());
+  StatisticsContentInsightsCubit({required this._repository})
+    : super(const StatisticsContentInsightsInitial());
 
   final StatisticsRepository _repository;
 

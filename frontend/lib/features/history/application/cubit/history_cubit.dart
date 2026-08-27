@@ -6,9 +6,7 @@ import 'package:sofawatch/features/history/domain/models/history_page.dart';
 import 'package:sofawatch/features/history/domain/repositories/history_repository.dart';
 
 final class HistoryCubit extends Cubit<HistoryState> {
-  HistoryCubit({required HistoryRepository repository})
-    : _repository = repository,
-      super(const HistoryState());
+  HistoryCubit({required this._repository}) : super(const HistoryState());
 
   final HistoryRepository _repository;
 

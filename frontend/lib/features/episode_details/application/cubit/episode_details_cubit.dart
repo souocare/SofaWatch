@@ -9,10 +9,9 @@ import 'package:sofawatch/features/episode_progress/domain/repositories/episode_
 final class EpisodeDetailsCubit extends Cubit<EpisodeDetailsState> {
   EpisodeDetailsCubit({
     required this._repository,
-    required EpisodeProgressRepository progressRepository,
+    required this._progressRepository,
     required this._episodeId,
-  }) : _progressRepository = progressRepository,
-       super(const EpisodeDetailsInitial());
+  }) : super(const EpisodeDetailsInitial());
 
   final EpisodeDetailsRepository _repository;
   final EpisodeProgressRepository _progressRepository;

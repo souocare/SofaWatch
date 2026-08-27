@@ -5,9 +5,8 @@ import 'package:sofawatch/features/auth/domain/models/auth_session.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_handoff_repository.dart';
 
 final class AuthHandoffExchangeCubit extends Cubit<AuthHandoffExchangeState> {
-  AuthHandoffExchangeCubit({required AuthHandoffRepository repository})
-    : _repository = repository,
-      super(const AuthHandoffExchangeInitial());
+  AuthHandoffExchangeCubit({required this._repository})
+    : super(const AuthHandoffExchangeInitial());
 
   final AuthHandoffRepository _repository;
 

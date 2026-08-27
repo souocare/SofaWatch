@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/features/movie_details/domain/models/movie_details.dart';
 import 'package:sofawatch/features/movie_details/presentation/widgets/movie_details_hero.dart';

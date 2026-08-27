@@ -3,12 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
+import 'package:sofawatch/core/widgets/section_failure_card.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
 import 'package:sofawatch/features/home/application/models/home_watch_source.dart';
-import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
-import 'package:sofawatch/core/widgets/section_failure_card.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 
 class MissedRecentlySection extends StatelessWidget {
   const MissedRecentlySection({super.key});
@@ -248,37 +248,6 @@ class _MissedRecentlyLoading extends StatelessWidget {
       key: ValueKey<String>('home-missed-recently-loading'),
       height: 96,
       child: Center(child: CircularProgressIndicator()),
-    );
-  }
-}
-
-class _MissedRecentlyFailure extends StatelessWidget {
-  const _MissedRecentlyFailure();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('home-missed-recently-failure'),
-      padding: AppSpacing.cardPadding,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderLarge,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Row(
-        children: <Widget>[
-          const Expanded(
-            child: Text('Could not load recently missed episodes.'),
-          ),
-          TextButton(
-            key: const ValueKey<String>('home-missed-recently-retry'),
-            onPressed: () {
-              context.read<HomeCubit>().retryMissedRecently();
-            },
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
     );
   }
 }

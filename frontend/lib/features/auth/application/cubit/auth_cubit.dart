@@ -5,9 +5,7 @@ import 'package:sofawatch/features/auth/domain/models/auth_session.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
 
 final class AuthCubit extends Cubit<AuthState> {
-  AuthCubit({required AuthRepository repository})
-    : _repository = repository,
-      super(const AuthInitial());
+  AuthCubit({required this._repository}) : super(const AuthInitial());
 
   final AuthRepository _repository;
 

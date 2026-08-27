@@ -5,9 +5,8 @@ import 'package:sofawatch/features/statistics/domain/models/statistics_backlog.d
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
 
 final class StatisticsBacklogCubit extends Cubit<StatisticsBacklogState> {
-  StatisticsBacklogCubit({required StatisticsRepository repository})
-    : _repository = repository,
-      super(const StatisticsBacklogInitial());
+  StatisticsBacklogCubit({required this._repository})
+    : super(const StatisticsBacklogInitial());
 
   final StatisticsRepository _repository;
 

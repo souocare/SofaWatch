@@ -10,10 +10,6 @@ final class HistoryPageDto {
     this.nextCursor,
   });
 
-  final List<Object> items;
-  final String? nextCursor;
-  final bool hasMore;
-
   factory HistoryPageDto.fromJson(Map<String, dynamic> json) {
     final Object? rawItems = json['items'];
 
@@ -49,6 +45,10 @@ final class HistoryPageDto {
       hasMore: rawHasMore,
     );
   }
+
+  final List<Object> items;
+  final String? nextCursor;
+  final bool hasMore;
 
   HistoryPage toDomain({required String Function(String path) resolveUrl}) {
     return HistoryPage(

@@ -41,11 +41,7 @@ class HomeSection extends StatelessWidget {
 }
 
 class _HomeSectionHeader extends StatelessWidget {
-  const _HomeSectionHeader({
-    required this.title,
-    this.subtitle,
-    this.trailing,
-  });
+  const _HomeSectionHeader({required this.title, this.subtitle, this.trailing});
 
   final String title;
   final String? subtitle;
@@ -68,18 +64,14 @@ class _HomeSectionHeader extends StatelessWidget {
                 title,
                 style: Theme.of(
                   context,
-                ).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
               if (normalizedSubtitle != null &&
                   normalizedSubtitle.isNotEmpty) ...<Widget>[
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   normalizedSubtitle,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.textSecondary,
                   ),
                 ),

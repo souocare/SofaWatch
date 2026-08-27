@@ -56,7 +56,7 @@ final class ApiShowsRepository implements ShowsRepository {
   Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
     try {
       final Map<String, dynamic> queryParameters = <String, dynamic>{
-        if (limit != null) 'limit': limit,
+        'limit': ?limit,
       };
 
       final Response<List<dynamic>> response = await _apiClient
@@ -99,7 +99,7 @@ final class ApiShowsRepository implements ShowsRepository {
       final Map<String, dynamic> queryParameters = <String, dynamic>{
         if (fromDate != null) 'from_date': _formatDate(fromDate),
         if (toDate != null) 'to_date': _formatDate(toDate),
-        if (limit != null) 'limit': limit,
+        'limit': ?limit,
       };
 
       final Response<List<dynamic>> response = await _apiClient

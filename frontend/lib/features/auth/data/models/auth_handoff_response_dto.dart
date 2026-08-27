@@ -6,9 +6,6 @@ final class AuthHandoffResponseDto {
     required this.expiresIn,
   });
 
-  final String handoffToken;
-  final int expiresIn;
-
   factory AuthHandoffResponseDto.fromJson(Map<String, dynamic> json) {
     final Object? rawToken = json['handoff_token'];
     final Object? rawExpiresIn = json['expires_in'];
@@ -27,6 +24,9 @@ final class AuthHandoffResponseDto {
       expiresIn: rawExpiresIn,
     );
   }
+
+  final String handoffToken;
+  final int expiresIn;
 
   AuthHandoff toDomain() {
     return AuthHandoff(

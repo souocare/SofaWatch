@@ -10,13 +10,6 @@ final class StatisticsBacklogDto {
     required this.backlogTrendEpisodeDelta,
   });
 
-  final int unwatchedAiredEpisodes;
-  final int plannedMovies;
-  final int futureWatchTimeMinutes;
-  final double catchUpSpeedEpisodesPerWeek;
-  final String backlogTrend;
-  final int backlogTrendEpisodeDelta;
-
   factory StatisticsBacklogDto.fromJson(Map<String, dynamic> json) {
     return StatisticsBacklogDto(
       unwatchedAiredEpisodes: _requiredNonNegativeInt(
@@ -39,6 +32,13 @@ final class StatisticsBacklogDto {
       ),
     );
   }
+
+  final int unwatchedAiredEpisodes;
+  final int plannedMovies;
+  final int futureWatchTimeMinutes;
+  final double catchUpSpeedEpisodesPerWeek;
+  final String backlogTrend;
+  final int backlogTrendEpisodeDelta;
 
   StatisticsBacklog toDomain() {
     return StatisticsBacklog(

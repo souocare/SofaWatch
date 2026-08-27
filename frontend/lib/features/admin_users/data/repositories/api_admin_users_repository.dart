@@ -1,15 +1,14 @@
 import 'package:dio/dio.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/features/admin_users/data/models/admin_user_dto.dart';
 import 'package:sofawatch/features/admin_users/data/models/password_recovery_link_dto.dart';
+import 'package:sofawatch/features/admin_users/domain/models/admin_user.dart';
 import 'package:sofawatch/features/admin_users/domain/models/password_recovery_link.dart';
 import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_repository.dart';
-import 'package:sofawatch/features/admin_users/data/models/admin_user_dto.dart';
-import 'package:sofawatch/features/admin_users/domain/models/admin_user.dart';
 
 final class ApiAdminUsersRepository implements AdminUsersRepository {
-  const ApiAdminUsersRepository({required ApiClient apiClient})
-    : _apiClient = apiClient;
+  const ApiAdminUsersRepository({required this._apiClient});
 
   final ApiClient _apiClient;
 

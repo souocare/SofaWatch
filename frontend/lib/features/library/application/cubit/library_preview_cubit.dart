@@ -5,9 +5,8 @@ import 'package:sofawatch/features/library/domain/models/library_preview.dart';
 import 'package:sofawatch/features/library/domain/repositories/library_repository.dart';
 
 final class LibraryPreviewCubit extends Cubit<LibraryPreviewState> {
-  LibraryPreviewCubit({required LibraryRepository repository})
-    : _repository = repository,
-      super(const LibraryPreviewInitial());
+  LibraryPreviewCubit({required this._repository})
+    : super(const LibraryPreviewInitial());
 
   final LibraryRepository _repository;
 

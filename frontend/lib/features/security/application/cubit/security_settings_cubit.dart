@@ -5,9 +5,8 @@ import 'package:sofawatch/features/security/domain/models/security_settings.dart
 import 'package:sofawatch/features/security/domain/repositories/security_settings_repository.dart';
 
 final class SecuritySettingsCubit extends Cubit<SecuritySettingsState> {
-  SecuritySettingsCubit({required SecuritySettingsRepository repository})
-    : _repository = repository,
-      super(const SecuritySettingsInitial());
+  SecuritySettingsCubit({required this._repository})
+    : super(const SecuritySettingsInitial());
 
   final SecuritySettingsRepository _repository;
 

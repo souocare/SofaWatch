@@ -10,11 +10,9 @@ import 'package:sofawatch/features/shows/domain/repositories/shows_repository.da
 
 final class LibraryCollectionCubit extends Cubit<LibraryCollectionState> {
   LibraryCollectionCubit({
-    required ShowsRepository showsRepository,
-    required MoviesRepository moviesRepository,
-  }) : _showsRepository = showsRepository,
-       _moviesRepository = moviesRepository,
-       super(const LibraryCollectionState());
+    required this._showsRepository,
+    required this._moviesRepository,
+  }) : super(const LibraryCollectionState());
 
   final ShowsRepository _showsRepository;
   final MoviesRepository _moviesRepository;

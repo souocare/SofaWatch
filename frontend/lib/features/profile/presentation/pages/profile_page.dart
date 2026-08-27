@@ -1,53 +1,16 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
-import 'package:sofawatch/core/errors/app_error_message_mapper.dart';
-import 'package:sofawatch/features/profile/application/cubit/profile_cubit.dart';
-import 'package:sofawatch/features/profile/application/cubit/profile_state.dart';
-import 'package:sofawatch/features/profile/application/services/open_web_app_service.dart';
-import 'package:sofawatch/features/profile/domain/models/data_import_result.dart';
-import 'package:sofawatch/features/profile/domain/models/profile_user.dart';
-import 'package:sofawatch/core/errors/app_exception.dart';
-import 'package:sofawatch/core/widgets/section_failure_card.dart';
-import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
-import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_state.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
-import 'package:sofawatch/features/statistics/presentation/formatters/statistics_watch_time_formatter.dart';
-import 'package:sofawatch/features/library/application/cubit/library_preview_cubit.dart';
-import 'package:sofawatch/features/library/application/cubit/library_preview_state.dart';
-import 'package:sofawatch/features/library/domain/models/library_preview.dart';
-import 'package:sofawatch/features/history/application/cubit/history_preview_cubit.dart';
-import 'package:sofawatch/features/history/application/cubit/history_preview_state.dart';
-import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
-import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
-import 'package:sofawatch/features/history/domain/models/history_preview.dart';
-import 'package:sofawatch/features/server/application/cubit/server_health_cubit.dart';
-import 'package:sofawatch/features/server/application/cubit/server_health_state.dart';
-import 'package:sofawatch/features/server/domain/models/server_health.dart';
-import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
-import 'package:sofawatch/features/server/application/cubit/background_jobs_cubit.dart';
-import 'package:sofawatch/features/server/application/cubit/background_jobs_state.dart';
-import 'package:sofawatch/features/server/domain/models/background_job.dart';
-import 'package:sofawatch/features/server/application/cubit/server_logs_cubit.dart';
-import 'package:sofawatch/features/server/application/cubit/server_logs_state.dart';
-import 'package:sofawatch/features/server/domain/models/server_logs.dart';
-import 'package:sofawatch/features/profile/application/cubit/data_transfer_cubit.dart';
-import 'package:sofawatch/features/profile/application/cubit/data_transfer_state.dart';
-import 'package:sofawatch/core/files/file_downloader.dart';
-import 'package:flutter/foundation.dart';
-import 'package:sofawatch/core/files/json_file_picker.dart';
-import 'package:sofawatch/features/profile/domain/models/data_import_preview.dart';
-import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
-import 'package:sofawatch/features/security/application/cubit/security_settings_cubit.dart';
-import 'package:sofawatch/features/security/application/cubit/security_settings_state.dart';
-import 'package:sofawatch/features/security/domain/models/security_settings.dart';
-import 'package:sofawatch/features/security/domain/repositories/security_settings_repository.dart';
-import 'package:sofawatch/features/auth/application/cubit/auth_state.dart';
-import 'package:flutter/services.dart';
-import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/app/router/route_paths.dart';
+import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
+import 'package:sofawatch/core/api/api_client.dart';
+import 'package:sofawatch/core/errors/app_error_message_mapper.dart';
+import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/files/json_file_picker.dart';
+import 'package:sofawatch/core/widgets/section_failure_card.dart';
 import 'package:sofawatch/features/admin_users/application/cubit/admin_user_password_recovery_cubit.dart';
 import 'package:sofawatch/features/admin_users/application/cubit/admin_user_password_recovery_state.dart';
 import 'package:sofawatch/features/admin_users/application/cubit/admin_users_cubit.dart';
@@ -55,6 +18,40 @@ import 'package:sofawatch/features/admin_users/application/cubit/admin_users_sta
 import 'package:sofawatch/features/admin_users/domain/models/admin_user.dart';
 import 'package:sofawatch/features/admin_users/domain/models/password_recovery_link.dart';
 import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_repository.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_state.dart';
+import 'package:sofawatch/features/history/application/cubit/history_preview_cubit.dart';
+import 'package:sofawatch/features/history/application/cubit/history_preview_state.dart';
+import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_preview.dart';
+import 'package:sofawatch/features/library/application/cubit/library_preview_cubit.dart';
+import 'package:sofawatch/features/library/application/cubit/library_preview_state.dart';
+import 'package:sofawatch/features/library/domain/models/library_preview.dart';
+import 'package:sofawatch/features/profile/application/cubit/data_transfer_cubit.dart';
+import 'package:sofawatch/features/profile/application/cubit/data_transfer_state.dart';
+import 'package:sofawatch/features/profile/application/cubit/profile_cubit.dart';
+import 'package:sofawatch/features/profile/application/cubit/profile_state.dart';
+import 'package:sofawatch/features/profile/application/services/open_web_app_service.dart';
+import 'package:sofawatch/features/profile/domain/models/data_import_result.dart';
+import 'package:sofawatch/features/profile/domain/models/profile_user.dart';
+import 'package:sofawatch/features/security/application/cubit/security_settings_cubit.dart';
+import 'package:sofawatch/features/security/application/cubit/security_settings_state.dart';
+import 'package:sofawatch/features/security/domain/models/security_settings.dart';
+import 'package:sofawatch/features/security/domain/repositories/security_settings_repository.dart';
+import 'package:sofawatch/features/server/application/cubit/background_jobs_cubit.dart';
+import 'package:sofawatch/features/server/application/cubit/background_jobs_state.dart';
+import 'package:sofawatch/features/server/application/cubit/server_health_cubit.dart';
+import 'package:sofawatch/features/server/application/cubit/server_health_state.dart';
+import 'package:sofawatch/features/server/application/cubit/server_logs_cubit.dart';
+import 'package:sofawatch/features/server/application/cubit/server_logs_state.dart';
+import 'package:sofawatch/features/server/domain/models/background_job.dart';
+import 'package:sofawatch/features/server/domain/models/server_health.dart';
+import 'package:sofawatch/features/server/domain/models/server_logs.dart';
+import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_state.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
 
 const double _profileServerMetricCardExtent = 136;
 
@@ -4871,97 +4868,6 @@ class _ProfileServerLogsLoading extends StatelessWidget {
   }
 }
 
-class _LogoutEverywhereDialog extends StatelessWidget {
-  const _LogoutEverywhereDialog();
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      key: const ValueKey<String>('logout-everywhere-dialog'),
-      title: const Text('Log out everywhere?'),
-      content: const Text(
-        'This will end all active SofaWatch sessions, including sessions '
-        'on your other devices.',
-      ),
-      actions: <Widget>[
-        TextButton(
-          key: const ValueKey<String>('logout-everywhere-cancel'),
-          onPressed: () {
-            Navigator.of(context).pop(false);
-          },
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          key: const ValueKey<String>('logout-everywhere-confirm'),
-          onPressed: () {
-            Navigator.of(context).pop(true);
-          },
-          child: const Text('Log out everywhere'),
-        ),
-      ],
-    );
-  }
-}
-
-class _LogoutEverywhereSheet extends StatelessWidget {
-  const _LogoutEverywhereSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      key: const ValueKey<String>('logout-everywhere-sheet'),
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl,
-        AppSpacing.xxl,
-        AppSpacing.xl,
-        AppSpacing.xxxl,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Text(
-            'Log out everywhere?',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-          ),
-
-          const SizedBox(height: AppSpacing.md),
-
-          Text(
-            'This will end all active SofaWatch sessions, including sessions '
-            'on your other devices.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-          ),
-
-          const SizedBox(height: AppSpacing.xxl),
-
-          FilledButton(
-            key: const ValueKey<String>('logout-everywhere-confirm'),
-            onPressed: () {
-              Navigator.of(context).pop(true);
-            },
-            child: const Text('Log out everywhere'),
-          ),
-
-          const SizedBox(height: AppSpacing.sm),
-
-          TextButton(
-            key: const ValueKey<String>('logout-everywhere-cancel'),
-            onPressed: () {
-              Navigator.of(context).pop(false);
-            },
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 String _serverHealthStatusLabel(ServerHealthStatus status) {
   return switch (status) {
     ServerHealthStatus.healthy => 'Healthy',
@@ -5175,20 +5081,6 @@ String _formatServerLogDate(DateTime value) {
   final String second = local.second.toString().padLeft(2, '0');
 
   return '$day/$month · $hour:$minute:$second';
-}
-
-String _buildSofaWatchExportFilename() {
-  final DateTime now = DateTime.now();
-
-  final String year = now.year.toString().padLeft(4, '0');
-  final String month = now.month.toString().padLeft(2, '0');
-  final String day = now.day.toString().padLeft(2, '0');
-
-  final String hour = now.hour.toString().padLeft(2, '0');
-  final String minute = now.minute.toString().padLeft(2, '0');
-  final String second = now.second.toString().padLeft(2, '0');
-
-  return 'sofawatch-export-$year-$month-$day-$hour$minute$second.json';
 }
 
 Future<void> _openSofaWatchWeb(BuildContext context) async {

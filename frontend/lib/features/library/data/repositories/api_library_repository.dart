@@ -3,13 +3,13 @@ import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/library/data/models/imported_library_media_dto.dart';
 import 'package:sofawatch/features/library/data/models/library_entry_dto.dart';
+import 'package:sofawatch/features/library/data/models/library_preview_dto.dart';
 import 'package:sofawatch/features/library/domain/models/imported_library_media.dart';
 import 'package:sofawatch/features/library/domain/models/library_entry.dart';
 import 'package:sofawatch/features/library/domain/models/library_media_type.dart';
+import 'package:sofawatch/features/library/domain/models/library_preview.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/library/domain/repositories/library_repository.dart';
-import 'package:sofawatch/features/library/data/models/library_preview_dto.dart';
-import 'package:sofawatch/features/library/domain/models/library_preview.dart';
 
 final class ApiLibraryRepository implements LibraryRepository {
   const ApiLibraryRepository(this._apiClient);

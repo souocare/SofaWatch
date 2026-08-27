@@ -1,22 +1,22 @@
 import 'package:dio/dio.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
-import 'package:sofawatch/features/statistics/data/models/weekly_statistics_dto.dart';
-import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
-import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
-import 'package:sofawatch/features/statistics/data/models/statistics_summary_dto.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
 import 'package:sofawatch/features/statistics/data/models/statistics_activity_dto.dart';
+import 'package:sofawatch/features/statistics/data/models/statistics_backlog_dto.dart';
+import 'package:sofawatch/features/statistics/data/models/statistics_content_insights_dto.dart';
+import 'package:sofawatch/features/statistics/data/models/statistics_habits_dto.dart';
+import 'package:sofawatch/features/statistics/data/models/statistics_library_dto.dart';
+import 'package:sofawatch/features/statistics/data/models/statistics_summary_dto.dart';
+import 'package:sofawatch/features/statistics/data/models/weekly_statistics_dto.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_activity.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_activity_period.dart';
-import 'package:sofawatch/features/statistics/data/models/statistics_habits_dto.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_habits.dart';
-import 'package:sofawatch/features/statistics/data/models/statistics_content_insights_dto.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
-import 'package:sofawatch/features/statistics/data/models/statistics_library_dto.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
-import 'package:sofawatch/features/statistics/data/models/statistics_backlog_dto.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_backlog.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_habits.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
+import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
+import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
 
 final class ApiStatisticsRepository implements StatisticsRepository {
   const ApiStatisticsRepository(this._apiClient);

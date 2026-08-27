@@ -7,9 +7,8 @@ import 'package:sofawatch/core/api/configure_web_http_client_adapter.dart';
 typedef AccessTokenProvider = String? Function();
 
 class ApiClient {
-  ApiClient({Uri? baseUrl, Dio? dio, AccessTokenProvider? accessTokenProvider})
-    : _dio = dio ?? Dio(),
-      _accessTokenProvider = accessTokenProvider {
+  ApiClient({Uri? baseUrl, Dio? dio, this._accessTokenProvider})
+    : _dio = dio ?? Dio() {
     if (baseUrl != null) {
       configureBaseUrl(baseUrl);
     }

@@ -2,6 +2,24 @@ import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/movies/domain/models/library_movie.dart';
 
 final class LibraryMovieDto {
+  const LibraryMovieDto({
+    required this.libraryEntryId,
+    required this.movieId,
+    required this.tmdbId,
+    required this.title,
+    required this.originalTitle,
+    required this.status,
+    required this.movieStatus,
+    required this.voteAverage,
+    required this.createdAt,
+    required this.updatedAt,
+    this.releaseDate,
+    this.posterUrl,
+    this.backdropUrl,
+    this.rating,
+    this.startedAt,
+    this.completedAt,
+  });
   factory LibraryMovieDto.fromJson(Map<String, dynamic> json) {
     final Map<String, dynamic> movie = _requiredMap(json, 'movie');
 
@@ -24,24 +42,6 @@ final class LibraryMovieDto {
       updatedAt: _requiredDateTime(json, 'updated_at'),
     );
   }
-  const LibraryMovieDto({
-    required this.libraryEntryId,
-    required this.movieId,
-    required this.tmdbId,
-    required this.title,
-    required this.originalTitle,
-    required this.status,
-    required this.movieStatus,
-    required this.voteAverage,
-    required this.createdAt,
-    required this.updatedAt,
-    this.releaseDate,
-    this.posterUrl,
-    this.backdropUrl,
-    this.rating,
-    this.startedAt,
-    this.completedAt,
-  });
 
   final String libraryEntryId;
 

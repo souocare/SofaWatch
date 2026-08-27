@@ -265,7 +265,7 @@ const AuthSession _session = AuthSession(
 );
 
 final class _FakeAuthRepository implements AuthRepository {
-  _FakeAuthRepository({this.restoreSession});
+  _FakeAuthRepository() : restoreSession = null;
 
   final AuthSession? restoreSession;
 

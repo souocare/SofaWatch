@@ -12,16 +12,6 @@ final class HistoryEpisodeDto {
     this.stillUrl,
   });
 
-  final String id;
-  final int tmdbId;
-  final int seasonNumber;
-  final int episodeNumber;
-  final String title;
-
-  final DateTime? airDate;
-  final int? runtime;
-  final String? stillUrl;
-
   factory HistoryEpisodeDto.fromJson(Map<String, dynamic> json) {
     return HistoryEpisodeDto(
       id: _requiredString(json, 'id'),
@@ -34,6 +24,16 @@ final class HistoryEpisodeDto {
       stillUrl: _optionalString(json['still_url']),
     );
   }
+
+  final String id;
+  final int tmdbId;
+  final int seasonNumber;
+  final int episodeNumber;
+  final String title;
+
+  final DateTime? airDate;
+  final int? runtime;
+  final String? stillUrl;
 
   HistoryEpisode toDomain({required String Function(String path) resolveUrl}) {
     return HistoryEpisode(

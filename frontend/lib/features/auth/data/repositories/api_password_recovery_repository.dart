@@ -3,8 +3,7 @@ import 'package:sofawatch/features/auth/domain/repositories/password_recovery_re
 
 final class ApiPasswordRecoveryRepository
     implements PasswordRecoveryRepository {
-  const ApiPasswordRecoveryRepository({required ApiClient apiClient})
-    : _apiClient = apiClient;
+  const ApiPasswordRecoveryRepository({required this._apiClient});
 
   final ApiClient _apiClient;
 

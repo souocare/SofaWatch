@@ -2,6 +2,15 @@ import 'package:sofawatch/features/shows/data/models/watch_history_episode_dto.d
 import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 
 final class WatchHistoryItemDto {
+  const WatchHistoryItemDto({
+    required this.eventId,
+    required this.showId,
+    required this.showTmdbId,
+    required this.showTitle,
+    required this.episode,
+    this.posterUrl,
+    this.backdropUrl,
+  });
   factory WatchHistoryItemDto.fromJson(Map<String, dynamic> json) {
     final Map<String, dynamic> show = _requiredMap(json, 'show');
 
@@ -17,15 +26,6 @@ final class WatchHistoryItemDto {
       episode: WatchHistoryEpisodeDto.fromJson(episode),
     );
   }
-  const WatchHistoryItemDto({
-    required this.eventId,
-    required this.showId,
-    required this.showTmdbId,
-    required this.showTitle,
-    required this.episode,
-    this.posterUrl,
-    this.backdropUrl,
-  });
 
   /// Identifier of this specific historical viewing event.
   final String eventId;

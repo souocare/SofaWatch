@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,22 +14,21 @@ import 'package:sofawatch/core/server/repositories/shared_preferences_server_con
 import 'package:sofawatch/core/storage/key_value_store.dart';
 import 'package:sofawatch/core/storage/shared_preferences_key_value_store.dart';
 import 'package:sofawatch/features/auth/data/repositories/api_auth_handoff_repository.dart';
+import 'package:sofawatch/features/auth/data/repositories/api_auth_repository.dart';
+import 'package:sofawatch/features/auth/data/repositories/api_setup_status_repository.dart';
+import 'package:sofawatch/features/auth/data/storage/in_memory_access_token_store.dart';
+import 'package:sofawatch/features/auth/data/storage/secure_mobile_refresh_token_store.dart';
+import 'package:sofawatch/features/auth/domain/repositories/access_token_store.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_handoff_repository.dart';
+import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
+import 'package:sofawatch/features/auth/domain/repositories/mobile_refresh_token_store.dart';
+import 'package:sofawatch/features/auth/domain/repositories/setup_status_repository.dart';
 import 'package:sofawatch/features/search/data/cache/in_memory_search_cache.dart';
 import 'package:sofawatch/features/search/data/repositories/api_search_repository.dart';
 import 'package:sofawatch/features/search/data/repositories/cached_search_repository.dart';
 import 'package:sofawatch/features/search/domain/repositories/search_repository.dart';
 import 'package:sofawatch/features/server_setup/data/services/api_server_connection_tester.dart';
 import 'package:sofawatch/features/server_setup/domain/services/server_connection_tester.dart';
-import 'package:flutter/foundation.dart';
-import 'package:sofawatch/features/auth/data/repositories/api_auth_repository.dart';
-import 'package:sofawatch/features/auth/data/storage/in_memory_access_token_store.dart';
-import 'package:sofawatch/features/auth/data/storage/secure_mobile_refresh_token_store.dart';
-import 'package:sofawatch/features/auth/domain/repositories/access_token_store.dart';
-import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
-import 'package:sofawatch/features/auth/domain/repositories/mobile_refresh_token_store.dart';
-import 'package:sofawatch/features/auth/data/repositories/api_setup_status_repository.dart';
-import 'package:sofawatch/features/auth/domain/repositories/setup_status_repository.dart';
 
 Future<void> bootstrap(
   FutureOr<Widget> Function(AppBootstrapData data) builder,

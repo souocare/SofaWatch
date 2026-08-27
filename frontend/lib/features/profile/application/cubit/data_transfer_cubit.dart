@@ -2,13 +2,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/profile/application/cubit/data_transfer_state.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_preview.dart';
-import 'package:sofawatch/features/profile/domain/repositories/data_transfer_repository.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_result.dart';
+import 'package:sofawatch/features/profile/domain/repositories/data_transfer_repository.dart';
 
 final class DataTransferCubit extends Cubit<DataTransferState> {
-  DataTransferCubit({required DataTransferRepository repository})
-    : _repository = repository,
-      super(const DataTransferIdle());
+  DataTransferCubit({required this._repository})
+    : super(const DataTransferIdle());
 
   final DataTransferRepository _repository;
 

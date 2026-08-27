@@ -13,18 +13,6 @@ final class HistoryEpisodeItemDto {
     this.backdropUrl,
   });
 
-  final String eventId;
-  final DateTime watchedAt;
-
-  final String showId;
-  final int showTmdbId;
-  final String showTitle;
-
-  final String? posterUrl;
-  final String? backdropUrl;
-
-  final HistoryEpisodeDto episode;
-
   factory HistoryEpisodeItemDto.fromJson(Map<String, dynamic> json) {
     final String mediaType = _requiredString(json, 'media_type');
 
@@ -47,6 +35,18 @@ final class HistoryEpisodeItemDto {
       episode: HistoryEpisodeDto.fromJson(episode),
     );
   }
+
+  final String eventId;
+  final DateTime watchedAt;
+
+  final String showId;
+  final int showTmdbId;
+  final String showTitle;
+
+  final String? posterUrl;
+  final String? backdropUrl;
+
+  final HistoryEpisodeDto episode;
 
   HistoryEpisodeItem toDomain({
     required String Function(String path) resolveUrl,

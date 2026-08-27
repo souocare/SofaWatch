@@ -5,9 +5,8 @@ import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.da
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
 
 final class StatisticsCubit extends Cubit<StatisticsState> {
-  StatisticsCubit({required StatisticsRepository repository})
-    : _repository = repository,
-      super(const StatisticsInitial());
+  StatisticsCubit({required this._repository})
+    : super(const StatisticsInitial());
 
   final StatisticsRepository _repository;
 

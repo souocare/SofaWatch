@@ -5,10 +5,7 @@ import 'package:sofawatch/features/search/domain/models/search_result_page.dart'
 import 'package:sofawatch/features/search/domain/repositories/search_repository.dart';
 
 final class CachedSearchRepository implements SearchRepository {
-  CachedSearchRepository({
-    required this._repository,
-    required SearchCache cache,
-  }) : _cache = cache;
+  CachedSearchRepository({required this._repository, required this._cache});
 
   final SearchRepository _repository;
   final SearchCache _cache;

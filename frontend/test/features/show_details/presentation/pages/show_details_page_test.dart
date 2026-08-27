@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
 import 'package:sofawatch/features/library/domain/repositories/library_repository.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_cubit.dart';
@@ -10,7 +11,6 @@ import 'package:sofawatch/features/show_details/domain/models/show_details.dart'
 import 'package:sofawatch/features/show_details/domain/models/show_details_genre.dart';
 import 'package:sofawatch/features/show_details/domain/repositories/show_details_repository.dart';
 import 'package:sofawatch/features/show_details/presentation/pages/show_details_page.dart';
-import 'package:sofawatch/core/errors/app_exception.dart';
 
 void main() {
   group('ShowDetailsPage', () {

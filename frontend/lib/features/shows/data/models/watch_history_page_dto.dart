@@ -2,6 +2,11 @@ import 'package:sofawatch/features/shows/data/models/watch_history_item_dto.dart
 import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 
 final class WatchHistoryPageDto {
+  const WatchHistoryPageDto({
+    required this.items,
+    required this.hasMore,
+    this.nextCursor,
+  });
   factory WatchHistoryPageDto.fromJson(Map<String, dynamic> json) {
     final Object? rawItems = json['items'];
 
@@ -31,11 +36,6 @@ final class WatchHistoryPageDto {
       hasMore: rawHasMore,
     );
   }
-  const WatchHistoryPageDto({
-    required this.items,
-    required this.hasMore,
-    this.nextCursor,
-  });
 
   final List<WatchHistoryItemDto> items;
   final String? nextCursor;

@@ -5,9 +5,8 @@ import 'package:sofawatch/features/server/domain/models/server_logs.dart';
 import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
 
 final class ServerLogsCubit extends Cubit<ServerLogsState> {
-  ServerLogsCubit({required ServerRepository repository, this.pageSize = 50})
-    : _repository = repository,
-      super(const ServerLogsInitial());
+  ServerLogsCubit({required this._repository, this.pageSize = 50})
+    : super(const ServerLogsInitial());
 
   final ServerRepository _repository;
   final int pageSize;

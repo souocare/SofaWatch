@@ -11,16 +11,6 @@ final class HistoryMovieItemDto {
     this.backdropUrl,
   });
 
-  final String eventId;
-  final DateTime watchedAt;
-
-  final String movieId;
-  final int movieTmdbId;
-  final String movieTitle;
-
-  final String? posterUrl;
-  final String? backdropUrl;
-
   factory HistoryMovieItemDto.fromJson(Map<String, dynamic> json) {
     final String mediaType = _requiredString(json, 'media_type');
 
@@ -40,6 +30,16 @@ final class HistoryMovieItemDto {
       backdropUrl: _optionalString(movie['backdrop_url']),
     );
   }
+
+  final String eventId;
+  final DateTime watchedAt;
+
+  final String movieId;
+  final int movieTmdbId;
+  final String movieTitle;
+
+  final String? posterUrl;
+  final String? backdropUrl;
 
   HistoryMovieItem toDomain({
     required String Function(String path) resolveUrl,

@@ -4,10 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/server/application/cubit/server_health_cubit.dart';
 import 'package:sofawatch/features/server/application/cubit/server_health_state.dart';
+import 'package:sofawatch/features/server/domain/models/background_job.dart';
 import 'package:sofawatch/features/server/domain/models/server_health.dart';
 import 'package:sofawatch/features/server/domain/models/server_logs.dart';
 import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
-import 'package:sofawatch/features/server/domain/models/background_job.dart';
 
 void main() {
   group('ServerHealthCubit', () {

@@ -3,12 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
+import 'package:sofawatch/core/widgets/section_failure_card.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
+import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
-import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
-import 'package:sofawatch/core/widgets/section_failure_card.dart';
 
 class UpcomingSection extends StatelessWidget {
   const UpcomingSection({super.key});
@@ -264,35 +264,6 @@ class _UpcomingLoading extends StatelessWidget {
       key: ValueKey<String>('home-upcoming-loading'),
       height: 96,
       child: Center(child: CircularProgressIndicator()),
-    );
-  }
-}
-
-class _UpcomingFailure extends StatelessWidget {
-  const _UpcomingFailure();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('home-upcoming-failure'),
-      padding: AppSpacing.cardPadding,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderLarge,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Row(
-        children: <Widget>[
-          const Expanded(child: Text('Could not load upcoming episodes.')),
-          TextButton(
-            key: const ValueKey<String>('home-upcoming-retry'),
-            onPressed: () {
-              context.read<HomeCubit>().retryUpcoming();
-            },
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
     );
   }
 }

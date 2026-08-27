@@ -1,6 +1,17 @@
 import 'package:sofawatch/features/shows/domain/models/stale_watching_episode.dart';
 
 final class StaleWatchingEpisodeDto {
+  const StaleWatchingEpisodeDto({
+    required this.id,
+    required this.tmdbId,
+    required this.seasonNumber,
+    required this.episodeNumber,
+    required this.title,
+    required this.watchedAt,
+    this.airDate,
+    this.runtime,
+    this.stillUrl,
+  });
   factory StaleWatchingEpisodeDto.fromJson(Map<String, dynamic> json) {
     return StaleWatchingEpisodeDto(
       id: _requiredString(json, 'id'),
@@ -14,17 +25,6 @@ final class StaleWatchingEpisodeDto {
       stillUrl: _optionalString(json['still_url']),
     );
   }
-  const StaleWatchingEpisodeDto({
-    required this.id,
-    required this.tmdbId,
-    required this.seasonNumber,
-    required this.episodeNumber,
-    required this.title,
-    required this.watchedAt,
-    this.airDate,
-    this.runtime,
-    this.stillUrl,
-  });
 
   final String id;
   final int tmdbId;

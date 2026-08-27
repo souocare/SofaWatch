@@ -1,7 +1,7 @@
 import 'package:sofawatch/features/library/domain/models/imported_library_media.dart';
 import 'package:sofawatch/features/library/domain/models/library_entry.dart';
-import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/library/domain/models/library_preview.dart';
+import 'package:sofawatch/features/library/domain/models/library_status.dart';
 
 abstract interface class LibraryRepository {
   Future<LibraryPreview> getPreview();

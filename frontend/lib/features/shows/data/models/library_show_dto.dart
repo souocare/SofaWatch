@@ -1,10 +1,30 @@
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
-import 'package:sofawatch/features/shows/domain/models/library_show.dart';
-import 'package:sofawatch/features/shows/domain/models/library_first_episode.dart';
 import 'package:sofawatch/features/shows/data/models/library_show_progress_dto.dart';
+import 'package:sofawatch/features/shows/domain/models/library_first_episode.dart';
+import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show_progress.dart';
 
 final class LibraryShowDto {
+  const LibraryShowDto({
+    required this.libraryEntryId,
+    required this.showId,
+    required this.tmdbId,
+    required this.title,
+    required this.originalTitle,
+    required this.status,
+    required this.showStatus,
+    required this.voteAverage,
+    required this.createdAt,
+    required this.updatedAt,
+    this.firstAirDate,
+    this.posterUrl,
+    this.backdropUrl,
+    this.rating,
+    this.startedAt,
+    this.completedAt,
+    this.firstAvailableEpisode,
+    required this.progress,
+  });
   factory LibraryShowDto.fromJson(Map<String, dynamic> json) {
     final Map<String, dynamic> show = _requiredMap(json, 'show');
 
@@ -56,26 +76,6 @@ final class LibraryShowDto {
             ),
     );
   }
-  const LibraryShowDto({
-    required this.libraryEntryId,
-    required this.showId,
-    required this.tmdbId,
-    required this.title,
-    required this.originalTitle,
-    required this.status,
-    required this.showStatus,
-    required this.voteAverage,
-    required this.createdAt,
-    required this.updatedAt,
-    this.firstAirDate,
-    this.posterUrl,
-    this.backdropUrl,
-    this.rating,
-    this.startedAt,
-    this.completedAt,
-    this.firstAvailableEpisode,
-    required this.progress,
-  });
 
   final String libraryEntryId;
 

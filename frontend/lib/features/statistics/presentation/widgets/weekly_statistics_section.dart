@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
+import 'package:sofawatch/core/widgets/section_failure_card.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_state.dart';
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
-import 'package:sofawatch/core/widgets/section_failure_card.dart';
 
 class WeeklyStatisticsSection extends StatelessWidget {
   const WeeklyStatisticsSection({super.key});

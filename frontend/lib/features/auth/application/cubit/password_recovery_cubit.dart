@@ -4,9 +4,8 @@ import 'package:sofawatch/features/auth/application/cubit/password_recovery_stat
 import 'package:sofawatch/features/auth/domain/repositories/password_recovery_repository.dart';
 
 final class PasswordRecoveryCubit extends Cubit<PasswordRecoveryState> {
-  PasswordRecoveryCubit({required PasswordRecoveryRepository repository})
-    : _repository = repository,
-      super(const PasswordRecoveryInitial());
+  PasswordRecoveryCubit({required this._repository})
+    : super(const PasswordRecoveryInitial());
 
   final PasswordRecoveryRepository _repository;
 

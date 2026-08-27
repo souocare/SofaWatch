@@ -5,9 +5,8 @@ import 'package:sofawatch/features/history/domain/models/history_preview.dart';
 import 'package:sofawatch/features/history/domain/repositories/history_repository.dart';
 
 final class HistoryPreviewCubit extends Cubit<HistoryPreviewState> {
-  HistoryPreviewCubit({required HistoryRepository repository})
-    : _repository = repository,
-      super(const HistoryPreviewInitial());
+  HistoryPreviewCubit({required this._repository})
+    : super(const HistoryPreviewInitial());
 
   final HistoryRepository _repository;
 

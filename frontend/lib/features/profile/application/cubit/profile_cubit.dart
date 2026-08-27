@@ -5,9 +5,7 @@ import 'package:sofawatch/features/profile/domain/models/profile_user.dart';
 import 'package:sofawatch/features/profile/domain/repositories/profile_repository.dart';
 
 final class ProfileCubit extends Cubit<ProfileState> {
-  ProfileCubit({required ProfileRepository repository})
-    : _repository = repository,
-      super(const ProfileInitial());
+  ProfileCubit({required this._repository}) : super(const ProfileInitial());
 
   final ProfileRepository _repository;
 

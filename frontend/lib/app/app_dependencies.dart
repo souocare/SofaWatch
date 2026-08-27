@@ -5,9 +5,9 @@ import 'package:sofawatch/core/server/repositories/server_configuration_reposito
 import 'package:sofawatch/features/auth/domain/repositories/access_token_store.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_handoff_repository.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
+import 'package:sofawatch/features/auth/domain/repositories/setup_status_repository.dart';
 import 'package:sofawatch/features/search/domain/repositories/search_repository.dart';
 import 'package:sofawatch/features/server_setup/domain/services/server_connection_tester.dart';
-import 'package:sofawatch/features/auth/domain/repositories/setup_status_repository.dart';
 
 class AppDependencies extends StatelessWidget {
   const AppDependencies({

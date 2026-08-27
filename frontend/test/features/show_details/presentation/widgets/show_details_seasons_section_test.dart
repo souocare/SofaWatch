@@ -914,12 +914,6 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      final Finder watchCountButton = find.byKey(
-        const ValueKey<String>(
-          'show-details-episode-watch-history-episode-1-uuid',
-        ),
-      );
-
       expect(find.text('2×'), findsNothing);
 
       expect(

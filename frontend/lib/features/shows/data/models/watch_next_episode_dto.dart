@@ -1,6 +1,16 @@
 import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
 
 final class WatchNextEpisodeDto {
+  const WatchNextEpisodeDto({
+    required this.id,
+    required this.tmdbId,
+    required this.seasonNumber,
+    required this.episodeNumber,
+    required this.title,
+    this.airDate,
+    this.runtime,
+    this.stillUrl,
+  });
   factory WatchNextEpisodeDto.fromJson(Map<String, dynamic> json) {
     return WatchNextEpisodeDto(
       id: _requiredString(json, 'id'),
@@ -13,16 +23,6 @@ final class WatchNextEpisodeDto {
       stillUrl: _optionalString(json['still_url']),
     );
   }
-  const WatchNextEpisodeDto({
-    required this.id,
-    required this.tmdbId,
-    required this.seasonNumber,
-    required this.episodeNumber,
-    required this.title,
-    this.airDate,
-    this.runtime,
-    this.stillUrl,
-  });
 
   final String id;
   final int tmdbId;

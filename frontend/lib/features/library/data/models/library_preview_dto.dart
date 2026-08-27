@@ -3,9 +3,6 @@ import 'package:sofawatch/features/library/domain/models/library_preview.dart';
 final class LibraryPreviewDto {
   const LibraryPreviewDto({required this.shows, required this.movies});
 
-  final List<LibraryPreviewShowDto> shows;
-  final List<LibraryPreviewMovieDto> movies;
-
   factory LibraryPreviewDto.fromJson(Map<String, dynamic> json) {
     return LibraryPreviewDto(
       shows: _parseList(
@@ -20,6 +17,9 @@ final class LibraryPreviewDto {
       ),
     );
   }
+
+  final List<LibraryPreviewShowDto> shows;
+  final List<LibraryPreviewMovieDto> movies;
 
   LibraryPreview toDomain({
     required String? Function(String? path) resolveUrl,
@@ -49,11 +49,6 @@ final class LibraryPreviewShowDto {
     required this.posterUrl,
   });
 
-  final String id;
-  final int tmdbId;
-  final String title;
-  final String? posterUrl;
-
   factory LibraryPreviewShowDto.fromJson(Map<String, dynamic> json) {
     final Map<String, dynamic> show = _requiredObject(json, 'show');
 
@@ -64,6 +59,11 @@ final class LibraryPreviewShowDto {
       posterUrl: _nullableString(show, 'poster_url'),
     );
   }
+
+  final String id;
+  final int tmdbId;
+  final String title;
+  final String? posterUrl;
 
   LibraryPreviewShow toDomain({
     required String? Function(String? path) resolveUrl,
@@ -85,11 +85,6 @@ final class LibraryPreviewMovieDto {
     required this.posterUrl,
   });
 
-  final String id;
-  final int tmdbId;
-  final String title;
-  final String? posterUrl;
-
   factory LibraryPreviewMovieDto.fromJson(Map<String, dynamic> json) {
     final Map<String, dynamic> movie = _requiredObject(json, 'movie');
 
@@ -100,6 +95,11 @@ final class LibraryPreviewMovieDto {
       posterUrl: _nullableString(movie, 'poster_url'),
     );
   }
+
+  final String id;
+  final int tmdbId;
+  final String title;
+  final String? posterUrl;
 
   LibraryPreviewMovie toDomain({
     required String? Function(String? path) resolveUrl,

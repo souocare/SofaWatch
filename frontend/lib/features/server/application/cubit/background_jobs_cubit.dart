@@ -8,11 +8,9 @@ import 'package:sofawatch/features/server/domain/repositories/server_repository.
 
 final class BackgroundJobsCubit extends Cubit<BackgroundJobsState> {
   BackgroundJobsCubit({
-    required ServerRepository repository,
-    Duration pollingInterval = const Duration(seconds: 3),
-  }) : _repository = repository,
-       _pollingInterval = pollingInterval,
-       super(const BackgroundJobsInitial());
+    required this._repository,
+    this._pollingInterval = const Duration(seconds: 3),
+  }) : super(const BackgroundJobsInitial());
 
   final ServerRepository _repository;
   final Duration _pollingInterval;

@@ -6,9 +6,8 @@ import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_r
 
 final class AdminUserPasswordRecoveryCubit
     extends Cubit<AdminUserPasswordRecoveryState> {
-  AdminUserPasswordRecoveryCubit({required AdminUsersRepository repository})
-    : _repository = repository,
-      super(const AdminUserPasswordRecoveryInitial());
+  AdminUserPasswordRecoveryCubit({required this._repository})
+    : super(const AdminUserPasswordRecoveryInitial());
 
   final AdminUsersRepository _repository;
 

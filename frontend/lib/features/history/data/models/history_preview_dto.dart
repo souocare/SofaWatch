@@ -5,9 +5,6 @@ import 'package:sofawatch/features/history/domain/models/history_preview.dart';
 final class HistoryPreviewDto {
   const HistoryPreviewDto({required this.episodes, required this.movies});
 
-  final List<HistoryEpisodeItemDto> episodes;
-  final List<HistoryMovieItemDto> movies;
-
   factory HistoryPreviewDto.fromJson(Map<String, dynamic> json) {
     return HistoryPreviewDto(
       episodes: _parseList(
@@ -22,6 +19,9 @@ final class HistoryPreviewDto {
       ),
     );
   }
+
+  final List<HistoryEpisodeItemDto> episodes;
+  final List<HistoryMovieItemDto> movies;
 
   HistoryPreview toDomain({required String Function(String path) resolveUrl}) {
     return HistoryPreview(

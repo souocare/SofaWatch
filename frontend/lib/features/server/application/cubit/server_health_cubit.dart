@@ -5,9 +5,8 @@ import 'package:sofawatch/features/server/domain/models/server_health.dart';
 import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
 
 final class ServerHealthCubit extends Cubit<ServerHealthState> {
-  ServerHealthCubit({required ServerRepository repository})
-    : _repository = repository,
-      super(const ServerHealthInitial());
+  ServerHealthCubit({required this._repository})
+    : super(const ServerHealthInitial());
 
   final ServerRepository _repository;
 

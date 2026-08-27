@@ -10,14 +10,11 @@ import 'package:sofawatch/features/auth/domain/repositories/mobile_refresh_token
 
 final class ApiAuthRepository implements AuthRepository {
   ApiAuthRepository({
-    required ApiClient apiClient,
-    required AccessTokenStore accessTokenStore,
-    MobileRefreshTokenStore? mobileRefreshTokenStore,
+    required this._apiClient,
+    required this._accessTokenStore,
+    this._mobileRefreshTokenStore,
     bool? isWeb,
-  }) : _apiClient = apiClient,
-       _accessTokenStore = accessTokenStore,
-       _mobileRefreshTokenStore = mobileRefreshTokenStore,
-       _isWeb = isWeb ?? kIsWeb;
+  }) : _isWeb = isWeb ?? kIsWeb;
 
   final ApiClient _apiClient;
   final AccessTokenStore _accessTokenStore;

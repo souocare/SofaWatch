@@ -7,8 +7,7 @@ import 'package:sofawatch/features/security/domain/repositories/security_setting
 
 final class ApiSecuritySettingsRepository
     implements SecuritySettingsRepository {
-  const ApiSecuritySettingsRepository({required ApiClient apiClient})
-    : _apiClient = apiClient;
+  const ApiSecuritySettingsRepository({required this._apiClient});
 
   final ApiClient _apiClient;
 

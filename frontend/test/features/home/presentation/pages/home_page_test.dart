@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/presentation/pages/home_page.dart';
+import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_episode.dart';
@@ -16,17 +16,16 @@ import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_cubit.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_activity.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_activity_period.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_backlog.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_habits.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
 import 'package:sofawatch/features/statistics/presentation/widgets/weekly_statistics_section.dart';
-import 'package:sofawatch/features/library/domain/models/library_status.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_activity.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_activity_period.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_habits.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_backlog.dart';
 
 void main() {
   group('HomePage', () {

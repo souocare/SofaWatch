@@ -44,7 +44,7 @@ final class ApiHistoryRepository implements HistoryRepository {
             '/library/history',
             queryParameters: <String, dynamic>{
               'limit': limit,
-              if (cursor != null) 'cursor': cursor,
+              'cursor': ?cursor,
             },
           );
 

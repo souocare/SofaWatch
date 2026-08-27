@@ -4,15 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_state.dart';
-import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
-import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_activity.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_activity_period.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_habits.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_backlog.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_habits.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
+import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
+import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
 
 void main() {
   group('StatisticsCubit', () {

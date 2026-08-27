@@ -10,10 +10,9 @@ import 'package:sofawatch/features/auth/domain/repositories/auth_handoff_reposit
 
 final class ApiAuthHandoffRepository implements AuthHandoffRepository {
   const ApiAuthHandoffRepository({
-    required ApiClient apiClient,
-    required AccessTokenStore accessTokenStore,
-  }) : _apiClient = apiClient,
-       _accessTokenStore = accessTokenStore;
+    required this._apiClient,
+    required this._accessTokenStore,
+  });
 
   final ApiClient _apiClient;
   final AccessTokenStore _accessTokenStore;

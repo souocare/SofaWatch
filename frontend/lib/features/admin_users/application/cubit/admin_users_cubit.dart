@@ -5,9 +5,8 @@ import 'package:sofawatch/features/admin_users/domain/models/admin_user.dart';
 import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_repository.dart';
 
 final class AdminUsersCubit extends Cubit<AdminUsersState> {
-  AdminUsersCubit({required AdminUsersRepository repository})
-    : _repository = repository,
-      super(const AdminUsersInitial());
+  AdminUsersCubit({required this._repository})
+    : super(const AdminUsersInitial());
 
   final AdminUsersRepository _repository;
 

@@ -1,22 +1,22 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/features/show_details/application/cubit/show_details_episode_operation.dart';
+import 'package:sofawatch/features/show_details/application/cubit/show_details_season_operation.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_season_state.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
+import 'package:sofawatch/features/show_details/domain/models/show_details_episode_watch_event.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_local_season.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_season_progress.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_seasons_bootstrap.dart';
 import 'package:sofawatch/features/show_details/domain/repositories/show_details_seasons_repository.dart';
-import 'package:sofawatch/features/show_details/domain/models/show_details_episode_progress.dart';
-import 'package:sofawatch/features/show_details/application/cubit/show_details_episode_operation.dart';
-import 'package:sofawatch/features/show_details/domain/models/show_details_episode_watch_event.dart';
-import 'package:sofawatch/features/show_details/application/cubit/show_details_season_operation.dart';
 
 final class ShowDetailsSeasonsCubit
     extends Cubit<Map<int, ShowDetailsSeasonState>> {
-  ShowDetailsSeasonsCubit({required this._repository, required int showTmdbId})
-    : _showTmdbId = showTmdbId,
-      super(const <int, ShowDetailsSeasonState>{});
+  ShowDetailsSeasonsCubit({
+    required this._repository,
+    required this._showTmdbId,
+  }) : super(const <int, ShowDetailsSeasonState>{});
 
   final ShowDetailsSeasonsRepository _repository;
   final int _showTmdbId;

@@ -8,13 +8,13 @@ import 'package:sofawatch/features/library/application/cubit/library_cubit.dart'
 import 'package:sofawatch/features/library/domain/models/imported_library_media.dart';
 import 'package:sofawatch/features/library/domain/models/library_entry.dart';
 import 'package:sofawatch/features/library/domain/models/library_media_type.dart';
+import 'package:sofawatch/features/library/domain/models/library_preview.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/library/domain/repositories/library_repository.dart';
 import 'package:sofawatch/features/movie_details/application/cubit/movie_details_cubit.dart';
 import 'package:sofawatch/features/movie_details/domain/models/movie_details.dart';
 import 'package:sofawatch/features/movie_details/domain/repositories/movie_details_repository.dart';
 import 'package:sofawatch/features/movie_details/presentation/pages/movie_details_page.dart';
-import 'package:sofawatch/features/library/domain/models/library_preview.dart';
 
 void main() {
   group('MovieDetailsPage', () {
@@ -1189,22 +1189,6 @@ final MovieDetails _movieDetails = MovieDetails(
   overview: 'Paul Atreides travels to Arrakis.',
   tagline: 'Beyond fear, destiny awaits.',
   releaseDate: DateTime(2021, 10, 22),
-  genres: <String>['Science Fiction', 'Adventure'],
-  originalLanguage: 'en',
-  runtime: 155,
-  status: 'Released',
-  voteAverage: 7.8,
-  voteCount: 13000,
-);
-
-const MovieDetails _movieDetailsWithImages = MovieDetails(
-  tmdbId: 438631,
-  title: 'Dune',
-  originalTitle: 'Dune',
-  overview: 'Paul Atreides travels to Arrakis.',
-  tagline: 'Beyond fear, destiny awaits.',
-  posterUrl: 'https://example.com/dune-poster.jpg',
-  backdropUrl: 'https://example.com/dune-backdrop.jpg',
   genres: <String>['Science Fiction', 'Adventure'],
   originalLanguage: 'en',
   runtime: 155,

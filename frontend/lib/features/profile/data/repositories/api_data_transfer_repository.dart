@@ -4,10 +4,10 @@ import 'package:dio/dio.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/profile/data/models/data_import_preview_dto.dart';
-import 'package:sofawatch/features/profile/domain/models/data_import_preview.dart';
-import 'package:sofawatch/features/profile/domain/repositories/data_transfer_repository.dart';
 import 'package:sofawatch/features/profile/data/models/data_import_result_dto.dart';
+import 'package:sofawatch/features/profile/domain/models/data_import_preview.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_result.dart';
+import 'package:sofawatch/features/profile/domain/repositories/data_transfer_repository.dart';
 
 final class ApiDataTransferRepository implements DataTransferRepository {
   const ApiDataTransferRepository(this._apiClient);

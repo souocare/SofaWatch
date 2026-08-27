@@ -6,9 +6,8 @@ import 'package:sofawatch/features/statistics/domain/models/statistics_activity_
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
 
 final class StatisticsActivityCubit extends Cubit<StatisticsActivityState> {
-  StatisticsActivityCubit({required StatisticsRepository repository})
-    : _repository = repository,
-      super(const StatisticsActivityInitial());
+  StatisticsActivityCubit({required this._repository})
+    : super(const StatisticsActivityInitial());
 
   static const StatisticsActivityPeriod defaultPeriod =
       StatisticsActivityPeriod.days7;

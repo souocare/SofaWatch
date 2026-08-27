@@ -1,6 +1,17 @@
 import 'package:sofawatch/features/shows/domain/models/upcoming_episode.dart';
 
 final class UpcomingEpisodeDto {
+  const UpcomingEpisodeDto({
+    required this.id,
+    required this.tmdbId,
+    required this.seasonNumber,
+    required this.episodeNumber,
+    required this.title,
+    required this.airDate,
+    required this.isWatched,
+    this.runtime,
+    this.stillUrl,
+  });
   factory UpcomingEpisodeDto.fromJson(Map<String, dynamic> json) {
     return UpcomingEpisodeDto(
       id: _requiredString(json, 'id'),
@@ -14,18 +25,6 @@ final class UpcomingEpisodeDto {
       isWatched: _requiredBool(json, 'is_watched'),
     );
   }
-
-  const UpcomingEpisodeDto({
-    required this.id,
-    required this.tmdbId,
-    required this.seasonNumber,
-    required this.episodeNumber,
-    required this.title,
-    required this.airDate,
-    required this.isWatched,
-    this.runtime,
-    this.stillUrl,
-  });
 
   final String id;
   final int tmdbId;

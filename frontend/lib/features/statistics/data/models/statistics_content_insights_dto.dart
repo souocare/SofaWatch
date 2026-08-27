@@ -10,13 +10,6 @@ final class StatisticsContentInsightsDto {
     required this.topMovieGenres,
   });
 
-  final List<StatisticsShowInsightDto> mostWatchedShows;
-  final List<StatisticsShowInsightDto> mostRewatchedShows;
-  final List<StatisticsEpisodeInsightDto> mostRewatchedEpisodes;
-  final List<StatisticsMovieInsightDto> mostRewatchedMovies;
-  final List<StatisticsGenreInsightDto> topShowGenres;
-  final List<StatisticsGenreInsightDto> topMovieGenres;
-
   factory StatisticsContentInsightsDto.fromJson(Map<String, dynamic> json) {
     return StatisticsContentInsightsDto(
       mostWatchedShows: _parseList(
@@ -51,6 +44,13 @@ final class StatisticsContentInsightsDto {
       ),
     );
   }
+
+  final List<StatisticsShowInsightDto> mostWatchedShows;
+  final List<StatisticsShowInsightDto> mostRewatchedShows;
+  final List<StatisticsEpisodeInsightDto> mostRewatchedEpisodes;
+  final List<StatisticsMovieInsightDto> mostRewatchedMovies;
+  final List<StatisticsGenreInsightDto> topShowGenres;
+  final List<StatisticsGenreInsightDto> topMovieGenres;
 
   StatisticsContentInsights toDomain({
     String? Function(String? url)? resolveUrl,
@@ -100,13 +100,6 @@ final class StatisticsShowInsightDto {
     required this.rewatchCount,
   });
 
-  final String showId;
-  final int tmdbId;
-  final String title;
-  final String? posterUrl;
-  final int watchCount;
-  final int rewatchCount;
-
   factory StatisticsShowInsightDto.fromJson(Map<String, dynamic> json) {
     return StatisticsShowInsightDto(
       showId: _requiredString(json, 'show_id'),
@@ -117,6 +110,13 @@ final class StatisticsShowInsightDto {
       rewatchCount: _requiredNonNegativeInt(json, 'rewatch_count'),
     );
   }
+
+  final String showId;
+  final int tmdbId;
+  final String title;
+  final String? posterUrl;
+  final int watchCount;
+  final int rewatchCount;
 
   StatisticsShowInsight toDomain({String? Function(String? url)? resolveUrl}) {
     return StatisticsShowInsight(
@@ -143,16 +143,6 @@ final class StatisticsEpisodeInsightDto {
     required this.rewatchCount,
   });
 
-  final String episodeId;
-  final int showTmdbId;
-  final String showTitle;
-  final int seasonNumber;
-  final int episodeNumber;
-  final String episodeTitle;
-  final String? stillUrl;
-  final int watchCount;
-  final int rewatchCount;
-
   factory StatisticsEpisodeInsightDto.fromJson(Map<String, dynamic> json) {
     return StatisticsEpisodeInsightDto(
       episodeId: _requiredString(json, 'episode_id'),
@@ -166,6 +156,16 @@ final class StatisticsEpisodeInsightDto {
       rewatchCount: _requiredNonNegativeInt(json, 'rewatch_count'),
     );
   }
+
+  final String episodeId;
+  final int showTmdbId;
+  final String showTitle;
+  final int seasonNumber;
+  final int episodeNumber;
+  final String episodeTitle;
+  final String? stillUrl;
+  final int watchCount;
+  final int rewatchCount;
 
   StatisticsEpisodeInsight toDomain({
     String? Function(String? url)? resolveUrl,
@@ -194,13 +194,6 @@ final class StatisticsMovieInsightDto {
     required this.rewatchCount,
   });
 
-  final String movieId;
-  final int tmdbId;
-  final String title;
-  final String? posterUrl;
-  final int watchCount;
-  final int rewatchCount;
-
   factory StatisticsMovieInsightDto.fromJson(Map<String, dynamic> json) {
     return StatisticsMovieInsightDto(
       movieId: _requiredString(json, 'movie_id'),
@@ -211,6 +204,13 @@ final class StatisticsMovieInsightDto {
       rewatchCount: _requiredNonNegativeInt(json, 'rewatch_count'),
     );
   }
+
+  final String movieId;
+  final int tmdbId;
+  final String title;
+  final String? posterUrl;
+  final int watchCount;
+  final int rewatchCount;
 
   StatisticsMovieInsight toDomain({String? Function(String? url)? resolveUrl}) {
     return StatisticsMovieInsight(
@@ -231,10 +231,6 @@ final class StatisticsGenreInsightDto {
     required this.watchCount,
   });
 
-  final int genreId;
-  final String name;
-  final int watchCount;
-
   factory StatisticsGenreInsightDto.fromJson(Map<String, dynamic> json) {
     return StatisticsGenreInsightDto(
       genreId: _requiredPositiveInt(json, 'genre_id'),
@@ -242,6 +238,10 @@ final class StatisticsGenreInsightDto {
       watchCount: _requiredNonNegativeInt(json, 'watch_count'),
     );
   }
+
+  final int genreId;
+  final String name;
+  final int watchCount;
 
   StatisticsGenreInsight toDomain() {
     return StatisticsGenreInsight(

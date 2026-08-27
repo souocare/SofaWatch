@@ -5,6 +5,12 @@ import 'package:sofawatch/features/episode_details/domain/models/episode_details
 import 'package:sofawatch/features/episode_details/domain/models/episode_details_show.dart';
 
 final class EpisodeDetailsDto {
+  const EpisodeDetailsDto({
+    required this.episode,
+    required this.season,
+    required this.show,
+    required this.progress,
+  });
   factory EpisodeDetailsDto.fromJson(Map<String, dynamic> json) {
     return EpisodeDetailsDto(
       episode: EpisodeDetailsEpisodeDto.fromJson(_requiredMap(json, 'episode')),
@@ -15,12 +21,6 @@ final class EpisodeDetailsDto {
       ),
     );
   }
-  const EpisodeDetailsDto({
-    required this.episode,
-    required this.season,
-    required this.show,
-    required this.progress,
-  });
 
   final EpisodeDetailsEpisodeDto episode;
   final EpisodeDetailsSeasonDto season;
@@ -38,6 +38,18 @@ final class EpisodeDetailsDto {
 }
 
 final class EpisodeDetailsEpisodeDto {
+  const EpisodeDetailsEpisodeDto({
+    required this.id,
+    required this.tmdbId,
+    required this.episodeNumber,
+    required this.title,
+    required this.voteAverage,
+    required this.voteCount,
+    this.overview,
+    this.airDate,
+    this.runtime,
+    this.stillUrl,
+  });
   factory EpisodeDetailsEpisodeDto.fromJson(Map<String, dynamic> json) {
     return EpisodeDetailsEpisodeDto(
       id: _requiredString(json, 'id'),
@@ -52,18 +64,6 @@ final class EpisodeDetailsEpisodeDto {
       stillUrl: _optionalString(json, 'still_url'),
     );
   }
-  const EpisodeDetailsEpisodeDto({
-    required this.id,
-    required this.tmdbId,
-    required this.episodeNumber,
-    required this.title,
-    required this.voteAverage,
-    required this.voteCount,
-    this.overview,
-    this.airDate,
-    this.runtime,
-    this.stillUrl,
-  });
 
   final String id;
   final int tmdbId;
@@ -97,6 +97,11 @@ final class EpisodeDetailsEpisodeDto {
 }
 
 final class EpisodeDetailsSeasonDto {
+  const EpisodeDetailsSeasonDto({
+    required this.id,
+    required this.seasonNumber,
+    required this.title,
+  });
   factory EpisodeDetailsSeasonDto.fromJson(Map<String, dynamic> json) {
     return EpisodeDetailsSeasonDto(
       id: _requiredString(json, 'id'),
@@ -104,11 +109,6 @@ final class EpisodeDetailsSeasonDto {
       title: _requiredString(json, 'title'),
     );
   }
-  const EpisodeDetailsSeasonDto({
-    required this.id,
-    required this.seasonNumber,
-    required this.title,
-  });
 
   final String id;
   final int seasonNumber;
@@ -124,6 +124,17 @@ final class EpisodeDetailsSeasonDto {
 }
 
 final class EpisodeDetailsShowDto {
+  const EpisodeDetailsShowDto({
+    required this.id,
+    required this.tmdbId,
+    required this.title,
+    required this.originalTitle,
+    required this.status,
+    required this.voteAverage,
+    this.firstAirDate,
+    this.posterUrl,
+    this.backdropUrl,
+  });
   factory EpisodeDetailsShowDto.fromJson(Map<String, dynamic> json) {
     return EpisodeDetailsShowDto(
       id: _requiredString(json, 'id'),
@@ -137,17 +148,6 @@ final class EpisodeDetailsShowDto {
       voteAverage: _requiredDouble(json, 'vote_average'),
     );
   }
-  const EpisodeDetailsShowDto({
-    required this.id,
-    required this.tmdbId,
-    required this.title,
-    required this.originalTitle,
-    required this.status,
-    required this.voteAverage,
-    this.firstAirDate,
-    this.posterUrl,
-    this.backdropUrl,
-  });
 
   final String id;
   final int tmdbId;
@@ -179,6 +179,12 @@ final class EpisodeDetailsShowDto {
 }
 
 final class EpisodeDetailsProgressDto {
+  const EpisodeDetailsProgressDto({
+    required this.isWatched,
+    required this.watchCount,
+    this.watchedAt,
+    this.lastWatchedAt,
+  });
   factory EpisodeDetailsProgressDto.fromJson(Map<String, dynamic> json) {
     return EpisodeDetailsProgressDto(
       isWatched: _requiredBool(json, 'is_watched'),
@@ -187,12 +193,6 @@ final class EpisodeDetailsProgressDto {
       lastWatchedAt: _optionalDateTime(json, 'last_watched_at'),
     );
   }
-  const EpisodeDetailsProgressDto({
-    required this.isWatched,
-    required this.watchCount,
-    this.watchedAt,
-    this.lastWatchedAt,
-  });
 
   final bool isWatched;
   final DateTime? watchedAt;

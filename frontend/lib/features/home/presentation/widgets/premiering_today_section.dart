@@ -3,13 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
+import 'package:sofawatch/core/widgets/section_failure_card.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
-import 'package:sofawatch/features/library/domain/models/library_status.dart';
-import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 import 'package:sofawatch/features/home/application/models/home_watch_source.dart';
 import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
-import 'package:sofawatch/core/widgets/section_failure_card.dart';
+import 'package:sofawatch/features/library/domain/models/library_status.dart';
+import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 
 class PremieringTodaySection extends StatelessWidget {
   const PremieringTodaySection({super.key});
@@ -298,35 +298,6 @@ class _PremieringTodayLoading extends StatelessWidget {
       key: ValueKey<String>('home-premiering-today-loading'),
       height: 96,
       child: Center(child: CircularProgressIndicator()),
-    );
-  }
-}
-
-class _PremieringTodayFailure extends StatelessWidget {
-  const _PremieringTodayFailure();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('home-premiering-today-failure'),
-      padding: AppSpacing.cardPadding,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderLarge,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Row(
-        children: <Widget>[
-          const Expanded(child: Text('Could not load today’s premieres.')),
-          TextButton(
-            key: const ValueKey<String>('home-premiering-today-retry'),
-            onPressed: () {
-              context.read<HomeCubit>().retryPremieringToday();
-            },
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -11,10 +11,23 @@ import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/navigation/web_app_launcher.dart';
 import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
+import 'package:sofawatch/features/admin_users/data/repositories/api_admin_users_repository.dart';
+import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_repository.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_entry_cubit.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_entry_state.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_handoff_exchange_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_state.dart';
+import 'package:sofawatch/features/auth/application/cubit/login_cubit.dart';
+import 'package:sofawatch/features/auth/application/cubit/password_recovery_cubit.dart';
+import 'package:sofawatch/features/auth/data/repositories/api_password_recovery_repository.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_handoff_repository.dart';
+import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
 import 'package:sofawatch/features/auth/presentation/pages/auth_checking_page.dart';
+import 'package:sofawatch/features/auth/presentation/pages/auth_handoff_exchange_page.dart';
+import 'package:sofawatch/features/auth/presentation/pages/initial_setup_page.dart';
+import 'package:sofawatch/features/auth/presentation/pages/login_page.dart';
+import 'package:sofawatch/features/auth/presentation/pages/password_recovery_page.dart';
 import 'package:sofawatch/features/episode_details/application/cubit/episode_details_cubit.dart';
 import 'package:sofawatch/features/episode_details/data/repositories/api_episode_details_repository.dart';
 import 'package:sofawatch/features/episode_details/presentation/pages/episode_details_page.dart';
@@ -48,6 +61,8 @@ import 'package:sofawatch/features/profile/presentation/pages/profile_page.dart'
 import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
 import 'package:sofawatch/features/search/domain/repositories/search_repository.dart';
 import 'package:sofawatch/features/search/presentation/pages/search_page.dart';
+import 'package:sofawatch/features/security/data/repositories/api_security_settings_repository.dart';
+import 'package:sofawatch/features/security/domain/repositories/security_settings_repository.dart';
 import 'package:sofawatch/features/server/data/repositories/api_server_repository.dart';
 import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
 import 'package:sofawatch/features/server_setup/application/cubit/server_setup_cubit.dart';
@@ -70,21 +85,6 @@ import 'package:sofawatch/features/statistics/application/cubit/statistics_libra
 import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
 import 'package:sofawatch/features/statistics/data/repositories/api_statistics_repository.dart';
 import 'package:sofawatch/features/statistics/presentation/pages/detailed_statistics_page.dart';
-import 'package:sofawatch/features/auth/application/cubit/auth_entry_cubit.dart';
-import 'package:sofawatch/features/auth/application/cubit/auth_entry_state.dart';
-import 'package:sofawatch/features/auth/presentation/pages/initial_setup_page.dart';
-import 'package:sofawatch/features/auth/presentation/pages/login_page.dart';
-import 'package:sofawatch/features/auth/application/cubit/login_cubit.dart';
-import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
-import 'package:sofawatch/features/auth/application/cubit/auth_handoff_exchange_cubit.dart';
-import 'package:sofawatch/features/auth/presentation/pages/auth_handoff_exchange_page.dart';
-import 'package:sofawatch/features/security/data/repositories/api_security_settings_repository.dart';
-import 'package:sofawatch/features/security/domain/repositories/security_settings_repository.dart';
-import 'package:sofawatch/features/auth/application/cubit/password_recovery_cubit.dart';
-import 'package:sofawatch/features/auth/data/repositories/api_password_recovery_repository.dart';
-import 'package:sofawatch/features/auth/presentation/pages/password_recovery_page.dart';
-import 'package:sofawatch/features/admin_users/data/repositories/api_admin_users_repository.dart';
-import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_repository.dart';
 
 GoRouter createAppRouter({
   required ApiClient apiClient,

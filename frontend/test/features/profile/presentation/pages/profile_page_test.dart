@@ -1,59 +1,56 @@
 import 'dart:async';
 
-import 'package:sofawatch/core/api/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sofawatch/app/router/app_routes.dart';
+import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_error_message_mapper.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/admin_users/domain/models/admin_user.dart';
 import 'package:sofawatch/features/admin_users/domain/models/password_recovery_link.dart';
 import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_repository.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
+import 'package:sofawatch/features/auth/domain/models/auth_session.dart';
+import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
+import 'package:sofawatch/features/history/application/cubit/history_preview_cubit.dart';
 import 'package:sofawatch/features/history/domain/models/history_episode.dart';
-import 'package:sofawatch/features/profile/application/cubit/profile_cubit.dart';
-import 'package:sofawatch/features/profile/domain/models/profile_user.dart';
-import 'package:sofawatch/features/profile/domain/repositories/profile_repository.dart';
-import 'package:sofawatch/features/profile/presentation/pages/profile_page.dart';
-import 'package:sofawatch/features/server/domain/models/server_logs.dart';
-import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
-import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
-import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_activity.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_activity_period.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_habits.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
-import 'package:sofawatch/features/statistics/domain/models/statistics_backlog.dart';
+import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_page.dart';
+import 'package:sofawatch/features/history/domain/models/history_preview.dart';
+import 'package:sofawatch/features/history/domain/repositories/history_repository.dart';
 import 'package:sofawatch/features/library/application/cubit/library_preview_cubit.dart';
 import 'package:sofawatch/features/library/domain/models/imported_library_media.dart';
 import 'package:sofawatch/features/library/domain/models/library_entry.dart';
 import 'package:sofawatch/features/library/domain/models/library_preview.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/library/domain/repositories/library_repository.dart';
-import 'package:sofawatch/features/history/application/cubit/history_preview_cubit.dart';
-import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
-import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
-import 'package:sofawatch/features/history/domain/models/history_page.dart';
-import 'package:sofawatch/features/history/domain/models/history_preview.dart';
-import 'package:sofawatch/features/history/domain/repositories/history_repository.dart';
-import 'package:sofawatch/features/server/domain/models/server_health.dart';
-import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
-import 'package:sofawatch/features/server/domain/models/background_job.dart';
-import 'package:sofawatch/features/server/domain/models/background_job.dart';
-import 'package:sofawatch/features/server/domain/models/server_logs.dart';
-import 'package:go_router/go_router.dart';
-import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/features/profile/application/cubit/data_transfer_cubit.dart';
+import 'package:sofawatch/features/profile/application/cubit/profile_cubit.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_preview.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_result.dart';
+import 'package:sofawatch/features/profile/domain/models/profile_user.dart';
 import 'package:sofawatch/features/profile/domain/repositories/data_transfer_repository.dart';
-import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
-import 'package:sofawatch/features/auth/domain/models/auth_session.dart';
-import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
-import 'package:sofawatch/features/security/application/cubit/security_settings_cubit.dart';
+import 'package:sofawatch/features/profile/domain/repositories/profile_repository.dart';
+import 'package:sofawatch/features/profile/presentation/pages/profile_page.dart';
 import 'package:sofawatch/features/security/domain/models/security_settings.dart';
 import 'package:sofawatch/features/security/domain/repositories/security_settings_repository.dart';
+import 'package:sofawatch/features/server/domain/models/background_job.dart';
+import 'package:sofawatch/features/server/domain/models/server_health.dart';
+import 'package:sofawatch/features/server/domain/models/server_logs.dart';
+import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
+import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_activity.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_activity_period.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_backlog.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_content_insights.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_habits.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_library.dart';
+import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
+import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
+import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
 
 void main() {
   group('ProfilePage Statistics', () {
@@ -4644,8 +4641,7 @@ final class _FakeProfileRepository implements ProfileRepository {
     this.user = _user,
     this.error,
     this.updateDisplayNameError,
-    this.updatePasswordError,
-  });
+  }) : updatePasswordError = null;
 
   final ProfileUser user;
   final AppException? error;
@@ -4997,12 +4993,12 @@ class _FakeServerRepository implements ServerRepository {
     this.health,
     this.healthError,
     this.backgroundJobs = const <BackgroundJob>[],
-    this.backgroundJobsError,
     this.runBackgroundJobResult,
     this.runBackgroundJobError,
     ServerLogsPage? logsPage,
     this.logsError,
-  }) : logsPage = logsPage ?? _serverLogsPage;
+  }) : backgroundJobsError = null,
+       logsPage = logsPage ?? _serverLogsPage;
 
   final ServerHealth? health;
   final AppException? healthError;
@@ -5592,7 +5588,6 @@ final ServerLogsPage _paginatedServerLogsSecondPage = ServerLogsPage(
 
 class _FakeDataTransferRepository implements DataTransferRepository {
   _FakeDataTransferRepository({
-    this.exportJson = '{"format":"sofawatch-export","version":1}',
     this.preview = const DataImportPreview(
       format: 'sofawatch-export',
       version: 1,
@@ -5626,38 +5621,22 @@ class _FakeDataTransferRepository implements DataTransferRepository {
         movies: DataImportHistoryMediaResult(created: 0, skipped: 0, failed: 0),
       ),
     ),
-    this.exportError,
-    this.previewError,
     this.importError,
-  });
+  }) : exportJson = '{"format":"sofawatch-export","version":1}';
 
   final String exportJson;
   final DataImportPreview preview;
   final DataImportResult importResult;
 
-  final AppException? exportError;
-  final AppException? previewError;
   final AppException? importError;
 
   @override
   Future<String> exportData() async {
-    final AppException? error = exportError;
-
-    if (error != null) {
-      throw error;
-    }
-
     return exportJson;
   }
 
   @override
   Future<DataImportPreview> previewImport(String json) async {
-    final AppException? error = previewError;
-
-    if (error != null) {
-      throw error;
-    }
-
     return preview;
   }
 
@@ -5819,7 +5798,7 @@ final class _RetrySecuritySettingsRepository
 }
 
 final class _PasswordProfileRepository implements ProfileRepository {
-  _PasswordProfileRepository({this.error, this.user = _user});
+  _PasswordProfileRepository({this.error}) : user = _user;
 
   final AppException? error;
   final ProfileUser user;
@@ -5893,8 +5872,7 @@ final class _FakeAdminUsersRepository implements AdminUsersRepository {
   const _FakeAdminUsersRepository({
     this.users = const <AdminUser>[],
     this.listError,
-    this.recoveryError,
-  });
+  }) : recoveryError = null;
 
   final List<AdminUser> users;
   final AppException? listError;

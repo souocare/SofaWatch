@@ -1,21 +1,20 @@
 import 'package:dio/dio.dart';
-
 import 'package:sofawatch/app/app_bootstrap_data.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/server/models/server_configuration.dart';
+import 'package:sofawatch/features/auth/data/repositories/api_auth_handoff_repository.dart';
+import 'package:sofawatch/features/auth/data/repositories/api_auth_repository.dart';
+import 'package:sofawatch/features/auth/data/repositories/api_setup_status_repository.dart';
+import 'package:sofawatch/features/auth/data/storage/in_memory_access_token_store.dart';
+import 'package:sofawatch/features/auth/domain/repositories/access_token_store.dart';
+import 'package:sofawatch/features/auth/domain/repositories/auth_handoff_repository.dart';
+import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
+import 'package:sofawatch/features/auth/domain/repositories/setup_status_repository.dart';
 
 import '../fakes/fake_search_repository.dart';
 import '../fakes/fake_server_configuration_repository.dart';
 import '../fakes/fake_server_connection_tester.dart';
 import '../fixtures/server_configuration_fixture.dart';
-import 'package:sofawatch/features/auth/data/repositories/api_auth_repository.dart';
-import 'package:sofawatch/features/auth/data/storage/in_memory_access_token_store.dart';
-import 'package:sofawatch/features/auth/domain/repositories/access_token_store.dart';
-import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
-import 'package:sofawatch/features/auth/data/repositories/api_setup_status_repository.dart';
-import 'package:sofawatch/features/auth/domain/repositories/setup_status_repository.dart';
-import 'package:sofawatch/features/auth/data/repositories/api_auth_handoff_repository.dart';
-import 'package:sofawatch/features/auth/domain/repositories/auth_handoff_repository.dart';
 
 AppBootstrapData createTestBootstrapData({
   ServerConfiguration? serverConfiguration,

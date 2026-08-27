@@ -3,6 +3,7 @@ import 'package:sofawatch/features/explore/domain/entities/explore_media_collect
 import 'package:sofawatch/features/explore/domain/entities/explore_media_item.dart';
 
 class ExploreMediaCollectionDto {
+  const ExploreMediaCollectionDto({required this.items});
   factory ExploreMediaCollectionDto.fromJson(Map<String, dynamic> json) {
     final dynamic rawItems = json['items'];
 
@@ -22,7 +23,6 @@ class ExploreMediaCollectionDto {
 
     return ExploreMediaCollectionDto(items: items);
   }
-  const ExploreMediaCollectionDto({required this.items});
 
   final List<ExploreMediaItemDto> items;
 

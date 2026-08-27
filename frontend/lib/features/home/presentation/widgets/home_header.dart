@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
-import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
 
 enum HomeUserMenuAction { profile, settings, logout }

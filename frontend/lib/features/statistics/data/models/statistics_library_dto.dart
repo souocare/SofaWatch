@@ -7,10 +7,6 @@ final class StatisticsLibraryDto {
     required this.showsCompleted,
   });
 
-  final int showsAdded;
-  final int moviesAdded;
-  final int showsCompleted;
-
   factory StatisticsLibraryDto.fromJson(Map<String, dynamic> json) {
     return StatisticsLibraryDto(
       showsAdded: _requiredNonNegativeInt(json, 'shows_added'),
@@ -18,6 +14,10 @@ final class StatisticsLibraryDto {
       showsCompleted: _requiredNonNegativeInt(json, 'shows_completed'),
     );
   }
+
+  final int showsAdded;
+  final int moviesAdded;
+  final int showsCompleted;
 
   StatisticsLibrary toDomain() {
     return StatisticsLibrary(
