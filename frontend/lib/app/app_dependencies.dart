@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/auth/domain/repositories/access_token_store.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_handoff_repository.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
@@ -20,6 +21,7 @@ class AppDependencies extends StatelessWidget {
     required this.child,
     required this.setupStatusRepository,
     required this.authHandoffRepository,
+    required this.viewingStateChangeNotifier,
     super.key,
   });
 
@@ -32,6 +34,7 @@ class AppDependencies extends StatelessWidget {
   final Widget child;
   final SetupStatusRepository setupStatusRepository;
   final AuthHandoffRepository authHandoffRepository;
+  final ViewingStateChangeNotifier viewingStateChangeNotifier;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +44,9 @@ class AppDependencies extends StatelessWidget {
           value: serverConfigurationRepository,
         ),
         RepositoryProvider<ApiClient>.value(value: apiClient),
+        RepositoryProvider<ViewingStateChangeNotifier>.value(
+          value: viewingStateChangeNotifier,
+        ),
         RepositoryProvider<SearchRepository>.value(value: searchRepository),
         RepositoryProvider<ServerConnectionTester>.value(
           value: serverConnectionTester,

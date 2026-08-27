@@ -1,18 +1,27 @@
+// ignore_for_file: prefer_initializing_formals
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_show_operation.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_seasons_bootstrap.dart';
 import 'package:sofawatch/features/show_details/domain/repositories/show_details_seasons_repository.dart';
 
 final class ShowDetailsShowOperationCubit
     extends Cubit<ShowDetailsShowOperation> {
+  // Keep public constructor parameter names free of private-field prefixes.
   ShowDetailsShowOperationCubit({
-    required this._repository,
-    required this._showTmdbId,
-  }) : super(const ShowDetailsShowOperation.idle());
+    required ShowDetailsSeasonsRepository repository,
+    required int showTmdbId,
+    required ViewingStateChangeNotifier viewingStateChangeNotifier,
+  }) : _repository = repository,
+       _showTmdbId = showTmdbId,
+       _viewingStateChangeNotifier = viewingStateChangeNotifier,
+       super(const ShowDetailsShowOperation.idle());
 
   final ShowDetailsSeasonsRepository _repository;
   final int _showTmdbId;
+  final ViewingStateChangeNotifier _viewingStateChangeNotifier;
 
   ShowDetailsSeasonsBootstrap? _bootstrap;
 
@@ -31,6 +40,8 @@ final class ShowDetailsShowOperationCubit
       _bootstrap = bootstrap;
 
       await _repository.markShowWatched(showId: bootstrap.showId);
+
+      _viewingStateChangeNotifier.notifyChanged();
 
       if (isClosed) {
         return;

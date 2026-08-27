@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/presentation/pages/home_page.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
@@ -632,14 +633,24 @@ Widget _buildTestApp({
   ShowsRepository? repository,
   StatisticsRepository? statisticsRepository,
 }) {
+  final ViewingStateChangeNotifier viewingStateChangeNotifier =
+      ViewingStateChangeNotifier();
+
   final HomeCubit homeCubit = HomeCubit(
     repository: repository ?? _FakeShowsRepository(),
+    viewingStateChangeNotifier: viewingStateChangeNotifier,
     now: () => DateTime(2026, 8, 17),
   )..load();
 
   final StatisticsCubit statisticsCubit = StatisticsCubit(
     repository: statisticsRepository ?? _FakeStatisticsRepository(),
   )..loadWeeklyStatistics();
+
+  addTearDown(() async {
+    await homeCubit.close();
+    await statisticsCubit.close();
+    await viewingStateChangeNotifier.dispose();
+  });
 
   return MultiBlocProvider(
     providers: <BlocProvider>[

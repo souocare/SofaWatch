@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/history/application/cubit/history_cubit.dart';
 import 'package:sofawatch/features/history/application/cubit/history_state.dart';
 import 'package:sofawatch/features/history/domain/models/history_episode.dart';
@@ -13,9 +14,21 @@ import 'package:sofawatch/features/history/domain/models/history_preview.dart';
 import 'package:sofawatch/features/history/domain/repositories/history_repository.dart';
 
 void main() {
+  late ViewingStateChangeNotifier viewingStateChangeNotifier;
+
+  setUp(() {
+    viewingStateChangeNotifier = ViewingStateChangeNotifier();
+  });
+
+  tearDown(() async {
+    await viewingStateChangeNotifier.dispose();
+  });
   group('HistoryCubit', () {
     test('starts empty and idle', () {
-      final HistoryCubit cubit = HistoryCubit(repository: _HistoryRepository());
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: _HistoryRepository(),
+      );
 
       addTearDown(cubit.close);
 
@@ -40,7 +53,10 @@ void main() {
         },
       );
 
-      final HistoryCubit cubit = HistoryCubit(repository: repository);
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: repository,
+      );
 
       addTearDown(cubit.close);
 
@@ -61,7 +77,10 @@ void main() {
     });
 
     test('supports an empty first History page', () async {
-      final HistoryCubit cubit = HistoryCubit(repository: _HistoryRepository());
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: _HistoryRepository(),
+      );
 
       addTearDown(cubit.close);
 
@@ -90,7 +109,10 @@ void main() {
         },
       );
 
-      final HistoryCubit cubit = HistoryCubit(repository: repository);
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: repository,
+      );
 
       addTearDown(cubit.close);
 
@@ -129,7 +151,10 @@ void main() {
         },
       );
 
-      final HistoryCubit cubit = HistoryCubit(repository: repository);
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: repository,
+      );
 
       addTearDown(cubit.close);
 
@@ -156,7 +181,10 @@ void main() {
         },
       );
 
-      final HistoryCubit cubit = HistoryCubit(repository: repository);
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: repository,
+      );
 
       addTearDown(cubit.close);
 
@@ -173,7 +201,10 @@ void main() {
     test('does not load more before initial History has loaded', () async {
       final _HistoryRepository repository = _HistoryRepository();
 
-      final HistoryCubit cubit = HistoryCubit(repository: repository);
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: repository,
+      );
 
       addTearDown(cubit.close);
 
@@ -189,7 +220,10 @@ void main() {
         },
       );
 
-      final HistoryCubit cubit = HistoryCubit(repository: repository);
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: repository,
+      );
 
       addTearDown(cubit.close);
 
@@ -210,7 +244,10 @@ void main() {
         },
       );
 
-      final HistoryCubit cubit = HistoryCubit(repository: repository);
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: repository,
+      );
 
       addTearDown(cubit.close);
 
@@ -229,7 +266,10 @@ void main() {
       final _ControlledHistoryRepository repository =
           _ControlledHistoryRepository();
 
-      final HistoryCubit cubit = HistoryCubit(repository: repository);
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: repository,
+      );
 
       addTearDown(cubit.close);
 
@@ -258,7 +298,10 @@ void main() {
       final _ControlledPaginationHistoryRepository repository =
           _ControlledPaginationHistoryRepository();
 
-      final HistoryCubit cubit = HistoryCubit(repository: repository);
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: repository,
+      );
 
       addTearDown(cubit.close);
 
@@ -290,6 +333,7 @@ void main() {
       const AppException error = AppException.connection();
 
       final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: _HistoryRepository(initialError: error),
       );
 
@@ -305,6 +349,7 @@ void main() {
 
     test('maps unexpected initial failure to unknown', () async {
       final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: const _UnexpectedHistoryRepository(),
       );
 
@@ -323,7 +368,10 @@ void main() {
       final _PaginationFailureRepository repository =
           _PaginationFailureRepository(paginationError: paginationError);
 
-      final HistoryCubit cubit = HistoryCubit(repository: repository);
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: repository,
+      );
 
       addTearDown(cubit.close);
 
@@ -350,7 +398,10 @@ void main() {
       final _UnexpectedPaginationRepository repository =
           _UnexpectedPaginationRepository();
 
-      final HistoryCubit cubit = HistoryCubit(repository: repository);
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: repository,
+      );
 
       addTearDown(cubit.close);
 
@@ -365,7 +416,10 @@ void main() {
     test('retry reloads the authoritative first page', () async {
       final _RetryHistoryRepository repository = _RetryHistoryRepository();
 
-      final HistoryCubit cubit = HistoryCubit(repository: repository);
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: repository,
+      );
 
       addTearDown(cubit.close);
 
@@ -386,7 +440,10 @@ void main() {
     test('reload replaces existing History with newest server page', () async {
       final _ReloadHistoryRepository repository = _ReloadHistoryRepository();
 
-      final HistoryCubit cubit = HistoryCubit(repository: repository);
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: repository,
+      );
 
       addTearDown(cubit.close);
 
@@ -405,7 +462,10 @@ void main() {
       final _RetryPaginationRepository repository =
           _RetryPaginationRepository();
 
-      final HistoryCubit cubit = HistoryCubit(repository: repository);
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: repository,
+      );
 
       addTearDown(cubit.close);
 
@@ -427,6 +487,26 @@ void main() {
 
       expect(cubit.state.hasMore, isFalse);
       expect(cubit.state.nextCursor, isNull);
+    });
+    test('reloads History after viewing state changes', () async {
+      final _HistoryRepository repository = _HistoryRepository();
+
+      final HistoryCubit cubit = HistoryCubit(
+        repository: repository,
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+      );
+
+      addTearDown(cubit.close);
+
+      expect(repository.calls, 0);
+
+      viewingStateChangeNotifier.notifyChanged();
+
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(repository.calls, 1);
+      expect(cubit.state.hasLoaded, isTrue);
     });
   });
 

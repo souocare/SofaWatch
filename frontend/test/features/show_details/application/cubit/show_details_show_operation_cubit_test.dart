@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_show_operation.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_show_operation_cubit.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode.dart';
@@ -19,6 +20,7 @@ void main() {
           _FakeShowDetailsSeasonsRepository();
 
       final ShowDetailsShowOperationCubit cubit = ShowDetailsShowOperationCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -33,6 +35,7 @@ void main() {
           _FakeShowDetailsSeasonsRepository();
 
       final ShowDetailsShowOperationCubit cubit = ShowDetailsShowOperationCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -69,6 +72,7 @@ void main() {
           _FakeShowDetailsSeasonsRepository();
 
       final ShowDetailsShowOperationCubit cubit = ShowDetailsShowOperationCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -93,6 +97,7 @@ void main() {
           _FakeShowDetailsSeasonsRepository(failMarkShowWatched: true);
 
       final ShowDetailsShowOperationCubit cubit = ShowDetailsShowOperationCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -114,6 +119,7 @@ void main() {
           _FakeShowDetailsSeasonsRepository(failMarkShowWatched: true);
 
       final ShowDetailsShowOperationCubit cubit = ShowDetailsShowOperationCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -140,6 +146,7 @@ void main() {
           _FakeShowDetailsSeasonsRepository();
 
       final ShowDetailsShowOperationCubit cubit = ShowDetailsShowOperationCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -161,6 +168,7 @@ void main() {
           );
 
       final ShowDetailsShowOperationCubit cubit = ShowDetailsShowOperationCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -191,6 +199,7 @@ void main() {
           _FakeShowDetailsSeasonsRepository();
 
       final ShowDetailsShowOperationCubit cubit = ShowDetailsShowOperationCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -215,6 +224,7 @@ void main() {
           );
 
       final ShowDetailsShowOperationCubit cubit = ShowDetailsShowOperationCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -233,6 +243,67 @@ void main() {
 
       await operation;
       await cubit.close();
+    });
+    test('notifies viewing state after marking the Show watched', () async {
+      final _FakeShowDetailsSeasonsRepository repository =
+          _FakeShowDetailsSeasonsRepository();
+
+      final ViewingStateChangeNotifier notifier = ViewingStateChangeNotifier();
+
+      int notifications = 0;
+
+      final StreamSubscription<void> subscription = notifier.changes.listen((
+        _,
+      ) {
+        notifications++;
+      });
+
+      final ShowDetailsShowOperationCubit cubit = ShowDetailsShowOperationCubit(
+        viewingStateChangeNotifier: notifier,
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      await cubit.markShowWatched();
+
+      expect(repository.markShowWatchedCalls, 1);
+      expect(cubit.state.isSuccess, isTrue);
+      expect(notifications, 1);
+
+      await subscription.cancel();
+      await cubit.close();
+      await notifier.dispose();
+    });
+
+    test('does not notify viewing state when marking the Show fails', () async {
+      final _FakeShowDetailsSeasonsRepository repository =
+          _FakeShowDetailsSeasonsRepository(failMarkShowWatched: true);
+
+      final ViewingStateChangeNotifier notifier = ViewingStateChangeNotifier();
+
+      int notifications = 0;
+
+      final StreamSubscription<void> subscription = notifier.changes.listen((
+        _,
+      ) {
+        notifications++;
+      });
+
+      final ShowDetailsShowOperationCubit cubit = ShowDetailsShowOperationCubit(
+        viewingStateChangeNotifier: notifier,
+        repository: repository,
+        showTmdbId: 95396,
+      );
+
+      await cubit.markShowWatched();
+
+      expect(repository.markShowWatchedCalls, 1);
+      expect(cubit.state.hasFailed, isTrue);
+      expect(notifications, 0);
+
+      await subscription.cancel();
+      await cubit.close();
+      await notifier.dispose();
     });
   });
 }

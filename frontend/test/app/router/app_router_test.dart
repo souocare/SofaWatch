@@ -10,6 +10,7 @@ import 'package:sofawatch/app/router/auth_router_refresh_notifier.dart';
 import 'package:sofawatch/app/router/route_paths.dart';
 import 'package:sofawatch/app/theme/app_theme.dart';
 import 'package:sofawatch/core/api/api_client.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_entry_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_state.dart';
@@ -95,6 +96,7 @@ void main() {
       authRepository: authRepository,
       authHandoffRepository: authHandoffRepository,
       setupStatusRepository: setupStatusRepository,
+      viewingStateChangeNotifier: ViewingStateChangeNotifier(),
       child: MaterialApp.router(
         routerConfig: router,
         theme: AppTheme.dark,
@@ -842,6 +844,7 @@ final class _AuthRoutingHarness {
         authRepository: authRepository,
         authHandoffRepository: authHandoffRepository,
         setupStatusRepository: setupStatusRepository,
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         child: MaterialApp.router(
           routerConfig: router,
           theme: AppTheme.dark,

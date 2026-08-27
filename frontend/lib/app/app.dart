@@ -9,6 +9,7 @@ import 'package:sofawatch/app/router/app_router.dart';
 import 'package:sofawatch/app/router/auth_router_refresh_notifier.dart';
 import 'package:sofawatch/app/theme/app_theme.dart';
 import 'package:sofawatch/core/api/api_client.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_entry_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_state.dart';
@@ -27,6 +28,7 @@ class SofaWatchApp extends StatefulWidget {
 class _SofaWatchAppState extends State<SofaWatchApp> {
   late final ApiClient _apiClient;
   late final GoRouter _router;
+  late final ViewingStateChangeNotifier _viewingStateChangeNotifier;
 
   StreamSubscription<AuthState>? _authStateSubscription;
 
@@ -41,6 +43,7 @@ class _SofaWatchAppState extends State<SofaWatchApp> {
     final AppBootstrapData? bootstrapData = widget.bootstrapData;
 
     _apiClient = bootstrapData?.apiClient ?? ApiClient();
+    _viewingStateChangeNotifier = ViewingStateChangeNotifier();
 
     if (bootstrapData == null) {
       _router = createAppRouter(apiClient: _apiClient);
@@ -105,7 +108,7 @@ class _SofaWatchAppState extends State<SofaWatchApp> {
     if (authCubit != null) {
       unawaited(authCubit.close());
     }
-
+    unawaited(_viewingStateChangeNotifier.dispose());
     super.dispose();
   }
 
@@ -142,6 +145,7 @@ class _SofaWatchAppState extends State<SofaWatchApp> {
         authRepository: bootstrapData.authRepository,
         authHandoffRepository: bootstrapData.authHandoffRepository,
         setupStatusRepository: bootstrapData.setupStatusRepository,
+        viewingStateChangeNotifier: _viewingStateChangeNotifier,
         child: MaterialApp.router(
           title: 'SofaWatch',
           debugShowCheckedModeBanner: false,

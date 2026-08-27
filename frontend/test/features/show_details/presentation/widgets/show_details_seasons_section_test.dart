@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_seasons_cubit.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_show_operation_cubit.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details_episode.dart';
@@ -25,6 +26,7 @@ void main() {
           _FakeShowDetailsSeasonsRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -69,6 +71,7 @@ void main() {
           _FakeShowDetailsSeasonsRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -100,6 +103,7 @@ void main() {
           _FakeShowDetailsSeasonsRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -150,6 +154,7 @@ void main() {
           );
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -182,6 +187,7 @@ void main() {
           _FakeShowDetailsSeasonsRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -225,6 +231,7 @@ void main() {
           _FakeShowDetailsSeasonsRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -299,6 +306,7 @@ void main() {
           _RetryEpisodeUpdateRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -364,6 +372,7 @@ void main() {
           _RetryEpisodeUpdateRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -427,6 +436,7 @@ void main() {
             _UpcomingEpisodeRepository();
 
         final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          viewingStateChangeNotifier: ViewingStateChangeNotifier(),
           repository: repository,
           showTmdbId: 95396,
         );
@@ -469,6 +479,7 @@ void main() {
           _FakeShowDetailsSeasonsRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -562,6 +573,7 @@ void main() {
       final _EpisodeStillRepository repository = _EpisodeStillRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -608,6 +620,7 @@ void main() {
       final _EpisodeStillRepository repository = _EpisodeStillRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -645,6 +658,7 @@ void main() {
           _WatchHistoryShowDetailsSeasonsRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -680,6 +694,7 @@ void main() {
           _WatchHistoryShowDetailsSeasonsRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -730,6 +745,7 @@ void main() {
           _WatchHistoryShowDetailsSeasonsRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -794,6 +810,7 @@ void main() {
           _WatchHistoryShowDetailsSeasonsRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -862,6 +879,7 @@ void main() {
           _WatchHistoryShowDetailsSeasonsRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -929,6 +947,7 @@ void main() {
           _WatchHistoryShowDetailsSeasonsRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -984,6 +1003,7 @@ void main() {
             _WatchHistoryShowDetailsSeasonsRepository();
 
         final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          viewingStateChangeNotifier: ViewingStateChangeNotifier(),
           repository: repository,
           showTmdbId: 95396,
         );
@@ -1030,6 +1050,7 @@ void main() {
             _WatchHistoryShowDetailsSeasonsRepository();
 
         final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          viewingStateChangeNotifier: ViewingStateChangeNotifier(),
           repository: repository,
           showTmdbId: 95396,
         );
@@ -1101,6 +1122,7 @@ void main() {
           _WatchHistoryShowDetailsSeasonsRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -1168,6 +1190,7 @@ void main() {
           );
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -1212,6 +1235,7 @@ void main() {
           _WatchHistoryShowDetailsSeasonsRepository(failLoadingEvents: true);
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -1258,6 +1282,7 @@ void main() {
         final _SeasonWatchedRepository repository = _SeasonWatchedRepository();
 
         final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          viewingStateChangeNotifier: ViewingStateChangeNotifier(),
           repository: repository,
           showTmdbId: 95396,
         );
@@ -1298,6 +1323,7 @@ void main() {
       final _SeasonWatchedRepository repository = _SeasonWatchedRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -1334,6 +1360,7 @@ void main() {
       final _SeasonWatchedRepository repository = _SeasonWatchedRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -1395,6 +1422,7 @@ void main() {
           _PendingSeasonWatchedRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -1453,6 +1481,7 @@ void main() {
           _FailingSeasonWatchedRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -1511,6 +1540,7 @@ void main() {
           _RetrySeasonWatchedRepository();
 
       final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
@@ -1567,6 +1597,7 @@ void main() {
             _ExpandedSeasonWatchedRepository();
 
         final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          viewingStateChangeNotifier: ViewingStateChangeNotifier(),
           repository: repository,
           showTmdbId: 95396,
         );
@@ -1646,12 +1677,14 @@ void main() {
           _FakeShowDetailsSeasonsRepository();
 
       final ShowDetailsSeasonsCubit seasonsCubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
 
       final ShowDetailsShowOperationCubit operationCubit =
           ShowDetailsShowOperationCubit(
+            viewingStateChangeNotifier: ViewingStateChangeNotifier(),
             repository: repository,
             showTmdbId: 95396,
           );
@@ -1697,12 +1730,14 @@ void main() {
             );
 
         final ShowDetailsSeasonsCubit seasonsCubit = ShowDetailsSeasonsCubit(
+          viewingStateChangeNotifier: ViewingStateChangeNotifier(),
           repository: repository,
           showTmdbId: 95396,
         );
 
         final ShowDetailsShowOperationCubit operationCubit =
             ShowDetailsShowOperationCubit(
+              viewingStateChangeNotifier: ViewingStateChangeNotifier(),
               repository: repository,
               showTmdbId: 95396,
             );
@@ -1735,12 +1770,14 @@ void main() {
       final _ShowWatchedRepository repository = _ShowWatchedRepository();
 
       final ShowDetailsSeasonsCubit seasonsCubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
 
       final ShowDetailsShowOperationCubit operationCubit =
           ShowDetailsShowOperationCubit(
+            viewingStateChangeNotifier: ViewingStateChangeNotifier(),
             repository: repository,
             showTmdbId: 95396,
           );
@@ -1782,12 +1819,14 @@ void main() {
       final _ShowWatchedRepository repository = _ShowWatchedRepository();
 
       final ShowDetailsSeasonsCubit seasonsCubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
 
       final ShowDetailsShowOperationCubit operationCubit =
           ShowDetailsShowOperationCubit(
+            viewingStateChangeNotifier: ViewingStateChangeNotifier(),
             repository: repository,
             showTmdbId: 95396,
           );
@@ -1827,12 +1866,14 @@ void main() {
         final _ShowWatchedRepository repository = _ShowWatchedRepository();
 
         final ShowDetailsSeasonsCubit seasonsCubit = ShowDetailsSeasonsCubit(
+          viewingStateChangeNotifier: ViewingStateChangeNotifier(),
           repository: repository,
           showTmdbId: 95396,
         );
 
         final ShowDetailsShowOperationCubit operationCubit =
             ShowDetailsShowOperationCubit(
+              viewingStateChangeNotifier: ViewingStateChangeNotifier(),
               repository: repository,
               showTmdbId: 95396,
             );
@@ -1892,12 +1933,14 @@ void main() {
           _PendingShowWatchedRepository();
 
       final ShowDetailsSeasonsCubit seasonsCubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
 
       final ShowDetailsShowOperationCubit operationCubit =
           ShowDetailsShowOperationCubit(
+            viewingStateChangeNotifier: ViewingStateChangeNotifier(),
             repository: repository,
             showTmdbId: 95396,
           );
@@ -1949,12 +1992,14 @@ void main() {
           _RetryShowWatchedRepository();
 
       final ShowDetailsSeasonsCubit seasonsCubit = ShowDetailsSeasonsCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: repository,
         showTmdbId: 95396,
       );
 
       final ShowDetailsShowOperationCubit operationCubit =
           ShowDetailsShowOperationCubit(
+            viewingStateChangeNotifier: ViewingStateChangeNotifier(),
             repository: repository,
             showTmdbId: 95396,
           );
@@ -2017,6 +2062,7 @@ void main() {
             _PreviousEpisodesRepository(previousUnwatchedCount: 0);
 
         final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          viewingStateChangeNotifier: ViewingStateChangeNotifier(),
           repository: repository,
           showTmdbId: 95396,
         );
@@ -2067,6 +2113,7 @@ void main() {
             _PreviousEpisodesRepository(previousUnwatchedCount: 3);
 
         final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          viewingStateChangeNotifier: ViewingStateChangeNotifier(),
           repository: repository,
           showTmdbId: 95396,
         );
@@ -2128,6 +2175,7 @@ void main() {
             _PreviousEpisodesRepository(previousUnwatchedCount: 3);
 
         final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          viewingStateChangeNotifier: ViewingStateChangeNotifier(),
           repository: repository,
           showTmdbId: 95396,
         );
@@ -2178,6 +2226,7 @@ void main() {
             _PreviousEpisodesRepository(previousUnwatchedCount: 3);
 
         final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          viewingStateChangeNotifier: ViewingStateChangeNotifier(),
           repository: repository,
           showTmdbId: 95396,
         );
@@ -2238,6 +2287,7 @@ void main() {
             _PreviousEpisodesRepository(previousUnwatchedCount: 2);
 
         final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          viewingStateChangeNotifier: ViewingStateChangeNotifier(),
           repository: repository,
           showTmdbId: 95396,
         );
@@ -2289,6 +2339,7 @@ void main() {
             );
 
         final ShowDetailsSeasonsCubit cubit = ShowDetailsSeasonsCubit(
+          viewingStateChangeNotifier: ViewingStateChangeNotifier(),
           repository: repository,
           showTmdbId: 95396,
         );
@@ -2347,6 +2398,7 @@ Widget _buildTestApp({
   final ShowDetailsShowOperationCubit operationCubit =
       showOperationCubit ??
       ShowDetailsShowOperationCubit(
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
         repository: _FakeShowDetailsSeasonsRepository(),
         showTmdbId: 95396,
       );

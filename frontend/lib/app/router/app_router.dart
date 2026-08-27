@@ -11,6 +11,7 @@ import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/navigation/web_app_launcher.dart';
 import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/admin_users/data/repositories/api_admin_users_repository.dart';
 import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_repository.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
@@ -430,6 +431,8 @@ GoRouter createAppRouter({
                             repository: ApiShowsRepository(
                               context.read<ApiClient>(),
                             ),
+                            viewingStateChangeNotifier: context
+                                .read<ViewingStateChangeNotifier>(),
                           )..load();
                         },
                       ),
@@ -585,6 +588,8 @@ GoRouter createAppRouter({
                               repository: ApiHistoryRepository(
                                 context.read<ApiClient>(),
                               ),
+                              viewingStateChangeNotifier: context
+                                  .read<ViewingStateChangeNotifier>(),
                             )..load();
                           },
                         ),
@@ -683,6 +688,8 @@ GoRouter createAppRouter({
                             repository: ApiHistoryRepository(
                               context.read<ApiClient>(),
                             ),
+                            viewingStateChangeNotifier: context
+                                .read<ViewingStateChangeNotifier>(),
                           )..load();
                         },
                         child: const HistoryPage(),
@@ -732,6 +739,8 @@ GoRouter createAppRouter({
                         context.read<ApiClient>(),
                       ),
                       showTmdbId: tmdbId,
+                      viewingStateChangeNotifier: context
+                          .read<ViewingStateChangeNotifier>(),
                     )..loadInitialProgress();
                   },
                 ),
@@ -742,6 +751,8 @@ GoRouter createAppRouter({
                         context.read<ApiClient>(),
                       ),
                       showTmdbId: tmdbId,
+                      viewingStateChangeNotifier: context
+                          .read<ViewingStateChangeNotifier>(),
                     );
                   },
                 ),

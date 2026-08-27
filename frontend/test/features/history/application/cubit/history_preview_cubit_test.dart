@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/history/application/cubit/history_preview_cubit.dart';
 import 'package:sofawatch/features/history/application/cubit/history_preview_state.dart';
 import 'package:sofawatch/features/history/domain/models/history_episode.dart';
@@ -12,9 +13,19 @@ import 'package:sofawatch/features/history/domain/models/history_preview.dart';
 import 'package:sofawatch/features/history/domain/repositories/history_repository.dart';
 
 void main() {
+  late ViewingStateChangeNotifier viewingStateChangeNotifier;
+
+  setUp(() {
+    viewingStateChangeNotifier = ViewingStateChangeNotifier();
+  });
+
+  tearDown(() async {
+    await viewingStateChangeNotifier.dispose();
+  });
   group('HistoryPreviewCubit', () {
     test('starts in initial state', () {
       final HistoryPreviewCubit cubit = HistoryPreviewCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: const _HistoryRepository(),
       );
 
@@ -25,6 +36,7 @@ void main() {
 
     test('loads History preview successfully', () async {
       final HistoryPreviewCubit cubit = HistoryPreviewCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: _HistoryRepository(preview: _preview),
       );
 
@@ -48,6 +60,7 @@ void main() {
       const AppException error = AppException.connection();
 
       final HistoryPreviewCubit cubit = HistoryPreviewCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: const _HistoryRepository(error: error),
       );
 
@@ -60,6 +73,7 @@ void main() {
 
     test('maps unexpected failure to unknown', () async {
       final HistoryPreviewCubit cubit = HistoryPreviewCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: const _UnexpectedHistoryRepository(),
       );
 
@@ -81,6 +95,7 @@ void main() {
           _ControlledHistoryRepository();
 
       final HistoryPreviewCubit cubit = HistoryPreviewCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
       );
 
@@ -108,6 +123,7 @@ void main() {
       final _RetryHistoryRepository repository = _RetryHistoryRepository();
 
       final HistoryPreviewCubit cubit = HistoryPreviewCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
       );
 
@@ -133,6 +149,7 @@ void main() {
       );
 
       final HistoryPreviewCubit cubit = HistoryPreviewCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: const _HistoryRepository(preview: emptyPreview),
       );
 
@@ -145,6 +162,25 @@ void main() {
       final HistoryPreviewSuccess state = cubit.state as HistoryPreviewSuccess;
 
       expect(state.preview.isEmpty, isTrue);
+    });
+    test('reloads History preview after viewing state changes', () async {
+      final _RetryHistoryRepository repository = _RetryHistoryRepository();
+
+      final HistoryPreviewCubit cubit = HistoryPreviewCubit(
+        repository: repository,
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+      );
+
+      addTearDown(cubit.close);
+
+      expect(repository.previewCalls, 0);
+
+      viewingStateChangeNotifier.notifyChanged();
+
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(repository.previewCalls, 1);
     });
   });
 }

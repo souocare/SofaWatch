@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/history/application/cubit/history_cubit.dart';
 import 'package:sofawatch/features/history/domain/models/history_episode.dart';
 import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
@@ -268,7 +269,14 @@ void main() {
 }
 
 Widget _buildTestApp({required HistoryRepository repository}) {
-  final HistoryCubit cubit = HistoryCubit(repository: repository)..load();
+  final ViewingStateChangeNotifier viewingStateChangeNotifier =
+      ViewingStateChangeNotifier();
+
+  addTearDown(viewingStateChangeNotifier.dispose);
+  final HistoryCubit cubit = HistoryCubit(
+    viewingStateChangeNotifier: viewingStateChangeNotifier,
+    repository: repository,
+  )..load();
 
   return BlocProvider<HistoryCubit>.value(
     value: cubit,
@@ -277,7 +285,14 @@ Widget _buildTestApp({required HistoryRepository repository}) {
 }
 
 GoRouter _buildRouter({required HistoryRepository repository}) {
-  final HistoryCubit cubit = HistoryCubit(repository: repository)..load();
+  final ViewingStateChangeNotifier viewingStateChangeNotifier =
+      ViewingStateChangeNotifier();
+
+  addTearDown(viewingStateChangeNotifier.dispose);
+  final HistoryCubit cubit = HistoryCubit(
+    viewingStateChangeNotifier: viewingStateChangeNotifier,
+    repository: repository,
+  )..load();
 
   return GoRouter(
     initialLocation: '/history-test',

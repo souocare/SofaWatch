@@ -8,6 +8,7 @@ import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_error_message_mapper.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/admin_users/domain/models/admin_user.dart';
 import 'package:sofawatch/features/admin_users/domain/models/password_recovery_link.dart';
 import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_repository.dart';
@@ -4383,7 +4384,12 @@ Widget _buildNavigationTestApp({
     repository: libraryRepository ?? const _FakeLibraryRepository(),
   )..load();
 
+  final ViewingStateChangeNotifier viewingStateChangeNotifier =
+      ViewingStateChangeNotifier();
+
+  addTearDown(viewingStateChangeNotifier.dispose);
   final HistoryPreviewCubit historyPreviewCubit = HistoryPreviewCubit(
+    viewingStateChangeNotifier: viewingStateChangeNotifier,
     repository: historyRepository ?? const _FakeHistoryRepository(),
   )..load();
 
@@ -4480,7 +4486,12 @@ Widget _buildTestApp({
     repository: libraryRepository ?? const _FakeLibraryRepository(),
   )..load();
 
+  final ViewingStateChangeNotifier viewingStateChangeNotifier =
+      ViewingStateChangeNotifier();
+
+  addTearDown(viewingStateChangeNotifier.dispose);
   final HistoryPreviewCubit historyPreviewCubit = HistoryPreviewCubit(
+    viewingStateChangeNotifier: viewingStateChangeNotifier,
     repository: historyRepository ?? const _FakeHistoryRepository(),
   )..load();
 

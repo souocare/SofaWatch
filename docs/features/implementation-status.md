@@ -703,31 +703,31 @@ watched_at = newest event timestamp
 
 ## 15.4 Bulk Watched Actions
 
-- [ ] Mark all aired/watchable Episodes in a Season as watched
-- [ ] Do not create duplicate watch events for Episodes already watched
-- [ ] Do not mark future Episodes as watched
-- [ ] Exclude Specials from Show-level bulk watched by default
-- [ ] Mark all aired/watchable regular Episodes in a Show as watched
-- [ ] Confirmation before bulk mutation
-- [ ] Refresh Episode state after mutation
-- [ ] Refresh Season progress after mutation
-- [ ] Refresh Show progress after mutation
-- [ ] Refresh Watch Next / Haven't Watched in a While where affected
-- [ ] Refresh Watch History where loaded
-- [ ] Backend tests
-- [ ] Frontend Cubit/widget tests
+- [x] Mark all aired/watchable Episodes in a Season as watched
+- [x] Do not create duplicate watch events for Episodes already watched
+- [x] Do not mark future Episodes as watched
+- [x] Exclude Specials from Show-level bulk watched by default
+- [x] Mark all aired/watchable regular Episodes in a Show as watched
+- [x] Confirmation before bulk mutation
+- [x] Refresh Episode state after mutation
+- [x] Refresh Season progress after mutation
+- [x] Refresh Show progress after mutation
+- [x] Refresh Watch Next / Haven't Watched in a While where affected
+- [x] Refresh Watch History where loaded
+- [x] Backend tests
+- [x] Frontend Cubit/widget tests
 
 ## 15.5 Previous Unwatched Episodes Suggestion
 
-- [ ] Detect earlier regular Episodes that remain unwatched when marking a later Episode watched
-- [ ] Offer to mark those earlier Episodes as watched
-- [ ] Allow user to decline and mark only the selected Episode
-- [ ] Never infer additional rewatches for Episodes already watched
-- [ ] Exclude future Episodes
-- [ ] Preserve chronological viewing-history semantics
-- [ ] Refresh dependent progress/Watch List state after bulk mutation
-- [ ] Backend tests
-- [ ] Frontend interaction tests
+- [x] Detect earlier regular Episodes that remain unwatched when marking a later Episode watched
+- [x] Offer to mark those earlier Episodes as watched
+- [x] Allow user to decline and mark only the selected Episode
+- [x] Never infer additional rewatches for Episodes already watched
+- [x] Exclude future Episodes
+- [x] Preserve chronological viewing-history semantics
+- [x] Refresh dependent progress/Watch List state after bulk mutation
+- [x] Backend tests
+- [x] Frontend interaction tests
 
 ## 15.4 Remaining Work
 

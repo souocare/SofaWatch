@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/application/models/home_watch_source.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
@@ -22,6 +23,54 @@ DateTime _relativeDay(int offset) {
 }
 
 void main() {
+  late ViewingStateChangeNotifier viewingStateChangeNotifier;
+
+  setUp(() {
+    viewingStateChangeNotifier = ViewingStateChangeNotifier();
+  });
+
+  tearDown(() async {
+    await viewingStateChangeNotifier.dispose();
+  });
+  group('HomeCubit', () {
+    test(
+      'refreshes only viewing-dependent sections after viewing state changes',
+      () async {
+        final _FakeShowsRepository repository = _FakeShowsRepository();
+
+        final HomeCubit cubit = HomeCubit(
+          viewingStateChangeNotifier: viewingStateChangeNotifier,
+          repository: repository,
+          now: () => _referenceToday,
+        );
+
+        viewingStateChangeNotifier.notifyChanged();
+
+        /*
+     * The notifier listener intentionally dispatches the refresh without
+     * blocking the mutation that produced the event.
+     *
+     * Allow the three async section loaders to complete.
+     */
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(repository.watchNextCalls, 1);
+        expect(repository.missedRecentlyCalls, 1);
+        expect(repository.watchHistoryCalls, 1);
+
+        /*
+     * Upcoming powers both Premiering Today and Upcoming.
+     *
+     * Neither collection depends on watched state, so no request should be
+     * made for them.
+     */
+        expect(repository.upcomingCalls, 0);
+
+        await cubit.close();
+      },
+    );
+  });
   group('HomeCubit Premiering Today', () {
     test('loads only today and limits Home results', () async {
       final _FakeShowsRepository repository = _FakeShowsRepository(
@@ -35,6 +84,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => DateTime(2026, 8, 17, 14, 30),
       );
@@ -63,6 +113,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => DateTime(2026, 8, 18, 9, 15),
       );
@@ -87,6 +138,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -120,6 +172,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -155,6 +208,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -184,6 +238,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -209,6 +264,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -239,6 +295,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => DateTime(2026, 8, 17, 14, 30),
       );
@@ -266,6 +323,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => simulatedToday,
       );
@@ -291,6 +349,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -319,6 +378,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -336,6 +396,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -360,6 +421,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -393,6 +455,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -420,6 +483,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -442,6 +506,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -466,6 +531,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -495,6 +561,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -530,6 +597,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -576,6 +644,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -596,6 +665,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -626,6 +696,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -653,6 +724,7 @@ void main() {
       final _FakeShowsRepository repository = _FakeShowsRepository();
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -691,6 +763,7 @@ void main() {
       final _FakeShowsRepository repository = _FakeShowsRepository();
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -733,6 +806,7 @@ void main() {
         );
 
         final HomeCubit cubit = HomeCubit(
+          viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
           now: () => _referenceToday,
         );
@@ -770,6 +844,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -811,6 +886,7 @@ void main() {
         final _FakeShowsRepository repository = _FakeShowsRepository();
 
         final HomeCubit cubit = HomeCubit(
+          viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
           now: () => _referenceToday,
         );
@@ -865,6 +941,7 @@ void main() {
         );
 
         final HomeCubit cubit = HomeCubit(
+          viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
           now: () => _referenceToday,
         );
@@ -920,6 +997,7 @@ void main() {
         );
 
         final HomeCubit cubit = HomeCubit(
+          viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
           now: () => _referenceToday,
         );
@@ -976,6 +1054,7 @@ void main() {
         );
 
         final HomeCubit cubit = HomeCubit(
+          viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
           now: () => _referenceToday,
         );
@@ -1025,6 +1104,7 @@ void main() {
         );
 
         final HomeCubit cubit = HomeCubit(
+          viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
           now: () => _referenceToday,
         );
@@ -1062,6 +1142,7 @@ void main() {
         );
 
         final HomeCubit cubit = HomeCubit(
+          viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
           now: () => _referenceToday,
         );
@@ -1100,6 +1181,7 @@ void main() {
         );
 
         final HomeCubit cubit = HomeCubit(
+          viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
           now: () => _referenceToday,
         );
@@ -1170,6 +1252,7 @@ void main() {
           );
 
           final HomeCubit cubit = HomeCubit(
+            viewingStateChangeNotifier: viewingStateChangeNotifier,
             repository: repository,
             now: () => _referenceToday,
           );
@@ -1200,6 +1283,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -1230,6 +1314,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );
@@ -1255,6 +1340,7 @@ void main() {
         final _FakeShowsRepository repository = _FakeShowsRepository();
 
         final HomeCubit cubit = HomeCubit(
+          viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
           now: () => _referenceToday,
         );
@@ -1288,6 +1374,7 @@ void main() {
           );
 
           final HomeCubit cubit = HomeCubit(
+            viewingStateChangeNotifier: viewingStateChangeNotifier,
             repository: repository,
             now: () => _referenceToday,
           );
@@ -1318,6 +1405,7 @@ void main() {
       );
 
       final HomeCubit cubit = HomeCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
       );

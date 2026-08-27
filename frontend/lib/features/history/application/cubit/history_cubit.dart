@@ -1,14 +1,28 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/history/application/cubit/history_state.dart';
 import 'package:sofawatch/features/history/domain/models/history_item.dart';
 import 'package:sofawatch/features/history/domain/models/history_page.dart';
 import 'package:sofawatch/features/history/domain/repositories/history_repository.dart';
 
 final class HistoryCubit extends Cubit<HistoryState> {
-  HistoryCubit({required this._repository}) : super(const HistoryState());
+  HistoryCubit({
+    required this._repository,
+    required ViewingStateChangeNotifier viewingStateChangeNotifier,
+  }) : super(const HistoryState()) {
+    _viewingStateChangeSubscription = viewingStateChangeNotifier.changes.listen(
+      (_) {
+        unawaited(load());
+      },
+    );
+  }
 
   final HistoryRepository _repository;
+
+  late final StreamSubscription<void> _viewingStateChangeSubscription;
 
   static const int _pageSize = 30;
 
@@ -140,5 +154,12 @@ final class HistoryCubit extends Cubit<HistoryState> {
 
   Future<void> retryLoadMore() {
     return loadMore();
+  }
+
+  @override
+  Future<void> close() async {
+    await _viewingStateChangeSubscription.cancel();
+
+    return super.close();
   }
 }

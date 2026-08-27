@@ -1,5 +1,8 @@
+// ignore_for_file: prefer_initializing_formals
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_episode_operation.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_season_operation.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_season_state.dart';
@@ -13,13 +16,17 @@ import 'package:sofawatch/features/show_details/domain/repositories/show_details
 
 final class ShowDetailsSeasonsCubit
     extends Cubit<Map<int, ShowDetailsSeasonState>> {
+  // Keep public constructor parameter names free of private-field prefixes.
   ShowDetailsSeasonsCubit({
     required this._repository,
     required this._showTmdbId,
-  }) : super(const <int, ShowDetailsSeasonState>{});
+    required ViewingStateChangeNotifier viewingStateChangeNotifier,
+  }) : _viewingStateChangeNotifier = viewingStateChangeNotifier,
+       super(const <int, ShowDetailsSeasonState>{});
 
   final ShowDetailsSeasonsRepository _repository;
   final int _showTmdbId;
+  final ViewingStateChangeNotifier _viewingStateChangeNotifier;
 
   ShowDetailsSeasonsBootstrap? _bootstrap;
 
@@ -187,13 +194,17 @@ final class ShowDetailsSeasonsCubit
           .markSeasonWatched(seasonId: localSeason.id);
 
       /*
-     * If the Season is already expanded, its Episode rows are visible.
-     *
-     * Refresh their progress as well so every newly watched Episode
-     * immediately receives the correct watched state and watch count.
-     *
-     * A collapsed/unloaded Season only needs the aggregate Season progress.
-     */
+ * The backend mutation has succeeded.
+ *
+ * Notify the rest of the application before performing local read-back
+ * requests. A later refresh failure must not hide the fact that the
+ * persisted viewing state has already changed.
+ */
+      _viewingStateChangeNotifier.notifyChanged();
+
+      /*
+ * If the Season is already expanded...
+ */
       List<ShowDetailsEpisodeProgress>? episodeProgress;
 
       if (current.hasLoadedEpisodes) {
@@ -313,6 +324,8 @@ final class ShowDetailsSeasonsCubit
 
     try {
       await _repository.markEpisodeWatchedWithPrevious(episodeId: episodeId);
+
+      _viewingStateChangeNotifier.notifyChanged();
 
       await _refreshProgressAfterEpisodeCatchUp();
 
@@ -472,6 +485,8 @@ final class ShowDetailsSeasonsCubit
         eventId: targetEventId,
       );
 
+      _viewingStateChangeNotifier.notifyChanged();
+
       await _refreshEpisodeProgressAfterWatchEventChange(
         seasonNumber: seasonNumber,
         episodeId: episodeId,
@@ -545,6 +560,8 @@ final class ShowDetailsSeasonsCubit
 
     try {
       await _repository.deleteAllEpisodeWatchEvents(episodeId: episodeId);
+
+      _viewingStateChangeNotifier.notifyChanged();
 
       await _refreshEpisodeProgressAfterWatchEventChange(
         seasonNumber: seasonNumber,
@@ -689,6 +706,8 @@ final class ShowDetailsSeasonsCubit
       final ShowDetailsEpisodeProgress updatedProgress = watched
           ? await _repository.markEpisodeWatched(episodeId: episodeId)
           : await _repository.markEpisodeUnwatched(episodeId: episodeId);
+
+      _viewingStateChangeNotifier.notifyChanged();
 
       final ShowDetailsLocalSeason? localSeason = _findSeason(
         _bootstrap?.seasons ?? const <ShowDetailsLocalSeason>[],
@@ -1057,6 +1076,8 @@ final class ShowDetailsSeasonsCubit
       eventId: eventId,
     );
 
+    _viewingStateChangeNotifier.notifyChanged();
+
     await _refreshEpisodeProgressAfterWatchEventChange(
       seasonNumber: seasonNumber,
       episodeId: episodeId,
@@ -1068,6 +1089,8 @@ final class ShowDetailsSeasonsCubit
     required String episodeId,
   }) async {
     await _repository.deleteAllEpisodeWatchEvents(episodeId: episodeId);
+
+    _viewingStateChangeNotifier.notifyChanged();
 
     await _refreshEpisodeProgressAfterWatchEventChange(
       seasonNumber: seasonNumber,

@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
 import 'package:sofawatch/features/home/application/models/home_watch_source.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
@@ -8,9 +11,18 @@ import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
 
 final class HomeCubit extends Cubit<HomeState> {
-  HomeCubit({required this.repository, DateTime Function()? now})
-    : _now = now ?? DateTime.now,
-      super(const HomeState());
+  HomeCubit({
+    required this.repository,
+    required ViewingStateChangeNotifier viewingStateChangeNotifier,
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now,
+       super(const HomeState()) {
+    _viewingStateChangeSubscription = viewingStateChangeNotifier.changes.listen(
+      (_) {
+        unawaited(refreshViewingState());
+      },
+    );
+  }
 
   static const int premieringTodayLimit = 5;
   static const int upcomingLimit = 6;
@@ -20,6 +32,7 @@ final class HomeCubit extends Cubit<HomeState> {
 
   final ShowsRepository repository;
   final DateTime Function() _now;
+  late final StreamSubscription<void> _viewingStateChangeSubscription;
 
   DateTime _today() {
     final DateTime now = _now();
@@ -78,6 +91,21 @@ final class HomeCubit extends Cubit<HomeState> {
         state.upcomingError == null &&
         state.missedRecentlyError == null &&
         state.recentActivityError == null;
+  }
+
+  Future<void> refreshViewingState() async {
+    /*
+   * A viewing mutation only invalidates Home collections derived from
+   * watched/unwatched state.
+   *
+   * Premiering Today and Upcoming depend on release dates rather than
+   * viewing progress and must therefore not be reloaded unnecessarily.
+   */
+    await Future.wait(<Future<void>>[
+      loadContinueWatching(),
+      loadMissedRecently(),
+      loadRecentActivity(),
+    ]);
   }
 
   // ---------------------------------------------------------------------------
@@ -670,5 +698,12 @@ final class HomeCubit extends Cubit<HomeState> {
 
   bool _containsWatchNextEpisode(List<WatchNextShow> items, String episodeId) {
     return items.any((WatchNextShow item) => item.nextEpisode.id == episodeId);
+  }
+
+  @override
+  Future<void> close() async {
+    await _viewingStateChangeSubscription.cancel();
+
+    return super.close();
   }
 }
