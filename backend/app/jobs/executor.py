@@ -28,8 +28,17 @@ class BackgroundJobExecutor:
     def execute(
         self,
         definition: BackgroundJobDefinition,
+        *,
+        force: bool = False,
     ) -> BackgroundJobRun:
         """Execute a registered background job."""
+
+        handler = definition.force_handler if force else definition.handler
+
+        if handler is None:
+            raise ValueError(
+                f"Background job '{definition.key}' does not support forced execution."
+            )
 
         job = self._get_or_create_job(
             definition,
@@ -56,12 +65,13 @@ class BackgroundJobExecutor:
         started_timer = perf_counter()
 
         logger.info(
-            "Background job '%s' started.",
+            "Background job '%s' started%s.",
             definition.key,
+            " in forced mode" if force else "",
         )
 
         try:
-            result = definition.handler()
+            result = handler()
 
         except Exception as error:
             duration_ms = self._duration_ms(

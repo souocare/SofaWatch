@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/widgets/server_network_image.dart';
 import 'package:sofawatch/features/library/application/cubit/library_collection_cubit.dart';
 import 'package:sofawatch/features/library/application/cubit/library_collection_state.dart';
 import 'package:sofawatch/features/movies/domain/models/library_movie.dart';
@@ -411,8 +412,8 @@ class _ShowPosterWithProgress extends StatelessWidget {
             ),
             child: show.posterUrl == null
                 ? const _PosterPlaceholder(icon: Icons.tv_outlined)
-                : Image.network(
-                    show.posterUrl!,
+                : ServerNetworkImage(
+                    imageUrl: show.posterUrl!,
                     fit: BoxFit.cover,
                     errorBuilder:
                         (
@@ -476,8 +477,8 @@ class _LibraryMovieCard extends StatelessWidget {
                 child: SizedBox.expand(
                   child: movie.posterUrl == null
                       ? const _PosterPlaceholder(icon: Icons.movie_outlined)
-                      : Image.network(
-                          movie.posterUrl!,
+                      : ServerNetworkImage(
+                          imageUrl: movie.posterUrl!,
                           fit: BoxFit.cover,
                           errorBuilder:
                               (

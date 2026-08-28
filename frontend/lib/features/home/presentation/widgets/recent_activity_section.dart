@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/widgets/section_failure_card.dart';
+import 'package:sofawatch/core/widgets/server_network_image.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
 import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
@@ -174,8 +175,8 @@ class _RecentActivityArtwork extends StatelessWidget {
               ? const Center(
                   child: Icon(Icons.tv_outlined, color: AppColors.textMuted),
                 )
-              : Image.network(
-                  imageUrl!,
+              : ServerNetworkImage(
+                  imageUrl: imageUrl!,
                   fit: BoxFit.cover,
                   errorBuilder:
                       (

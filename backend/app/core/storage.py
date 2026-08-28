@@ -58,6 +58,34 @@ class ImageStorage:
             filename=f"backdrop.{extension}",
         )
 
+    def movie_poster_path(
+        self,
+        movie_id: UUID,
+        *,
+        extension: str,
+    ) -> Path:
+        """Return the cached poster path for a movie."""
+
+        return self._resource_path(
+            category="movies",
+            resource_id=movie_id,
+            filename=f"poster.{extension}",
+        )
+
+    def movie_backdrop_path(
+        self,
+        movie_id: UUID,
+        *,
+        extension: str,
+    ) -> Path:
+        """Return the cached backdrop path for a movie."""
+
+        return self._resource_path(
+            category="movies",
+            resource_id=movie_id,
+            filename=f"backdrop.{extension}",
+        )
+
     def season_poster_path(
         self,
         season_id: UUID,

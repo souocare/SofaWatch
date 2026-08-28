@@ -71,7 +71,10 @@ final class ApiServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) async {
+  Future<BackgroundJob> runBackgroundJob(
+    String jobKey, {
+    bool force = false,
+  }) async {
     try {
       final String normalizedJobKey = jobKey.trim();
 
@@ -80,7 +83,12 @@ final class ApiServerRepository implements ServerRepository {
       }
 
       final Response<Map<String, dynamic>> response = await _apiClient
-          .post<Map<String, dynamic>>('/background-jobs/$normalizedJobKey/run');
+          .post<Map<String, dynamic>>(
+            '/background-jobs/$normalizedJobKey/run',
+            queryParameters: force
+                ? const <String, dynamic>{'force': true}
+                : null,
+          );
 
       final Map<String, dynamic>? data = response.data;
 

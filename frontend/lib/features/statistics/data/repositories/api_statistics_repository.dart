@@ -138,9 +138,7 @@ final class ApiStatisticsRepository implements StatisticsRepository {
         );
       }
 
-      return StatisticsContentInsightsDto.fromJson(
-        data,
-      ).toDomain(resolveUrl: _apiClient.resolveServerUrl);
+      return StatisticsContentInsightsDto.fromJson(data).toDomain();
     } on AppException {
       rethrow;
     } on FormatException catch (error) {

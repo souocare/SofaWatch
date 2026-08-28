@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
+import 'package:sofawatch/core/widgets/server_network_image.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_cubit.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_state.dart';
 import 'package:sofawatch/features/show_details/domain/models/show_details.dart';
@@ -783,8 +784,8 @@ class _BackdropImage extends StatelessWidget {
       return const ColoredBox(color: AppColors.surfaceLow);
     }
 
-    return Image.network(
-      imageUrl,
+    return ServerNetworkImage(
+      imageUrl: imageUrl,
       key: const ValueKey<String>('show-details-backdrop'),
       fit: BoxFit.cover,
       errorBuilder:
@@ -819,8 +820,8 @@ class _PosterImage extends StatelessWidget {
       return const _PosterPlaceholder();
     }
 
-    return Image.network(
-      imageUrl,
+    return ServerNetworkImage(
+      imageUrl: imageUrl,
       key: const ValueKey<String>('show-details-poster'),
       fit: BoxFit.cover,
       errorBuilder:

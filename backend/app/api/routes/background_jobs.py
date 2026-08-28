@@ -201,6 +201,15 @@ def run_background_job_now(
         ),
     ],
     repository: BackgroundJobRepositoryDependency,
+    force: Annotated[
+        bool,
+        Query(
+            description=(
+                "Run the job using its forced execution mode, "
+                "when supported."
+            ),
+        ),
+    ] = False,
 ) -> BackgroundJobRunNowResponse:
     """Schedule a registered background job for immediate execution."""
 
@@ -215,6 +224,13 @@ def run_background_job_now(
             status_code=status.HTTP_404_NOT_FOUND,
             code="background_job_not_found",
             message="Background job not found.",
+        )
+
+    if force and definition.force_handler is None:
+        raise APIError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="background_job_force_not_supported",
+            message="This background job does not support forced execution.",
         )
 
     job = repository.get_by_key(
@@ -254,6 +270,7 @@ def run_background_job_now(
     background_tasks.add_task(
         run_background_job_manually,
         job_key,
+        force=force,
     )
 
     return BackgroundJobRunNowResponse(

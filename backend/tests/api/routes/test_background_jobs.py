@@ -1,11 +1,11 @@
-from datetime import UTC, datetime
-from unittest.mock import patch
+from datetime import UTC, datetime, timedelta
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.jobs.registry import BACKGROUND_JOBS
+from app.jobs.registry import BACKGROUND_JOBS, BackgroundJobDefinition
 from app.models.background_job import BackgroundJob
 from app.models.background_job_run import BackgroundJobRun
 from app.models.enums import BackgroundJobStatus
@@ -533,6 +533,7 @@ def test_run_background_job_now_accepts_manual_execution(
 
     runner.assert_called_once_with(
         "metadata_sync",
+        force=False,
     )
 
 
@@ -566,3 +567,122 @@ def test_run_background_job_now_persists_running_state(
 
     assert job is not None
     assert job.status == BackgroundJobStatus.RUNNING
+
+def test_run_background_job_now_schedules_forced_execution(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Schedule the registered forced handler when requested."""
+
+    create_local_user(
+        db_session,
+        is_admin=True,
+    )
+
+    with patch(
+        "app.api.routes.background_jobs.run_background_job_manually",
+    ) as runner:
+        response = client.post(
+            "/api/v1/background-jobs/metadata_sync/run",
+            params={
+                "force": True,
+            },
+        )
+
+    assert response.status_code == 202
+
+    body = response.json()
+
+    assert body["job"]["key"] == "metadata_sync"
+    assert body["job"]["status"] == "running"
+
+    runner.assert_called_once_with(
+        "metadata_sync",
+        force=True,
+    )
+
+def test_run_background_job_now_schedules_normal_execution(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Keep manual execution in normal mode when force is not requested."""
+
+    create_local_user(
+        db_session,
+        is_admin=True,
+    )
+
+    with patch(
+        "app.api.routes.background_jobs.run_background_job_manually",
+    ) as runner:
+        response = client.post(
+            "/api/v1/background-jobs/metadata_sync/run",
+        )
+
+    assert response.status_code == 202
+
+    runner.assert_called_once_with(
+        "metadata_sync",
+        force=False,
+    )
+
+def test_run_background_job_now_rejects_unsupported_force_mode(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Reject forced execution when the job has no force handler."""
+
+    create_local_user(
+        db_session,
+        is_admin=True,
+    )
+
+    definition = BackgroundJobDefinition(
+        key="normal-job",
+        name="Normal job",
+        schedule_label="Every 8h",
+        interval=timedelta(hours=8),
+        handler=Mock(return_value=None),
+    )
+
+    with patch(
+        "app.api.routes.background_jobs.get_background_job",
+        return_value=definition,
+    ):
+        response = client.post(
+            "/api/v1/background-jobs/normal-job/run",
+            params={
+                "force": True,
+            },
+        )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "error": {
+            "code": "background_job_force_not_supported",
+            "message": (
+                "This background job does not support forced execution."
+            ),
+        }
+    }
+
+def test_run_background_job_force_requires_admin(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Reject forced background job execution for non-administrators."""
+
+    create_local_user(
+        db_session,
+        is_admin=False,
+    )
+
+    response = client.post(
+        "/api/v1/background-jobs/metadata_sync/run",
+        params={
+            "force": True,
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "admin_required"

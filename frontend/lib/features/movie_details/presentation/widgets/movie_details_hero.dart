@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
+import 'package:sofawatch/core/widgets/server_network_image.dart';
 import 'package:sofawatch/features/movie_details/domain/models/movie_details.dart';
 
 class MovieDetailsHero extends StatelessWidget {
@@ -219,8 +220,8 @@ class _BackdropImage extends StatelessWidget {
       );
     }
 
-    return Image.network(
-      imageUrl,
+    return ServerNetworkImage(
+      imageUrl: imageUrl,
       key: const ValueKey<String>('movie-details-backdrop'),
       fit: BoxFit.cover,
       errorBuilder:
@@ -259,8 +260,8 @@ class _PosterImage extends StatelessWidget {
       return const _PosterPlaceholder();
     }
 
-    return Image.network(
-      imageUrl,
+    return ServerNetworkImage(
+      imageUrl: imageUrl,
       key: const ValueKey<String>('movie-details-poster'),
       fit: BoxFit.cover,
       errorBuilder:

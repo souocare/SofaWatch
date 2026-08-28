@@ -121,16 +121,19 @@ class FakeSeasonEpisodeSyncService:
         self.season_exists = season_exists
 
         self.requested_season_ids: list[UUID] = []
+        self.requested_force_refresh_values: list[bool] = []
 
     def sync(
         self,
         *,
         season_id: UUID,
         language: str | None = None,
+        force_refresh: bool = False,
     ) -> list[Episode] | None:
         self.requested_season_ids.append(
             season_id,
         )
+        self.requested_force_refresh_values.append(force_refresh)
 
         if not self.season_exists:
             return None
@@ -550,6 +553,7 @@ def test_sync_season_episodes_returns_synced_episodes(
     body = response.json()
 
     assert len(body) == 1
+    assert sync_service.requested_force_refresh_values == [True]
 
     assert body[0] == {
         "id": str(episode.id),
@@ -618,6 +622,7 @@ def test_sync_season_episodes_syncs_only_requested_season(
     assert sync_service.requested_season_ids == [
         first_season.id,
     ]
+    assert sync_service.requested_force_refresh_values == [True]
 
 
 def test_sync_season_episodes_returns_404_when_season_does_not_exist(
@@ -658,6 +663,7 @@ def test_sync_season_episodes_returns_404_when_season_does_not_exist(
     assert sync_service.requested_season_ids == [
         season_id,
     ]
+    assert sync_service.requested_force_refresh_values == [True]
 
 
 @pytest.mark.parametrize(

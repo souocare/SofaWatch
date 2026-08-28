@@ -3,7 +3,10 @@ from dataclasses import dataclass
 from datetime import timedelta
 from types import MappingProxyType
 
-from app.jobs.metadata_sync import run_metadata_sync
+from app.jobs.metadata_sync import (
+    run_metadata_force_sync,
+    run_metadata_sync,
+)
 
 JobResult = dict[str, object]
 JobCallable = Callable[[], JobResult | None]
@@ -18,6 +21,7 @@ class BackgroundJobDefinition:
     schedule_label: str
     interval: timedelta
     handler: JobCallable
+    force_handler: JobCallable | None = None
 
 
 _JOB_DEFINITIONS = {
@@ -27,6 +31,7 @@ _JOB_DEFINITIONS = {
         schedule_label="Every 8h",
         interval=timedelta(hours=8),
         handler=run_metadata_sync,
+        force_handler=run_metadata_force_sync,
     ),
 }
 

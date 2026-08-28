@@ -7,7 +7,7 @@ abstract interface class ServerRepository {
 
   Future<List<BackgroundJob>> getBackgroundJobs();
 
-  Future<BackgroundJob> runBackgroundJob(String jobKey);
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false});
 
   Future<ServerLogsPage> getLogs({
     ServerLogLevel? level,

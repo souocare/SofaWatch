@@ -95,6 +95,16 @@ class ApiClient {
     return Uri.parse(normalizedBaseUrl).resolve(normalizedValue).toString();
   }
 
+  Map<String, String> get authenticatedResourceHeaders {
+    final String? accessToken = _accessTokenProvider?.call()?.trim();
+
+    if (accessToken == null || accessToken.isEmpty) {
+      return const <String, String>{};
+    }
+
+    return <String, String>{'Authorization': 'Bearer $accessToken'};
+  }
+
   bool get isConfigured {
     return _dio.options.baseUrl.isNotEmpty;
   }

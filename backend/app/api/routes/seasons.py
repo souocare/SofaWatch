@@ -142,6 +142,7 @@ def sync_season_episodes(
 
     episodes = service.sync(
         season_id=season_id,
+        force_refresh=True,
     )
 
     if episodes is None:

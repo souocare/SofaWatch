@@ -57,7 +57,7 @@ final class BackgroundJobsCubit extends Cubit<BackgroundJobsState> {
     return load();
   }
 
-  Future<void> runNow(String jobKey) async {
+  Future<void> runNow(String jobKey, {bool force = false}) async {
     final BackgroundJobsState currentState = state;
 
     if (currentState is! BackgroundJobsSuccess) {
@@ -92,6 +92,7 @@ final class BackgroundJobsCubit extends Cubit<BackgroundJobsState> {
     try {
       final BackgroundJob updatedJob = await _repository.runBackgroundJob(
         jobKey,
+        force: force,
       );
 
       if (isClosed) {

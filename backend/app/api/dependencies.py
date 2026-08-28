@@ -839,6 +839,7 @@ def get_image_service(
         storage=storage,
         cache_service=cache_service,
         show_repository=ShowRepository(session),
+        movie_repository=MovieRepository(session),
         season_repository=SeasonRepository(session),
         episode_repository=EpisodeRepository(session),
     )

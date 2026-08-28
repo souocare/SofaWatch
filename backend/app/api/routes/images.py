@@ -21,6 +21,78 @@ router = APIRouter(
 
 
 @router.get(
+    "/movies/{movie_id}/poster",
+    response_class=FileResponse,
+    summary="Get movie poster",
+)
+def get_movie_poster(
+    movie_id: Annotated[
+        UUID,
+        Path(
+            description="Internal movie identifier.",
+        ),
+    ],
+    service: ImageServiceDependency,
+) -> FileResponse:
+    """Return the cached poster for a movie."""
+
+    try:
+        path = service.resolve_movie_poster(
+            movie_id,
+        )
+    except ImageOwnerNotFoundError as error:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="movie_not_found",
+            message="Movie not found.",
+        ) from error
+    except ImageNotAvailableError as error:
+        raise _image_not_found_error() from error
+    except ImageCacheError as error:
+        raise _image_cache_error() from error
+
+    return FileResponse(
+        path,
+    )
+
+
+@router.get(
+    "/movies/{movie_id}/backdrop",
+    response_class=FileResponse,
+    summary="Get movie backdrop",
+)
+def get_movie_backdrop(
+    movie_id: Annotated[
+        UUID,
+        Path(
+            description="Internal movie identifier.",
+        ),
+    ],
+    service: ImageServiceDependency,
+) -> FileResponse:
+    """Return the cached backdrop for a movie."""
+
+    try:
+        path = service.resolve_movie_backdrop(
+            movie_id,
+        )
+    except ImageOwnerNotFoundError as error:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="movie_not_found",
+            message="Movie not found.",
+        ) from error
+    except ImageNotAvailableError as error:
+        raise _image_not_found_error() from error
+    except ImageCacheError as error:
+        raise _image_cache_error() from error
+
+    return FileResponse(
+        path,
+    )
+
+
+@router.get(
     "/shows/{show_id}/poster",
     response_class=FileResponse,
     summary="Get TV series poster",

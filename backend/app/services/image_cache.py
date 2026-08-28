@@ -75,6 +75,40 @@ class ImageCacheService:
             ),
         )
 
+    def cache_movie_poster(
+        self,
+        *,
+        movie_id: UUID,
+        tmdb_path: str,
+    ) -> str:
+        """Download and cache a movie poster."""
+
+        return self._cache_image(
+            tmdb_path=tmdb_path,
+            size=self._POSTER_SIZE,
+            destination_factory=lambda extension: self._storage.movie_poster_path(
+                movie_id,
+                extension=extension,
+            ),
+        )
+
+    def cache_movie_backdrop(
+        self,
+        *,
+        movie_id: UUID,
+        tmdb_path: str,
+    ) -> str:
+        """Download and cache a movie backdrop."""
+
+        return self._cache_image(
+            tmdb_path=tmdb_path,
+            size=self._BACKDROP_SIZE,
+            destination_factory=lambda extension: self._storage.movie_backdrop_path(
+                movie_id,
+                extension=extension,
+            ),
+        )
+
     def cache_season_poster(
         self,
         *,

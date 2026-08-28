@@ -419,3 +419,91 @@ def test_service_does_not_close_injected_http_client(
     assert http_client.is_closed is False
 
     http_client.close()
+
+
+def test_cache_movie_poster_downloads_and_stores_image(
+    tmp_path: Path,
+) -> None:
+    """Download and store a movie poster in the local cache."""
+
+    movie_id = uuid4()
+
+    def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        assert request.url == ("https://image.tmdb.org/t/p/w500/movie-poster.jpg")
+
+        return httpx.Response(
+            status_code=200,
+            headers={
+                "content-type": "image/jpeg",
+            },
+            content=IMAGE_BYTES,
+            request=request,
+        )
+
+    service, storage, http_client = create_service(
+        tmp_path,
+        handler,
+    )
+
+    try:
+        relative_path = service.cache_movie_poster(
+            movie_id=movie_id,
+            tmdb_path="/movie-poster.jpg",
+        )
+    finally:
+        http_client.close()
+
+    assert relative_path == (f"movies/{movie_id}/poster.jpg")
+
+    absolute_path = storage.from_relative_path(
+        relative_path,
+    )
+
+    assert absolute_path.is_file()
+    assert absolute_path.read_bytes() == IMAGE_BYTES
+
+
+def test_cache_movie_backdrop_uses_original_size(
+    tmp_path: Path,
+) -> None:
+    """Request the original TMDB image size for movie backdrops."""
+
+    movie_id = uuid4()
+
+    def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        assert request.url == ("https://image.tmdb.org/t/p/original/movie-backdrop.webp")
+
+        return httpx.Response(
+            status_code=200,
+            headers={
+                "content-type": "image/webp",
+            },
+            content=IMAGE_BYTES,
+            request=request,
+        )
+
+    service, storage, http_client = create_service(
+        tmp_path,
+        handler,
+    )
+
+    try:
+        relative_path = service.cache_movie_backdrop(
+            movie_id=movie_id,
+            tmdb_path="/movie-backdrop.webp",
+        )
+    finally:
+        http_client.close()
+
+    assert relative_path == (f"movies/{movie_id}/backdrop.webp")
+
+    assert (
+        storage.from_relative_path(
+            relative_path,
+        ).read_bytes()
+        == IMAGE_BYTES
+    )

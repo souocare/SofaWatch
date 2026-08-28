@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_seasons_cubit.dart';
@@ -2403,16 +2404,19 @@ Widget _buildTestApp({
         showTmdbId: 95396,
       );
 
-  return MaterialApp(
-    home: Scaffold(
-      body: MultiBlocProvider(
-        providers: <BlocProvider<dynamic>>[
-          BlocProvider<ShowDetailsSeasonsCubit>.value(value: cubit),
-          BlocProvider<ShowDetailsShowOperationCubit>.value(
-            value: operationCubit,
-          ),
-        ],
-        child: ShowDetailsSeasonsSection(seasons: seasons),
+  return RepositoryProvider<ApiClient>(
+    create: (_) => ApiClient(baseUrl: Uri.parse('http://localhost:8000')),
+    child: MaterialApp(
+      home: Scaffold(
+        body: MultiBlocProvider(
+          providers: <BlocProvider<dynamic>>[
+            BlocProvider<ShowDetailsSeasonsCubit>.value(value: cubit),
+            BlocProvider<ShowDetailsShowOperationCubit>.value(
+              value: operationCubit,
+            ),
+          ],
+          child: ShowDetailsSeasonsSection(seasons: seasons),
+        ),
       ),
     ),
   );

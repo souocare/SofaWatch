@@ -5,6 +5,7 @@ import pytest
 
 from app.jobs.metadata_sync import (
     MetadataSyncError,
+    run_metadata_force_sync,
     run_metadata_sync,
 )
 from app.services.show_import import (
@@ -447,4 +448,111 @@ def test_metadata_sync_preserves_each_show_metadata_language() -> None:
     show_import_service.sync_show.assert_called_once_with(
         tmdb_id=95396,
         language="pt-PT",
+    )
+
+def test_metadata_force_sync_refreshes_show_and_all_seasons() -> None:
+    """Force-refresh Show metadata and every locally stored Season."""
+
+    show = SimpleNamespace(
+        id="show-id",
+        tmdb_id=1001,
+        title="Test Show",
+        metadata_language="en-US",
+    )
+
+    first_season = SimpleNamespace(
+        id="season-1",
+    )
+    second_season = SimpleNamespace(
+        id="season-2",
+    )
+
+    session_context = MagicMock()
+    session_context.__enter__.return_value = MagicMock()
+    session_context.__exit__.return_value = False
+
+    tmdb_context = MagicMock()
+    tmdb_context.__enter__.return_value = MagicMock()
+    tmdb_context.__exit__.return_value = False
+
+    show_repository = Mock()
+    show_repository.list_all.return_value = [show]
+
+    season_repository = Mock()
+    season_repository.list_by_show_id.return_value = [
+        first_season,
+        second_season,
+    ]
+
+    episode_repository = Mock()
+
+    show_import_service = Mock()
+    show_import_service.refresh_show.return_value = show
+
+    episode_sync_service = Mock()
+    episode_sync_service.sync.side_effect = [
+        [SimpleNamespace(), SimpleNamespace()],
+        [SimpleNamespace()],
+    ]
+
+    with (
+        patch(
+            "app.jobs.metadata_sync.SessionLocal",
+            return_value=session_context,
+        ),
+        patch(
+            "app.jobs.metadata_sync.TMDBClient",
+            return_value=tmdb_context,
+        ),
+        patch(
+            "app.jobs.metadata_sync.ShowRepository",
+            return_value=show_repository,
+        ),
+        patch(
+            "app.jobs.metadata_sync.SeasonRepository",
+            return_value=season_repository,
+        ),
+        patch(
+            "app.jobs.metadata_sync.EpisodeRepository",
+            return_value=episode_repository,
+        ),
+        patch(
+            "app.jobs.metadata_sync.ShowImportService",
+            return_value=show_import_service,
+        ),
+        patch(
+            "app.jobs.metadata_sync.SeasonEpisodeSyncService",
+            return_value=episode_sync_service,
+        ),
+    ):
+        result = run_metadata_force_sync()
+
+    assert result == {
+        "checked": 1,
+        "refreshed": 1,
+        "skipped": 0,
+        "failed": 0,
+        "seasons_synced": 2,
+        "episodes_refreshed": 3,
+    }
+
+    show_import_service.refresh_show.assert_called_once_with(
+        tmdb_id=1001,
+        language="en-US",
+    )
+
+    season_repository.list_by_show_id.assert_called_once_with(
+        "show-id",
+    )
+
+    episode_sync_service.sync.assert_any_call(
+        season_id="season-1",
+        language="en-US",
+        force_refresh=True,
+    )
+
+    episode_sync_service.sync.assert_any_call(
+        season_id="season-2",
+        language="en-US",
+        force_refresh=True,
     )

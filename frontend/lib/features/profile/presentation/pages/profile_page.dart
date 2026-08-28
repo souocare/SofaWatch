@@ -11,6 +11,7 @@ import 'package:sofawatch/core/errors/app_error_message_mapper.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/core/files/json_file_picker.dart';
 import 'package:sofawatch/core/widgets/section_failure_card.dart';
+import 'package:sofawatch/core/widgets/server_network_image.dart';
 import 'package:sofawatch/features/admin_users/application/cubit/admin_user_password_recovery_cubit.dart';
 import 'package:sofawatch/features/admin_users/application/cubit/admin_user_password_recovery_state.dart';
 import 'package:sofawatch/features/admin_users/application/cubit/admin_users_cubit.dart';
@@ -993,8 +994,8 @@ class _ProfileLibraryPosterImage extends StatelessWidget {
       return _ProfileLibraryPosterPlaceholder(icon: icon);
     }
 
-    return Image.network(
-      url,
+    return ServerNetworkImage(
+      imageUrl: url,
       fit: BoxFit.cover,
       errorBuilder:
           (BuildContext context, Object error, StackTrace? stackTrace) {
@@ -1415,8 +1416,8 @@ class _ProfileHistoryArtwork extends StatelessWidget {
           ),
           child: normalizedUrl == null || normalizedUrl.isEmpty
               ? Icon(icon, size: 24, color: AppColors.textMuted)
-              : Image.network(
-                  normalizedUrl,
+              : ServerNetworkImage(
+                  imageUrl: normalizedUrl,
                   fit: BoxFit.cover,
                   errorBuilder:
                       (
@@ -3763,41 +3764,154 @@ class _ProfileBackgroundJobRunAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isBusy = isSubmitting || job.isRunning;
+    final bool supportsForceRefresh = job.key == 'metadata_sync';
 
-    return SizedBox(
+    return Wrap(
       key: ValueKey<String>('profile-background-job-${job.key}-run-action'),
-      height: 36,
-      child: OutlinedButton(
-        key: ValueKey<String>('profile-background-job-${job.key}-run-now'),
-        onPressed: isBusy
-            ? null
-            : () {
-                context.read<BackgroundJobsCubit>().runNow(job.key);
-              },
-        child: isBusy
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: <Widget>[
+        SizedBox(
+          height: 36,
+          child: OutlinedButton(
+            key: ValueKey<String>('profile-background-job-${job.key}-run-now'),
+            onPressed: isBusy
+                ? null
+                : () {
+                    context.read<BackgroundJobsCubit>().runNow(job.key);
+                  },
+            child: isBusy
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
 
-                  const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        job.isRunning ? 'Running' : 'Starting',
+                        key: ValueKey<String>(
+                          'profile-background-job-${job.key}-run-state',
+                        ),
+                      ),
+                    ],
+                  )
+                : const Text('Run now'),
+          ),
+        ),
 
-                  Text(
-                    job.isRunning ? 'Running' : 'Starting',
-                    key: ValueKey<String>(
-                      'profile-background-job-${job.key}-run-state',
-                    ),
-                  ),
-                ],
-              )
-            : const Text('Run now'),
-      ),
+        if (supportsForceRefresh) ...<Widget>[
+          SizedBox(
+            height: 36,
+            child: OutlinedButton(
+              key: ValueKey<String>(
+                'profile-background-job-${job.key}-force-refresh',
+              ),
+              onPressed: isBusy
+                  ? null
+                  : () {
+                      _confirmForceRefresh(context: context, jobKey: job.key);
+                    },
+              child: const Text('Force refresh'),
+            ),
+          ),
+
+          IconButton(
+            key: ValueKey<String>(
+              'profile-background-job-${job.key}-force-refresh-info',
+            ),
+            tooltip: 'About Force refresh',
+            onPressed: () {
+              _showForceRefreshInfo(context);
+            },
+            icon: const Icon(Icons.info_outline_rounded),
+          ),
+        ],
+      ],
     );
   }
+}
+
+Future<void> _confirmForceRefresh({
+  required BuildContext context,
+  required String jobKey,
+}) async {
+  final bool? confirmed = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        key: const ValueKey<String>(
+          'profile-background-job-force-refresh-confirmation',
+        ),
+        title: const Text('Force metadata refresh?'),
+        content: const Text(
+          'This will ignore normal metadata freshness rules and request '
+          'updated metadata for locally stored shows, seasons and episodes.\n\n'
+          'This may make many requests to external providers.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            key: const ValueKey<String>(
+              'profile-background-job-force-refresh-cancel',
+            ),
+            onPressed: () {
+              Navigator.of(dialogContext).pop(false);
+            },
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const ValueKey<String>(
+              'profile-background-job-force-refresh-confirm',
+            ),
+            onPressed: () {
+              Navigator.of(dialogContext).pop(true);
+            },
+            child: const Text('Force refresh'),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (confirmed != true || !context.mounted) {
+    return;
+  }
+
+  await context.read<BackgroundJobsCubit>().runNow(jobKey, force: true);
+}
+
+Future<void> _showForceRefreshInfo(BuildContext context) {
+  return showDialog<void>(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        key: const ValueKey<String>(
+          'profile-background-job-force-refresh-info-dialog',
+        ),
+        title: const Text('Force refresh'),
+        content: const Text(
+          'Force refresh requests fresh metadata from the configured '
+          'providers even when locally stored metadata is still considered '
+          'recent.\n\n'
+          'It can recover newly available or previously missing metadata, '
+          'including episode artwork.\n\n'
+          'This operation may make significantly more provider requests and '
+          'take longer than a normal sync.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text('Close'),
+          ),
+        ],
+      );
+    },
+  );
 }
 
 class _ProfileBackgroundJobResultSummary extends StatelessWidget {

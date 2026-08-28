@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.storage import ImageStorage
 from app.repositories.episode import EpisodeRepository
+from app.repositories.movie import MovieRepository
 from app.repositories.season import SeasonRepository
 from app.repositories.show import ShowRepository
 from app.services.image_cache import ImageCacheService
@@ -33,6 +34,7 @@ class ImageService:
         show_repository: ShowRepository,
         season_repository: SeasonRepository,
         episode_repository: EpisodeRepository,
+        movie_repository: MovieRepository,
     ) -> None:
         self._session = session
         self._storage = storage
@@ -40,6 +42,7 @@ class ImageService:
         self._show_repository = show_repository
         self._season_repository = season_repository
         self._episode_repository = episode_repository
+        self._movie_repository = movie_repository
 
     def resolve_show_poster(
         self,
@@ -90,6 +93,60 @@ class ImageService:
             ),
             set_local_path=lambda path: setattr(
                 show,
+                "local_backdrop_path",
+                path,
+            ),
+        )
+
+    def resolve_movie_poster(
+        self,
+        movie_id: UUID,
+    ) -> Path:
+        """Return a locally cached movie poster."""
+
+        movie = self._movie_repository.get_by_id(
+            movie_id,
+        )
+
+        if movie is None:
+            raise ImageOwnerNotFoundError("Movie not found.")
+
+        return self._resolve_image(
+            local_path=movie.local_poster_path,
+            provider_path=movie.tmdb_poster_path,
+            cache_image=lambda: self._cache_service.cache_movie_poster(
+                movie_id=movie.id,
+                tmdb_path=movie.tmdb_poster_path or "",
+            ),
+            set_local_path=lambda path: setattr(
+                movie,
+                "local_poster_path",
+                path,
+            ),
+        )
+
+    def resolve_movie_backdrop(
+        self,
+        movie_id: UUID,
+    ) -> Path:
+        """Return a locally cached movie backdrop."""
+
+        movie = self._movie_repository.get_by_id(
+            movie_id,
+        )
+
+        if movie is None:
+            raise ImageOwnerNotFoundError("Movie not found.")
+
+        return self._resolve_image(
+            local_path=movie.local_backdrop_path,
+            provider_path=movie.tmdb_backdrop_path,
+            cache_image=lambda: self._cache_service.cache_movie_backdrop(
+                movie_id=movie.id,
+                tmdb_path=movie.tmdb_backdrop_path or "",
+            ),
+            set_local_path=lambda path: setattr(
+                movie,
                 "local_backdrop_path",
                 path,
             ),

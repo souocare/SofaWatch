@@ -578,7 +578,7 @@ class _ServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 }
@@ -616,7 +616,7 @@ final class _RetryLevelServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 }
@@ -656,7 +656,7 @@ final class _ControlledRefreshServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 }
@@ -690,7 +690,7 @@ final class _RefreshFailureServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 }
@@ -724,7 +724,7 @@ final class _PaginationFailureServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 }
@@ -762,7 +762,7 @@ final class _RetryPaginationServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 }
@@ -804,7 +804,7 @@ final class _ControlledFilterServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 }
@@ -850,7 +850,7 @@ final class _ControlledPaginationFilterRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 }

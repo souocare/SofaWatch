@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/widgets/server_network_image.dart';
 import 'package:sofawatch/features/episode_details/application/cubit/episode_details_cubit.dart';
 import 'package:sofawatch/features/episode_details/application/cubit/episode_details_operation.dart';
 import 'package:sofawatch/features/episode_details/application/cubit/episode_details_state.dart';
@@ -93,14 +94,35 @@ class EpisodeDetailsPage extends StatelessWidget {
   }
 }
 
+class _EpisodeDetailsCloseButton extends StatelessWidget {
+  const _EpisodeDetailsCloseButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton.filledTonal(
+      key: const ValueKey<String>('episode-details-close'),
+      tooltip: 'Close',
+      onPressed: context.pop,
+      icon: const Icon(Icons.close_rounded),
+    );
+  }
+}
+
 class _EpisodeDetailsLoading extends StatelessWidget {
   const _EpisodeDetailsLoading();
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      key: ValueKey<String>('episode-details-loading'),
-      child: CircularProgressIndicator(),
+    return Stack(
+      key: const ValueKey<String>('episode-details-loading'),
+      children: <Widget>[
+        const Center(child: CircularProgressIndicator()),
+        const Positioned(
+          top: AppSpacing.md,
+          left: AppSpacing.md,
+          child: _EpisodeDetailsCloseButton(),
+        ),
+      ],
     );
   }
 }
@@ -113,41 +135,48 @@ class _EpisodeDetailsFailure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return Stack(
       key: const ValueKey<String>('episode-details-failure'),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const Icon(
-                Icons.error_outline_rounded,
-                size: 40,
-                color: AppColors.textMuted,
+      children: <Widget>[
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    size: 40,
+                    color: AppColors.textMuted,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Text(
+                    error.isTimeout
+                        ? 'Loading this episode took too long.'
+                        : 'Could not load this episode.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  FilledButton.tonalIcon(
+                    key: const ValueKey<String>('episode-details-retry'),
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Retry'),
+                  ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(
-                error.isTimeout
-                    ? 'Loading this episode took too long.'
-                    : 'Could not load this episode.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              FilledButton.tonalIcon(
-                key: const ValueKey<String>('episode-details-retry'),
-                onPressed: () {
-                  onRetry();
-                },
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Retry'),
-              ),
-            ],
+            ),
           ),
         ),
-      ),
+        const Positioned(
+          top: AppSpacing.md,
+          left: AppSpacing.md,
+          child: _EpisodeDetailsCloseButton(),
+        ),
+      ],
     );
   }
 }
@@ -219,9 +248,7 @@ class _EpisodeDetailsHeader extends StatelessWidget {
         SizedBox(
           height: isDesktop ? 360 : 280,
           width: double.infinity,
-          child: _EpisodeBackdrop(
-            imageUrl: episode.stillUrl ?? show.backdropUrl,
-          ),
+          child: _EpisodeBackdrop(imageUrl: episode.stillUrl),
         ),
         Positioned.fill(
           child: DecoratedBox(
@@ -239,15 +266,10 @@ class _EpisodeDetailsHeader extends StatelessWidget {
             ),
           ),
         ),
-        Positioned(
+        const Positioned(
           top: AppSpacing.md,
           left: AppSpacing.md,
-          child: IconButton.filledTonal(
-            key: const ValueKey<String>('episode-details-close'),
-            tooltip: 'Close',
-            onPressed: context.pop,
-            icon: const Icon(Icons.close_rounded),
-          ),
+          child: _EpisodeDetailsCloseButton(),
         ),
         Positioned(
           left: isDesktop ? AppSpacing.xxxl : AppSpacing.xl,
@@ -312,8 +334,8 @@ class _EpisodeBackdrop extends StatelessWidget {
       );
     }
 
-    return Image.network(
-      url,
+    return ServerNetworkImage(
+      imageUrl: url,
       key: const ValueKey<String>('episode-details-artwork'),
       fit: BoxFit.cover,
       errorBuilder:

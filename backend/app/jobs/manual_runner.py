@@ -10,6 +10,8 @@ logger = logging.getLogger(__name__)
 
 def run_background_job_manually(
     job_key: str,
+    *,
+    force: bool = False,
 ) -> None:
     """Execute a registered background job using an independent session."""
 
@@ -36,4 +38,5 @@ def run_background_job_manually(
 
         executor.execute(
             definition,
+            force=force,
         )

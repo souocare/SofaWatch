@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/widgets/server_network_image.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_episode_operation.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_season_operation.dart';
 import 'package:sofawatch/features/show_details/application/cubit/show_details_season_state.dart';
@@ -852,21 +855,48 @@ class _EpisodeRow extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              if (hasImage) ...<Widget>[
-                _EpisodeImage(url: episode.stillUrl!),
-                const SizedBox(width: AppSpacing.lg),
-              ],
-
               Expanded(
-                child: _EpisodeInformation(
-                  seasonNumber: seasonNumber,
-                  episode: episode,
-                  isCompact: isCompact,
+                child: Semantics(
+                  button: true,
+                  label: 'Open episode details',
+                  child: InkWell(
+                    key: ValueKey<String>(
+                      'show-details-episode-link-${episode.id}',
+                    ),
+                    borderRadius: AppRadius.borderMedium,
+                    onTap: () {
+                      context.pushNamed(
+                        AppRoute.episodeDetails.name,
+                        pathParameters: <String, String>{
+                          'episodeId': episode.id,
+                        },
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.xs,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: <Widget>[
+                          if (hasImage) ...<Widget>[
+                            _EpisodeImage(url: episode.stillUrl!),
+                            const SizedBox(width: AppSpacing.lg),
+                          ],
+                          Expanded(
+                            child: _EpisodeInformation(
+                              seasonNumber: seasonNumber,
+                              episode: episode,
+                              isCompact: isCompact,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
-
               const SizedBox(width: AppSpacing.sm),
-
               _EpisodeStatusButton(
                 seasonNumber: seasonNumber,
                 episode: episode,
@@ -978,8 +1008,8 @@ class _EpisodeImage extends StatelessWidget {
         width: 112,
         child: AspectRatio(
           aspectRatio: 16 / 9,
-          child: Image.network(
-            url,
+          child: ServerNetworkImage(
+            imageUrl: url,
             fit: BoxFit.cover,
             errorBuilder:
                 (BuildContext context, Object error, StackTrace? stackTrace) {

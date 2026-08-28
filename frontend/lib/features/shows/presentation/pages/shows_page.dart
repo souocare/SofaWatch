@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/widgets/server_network_image.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_state.dart';
 import 'package:sofawatch/features/shows/domain/models/library_first_episode.dart';
@@ -1198,8 +1199,8 @@ class _WatchNextPoster extends StatelessWidget {
       );
     }
 
-    return Image.network(
-      imageUrl,
+    return ServerNetworkImage(
+      imageUrl: imageUrl,
       fit: BoxFit.cover,
       errorBuilder:
           (BuildContext context, Object error, StackTrace? stackTrace) {

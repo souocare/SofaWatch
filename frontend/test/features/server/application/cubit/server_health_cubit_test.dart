@@ -207,7 +207,7 @@ class _ServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 
@@ -256,7 +256,7 @@ final class _ControlledServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 
@@ -290,7 +290,7 @@ final class _RetryServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 

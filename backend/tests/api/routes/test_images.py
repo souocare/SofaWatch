@@ -91,6 +91,64 @@ def test_get_show_backdrop_returns_image_file(
     assert response.headers["content-type"] == "image/webp"
 
 
+def test_get_movie_poster_returns_image_file(
+    tmp_path: Path,
+    client_with_image_service: TestClient,
+    image_service: Mock,
+) -> None:
+    """Return a movie poster file."""
+
+    movie_id = uuid4()
+    poster_path = tmp_path / "movie-poster.jpg"
+
+    poster_path.write_bytes(
+        b"movie-poster",
+    )
+
+    image_service.resolve_movie_poster.return_value = poster_path
+
+    response = client_with_image_service.get(
+        f"/api/v1/images/movies/{movie_id}/poster",
+    )
+
+    assert response.status_code == 200
+    assert response.content == b"movie-poster"
+    assert response.headers["content-type"] == "image/jpeg"
+
+    image_service.resolve_movie_poster.assert_called_once_with(
+        movie_id,
+    )
+
+
+def test_get_movie_backdrop_returns_image_file(
+    tmp_path: Path,
+    client_with_image_service: TestClient,
+    image_service: Mock,
+) -> None:
+    """Return a movie backdrop file."""
+
+    movie_id = uuid4()
+    backdrop_path = tmp_path / "movie-backdrop.webp"
+
+    backdrop_path.write_bytes(
+        b"movie-backdrop",
+    )
+
+    image_service.resolve_movie_backdrop.return_value = backdrop_path
+
+    response = client_with_image_service.get(
+        f"/api/v1/images/movies/{movie_id}/backdrop",
+    )
+
+    assert response.status_code == 200
+    assert response.content == b"movie-backdrop"
+    assert response.headers["content-type"] == "image/webp"
+
+    image_service.resolve_movie_backdrop.assert_called_once_with(
+        movie_id,
+    )
+
+
 def test_get_season_poster_returns_image_file(
     tmp_path: Path,
     client_with_image_service: TestClient,
@@ -162,6 +220,18 @@ def test_get_episode_still_returns_image_file(
             "show_not_found",
         ),
         (
+            "/api/v1/images/movies/{id}/poster",
+            "resolve_movie_poster",
+            "Movie not found.",
+            "movie_not_found",
+        ),
+        (
+            "/api/v1/images/movies/{id}/backdrop",
+            "resolve_movie_backdrop",
+            "Movie not found.",
+            "movie_not_found",
+        ),
+        (
             "/api/v1/images/seasons/{id}/poster",
             "resolve_season_poster",
             "TV season not found.",
@@ -224,6 +294,14 @@ def test_image_endpoint_returns_owner_not_found_error(
         (
             "/api/v1/images/shows/{id}/backdrop",
             "resolve_show_backdrop",
+        ),
+        (
+            "/api/v1/images/movies/{id}/poster",
+            "resolve_movie_poster",
+        ),
+        (
+            "/api/v1/images/movies/{id}/backdrop",
+            "resolve_movie_backdrop",
         ),
         (
             "/api/v1/images/seasons/{id}/poster",

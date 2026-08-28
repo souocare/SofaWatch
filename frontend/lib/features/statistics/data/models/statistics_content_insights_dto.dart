@@ -52,33 +52,19 @@ final class StatisticsContentInsightsDto {
   final List<StatisticsGenreInsightDto> topShowGenres;
   final List<StatisticsGenreInsightDto> topMovieGenres;
 
-  StatisticsContentInsights toDomain({
-    String? Function(String? url)? resolveUrl,
-  }) {
+  StatisticsContentInsights toDomain() {
     return StatisticsContentInsights(
       mostWatchedShows: mostWatchedShows
-          .map(
-            (StatisticsShowInsightDto item) =>
-                item.toDomain(resolveUrl: resolveUrl),
-          )
+          .map((StatisticsShowInsightDto item) => item.toDomain())
           .toList(growable: false),
       mostRewatchedShows: mostRewatchedShows
-          .map(
-            (StatisticsShowInsightDto item) =>
-                item.toDomain(resolveUrl: resolveUrl),
-          )
+          .map((StatisticsShowInsightDto item) => item.toDomain())
           .toList(growable: false),
       mostRewatchedEpisodes: mostRewatchedEpisodes
-          .map(
-            (StatisticsEpisodeInsightDto item) =>
-                item.toDomain(resolveUrl: resolveUrl),
-          )
+          .map((StatisticsEpisodeInsightDto item) => item.toDomain())
           .toList(growable: false),
       mostRewatchedMovies: mostRewatchedMovies
-          .map(
-            (StatisticsMovieInsightDto item) =>
-                item.toDomain(resolveUrl: resolveUrl),
-          )
+          .map((StatisticsMovieInsightDto item) => item.toDomain())
           .toList(growable: false),
       topShowGenres: topShowGenres
           .map((StatisticsGenreInsightDto item) => item.toDomain())
@@ -118,12 +104,12 @@ final class StatisticsShowInsightDto {
   final int watchCount;
   final int rewatchCount;
 
-  StatisticsShowInsight toDomain({String? Function(String? url)? resolveUrl}) {
+  StatisticsShowInsight toDomain() {
     return StatisticsShowInsight(
       showId: showId,
       tmdbId: tmdbId,
       title: title,
-      posterUrl: resolveUrl?.call(posterUrl) ?? posterUrl,
+      posterUrl: posterUrl,
       watchCount: watchCount,
       rewatchCount: rewatchCount,
     );
@@ -167,9 +153,7 @@ final class StatisticsEpisodeInsightDto {
   final int watchCount;
   final int rewatchCount;
 
-  StatisticsEpisodeInsight toDomain({
-    String? Function(String? url)? resolveUrl,
-  }) {
+  StatisticsEpisodeInsight toDomain() {
     return StatisticsEpisodeInsight(
       episodeId: episodeId,
       showTmdbId: showTmdbId,
@@ -177,7 +161,7 @@ final class StatisticsEpisodeInsightDto {
       seasonNumber: seasonNumber,
       episodeNumber: episodeNumber,
       episodeTitle: episodeTitle,
-      stillUrl: resolveUrl?.call(stillUrl) ?? stillUrl,
+      stillUrl: stillUrl,
       watchCount: watchCount,
       rewatchCount: rewatchCount,
     );
@@ -212,12 +196,12 @@ final class StatisticsMovieInsightDto {
   final int watchCount;
   final int rewatchCount;
 
-  StatisticsMovieInsight toDomain({String? Function(String? url)? resolveUrl}) {
+  StatisticsMovieInsight toDomain() {
     return StatisticsMovieInsight(
       movieId: movieId,
       tmdbId: tmdbId,
       title: title,
-      posterUrl: resolveUrl?.call(posterUrl) ?? posterUrl,
+      posterUrl: posterUrl,
       watchCount: watchCount,
       rewatchCount: rewatchCount,
     );

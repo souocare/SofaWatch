@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/widgets/server_network_image.dart';
 import 'package:sofawatch/features/movies/application/cubit/movies_cubit.dart';
 import 'package:sofawatch/features/movies/application/cubit/movies_state.dart';
 import 'package:sofawatch/features/movies/application/models/movies_filter.dart';
@@ -588,8 +589,8 @@ class _MovieCard extends StatelessWidget {
                 child: SizedBox.expand(
                   child: movie.posterUrl == null
                       ? const _MoviePosterPlaceholder()
-                      : Image.network(
-                          movie.posterUrl!,
+                      : ServerNetworkImage(
+                          imageUrl: movie.posterUrl!,
                           fit: BoxFit.cover,
                           errorBuilder:
                               (

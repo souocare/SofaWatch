@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.storage import ImageStorage
 from app.repositories.episode import EpisodeRepository
+from app.repositories.movie import MovieRepository
 from app.repositories.season import SeasonRepository
 from app.repositories.show import ShowRepository
 from app.services.image import (
@@ -29,6 +30,13 @@ def cache_service() -> Mock:
     """Provide mocked image cache service."""
 
     return Mock(spec=ImageCacheService)
+
+
+@pytest.fixture
+def movie_repository() -> Mock:
+    """Provide a mocked movie repository."""
+
+    return Mock(spec=MovieRepository)
 
 
 @pytest.fixture
@@ -58,6 +66,7 @@ def image_service(
     storage: Mock,
     cache_service: Mock,
     show_repository: Mock,
+    movie_repository: Mock,
     season_repository: Mock,
     episode_repository: Mock,
 ) -> ImageService:
@@ -68,6 +77,7 @@ def image_service(
         storage=storage,
         cache_service=cache_service,
         show_repository=show_repository,
+        movie_repository=movie_repository,
         season_repository=season_repository,
         episode_repository=episode_repository,
     )
@@ -442,3 +452,129 @@ def test_resolve_episode_still_raises_when_episode_does_not_exist(
         image_service.resolve_episode_still(
             episode_id,
         )
+
+
+def test_resolve_movie_poster_downloads_image(
+    tmp_path: Path,
+    image_service: ImageService,
+    storage: Mock,
+    cache_service: Mock,
+    movie_repository: Mock,
+) -> None:
+    """Download a missing movie poster."""
+
+    movie_id = uuid4()
+    relative_path = f"movies/{movie_id}/poster.jpg"
+    absolute_path = tmp_path / "poster.jpg"
+    absolute_path.write_bytes(
+        b"poster",
+    )
+
+    movie = Mock(
+        id=movie_id,
+        local_poster_path=None,
+        tmdb_poster_path="/movie-poster.jpg",
+    )
+
+    movie_repository.get_by_id.return_value = movie
+    cache_service.cache_movie_poster.return_value = relative_path
+    storage.from_relative_path.return_value = absolute_path
+
+    result = image_service.resolve_movie_poster(
+        movie_id,
+    )
+
+    assert result == absolute_path
+    assert movie.local_poster_path == relative_path
+
+    cache_service.cache_movie_poster.assert_called_once_with(
+        movie_id=movie_id,
+        tmdb_path="/movie-poster.jpg",
+    )
+
+
+def test_resolve_movie_backdrop_downloads_image(
+    tmp_path: Path,
+    image_service: ImageService,
+    storage: Mock,
+    cache_service: Mock,
+    movie_repository: Mock,
+) -> None:
+    """Download a missing movie backdrop."""
+
+    movie_id = uuid4()
+    relative_path = f"movies/{movie_id}/backdrop.webp"
+    absolute_path = tmp_path / "backdrop.webp"
+    absolute_path.write_bytes(
+        b"backdrop",
+    )
+
+    movie = Mock(
+        id=movie_id,
+        local_backdrop_path=None,
+        tmdb_backdrop_path="/movie-backdrop.webp",
+    )
+
+    movie_repository.get_by_id.return_value = movie
+    cache_service.cache_movie_backdrop.return_value = relative_path
+    storage.from_relative_path.return_value = absolute_path
+
+    result = image_service.resolve_movie_backdrop(
+        movie_id,
+    )
+
+    assert result == absolute_path
+    assert movie.local_backdrop_path == relative_path
+
+    cache_service.cache_movie_backdrop.assert_called_once_with(
+        movie_id=movie_id,
+        tmdb_path="/movie-backdrop.webp",
+    )
+
+
+def test_resolve_movie_poster_raises_when_movie_does_not_exist(
+    image_service: ImageService,
+    movie_repository: Mock,
+    cache_service: Mock,
+) -> None:
+    """Reject image resolution for a missing movie."""
+
+    movie_id = uuid4()
+
+    movie_repository.get_by_id.return_value = None
+
+    with pytest.raises(
+        ImageOwnerNotFoundError,
+        match="Movie not found",
+    ):
+        image_service.resolve_movie_poster(
+            movie_id,
+        )
+
+    cache_service.cache_movie_poster.assert_not_called()
+
+
+def test_resolve_movie_poster_raises_when_image_is_unavailable(
+    image_service: ImageService,
+    movie_repository: Mock,
+    cache_service: Mock,
+) -> None:
+    """Reject movie poster resolution when no image is available."""
+
+    movie_id = uuid4()
+
+    movie_repository.get_by_id.return_value = Mock(
+        id=movie_id,
+        local_poster_path=None,
+        tmdb_poster_path=None,
+    )
+
+    with pytest.raises(
+        ImageNotAvailableError,
+        match="requested image is not available",
+    ):
+        image_service.resolve_movie_poster(
+            movie_id,
+        )
+
+    cache_service.cache_movie_poster.assert_not_called()

@@ -142,6 +142,8 @@ void main() {
                   endsWith('/background-jobs/metadata_sync/run'),
                 );
 
+                expect(options.queryParameters, isEmpty);
+
                 handler.resolve(
                   Response<Map<String, dynamic>>(
                     requestOptions: options,
@@ -177,6 +179,63 @@ void main() {
 
       expect(job.status, BackgroundJobStatus.running);
 
+      expect(job.isRunning, isTrue);
+      expect(job.key, 'metadata_sync');
+    });
+
+    test('runs background job in forced mode', () async {
+      final Dio dio = Dio();
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                expect(options.method, 'POST');
+
+                expect(
+                  options.path,
+                  endsWith('/background-jobs/metadata_sync/run'),
+                );
+
+                expect(options.queryParameters, <String, dynamic>{
+                  'force': true,
+                });
+
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 202,
+                    data: <String, dynamic>{
+                      'job': <String, dynamic>{
+                        'id': 'job-1',
+                        'key': 'metadata_sync',
+                        'name': 'Metadata sync',
+                        'schedule': 'Every 8h',
+                        'status': 'running',
+                        'last_started_at': '2026-08-20T12:00:00Z',
+                        'last_finished_at': null,
+                        'last_duration_ms': null,
+                        'last_error': null,
+                        'next_run_at': null,
+                        'last_result': null,
+                      },
+                    },
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiServerRepository repository = ApiServerRepository(
+        ApiClient(baseUrl: Uri.parse('https://server.example.com'), dio: dio),
+      );
+
+      final BackgroundJob job = await repository.runBackgroundJob(
+        'metadata_sync',
+        force: true,
+      );
+
+      expect(job.status, BackgroundJobStatus.running);
       expect(job.isRunning, isTrue);
       expect(job.key, 'metadata_sync');
     });

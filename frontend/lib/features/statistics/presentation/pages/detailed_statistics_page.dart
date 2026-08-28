@@ -5,6 +5,7 @@ import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_error_message_mapper.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/core/widgets/section_failure_card.dart';
+import 'package:sofawatch/core/widgets/server_network_image.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_activity_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_activity_state.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_backlog_cubit.dart';
@@ -1679,8 +1680,8 @@ class _ContentInsightArtwork extends StatelessWidget {
           aspectRatio: aspectRatio,
           child: normalizedUrl == null || normalizedUrl.isEmpty
               ? _ContentInsightArtworkFallback(icon: fallbackIcon)
-              : Image.network(
-                  normalizedUrl,
+              : ServerNetworkImage(
+                  imageUrl: normalizedUrl,
                   fit: BoxFit.cover,
                   errorBuilder:
                       (

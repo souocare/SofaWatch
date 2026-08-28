@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_error_message_mapper.dart';
+import 'package:sofawatch/core/widgets/server_network_image.dart';
 import 'package:sofawatch/features/history/application/cubit/history_cubit.dart';
 import 'package:sofawatch/features/history/application/cubit/history_state.dart';
 import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
@@ -344,8 +345,8 @@ class _HistoryArtwork extends StatelessWidget {
           ),
           child: normalizedUrl == null || normalizedUrl.isEmpty
               ? Center(child: Icon(icon, size: 24, color: AppColors.textMuted))
-              : Image.network(
-                  normalizedUrl,
+              : ServerNetworkImage(
+                  imageUrl: normalizedUrl,
                   fit: BoxFit.cover,
                   errorBuilder:
                       (

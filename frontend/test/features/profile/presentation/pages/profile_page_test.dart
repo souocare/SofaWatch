@@ -1976,6 +1976,8 @@ void main() {
       await tester.pump();
 
       expect(serverRepository.runBackgroundJobCalls, 1);
+      expect(serverRepository.lastRunBackgroundJobKey, 'metadata_sync');
+      expect(serverRepository.lastRunBackgroundJobForce, isFalse);
 
       expect(
         tester
@@ -2011,6 +2013,163 @@ void main() {
             .data,
         'Running',
       );
+    });
+    testWidgets('shows Force refresh for Metadata Sync', (
+      WidgetTester tester,
+    ) async {
+      final _FakeServerRepository serverRepository = _FakeServerRepository(
+        health: _serverHealth,
+        backgroundJobs: <BackgroundJob>[_metadataSyncJob],
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder forceButton = find.byKey(
+        const ValueKey<String>(
+          'profile-background-job-metadata_sync-force-refresh',
+        ),
+      );
+
+      await tester.ensureVisible(forceButton);
+      await tester.pumpAndSettle();
+
+      expect(forceButton, findsOneWidget);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-background-job-metadata_sync-force-refresh-info',
+          ),
+        ),
+        findsOneWidget,
+      );
+    });
+    testWidgets('cancels Metadata Sync Force refresh confirmation', (
+      WidgetTester tester,
+    ) async {
+      final _FakeServerRepository serverRepository = _FakeServerRepository(
+        health: _serverHealth,
+        backgroundJobs: <BackgroundJob>[_metadataSyncJob],
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder forceButton = find.byKey(
+        const ValueKey<String>(
+          'profile-background-job-metadata_sync-force-refresh',
+        ),
+      );
+
+      await tester.ensureVisible(forceButton);
+      await tester.tap(forceButton);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-background-job-force-refresh-confirmation',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>('profile-background-job-force-refresh-cancel'),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.runBackgroundJobCalls, 0);
+    });
+    testWidgets('runs Metadata Sync in forced mode after confirmation', (
+      WidgetTester tester,
+    ) async {
+      final _FakeServerRepository serverRepository = _FakeServerRepository(
+        health: _serverHealth,
+        backgroundJobs: <BackgroundJob>[_metadataSyncJob],
+        runBackgroundJobResult: _runningMetadataSyncJob,
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder forceButton = find.byKey(
+        const ValueKey<String>(
+          'profile-background-job-metadata_sync-force-refresh',
+        ),
+      );
+
+      await tester.ensureVisible(forceButton);
+      await tester.tap(forceButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-background-job-force-refresh-confirm',
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump();
+
+      expect(serverRepository.runBackgroundJobCalls, 1);
+      expect(serverRepository.lastRunBackgroundJobKey, 'metadata_sync');
+      expect(serverRepository.lastRunBackgroundJobForce, isTrue);
+    });
+    testWidgets('shows Metadata Sync Force refresh information', (
+      WidgetTester tester,
+    ) async {
+      final _FakeServerRepository serverRepository = _FakeServerRepository(
+        health: _serverHealth,
+        backgroundJobs: <BackgroundJob>[_metadataSyncJob],
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder infoButton = find.byKey(
+        const ValueKey<String>(
+          'profile-background-job-metadata_sync-force-refresh-info',
+        ),
+      );
+
+      await tester.ensureVisible(infoButton);
+      await tester.tap(infoButton);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-background-job-force-refresh-info-dialog',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.textContaining('previously missing metadata'),
+        findsOneWidget,
+      );
+
+      expect(find.textContaining('episode artwork'), findsOneWidget);
     });
     testWidgets('shows isolated Background Job Run Now failure', (
       WidgetTester tester,
@@ -2099,6 +2258,15 @@ void main() {
       expect(button.onPressed, isNull);
 
       expect(serverRepository.runBackgroundJobCalls, 0);
+      final OutlinedButton forceButton = tester.widget<OutlinedButton>(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-background-job-metadata_sync-force-refresh',
+          ),
+        ),
+      );
+
+      expect(forceButton.onPressed, isNull);
 
       expect(
         tester
@@ -5020,6 +5188,8 @@ class _FakeServerRepository implements ServerRepository {
   final AppException? runBackgroundJobError;
   final ServerLogsPage logsPage;
   final AppException? logsError;
+  bool? lastRunBackgroundJobForce;
+  String? lastRunBackgroundJobKey;
 
   int logsCalls = 0;
 
@@ -5058,8 +5228,13 @@ class _FakeServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) async {
+  Future<BackgroundJob> runBackgroundJob(
+    String jobKey, {
+    bool force = false,
+  }) async {
     runBackgroundJobCalls += 1;
+    lastRunBackgroundJobKey = jobKey;
+    lastRunBackgroundJobForce = force;
 
     final AppException? failure = runBackgroundJobError;
 
@@ -5122,7 +5297,7 @@ final class _RetryServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     runBackgroundJobCalls += 1;
 
     throw UnimplementedError();
@@ -5294,7 +5469,7 @@ final class _RetryBackgroundJobsServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     runBackgroundJobCalls += 1;
 
     throw UnimplementedError();
@@ -5342,7 +5517,7 @@ final class _ControlledBackgroundJobsServerRepository
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     runBackgroundJobCalls += 1;
 
     throw UnimplementedError();
@@ -5380,7 +5555,7 @@ final class _PaginatedLogsServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 
@@ -5415,7 +5590,7 @@ final class _PaginationFailureLogsServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 
@@ -5451,7 +5626,7 @@ final class _RetryPaginationLogsServerRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 

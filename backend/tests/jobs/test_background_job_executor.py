@@ -38,6 +38,7 @@ def executor(
 def create_definition(
     *,
     handler,
+    force_handler=None,
     key: str = "test_job",
     name: str = "Test job",
     schedule_label: str = "Every 8h",
@@ -51,6 +52,7 @@ def create_definition(
         schedule_label=schedule_label,
         interval=interval,
         handler=handler,
+        force_handler=force_handler,
     )
 
 
@@ -403,3 +405,30 @@ def test_execute_preserves_result_from_failed_handler(
         "skipped": 5,
         "failed": 1,
     }
+
+def test_execute_uses_force_handler_when_forced(
+    executor: BackgroundJobExecutor,
+) -> None:
+    """Use the dedicated force handler for forced executions."""
+
+    handler = Mock(
+        return_value=None,
+    )
+    force_handler = Mock(
+        return_value=None,
+    )
+
+    definition = create_definition(
+        handler=handler,
+        force_handler=force_handler,
+    )
+
+    run = executor.execute(
+        definition,
+        force=True,
+    )
+
+    assert run.status == BackgroundJobStatus.SUCCESS
+
+    handler.assert_not_called()
+    force_handler.assert_called_once_with()

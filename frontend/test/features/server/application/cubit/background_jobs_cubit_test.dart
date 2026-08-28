@@ -88,9 +88,38 @@ void main() {
       final BackgroundJobsSuccess state = cubit.state as BackgroundJobsSuccess;
 
       expect(repository.runCalls, 1);
+      expect(repository.lastRunJobKey, 'metadata_sync');
+      expect(repository.lastRunForce, isFalse);
 
       expect(state.jobs.single.status, BackgroundJobStatus.running);
 
+      expect(state.runningJobKeys, isEmpty);
+
+      await cubit.close();
+    });
+
+    test('runs a background job in forced mode', () async {
+      final _BackgroundJobsRepository repository = _BackgroundJobsRepository(
+        jobs: <BackgroundJob>[_successfulJob],
+        runResult: _runningJob,
+      );
+
+      final BackgroundJobsCubit cubit = BackgroundJobsCubit(
+        repository: repository,
+        pollingInterval: const Duration(hours: 1),
+      );
+
+      await cubit.load();
+
+      await cubit.runNow('metadata_sync', force: true);
+
+      final BackgroundJobsSuccess state = cubit.state as BackgroundJobsSuccess;
+
+      expect(repository.runCalls, 1);
+      expect(repository.lastRunJobKey, 'metadata_sync');
+      expect(repository.lastRunForce, isTrue);
+
+      expect(state.jobs.single.status, BackgroundJobStatus.running);
       expect(state.runningJobKeys, isEmpty);
 
       await cubit.close();
@@ -227,7 +256,8 @@ class _BackgroundJobsRepository implements ServerRepository {
     this.getError,
     this.runError,
   });
-
+  bool? lastRunForce;
+  String? lastRunJobKey;
   final List<BackgroundJob> jobs;
   final BackgroundJob? runResult;
 
@@ -251,8 +281,13 @@ class _BackgroundJobsRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) async {
+  Future<BackgroundJob> runBackgroundJob(
+    String jobKey, {
+    bool force = false,
+  }) async {
     runCalls += 1;
+    lastRunJobKey = jobKey;
+    lastRunForce = force;
 
     final AppException? failure = runError;
 
@@ -293,7 +328,7 @@ final class _RetryBackgroundJobsRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 
@@ -327,7 +362,7 @@ final class _PollingBackgroundJobsRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 
@@ -361,7 +396,7 @@ final class _PollingFailureRepository implements ServerRepository {
   }
 
   @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey) {
+  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
 
