@@ -222,11 +222,13 @@ class ImageService:
             )
 
             if cached_path is not None:
+                self._session.commit()
                 return cached_path
 
         if not provider_path:
             raise ImageNotAvailableError("The requested image is not available.")
 
+        self._session.commit()
         relative_path = cache_image()
         absolute_path = self._storage.from_relative_path(
             relative_path,

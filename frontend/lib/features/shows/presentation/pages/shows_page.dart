@@ -16,8 +16,12 @@ import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 
+enum ShowsTab { watchList, upcoming }
+
 class ShowsPage extends StatefulWidget {
-  const ShowsPage({super.key});
+  const ShowsPage({this.initialTab = ShowsTab.watchList, super.key});
+
+  final ShowsTab initialTab;
 
   @override
   State<ShowsPage> createState() {
@@ -33,7 +37,11 @@ class _ShowsPageState extends State<ShowsPage>
   void initState() {
     super.initState();
 
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(
+      length: 2,
+      initialIndex: widget.initialTab.index,
+      vsync: this,
+    );
   }
 
   @override

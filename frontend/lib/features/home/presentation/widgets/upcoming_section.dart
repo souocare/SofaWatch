@@ -51,11 +51,29 @@ class UpcomingSection extends StatelessWidget {
           key: const ValueKey<String>('home-upcoming'),
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Text(
-              'Upcoming',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    'Upcoming',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  key: const ValueKey<String>('home-upcoming-see-all'),
+                  onPressed: () {
+                    context.goNamed(
+                      AppRoute.shows.name,
+                      queryParameters: const <String, String>{
+                        'tab': 'upcoming',
+                      },
+                    );
+                  },
+                  child: const Text('See All'),
+                ),
+              ],
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
@@ -91,7 +109,7 @@ class _UpcomingCard extends StatelessWidget {
     final bool isPlanning = item.libraryStatus == LibraryStatus.planning;
 
     return Material(
-      color: AppColors.surfaceHigh,
+      color: AppColors.surfaceSubtle,
       borderRadius: AppRadius.borderLarge,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -103,7 +121,10 @@ class _UpcomingCard extends StatelessWidget {
           );
         },
         child: Padding(
-          padding: AppSpacing.cardPadding,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
           child: Row(
             children: <Widget>[
               _EpisodeArtwork(
@@ -114,22 +135,13 @@ class _UpcomingCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            item.showTitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                        if (isPlanning) ...<Widget>[
-                          const SizedBox(width: AppSpacing.sm),
-                          const _PlanningBadge(),
-                        ],
-                      ],
+                    Text(
+                      item.showTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
@@ -161,23 +173,19 @@ class _UpcomingCard extends StatelessWidget {
                       ],
                     ),
                     if (isPlanning) ...<Widget>[
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'You haven’t started this show yet',
-                        key: ValueKey<String>(
-                          'home-upcoming-not-started-${item.episode.id}',
-                        ),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                      const SizedBox(height: AppSpacing.sm),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: _PlanningBadge(),
                       ),
                     ],
                   ],
                 ),
               ),
-              const SizedBox(width: AppSpacing.md),
+              const SizedBox(width: AppSpacing.sm),
               const Icon(
                 Icons.chevron_right_rounded,
+                size: 20,
                 color: AppColors.textMuted,
               ),
             ],
@@ -198,8 +206,8 @@ class _EpisodeArtwork extends StatelessWidget {
     return ClipRRect(
       borderRadius: AppRadius.borderMedium,
       child: SizedBox(
-        width: 104,
-        height: 64,
+        width: 112,
+        height: 68,
         child: DecoratedBox(
           decoration: const BoxDecoration(color: AppColors.surface),
           child: imageUrl == null

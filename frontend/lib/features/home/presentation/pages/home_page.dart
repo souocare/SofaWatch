@@ -139,23 +139,23 @@ class _HomeContent extends StatelessWidget {
 
           WeeklyStatisticsSection(),
 
-          SizedBox(height: AppSpacing.section),
-
-          ContinueWatchingSection(),
-
-          SizedBox(height: AppSpacing.section),
+          SizedBox(height: AppSpacing.xxxl),
 
           PremieringTodaySection(),
 
-          SizedBox(height: AppSpacing.section),
+          SizedBox(height: AppSpacing.xxxl),
+
+          ContinueWatchingSection(),
+
+          SizedBox(height: AppSpacing.xxxl),
 
           UpcomingSection(),
 
-          SizedBox(height: AppSpacing.section),
+          SizedBox(height: AppSpacing.xxxl),
 
           MissedRecentlySection(),
 
-          SizedBox(height: AppSpacing.section),
+          SizedBox(height: AppSpacing.xxxl),
 
           RecentActivitySection(),
         ],

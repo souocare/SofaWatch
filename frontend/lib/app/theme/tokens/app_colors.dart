@@ -110,4 +110,6 @@ abstract final class AppColors {
   static const Color inverseOnSurface = Color(0xFF313030);
 
   static const Color inversePrimary = Color(0xFFB12B24);
+
+  static const Color surfaceSubtle = Color(0xFF1B1B1B);
 }

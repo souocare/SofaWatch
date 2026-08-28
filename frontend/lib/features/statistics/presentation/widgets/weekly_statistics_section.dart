@@ -183,7 +183,7 @@ class _WeeklyStatisticCard extends StatelessWidget {
                 : compact
                 ? 19
                 : 21,
-            color: AppColors.textSecondary,
+            color: AppColors.primary,
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(

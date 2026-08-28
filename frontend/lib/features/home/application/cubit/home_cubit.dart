@@ -345,13 +345,18 @@ final class HomeCubit extends Cubit<HomeState> {
     );
 
     final DateTime today = _today();
+    final DateTime yesterday = today.subtract(const Duration(days: 1));
 
     try {
       final List<UpcomingItem> result = await repository.getUpcoming(
-        fromDate: today,
+        fromDate: yesterday,
         toDate: today,
         limit: premieringTodayLimit,
       );
+
+      final List<UpcomingItem> unwatchedResult = result
+          .where((UpcomingItem item) => !item.episode.isWatched)
+          .toList(growable: false);
 
       if (isClosed) {
         return;
@@ -359,7 +364,7 @@ final class HomeCubit extends Cubit<HomeState> {
 
       emit(
         state.copyWith(
-          premieringToday: result,
+          premieringToday: unwatchedResult,
           isLoadingPremieringToday: false,
           clearPremieringTodayError: true,
         ),
@@ -533,9 +538,7 @@ final class HomeCubit extends Cubit<HomeState> {
      * when the action originated here, remove the current Watch Next card
      * immediately. The replacement Episode, if any, belongs to the backend.
      *
-     * Premiering Today:
-     * if the same Episode is visible there, reflect the watched state
-     * immediately.
+     * Premiering Today: a watched Episode no longer qualifies, so remove it immediately.
      *
      * Missed Recently:
      * a watched Episode no longer qualifies, so remove it immediately.
@@ -545,10 +548,7 @@ final class HomeCubit extends Cubit<HomeState> {
         continueWatching: source == HomeWatchSource.continueWatching
             ? _removeWatchNextEpisode(state.continueWatching, episodeId)
             : state.continueWatching,
-        premieringToday: _markEpisodeWatchedInItems(
-          state.premieringToday,
-          episodeId,
-        ),
+        premieringToday: _removeEpisode(state.premieringToday, episodeId),
         missedRecently: _removeEpisode(state.missedRecently, episodeId),
         updatingEpisodeId: episodeId,
         updatingEpisodeSource: source,

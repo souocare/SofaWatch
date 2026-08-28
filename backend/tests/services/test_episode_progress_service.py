@@ -160,7 +160,13 @@ def progress_service(
 def watch_event_repository() -> Mock:
     """Provide a mocked episode watch event repository."""
 
-    return Mock(spec=EpisodeWatchEventRepository)
+    repository = Mock(
+        spec=EpisodeWatchEventRepository,
+    )
+
+    repository.count_by_user_and_episode.return_value = 0
+
+    return repository
 
 
 def test_mark_watched_returns_none_when_episode_does_not_exist(
@@ -193,6 +199,7 @@ def test_mark_watched_creates_progress(
     progress_service: EpisodeProgressService,
     progress_repository: Mock,
     episode_repository: Mock,
+    watch_event_repository: Mock,
 ) -> None:
     """Create progress when an episode is marked watched for the first time."""
 
@@ -220,21 +227,25 @@ def test_mark_watched_creates_progress(
         return progress
 
     progress_repository.add.side_effect = add_progress
-
+    watch_event_repository.count_by_user_and_episode.return_value = 1
     result = progress_service.mark_watched(
         user_id=user.id,
         episode_id=episode.id,
     )
 
     assert result is not None
-    assert result.user_id == user.id
     assert result.episode_id == episode.id
     assert result.is_watched is True
     assert result.watched_at is not None
+    assert result.watch_count == 1
 
-    progress_repository.add.assert_called_once_with(
-        result,
-    )
+    progress_repository.add.assert_called_once()
+
+    created_progress = progress_repository.add.call_args.args[0]
+
+    assert created_progress.user_id == user.id
+    assert created_progress.episode_id == episode.id
+    assert created_progress.is_watched is True
 
 
 def test_mark_watched_uses_explicit_watched_at(
@@ -355,6 +366,7 @@ def test_mark_watched_updates_existing_unwatched_progress(
     progress_service: EpisodeProgressService,
     progress_repository: Mock,
     episode_repository: Mock,
+    watch_event_repository: Mock,
 ) -> None:
     """Mark an existing unwatched progress entry as watched."""
 
@@ -385,15 +397,18 @@ def test_mark_watched_updates_existing_unwatched_progress(
     db_session.flush()
 
     progress_repository.get_by_user_and_episode.return_value = progress
-
+    watch_event_repository.count_by_user_and_episode.return_value = 1
     result = progress_service.mark_watched(
         user_id=user.id,
         episode_id=episode.id,
     )
 
-    assert result is progress
+    assert result is not None
+    assert result.id == progress.id
+    assert result.episode_id == episode.id
     assert result.is_watched is True
     assert result.watched_at is not None
+    assert result.watch_count == 1
 
     progress_repository.add.assert_not_called()
 
@@ -403,6 +418,7 @@ def test_mark_watched_updates_existing_watched_at(
     progress_service: EpisodeProgressService,
     progress_repository: Mock,
     episode_repository: Mock,
+    watch_event_repository: Mock,
 ) -> None:
     """Update the viewing date when an already watched episode is marked again."""
 
@@ -454,6 +470,7 @@ def test_mark_watched_updates_existing_watched_at(
         15,
         tzinfo=UTC,
     )
+    watch_event_repository.count_by_user_and_episode.return_value = 2
 
     result = progress_service.mark_watched(
         user_id=user.id,
@@ -461,11 +478,12 @@ def test_mark_watched_updates_existing_watched_at(
         watched_at=rewatched_at,
     )
 
-    assert result is progress
-
+    assert result is not None
+    assert result.id == progress.id
+    assert result.episode_id == episode.id
     assert result.is_watched is True
-
     assert result.watched_at is not None
+    assert result.watch_count == 2
 
     assert as_utc(result.watched_at) == rewatched_at
 
@@ -532,14 +550,19 @@ def test_mark_unwatched_creates_unwatched_progress_when_missing(
     )
 
     assert result is not None
-    assert result.user_id == user.id
     assert result.episode_id == episode.id
     assert result.is_watched is False
     assert result.watched_at is None
+    assert result.watch_count == 0
 
-    progress_repository.add.assert_called_once_with(
-        result,
-    )
+    progress_repository.add.assert_called_once()
+
+    created_progress = progress_repository.add.call_args.args[0]
+
+    assert created_progress.user_id == user.id
+    assert created_progress.episode_id == episode.id
+    assert created_progress.is_watched is False
+    assert created_progress.watched_at is None
 
 
 def test_mark_unwatched_clears_existing_progress(
@@ -580,9 +603,12 @@ def test_mark_unwatched_clears_existing_progress(
         episode_id=episode.id,
     )
 
-    assert result is progress
+    assert result is not None
+    assert result.id == progress.id
+    assert result.episode_id == episode.id
     assert result.is_watched is False
     assert result.watched_at is None
+    assert result.watch_count == 0
 
 
 def test_get_season_progress_returns_none_when_season_does_not_exist(
@@ -1515,9 +1541,14 @@ def test_mark_watched_records_every_watch_event_for_rewatch(
     episode_repository.get_by_id.return_value = episode
     progress_repository.get_by_user_and_episode.return_value = None
 
+    created_progress: EpisodeProgress | None = None
+
     def add_progress(
         progress: EpisodeProgress,
     ) -> EpisodeProgress:
+        nonlocal created_progress
+
+        created_progress = progress
         db_session.add(progress)
 
         return progress
@@ -1531,6 +1562,10 @@ def test_mark_watched_records_every_watch_event_for_rewatch(
 
     progress_repository.add.side_effect = add_progress
     watch_event_repository.add.side_effect = add_watch_event
+    watch_event_repository.count_by_user_and_episode.side_effect = [
+        1,
+        2,
+    ]
 
     first_watched_at = datetime(
         2026,
@@ -1541,17 +1576,20 @@ def test_mark_watched_records_every_watch_event_for_rewatch(
         tzinfo=UTC,
     )
 
-    progress = progress_service.mark_watched(
+    first_result = progress_service.mark_watched(
         user_id=user.id,
         episode_id=episode.id,
         watched_at=first_watched_at,
     )
 
-    assert progress is not None
+    assert first_result is not None
+    assert first_result.watch_count == 1
+    assert created_progress is not None
+
+    progress_repository.get_by_user_and_episode.return_value = created_progress
 
     # From now on the same EpisodeProgress represents the episode's
     # current watched state.
-    progress_repository.get_by_user_and_episode.return_value = progress
 
     second_watched_at = datetime(
         2026,
@@ -1568,9 +1606,13 @@ def test_mark_watched_records_every_watch_event_for_rewatch(
         watched_at=second_watched_at,
     )
 
-    assert result is progress
+    assert result is not None
+    assert result.id == created_progress.id
+    assert result.episode_id == episode.id
     assert result.is_watched is True
     assert result.watched_at is not None
+    assert result.watch_count == 2
+    assert as_utc(result.watched_at) == second_watched_at
 
     # EpisodeProgress represents the latest/current viewing state.
     assert as_utc(result.watched_at) == second_watched_at

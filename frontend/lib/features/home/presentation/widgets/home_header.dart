@@ -50,6 +50,21 @@ class HomeHeader extends StatelessWidget {
                   ),
                   SizedBox(height: compact ? AppSpacing.xs : AppSpacing.sm),
                   Text(
+                    'Home',
+                    key: const ValueKey<String>('home-page-title'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        (compact
+                                ? Theme.of(context).textTheme.bodyMedium
+                                : Theme.of(context).textTheme.bodyLarge)
+                            ?.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
                     _formatHomeDate(current),
                     key: const ValueKey<String>('home-date'),
                     maxLines: 1,

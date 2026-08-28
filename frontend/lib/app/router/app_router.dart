@@ -457,6 +457,13 @@ GoRouter createAppRouter({
                 name: AppRoute.shows.name,
                 path: RoutePaths.shows,
                 builder: (BuildContext context, GoRouterState state) {
+                  final String? tab = state.uri.queryParameters['tab'];
+
+                  final ShowsTab initialTab = switch (tab) {
+                    'upcoming' => ShowsTab.upcoming,
+                    _ => ShowsTab.watchList,
+                  };
+
                   return BlocProvider<ShowsCubit>(
                     create: (BuildContext context) {
                       return ShowsCubit(
@@ -465,7 +472,10 @@ GoRouter createAppRouter({
                         ),
                       )..load();
                     },
-                    child: const ShowsPage(),
+                    child: ShowsPage(
+                      key: ValueKey<String>('shows-${initialTab.name}'),
+                      initialTab: initialTab,
+                    ),
                   );
                 },
               ),

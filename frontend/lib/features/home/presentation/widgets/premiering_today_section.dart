@@ -61,22 +61,11 @@ class PremieringTodaySection extends StatelessWidget {
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: AppSpacing.md),
-            for (
-              int index = 0;
-              index < state.premieringToday.length;
-              index++
-            ) ...<Widget>[
-              _PremieringTodayCard(
-                item: state.premieringToday[index],
-                isUpdating:
-                    state.updatingEpisodeSource ==
-                        HomeWatchSource.premieringToday &&
-                    state.updatingEpisodeId ==
-                        state.premieringToday[index].episode.id,
-              ),
-              if (index < state.premieringToday.length - 1)
-                const SizedBox(height: AppSpacing.md),
-            ],
+            _PremieringTodayCarousel(
+              items: state.premieringToday,
+              updatingEpisodeId: state.updatingEpisodeId,
+              updatingEpisodeSource: state.updatingEpisodeSource,
+            ),
           ],
         );
       },
@@ -94,76 +83,67 @@ class _PremieringTodayCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isPlanning = item.libraryStatus == LibraryStatus.planning;
 
-    return Material(
-      color: AppColors.surfaceHigh,
-      borderRadius: AppRadius.borderLarge,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        key: ValueKey<String>('home-premiering-today-${item.episode.id}'),
-        onTap: () {
-          context.pushNamed(
-            AppRoute.episodeDetails.name,
-            pathParameters: <String, String>{'episodeId': item.episode.id},
-          );
-        },
-        child: Padding(
-          padding: AppSpacing.cardPadding,
-          child: Row(
-            children: <Widget>[
-              _EpisodeArtwork(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Material(
+          color: AppColors.surfaceHigh,
+          borderRadius: AppRadius.borderLarge,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            key: ValueKey<String>('home-premiering-today-${item.episode.id}'),
+            onTap: () {
+              context.pushNamed(
+                AppRoute.episodeDetails.name,
+                pathParameters: <String, String>{'episodeId': item.episode.id},
+              );
+            },
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: _EpisodeArtwork(
                 imageUrl: item.episode.stillUrl ?? item.backdropUrl,
               ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            item.showTitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                        if (isPlanning) ...<Widget>[
-                          const SizedBox(width: AppSpacing.sm),
-                          const _PlanningBadge(),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      '${item.episode.code} • ${item.episode.title}',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    if (isPlanning) ...<Widget>[
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'You haven’t started this show yet',
-                        key: ValueKey<String>(
-                          'home-premiering-today-not-started-'
-                          '${item.episode.id}',
-                        ),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              _WatchedAction(item: item, isUpdating: isUpdating),
-            ],
+            ),
           ),
         ),
-      ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    item.showTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    '${_formatEpisodeCode(item.episode.code)} • '
+                    '${item.episode.title}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  if (isPlanning) ...<Widget>[
+                    const SizedBox(height: AppSpacing.sm),
+                    const _PlanningBadge(),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            _WatchedAction(item: item, isUpdating: isUpdating),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -175,36 +155,30 @@ class _EpisodeArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: AppRadius.borderMedium,
-      child: SizedBox(
-        width: 104,
-        height: 64,
-        child: DecoratedBox(
-          decoration: const BoxDecoration(color: AppColors.surface),
-          child: imageUrl == null
-              ? const Center(
-                  child: Icon(Icons.tv_outlined, color: AppColors.textMuted),
-                )
-              : ServerNetworkImage(
-                  imageUrl: imageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder:
-                      (
-                        BuildContext context,
-                        Object error,
-                        StackTrace? stackTrace,
-                      ) {
-                        return const Center(
-                          child: Icon(
-                            Icons.tv_outlined,
-                            color: AppColors.textMuted,
-                          ),
-                        );
-                      },
-                ),
-        ),
-      ),
+    return DecoratedBox(
+      decoration: const BoxDecoration(color: AppColors.surface),
+      child: imageUrl == null
+          ? const Center(
+              child: Icon(
+                Icons.tv_outlined,
+                size: 48,
+                color: AppColors.textMuted,
+              ),
+            )
+          : ServerNetworkImage(
+              imageUrl: imageUrl!,
+              fit: BoxFit.cover,
+              errorBuilder:
+                  (BuildContext context, Object error, StackTrace? stackTrace) {
+                    return const Center(
+                      child: Icon(
+                        Icons.tv_outlined,
+                        size: 48,
+                        color: AppColors.textMuted,
+                      ),
+                    );
+                  },
+            ),
     );
   }
 }
@@ -228,21 +202,6 @@ class _WatchedAction extends StatelessWidget {
             height: 24,
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
-        ),
-      );
-    }
-
-    if (item.episode.isWatched) {
-      return IconButton(
-        key: ValueKey<String>(
-          'home-premiering-today-watched-${item.episode.id}',
-        ),
-        tooltip: 'Watched',
-        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-        onPressed: null,
-        icon: const Icon(
-          Icons.check_circle_rounded,
-          color: AppColors.primarySoft,
         ),
       );
     }
@@ -301,4 +260,76 @@ class _PremieringTodayLoading extends StatelessWidget {
       child: Center(child: CircularProgressIndicator()),
     );
   }
+}
+
+class _PremieringTodayCarousel extends StatefulWidget {
+  const _PremieringTodayCarousel({
+    required this.items,
+    required this.updatingEpisodeId,
+    required this.updatingEpisodeSource,
+  });
+
+  final List<UpcomingItem> items;
+  final String? updatingEpisodeId;
+  final HomeWatchSource? updatingEpisodeSource;
+
+  @override
+  State<_PremieringTodayCarousel> createState() =>
+      _PremieringTodayCarouselState();
+}
+
+class _PremieringTodayCarouselState extends State<_PremieringTodayCarousel> {
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _pageController = PageController(viewportFraction: 0.86);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 260,
+      child: PageView.builder(
+        key: const ValueKey<String>('home-premiering-today-carousel'),
+        controller: _pageController,
+        padEnds: false,
+        physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
+        itemCount: widget.items.length,
+        itemBuilder: (BuildContext context, int index) {
+          final UpcomingItem item = widget.items[index];
+
+          return Padding(
+            padding: EdgeInsets.only(
+              right: index < widget.items.length - 1
+                  ? AppSpacing.md
+                  : AppSpacing.none,
+            ),
+            child: _PremieringTodayCard(
+              item: item,
+              isUpdating:
+                  widget.updatingEpisodeSource ==
+                      HomeWatchSource.premieringToday &&
+                  widget.updatingEpisodeId == item.episode.id,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+String _formatEpisodeCode(String value) {
+  return value.replaceFirstMapped(
+    RegExp(r'^(S\d+)(E\d+)$'),
+    (Match match) => '${match.group(1)} ${match.group(2)}',
+  );
 }

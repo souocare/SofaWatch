@@ -15,6 +15,11 @@ from app.models.auth_session import AuthSessionType
 _TEST_SECRET = "test-secret-key-that-is-at-least-32-characters-long"
 
 
+def make_database_session() -> Mock:
+    """Create a mocked database session dependency."""
+
+    return Mock()
+
 def make_user(
     *,
     is_admin: bool = False,
@@ -111,6 +116,7 @@ def test_get_current_user_returns_authenticated_user() -> None:
 
     result = get_current_user(
         request=make_request(),
+        session=make_database_session(),
         user_service=user_service,
         access_token_service=token_service,
         auth_session_service=auth_session_service,
@@ -137,6 +143,7 @@ def test_get_current_user_requires_authentication() -> None:
     with pytest.raises(APIError) as exc_info:
         get_current_user(
             request=make_request(),
+        session=make_database_session(),
             user_service=user_service,
             access_token_service=token_service,
             auth_session_service=auth_session_service,
@@ -164,6 +171,7 @@ def test_get_current_user_rejects_invalid_access_token() -> None:
     with pytest.raises(APIError) as exc_info:
         get_current_user(
             request=make_request(),
+            session=make_database_session(),
             user_service=user_service,
             access_token_service=token_service,
             auth_session_service=auth_session_service,
@@ -203,6 +211,7 @@ def test_get_current_user_rejects_expired_access_token() -> None:
     with pytest.raises(APIError) as exc_info:
         get_current_user(
             request=make_request(),
+            session=make_database_session(),
             user_service=user_service,
             access_token_service=token_service,
             auth_session_service=auth_session_service,
@@ -238,6 +247,7 @@ def test_get_current_user_rejects_unknown_user() -> None:
     with pytest.raises(APIError) as exc_info:
         get_current_user(
             request=make_request(),
+            session=make_database_session(),
             user_service=user_service,
             access_token_service=token_service,
             auth_session_service=auth_session_service,
@@ -278,6 +288,7 @@ def test_get_current_user_rejects_inactive_user() -> None:
     with pytest.raises(APIError) as exc_info:
         get_current_user(
             request=make_request(),
+            session=make_database_session(),
             user_service=user_service,
             access_token_service=token_service,
             auth_session_service=auth_session_service,
@@ -315,6 +326,7 @@ def test_get_current_user_returns_user_from_web_session() -> None:
         request=make_request(
             session_cookie="valid-session",
         ),
+            session=make_database_session(),
         user_service=user_service,
         access_token_service=make_access_token_service(),
         auth_session_service=auth_session_service,
@@ -345,6 +357,7 @@ def test_get_current_user_rejects_invalid_web_session() -> None:
             request=make_request(
                 session_cookie="invalid-session",
             ),
+            session=make_database_session(),
             user_service=user_service,
             access_token_service=make_access_token_service(),
             auth_session_service=auth_session_service,
@@ -382,6 +395,7 @@ def test_get_current_user_rejects_mobile_session_as_web_cookie() -> None:
             request=make_request(
                 session_cookie="mobile-session",
             ),
+            session=make_database_session(),
             user_service=user_service,
             access_token_service=make_access_token_service(),
             auth_session_service=auth_session_service,
@@ -420,6 +434,7 @@ def test_get_current_user_rejects_unknown_web_session_user() -> None:
             request=make_request(
                 session_cookie="valid-session",
             ),
+            session=make_database_session(),
             user_service=user_service,
             access_token_service=make_access_token_service(),
             auth_session_service=auth_session_service,
@@ -458,6 +473,7 @@ def test_get_current_user_rejects_inactive_web_session_user() -> None:
             request=make_request(
                 session_cookie="valid-session",
             ),
+            session=make_database_session(),
             user_service=user_service,
             access_token_service=make_access_token_service(),
             auth_session_service=auth_session_service,
@@ -495,6 +511,7 @@ def test_get_current_user_prefers_bearer_over_web_session() -> None:
         request=make_request(
             session_cookie="valid-session",
         ),
+            session=make_database_session(),
         user_service=user_service,
         access_token_service=token_service,
         auth_session_service=auth_session_service,
@@ -528,6 +545,7 @@ def test_get_current_user_does_not_fallback_to_cookie_after_invalid_bearer() -> 
             request=make_request(
                 session_cookie="valid-session",
             ),
+            session=make_database_session(),
             user_service=user_service,
             access_token_service=token_service,
             auth_session_service=auth_session_service,
@@ -577,3 +595,52 @@ def test_get_admin_user_rejects_non_admin_user() -> None:
     assert error.status_code == 403
     assert error.code == "admin_required"
     assert error.message == "Administrator access is required."
+
+def test_get_current_user_commits_authentication_transaction() -> None:
+    """Release the database connection after successful authentication."""
+
+    user = make_user()
+
+    session = Mock()
+
+    user_service = Mock()
+    user_service.get_by_id.return_value = user
+
+    token_service = make_access_token_service()
+
+    token = token_service.create(
+        user_id=user.id,
+    )
+
+    result = get_current_user(
+        request=make_request(),
+        session=session,
+        user_service=user_service,
+        access_token_service=token_service,
+        auth_session_service=make_auth_session_service(),
+        credentials=bearer_credentials(token),
+    )
+
+    assert result is user
+    session.commit.assert_called_once_with()
+    session.rollback.assert_not_called()
+
+def test_get_current_user_rolls_back_authentication_transaction_on_failure() -> None:
+    """Release the database connection when authentication fails."""
+
+    session = Mock()
+
+    with pytest.raises(APIError):
+        get_current_user(
+            request=make_request(),
+            session=session,
+            user_service=Mock(),
+            access_token_service=make_access_token_service(),
+            auth_session_service=make_auth_session_service(),
+            credentials=bearer_credentials(
+                "not-a-valid-access-token",
+            ),
+        )
+
+    session.rollback.assert_called_once_with()
+    session.commit.assert_not_called()

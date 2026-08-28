@@ -9,6 +9,7 @@ from app.core.exceptions import APIError
 from app.core.security.tokens import AccessTokenService, InvalidAccessTokenError
 from app.core.storage import ImageStorage
 from app.db.dependencies import DatabaseSession
+from app.db.session import SessionLocal
 from app.jobs.executor import BackgroundJobExecutor
 from app.models.auth_session import AuthSessionType
 from app.models.user import User
@@ -536,6 +537,7 @@ _SESSION_COOKIE_NAME = "sofawatch_session"
 
 def get_current_user(
     request: Request,
+    session: DatabaseSession,
     user_service: UserServiceDependency,
     access_token_service: AccessTokenServiceDependency,
     auth_session_service: AuthSessionServiceDependency,
@@ -549,31 +551,44 @@ def get_current_user(
     Bearer authentication takes precedence when explicitly supplied.
     Otherwise, Web clients may authenticate through their persistent
     HttpOnly session cookie.
+
+    The authentication transaction is completed before control returns
+    to the endpoint so the database connection can be returned to the
+    pool immediately.
     """
 
-    if credentials is not None:
-        return _resolve_bearer_user(
-            credentials=credentials,
-            user_service=user_service,
-            access_token_service=access_token_service,
-        )
+    try:
+        if credentials is not None:
+            user = _resolve_bearer_user(
+                credentials=credentials,
+                user_service=user_service,
+                access_token_service=access_token_service,
+            )
+        else:
+            session_credential = request.cookies.get(
+                _SESSION_COOKIE_NAME,
+            )
 
-    session_credential = request.cookies.get(
-        _SESSION_COOKIE_NAME,
-    )
+            if session_credential is None:
+                raise APIError(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    code="authentication_required",
+                    message="Authentication is required.",
+                )
 
-    if session_credential is not None:
-        return _resolve_web_session_user(
-            session_credential=session_credential,
-            user_service=user_service,
-            auth_session_service=auth_session_service,
-        )
+            user = _resolve_web_session_user(
+                session_credential=session_credential,
+                user_service=user_service,
+                auth_session_service=auth_session_service,
+            )
 
-    raise APIError(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        code="authentication_required",
-        message="Authentication is required.",
-    )
+        session.commit()
+
+        return user
+
+    except Exception:
+        session.rollback()
+        raise
 
 
 CurrentUserDependency = Annotated[
@@ -817,13 +832,12 @@ BackgroundJobExecutorDependency = Annotated[
 
 
 def get_image_service(
-    session: DatabaseSession,
     settings: Annotated[
         Settings,
         Depends(get_settings),
     ],
 ) -> Generator[ImageService, None, None]:
-    """Provide the image resolution service for one request."""
+    """Provide image resolution using a short-lived database session."""
 
     storage = ImageStorage(
         settings=settings,
@@ -834,20 +848,21 @@ def get_image_service(
         storage=storage,
     )
 
-    service = ImageService(
-        session=session,
-        storage=storage,
-        cache_service=cache_service,
-        show_repository=ShowRepository(session),
-        movie_repository=MovieRepository(session),
-        season_repository=SeasonRepository(session),
-        episode_repository=EpisodeRepository(session),
-    )
+    with SessionLocal() as image_session:
+        service = ImageService(
+            session=image_session,
+            storage=storage,
+            cache_service=cache_service,
+            show_repository=ShowRepository(image_session),
+            movie_repository=MovieRepository(image_session),
+            season_repository=SeasonRepository(image_session),
+            episode_repository=EpisodeRepository(image_session),
+        )
 
-    try:
-        yield service
-    finally:
-        cache_service.close()
+        try:
+            yield service
+        finally:
+            cache_service.close()
 
 
 ImageServiceDependency = Annotated[

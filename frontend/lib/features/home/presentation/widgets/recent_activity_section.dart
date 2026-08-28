@@ -50,11 +50,24 @@ class RecentActivitySection extends StatelessWidget {
           key: const ValueKey<String>('home-recent-activity'),
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Text(
-              'Recent Activity',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    'Recent Activity',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  key: const ValueKey<String>('home-recent-activity-see-all'),
+                  onPressed: () {
+                    context.goNamed(AppRoute.history.name);
+                  },
+                  child: const Text('See All'),
+                ),
+              ],
             ),
             const SizedBox(height: AppSpacing.md),
             for (
@@ -83,7 +96,7 @@ class _RecentActivityCard extends StatelessWidget {
     final String watchedAt = _formatWatchedAt(context, item.episode.watchedAt);
 
     return Material(
-      color: AppColors.surfaceHigh,
+      color: AppColors.surfaceSubtle,
       borderRadius: AppRadius.borderLarge,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -95,7 +108,10 @@ class _RecentActivityCard extends StatelessWidget {
           );
         },
         child: Padding(
-          padding: AppSpacing.cardPadding,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
           child: Row(
             children: <Widget>[
               _RecentActivityArtwork(
@@ -126,7 +142,8 @@ class _RecentActivityCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '${item.episode.code} • ${item.episode.title}',
+                      '${_formatEpisodeCode(item.episode.code)} • '
+                      '${item.episode.title}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium,
@@ -147,6 +164,7 @@ class _RecentActivityCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               const Icon(
                 Icons.chevron_right_rounded,
+                size: 20,
                 color: AppColors.textMuted,
               ),
             ],
@@ -167,7 +185,7 @@ class _RecentActivityArtwork extends StatelessWidget {
     return ClipRRect(
       borderRadius: AppRadius.borderMedium,
       child: SizedBox(
-        width: 88,
+        width: 96,
         height: 54,
         child: DecoratedBox(
           decoration: const BoxDecoration(color: AppColors.surface),
@@ -246,4 +264,11 @@ String _formatWatchedAt(BuildContext context, DateTime watchedAt) {
   final String time = TimeOfDay.fromDateTime(local).format(context);
 
   return 'Watched $date • $time';
+}
+
+String _formatEpisodeCode(String value) {
+  return value.replaceFirstMapped(
+    RegExp(r'^(S\d+)(E\d+)$'),
+    (Match match) => '${match.group(1)} ${match.group(2)}',
+  );
 }

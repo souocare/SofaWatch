@@ -100,7 +100,7 @@ class _MissedRecentlyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surfaceHigh,
+      color: AppColors.surfaceSubtle,
       borderRadius: AppRadius.borderLarge,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -112,7 +112,10 @@ class _MissedRecentlyCard extends StatelessWidget {
           );
         },
         child: Padding(
-          padding: AppSpacing.cardPadding,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
           child: Row(
             children: <Widget>[
               _EpisodeArtwork(
@@ -133,7 +136,7 @@ class _MissedRecentlyCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '${item.episode.code} • ${item.episode.title}',
+                      '${_formatEpisodeCode(item.episode.code)} • ${item.episode.title}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium,
@@ -171,8 +174,8 @@ class _EpisodeArtwork extends StatelessWidget {
     return ClipRRect(
       borderRadius: AppRadius.borderMedium,
       child: SizedBox(
-        width: 104,
-        height: 64,
+        width: 112,
+        height: 68,
         child: DecoratedBox(
           decoration: const BoxDecoration(color: AppColors.surface),
           child: imageUrl == null
@@ -270,4 +273,11 @@ String _formatAirDate(DateTime value) {
   ];
 
   return '${months[value.month - 1]} ${value.day}';
+}
+
+String _formatEpisodeCode(String value) {
+  return value.replaceFirstMapped(
+    RegExp(r'^(S\d+)(E\d+)$'),
+    (Match match) => '${match.group(1)} ${match.group(2)}',
+  );
 }
