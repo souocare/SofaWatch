@@ -11,9 +11,13 @@ It brings together:
 - viewing progress;
 - Seasons;
 - Episodes;
+- Episode artwork;
 - Episode watched state;
 - watch history;
 - rewatches;
+- bulk watched actions;
+- previous-unwatched Episode catch-up;
+- navigation to Episode Details;
 - metadata synchronization;
 - related presentation information.
 
@@ -25,6 +29,7 @@ See:
 - [Viewing Progress](viewing-progress.md)
 - [Watch List](watch-list.md)
 - [Upcoming](upcoming.md)
+- [Metadata Sync](metadata-sync.md)
 - [ADR-002: Backend as Source of Truth](../decisions/002-backend-source-of-truth.md)
 - [ADR-003: Internal Media IDs](../decisions/003-internal-media-ids.md)
 - [ADR-006: Provider Independence](../decisions/006-provider-independence.md)
@@ -40,7 +45,7 @@ The core Show Details architecture and interaction model are implemented.
 Implemented or established:
 
 - Show metadata;
-- poster/backdrop presentation;
+- protected poster/backdrop presentation;
 - title and overview;
 - genres;
 - dates and additional information;
@@ -51,6 +56,9 @@ Implemented or established:
 - lazy Episode synchronization by Season;
 - independent Season loading/error state;
 - Episode rows;
+- Episode still artwork;
+- Episode-specific artwork semantics;
+- Episode Details navigation;
 - Episode watched state;
 - watched timestamps;
 - watch counts;
@@ -59,6 +67,10 @@ Implemented or established:
 - Episode watch history;
 - individual watch-event deletion;
 - Rewatch / Watched Again;
+- Season bulk watched actions;
+- Show bulk watched actions;
+- previous-unwatched Episode catch-up;
+- cross-feature viewing-state invalidation;
 - Season and Show progress reconciliation;
 - batch/progress infrastructure for Season summaries.
 
@@ -72,81 +84,37 @@ See [Implementation Status](implementation-status.md).
 
 Show Details should allow the user to:
 
-- understand what a Show is;
-- see whether it is in their Library;
-- understand current viewing progress;
+- inspect normalized local Show metadata;
+- understand viewing progress;
 - inspect Seasons and Episodes;
-- continue normal viewing;
-- correct viewing history;
-- record rewatches;
-- inspect Episode-level history;
-- access useful metadata without overwhelming the primary tracking workflow.
-
-The page should remain usable even when one subsection fails.
+- open an Episode's dedicated details page;
+- record and correct Episode viewing state;
+- record rewatches without destroying previous History;
+- inspect Episode viewing history;
+- mark eligible Episodes watched in bulk;
+- optionally catch up earlier unwatched Episodes when marking a later Episode watched;
+- understand aired vs future progress;
+- interact with Library state;
+- use artwork that accurately represents the displayed media;
+- preserve state while individual Seasons or mutations load/fail.
 
 ---
 
-# Identity
+# Show Identity
 
-Once imported, a Show uses its internal SofaWatch ID.
+Full Show Details operates on a local SofaWatch Show.
 
 Conceptually:
 
 ```text
-TMDB result
-    |
-    v
-import
-    |
-    v
-SofaWatch Show
-id = internal ID
-    |
-    +-> external TMDB mapping
-    +-> future TVDB mapping
-    +-> future IMDb mapping
-```
-
-Show Details should therefore be addressed through the local entity rather than treating a TMDB ID as the application's primary identity.
-
----
-
-# Local vs Preview Details
-
-Search and Explore can display provider-backed previews before media is imported.
-
-Full Show Details is the local SofaWatch experience.
-
-Conceptually:
-
-```text
-Search / Explore
--> provider preview
--> import if needed
--> local Show
+provider result
+-> import
+-> SofaWatch Show
+-> internal Show ID
 -> Show Details
 ```
 
-This distinction avoids making core tracking depend directly on a live provider response every time the page opens.
-
----
-
-# Metadata
-
-Show Details can expose local metadata such as:
-
-- title;
-- original title where available;
-- overview;
-- poster;
-- backdrop;
-- genres;
-- first air date;
-- status;
-- networks or related metadata where supported;
-- Season information.
-
-The exact fields should follow the normalized SofaWatch model.
+Provider IDs remain external mappings.
 
 ---
 
@@ -183,6 +151,8 @@ The top of Show Details can contain:
 - overview;
 - progress;
 - Library/tracking actions.
+
+Persisted Show poster/backdrop artwork is served through SofaWatch's protected image infrastructure and loaded by Flutter through the shared authenticated server-image component.
 
 Presentation should adapt between mobile and desktop without changing domain/application behavior.
 
@@ -290,41 +260,32 @@ Caught up is not equivalent to Completed.
 
 ---
 
-# Seasons
+# Specials
 
-Seasons are presented as expandable/accordion sections.
+Season 0 / Specials are distinct from regular progression.
 
-This allows the page to avoid rendering and synchronizing every Episode in every Season immediately.
+Normal Show progress, catch-up behavior, and bulk watched operations should not let Specials distort the regular Episode progression model.
 
-Conceptually:
-
-```text
-Show Details
-    |
-    +-> Season 1
-    +-> Season 2
-    +-> Season 3
-    +-> Specials
-```
-
-Each Season can maintain its own interaction state.
+Specials can remain inspectable and individually watchable where appropriate.
 
 ---
 
-# Season Summaries
+# Seasons
 
-A collapsed Season can expose useful summary information without requiring every Episode row to be loaded first.
+Show Details exposes Season summaries and expandable Episode collections.
 
-Possible summary data includes:
+Each Season can contain:
 
-- Season number/name;
+- number/title;
+- poster where available;
 - Episode count;
-- watched count;
 - progress;
 - aired progress;
-- caught-up state.
-
-The existing architecture includes batch/progress support for this purpose.
+- expanded/collapsed state;
+- independent loading;
+- independent failure/retry;
+- bulk watched actions;
+- Episode rows.
 
 ---
 
@@ -380,17 +341,19 @@ The exact decision about whether synchronization is required belongs to backend 
 
 # Lazy Episode Synchronization
 
-SofaWatch deliberately avoids requiring every Episode of every Season to be synchronized during the initial Show import.
+SofaWatch deliberately avoids requiring every Episode of every Season to be refreshed whenever Show Details is opened.
+
+Once local Episodes exist, normal Season loading can reuse them according to the synchronization policy.
 
 Advantages include:
 
-- faster imports;
 - fewer provider requests;
 - lower unnecessary storage/work;
 - better perceived Show Details loading;
-- ability to load only what the user inspects.
+- ability to load only what the user inspects;
+- avoiding provider traffic on every Show Details visit.
 
-Once synchronized, local Episodes can be reused.
+Explicit forced metadata synchronization is a separate operation and must not be conflated with ordinary Show Details loading.
 
 ---
 
@@ -414,11 +377,23 @@ Viewing events reference local Episodes rather than provider-only identifiers.
 
 General Show metadata refresh and Season Episode synchronization are related but not identical operations.
 
-A metadata refresh may update Show/Season information without necessarily forcing all Episode collections to be fetched.
+A normal Show metadata refresh may update Show/Season information without necessarily forcing all Episode collections to be fetched.
 
-Opening or explicitly refreshing a Season can handle Season-specific Episode synchronization.
+The canonical Season/Episode synchronization service owns Episode metadata synchronization.
 
-This separation should remain intentional.
+Forced Metadata Sync can explicitly perform a deep refresh:
+
+```text
+Show
+-> Seasons
+-> Episodes
+```
+
+using forced Season/Episode synchronization.
+
+This allows previously persisted Episodes to receive metadata that became available later without making Show Details contact the provider every time it is opened.
+
+See [Metadata Sync](metadata-sync.md).
 
 ---
 
@@ -426,6 +401,7 @@ This separation should remain intentional.
 
 An Episode row can expose:
 
+- Episode still;
 - Episode number;
 - title;
 - air date;
@@ -434,9 +410,82 @@ An Episode row can expose:
 - watched date;
 - watch count;
 - Mark Watched / correction actions;
-- access to viewing history.
+- access to viewing history;
+- navigation to Episode Details.
 
 Long or missing titles should degrade gracefully.
+
+---
+
+# Episode Artwork
+
+Episode rows can display the Episode's own still artwork when available.
+
+Within Show Details, Episode artwork follows a strict semantic rule:
+
+```text
+Episode still available
+-> display Episode still
+
+Episode still unavailable
+-> display Episode placeholder
+
+do not:
+-> substitute Show poster
+-> substitute Show backdrop
+```
+
+This avoids presenting series-level artwork as if it belonged to a specific Episode.
+
+The same principle applies to Episode-specific Show/Season/Episode contexts.
+
+Generic cross-feature cards such as Home may use broader fallback behavior where the card represents viewing context rather than a dedicated Episode details surface.
+
+---
+
+# Protected Episode Artwork
+
+Persisted Episode stills are exposed through SofaWatch's authenticated image infrastructure.
+
+Conceptually:
+
+```text
+Episode.still_url
+-> relative SofaWatch image endpoint
+-> ServerNetworkImage
+-> resolve server URL
+-> attach Bearer authentication
+-> protected Episode still
+```
+
+If a provider still exists but is not yet cached locally, the backend image pipeline can fetch/cache it on demand.
+
+If no Episode still exists, Show Details uses the Episode placeholder rather than Show-level artwork.
+
+---
+
+# Episode Details Navigation
+
+The main informational/content area of an Episode row navigates to Episode Details.
+
+Conceptually:
+
+```text
+Episode artwork / number / title / information
+-> Episode Details
+```
+
+Episode-specific action controls remain independent:
+
+```text
+watched/status/history action
+-> perform action
+-> do not navigate
+```
+
+This separation prevents accidental navigation while changing viewing state.
+
+Navigation uses the local SofaWatch Episode identity.
 
 ---
 
@@ -466,70 +515,133 @@ SofaWatch must not invent an air date or precise air time.
 
 # Mark Watched
 
-Marking an unwatched Episode as watched creates an `EpisodeWatchEvent`.
+Mark Watched records a real viewing event.
 
-Conceptually:
-
-```text
-Episode
-   |
-   v
-Mark Watched
-   |
-   v
-EpisodeWatchEvent
-   |
-   v
-recalculate effective state
-```
-
-The backend remains the source of truth.
-
----
-
-# Explicit Watched Date
-
-Where the UI/API supports historical correction, Mark Watched can use an explicit legitimate viewing timestamp.
-
-This should remain separate from the quick `Watched Again` action, which uses the current time.
-
-Date/time inputs should ultimately follow the application's localization and timezone strategy.
-
----
-
-# Watched State
-
-The effective Episode state includes values such as:
+A successful operation must reconcile backend-derived state such as:
 
 ```text
-is_watched
 watch_count
 watched_at
+progress
+caught_up
+next Episode
 ```
 
-These are derived from real watch events.
-
-Flutter should not infer them by maintaining parallel local counters.
+The frontend should consume the returned/refreshed backend state rather than independently inventing these values.
 
 ---
 
-# Watch Count
+# Previous Unwatched Episode Catch-Up
 
-Repeated viewings can be presented compactly.
+When marking a later regular Episode watched, SofaWatch can detect earlier regular Episodes that have already aired but remain unwatched.
 
 Example:
 
 ```text
-one viewing
--> watched indicator
-
-multiple viewings
--> 2x / 3x / ...
+S01E01 watched
+S01E02 unwatched
+S01E03 unwatched
+S01E04 -> user marks watched
 ```
 
-Exact visual representation belongs to presentation.
+SofaWatch can offer:
 
-The count itself is backend truth.
+```text
+mark S01E02 + S01E03 watched as well?
+```
+
+The catch-up operation is explicit.
+
+The user can decline it and still mark the selected Episode watched.
+
+---
+
+# Catch-Up Eligibility
+
+Previous-unwatched catch-up applies only to eligible previous regular Episodes.
+
+The current rules exclude:
+
+- Specials / Season 0;
+- future Episodes;
+- Episodes with unknown air dates;
+- Episodes already watched.
+
+The feature does not infer rewatches.
+
+An Episode with an existing viewing event is already watched for catch-up purposes and must not receive another event merely because it appears before the selected Episode.
+
+---
+
+# Catch-Up Semantics
+
+The feature represents a convenience for recording likely missing first-watch history.
+
+It does not assert that the user definitely watched the previous Episodes.
+
+Therefore:
+
+```text
+suggest
+-> user confirms
+-> create eligible missing viewing state
+
+or
+
+suggest
+-> user declines
+-> selected Episode still proceeds normally
+```
+
+The UI should never silently create previous watch events without confirmation.
+
+---
+
+# Season Bulk Watched
+
+A Season can expose a bulk action for marking eligible Episodes watched.
+
+The operation should apply to eligible aired regular Episodes that are not already watched.
+
+Conceptually:
+
+```text
+Season
+-> eligible aired regular Episodes
+-> exclude already watched
+-> create missing viewing state
+```
+
+Bulk watched must not create duplicate watch events for Episodes already watched.
+
+---
+
+# Show Bulk Watched
+
+Show Details can expose a Show-level bulk watched action.
+
+The operation applies across eligible regular Seasons/Episodes.
+
+Current eligibility excludes:
+
+- Specials / Season 0;
+- future Episodes;
+- Episodes with unknown air dates;
+- Episodes already watched.
+
+The operation records missing watched state without inventing rewatches.
+
+---
+
+# Bulk Watched Safety
+
+Bulk actions potentially mutate many Episodes and therefore require deliberate user interaction.
+
+The backend remains responsible for eligibility and mutation correctness.
+
+Flutter should not reconstruct the authoritative bulk eligibility rules from presentation data.
+
+After success, affected Show/Season/Episode progress and cross-feature viewing state must reconcile.
 
 ---
 
@@ -674,57 +786,70 @@ A successful Episode mutation can affect:
 - Haven't Watched in a While;
 - Watch History;
 - Home;
+- History;
 - Statistics.
 
 Show Details should reconcile the directly relevant state while shared features refresh through their normal application mechanisms.
 
 ---
 
-# Season Progress Refresh
+# Cross-Feature Viewing-State Invalidation
 
-After an Episode mutation, the containing Season's progress should update.
+Viewing mutations in Show Details can affect multiple independently loaded application surfaces.
 
-This should not require collapsing/reopening the Season.
+Successful viewing-state mutations therefore notify the shared viewing-state change mechanism.
 
----
+Consumers such as Home and History can then refresh their own data without tightly coupling Show Details to their Cubits.
 
-# Show Progress Refresh
-
-Show-level progress should update after Episode state changes.
-
-Examples include:
+Conceptually:
 
 ```text
-49% -> 50%
-not caught up -> caught up
-next Episode changes
+Show Details mutation
+        |
+        v
+backend success
+        |
+        v
+ViewingStateChangeNotifier
+        |
+        +-> Home refresh
+        +-> History refresh
+        +-> History preview refresh
 ```
 
-The UI should reflect backend results rather than trying to predict every rule itself.
+The notification represents successful canonical viewing-state change.
+
+It should be emitted once for a successful mutation and not emitted for a failed mutation.
+
+This avoids one feature directly orchestrating unrelated presentation layers.
 
 ---
 
 # Watch Next Reconciliation
 
-An Episode mutation can change Watch Next.
+Marking an Episode watched can change the next eligible unwatched Episode.
 
 Example:
 
 ```text
-S01E04 = current next
-Mark Watched
--> S01E05 becomes next
+before:
+next = S01E04
+
+mark S01E04 watched
+
+after:
+next = S01E05
 ```
 
-or:
+Watch Next should derive the new result from backend truth.
 
-```text
-final aired Episode watched
--> Show becomes caught up
--> Show leaves Watch Next
-```
+---
 
-See [Watch List](watch-list.md).
+# Haven't Watched in a While Reconciliation
+
+A new viewing can change recency-based classification.
+
+A Show previously considered inactive may no longer belong in Haven't Watched in a While after a new Episode viewing.
 
 ---
 
@@ -743,6 +868,7 @@ A new viewing event should become visible in:
 - Episode watch history;
 - Watch List history;
 - Profile History;
+- global History;
 - Home Recent Activity where applicable.
 
 These views consume the same event data.
@@ -779,6 +905,8 @@ Library mutation
 Season loading
 Season retry
 Episode mutation
+bulk mutation
+catch-up mutation
 History loading
 History mutation
 metadata refresh
@@ -817,7 +945,7 @@ If one Season fails:
 
 # Episode Mutation Loading
 
-Mark Watched, Rewatch, and event deletion should use targeted loading.
+Mark Watched, Rewatch, catch-up, bulk operations, and event deletion should use appropriately scoped loading.
 
 A mutation on one Episode should not disable unrelated Episodes unless a broader consistency requirement makes it necessary.
 
@@ -828,6 +956,8 @@ A mutation on one Episode should not disable unrelated Episodes unless a broader
 Non-idempotent watch-event creation must be protected from rapid duplicate taps/clicks.
 
 This is particularly important for Rewatch because every successful request intentionally creates another event.
+
+Bulk and catch-up actions must also prevent duplicate submission while their operation is in progress.
 
 ---
 
@@ -847,9 +977,11 @@ Valid empty states include:
 
 - no Seasons known;
 - Season with no Episodes;
+- Episode with no still artwork;
 - no Episode watch history;
 - no next Episode;
-- no next upcoming Episode.
+- no next upcoming Episode;
+- no previous unwatched Episodes requiring catch-up.
 
 These should not be represented as generic errors.
 
@@ -869,7 +1001,8 @@ Possible failures include:
 - validation error;
 - conflict;
 - invalid response;
-- server failure.
+- server failure;
+- protected artwork failure.
 
 Raw Dio, SQLAlchemy, or provider details should not be exposed directly.
 
@@ -885,15 +1018,56 @@ Metadata synchronization can update:
 
 - Show metadata;
 - Season metadata;
+- Episode metadata;
 - future Episode knowledge;
 - air dates;
 - status;
 - images;
 - related provider data.
 
-Manual refresh behavior should remain distinct from automatic background refresh policy where appropriate.
+Normal Show Details loading should not force provider refresh simply because local Episode metadata exists.
+
+Normal Metadata Sync respects its refresh/freshness policy.
+
+Explicit Force refresh is a separate administrator-driven operation that can deeply refresh:
+
+```text
+Show
+-> Seasons
+-> Episodes
+```
+
+This can recover metadata that became available after the original import, including previously missing Episode still artwork.
 
 See [Metadata Sync](metadata-sync.md).
+
+---
+
+# Missing Episode Artwork Recovery
+
+An Episode can legitimately have no provider still when first synchronized.
+
+Example:
+
+```text
+Episode imported
+tmdb_still_path = null
+```
+
+The Episode remains valid and Show Details displays its placeholder.
+
+If the provider later publishes a still:
+
+```text
+Force Metadata Sync
+-> force Season/Episode refresh
+-> current provider Episode metadata
+-> tmdb_still_path populated
+```
+
+A later protected image request can then cache and serve the artwork.
+
+This recovery path is intentionally separate from opening Show Details so that normal navigation does not generate unnecessary provider requests.
 
 ---
 
@@ -967,7 +1141,10 @@ The backend owns:
 - Library state;
 - Episode persistence;
 - Episode synchronization rules;
+- Episode artwork endpoints/cache;
 - viewing mutations;
+- catch-up eligibility;
+- bulk watched eligibility;
 - watch-event history;
 - progress calculations;
 - caught-up calculation;
@@ -984,8 +1161,12 @@ Flutter owns:
 - adaptive layout;
 - Season accordion;
 - row presentation;
+- Episode Details navigation;
+- authenticated protected-artwork loading;
 - loading/error/empty states;
 - invoking actions;
+- catch-up confirmation/presentation;
+- bulk-action presentation;
 - mutation feedback;
 - adaptive history modal;
 - preserving local presentation context.
@@ -1009,7 +1190,7 @@ Domain models include Show Details concepts such as Episodes, Seasons, progress,
 
 Repositories abstract API access.
 
-Cubit/state orchestrates page and mutation behavior.
+Cubits/state orchestrate page and mutation behavior.
 
 Widgets should remain focused and reusable rather than turning the entire page into one large build method.
 
@@ -1066,8 +1247,12 @@ Final mobile validation should include:
 - long Show title;
 - long overview;
 - long Episode titles;
+- Episode stills/placeholders;
 - Season accordion;
+- Episode navigation;
 - Episode actions;
+- bulk actions;
+- catch-up confirmation;
 - history bottom sheet;
 - safe areas;
 - mutation loading;
@@ -1083,7 +1268,11 @@ Final desktop validation should include:
 - ultrawide displays;
 - metadata hierarchy;
 - Season row density;
+- Episode artwork;
+- Episode navigation;
 - Episode action alignment;
+- bulk actions;
+- catch-up confirmation;
 - dialogs;
 - keyboard/mouse behavior.
 
@@ -1096,7 +1285,10 @@ Final validation should include:
 - semantic watched state;
 - semantic progress;
 - accessible accordion controls;
+- accessible Episode navigation;
 - accessible Mark Watched/Rewatch/Delete labels;
+- accessible bulk watched actions;
+- accessible catch-up confirmation;
 - keyboard navigation;
 - focus behavior;
 - sufficient target sizes;
@@ -1108,12 +1300,15 @@ Final validation should include:
 
 Important performance characteristics include:
 
-- lazy Season Episode loading;
+- lazy/reused Season Episode loading;
 - avoiding unnecessary provider calls;
 - reusing persisted Episodes;
+- protected image caching;
 - avoiding rebuilding unrelated Seasons during local mutations;
 - bounded History loading where applicable;
 - efficient image rendering/caching.
+
+Force Metadata Sync is intentionally allowed to perform more provider work, but it is an explicit administrator operation rather than normal Show Details behavior.
 
 Optimization should remain evidence-driven.
 
@@ -1128,6 +1323,7 @@ Show Details retrieval
 user-scoped Library state
 Season summaries
 Episode sync
+forced Episode sync
 idempotent/local persistence behavior
 progress
 caught_up
@@ -1137,11 +1333,26 @@ Specials behavior
 future Episodes
 unknown air dates
 Mark Watched
+previous-unwatched catch-up detection
+catch-up confirmation mutation behavior
+catch-up excludes Specials
+catch-up excludes future Episodes
+catch-up excludes unknown air dates
+catch-up does not infer rewatches
+Season bulk watched
+Show bulk watched
+bulk excludes Specials
+bulk excludes future Episodes
+bulk excludes unknown air dates
+bulk avoids duplicate watch events
 Rewatch
 watch_count
 watched_at
 event deletion
 delete final event
+Episode still resolution
+missing Episode still
+protected Episode still endpoint
 user isolation
 provider failures
 ```
@@ -1160,7 +1371,16 @@ Season loading
 Season failure
 Season Retry
 Episode rows
+Episode still
+Episode still placeholder
+Episode content opens Episode Details
+Episode action does not navigate
 Mark Watched
+previous-unwatched catch-up prompt
+catch-up decline
+catch-up confirm
+Season bulk watched
+Show bulk watched
 mutation loading
 duplicate-submit protection
 Rewatch
@@ -1171,6 +1391,7 @@ history failure
 event deletion
 Season progress refresh
 Show progress refresh
+cross-feature viewing-state notification
 responsive presentation
 ```
 
@@ -1178,14 +1399,20 @@ responsive presentation
 
 # Known Final Validation
 
-The roadmap still contains a general:
-
-```text
-16.15.8
-Test remaining Seasons & Episodes functionality
-```
+The roadmap still contains a general Seasons/Episodes final-validation requirement.
 
 Before considering Show Details fully finalized, this should include a regression pass across the existing Season/Episode interactions rather than creating new functionality simply to satisfy the checklist.
+
+The regression pass should now include the recently completed:
+
+```text
+Episode Details navigation
+Episode still artwork
+bulk watched actions
+previous-unwatched catch-up
+protected artwork
+cross-feature viewing-state refresh
+```
 
 ---
 
@@ -1207,6 +1434,10 @@ The existing expandable Season architecture is sufficient unless actual usage de
 [ ] audit all Season loading states
 [ ] audit Season Retry
 [ ] audit Episode mutations
+[ ] audit Episode Details navigation
+[ ] audit Episode artwork/placeholders
+[ ] audit bulk watched actions
+[ ] audit previous-unwatched catch-up
 [ ] audit progress reconciliation
 [ ] audit watch history
 [ ] audit Rewatch
@@ -1221,13 +1452,15 @@ The existing expandable Season architecture is sufficient unless actual usage de
 ## Coordinated Refresh
 
 ```text
-[ ] coordinate Show Details with Shows refresh
+[ ] final cross-feature refresh audit
 [ ] refresh progress without losing expanded Season context
 [ ] preserve scroll
 [ ] preserve loaded Seasons
 [ ] reconcile Watch Next
 [ ] reconcile Upcoming where relevant
 ```
+
+The shared viewing-state change notifier already provides cross-feature invalidation for relevant successful viewing mutations; remaining work is final behavioral/regression validation rather than introducing direct Cubit-to-Cubit coupling.
 
 ---
 
@@ -1283,17 +1516,31 @@ Only implement these with real provider/data support.
 
 > Seasons load independently and should fail independently.
 
-> Episode synchronization is lazy by Season rather than forcing every Episode during Show import.
+> Existing local Episodes can be reused during normal Show Details loading; deep forced Episode refresh is an explicit Metadata Sync operation.
+
+> Episode-specific Show Details presentation uses the Episode still or a placeholder and does not substitute the Show poster/backdrop.
+
+> Persisted protected artwork is loaded through authenticated SofaWatch image requests.
+
+> Episode row content can navigate to Episode Details while action controls remain independently interactive.
+
+> Season and Show bulk watched operations only create missing eligible viewing state and do not infer rewatches.
+
+> Previous-unwatched catch-up is explicitly confirmed by the user and excludes Specials, future Episodes, unknown air dates, and already watched Episodes.
 
 > Viewing history is event-based.
 
 > Rewatch creates another event and never overwrites the previous viewing.
+
+> Successful viewing mutations can invalidate independent Home/History state through the shared viewing-state change mechanism.
 
 > `caught_up`, user `Completed`, and provider `Ended` are separate concepts.
 
 > Specials do not block normal regular-Episode progress.
 
 > Missing Episode dates or times must never be invented.
+
+> Missing provider artwork does not make an Episode invalid.
 
 > A separate Season Details page is optional, not a required architectural layer.
 

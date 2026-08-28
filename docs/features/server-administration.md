@@ -886,21 +886,39 @@ A partial failure should not erase successful work.
 
 # Manual Job Execution
 
-If manual job execution is exposed, it is an explicit privileged mutation.
+Manual job execution is exposed as an administrator-only privileged operation.
 
-The UI must distinguish:
-
-```text
-View job
-```
-
-from:
+For a normal execution:
 
 ```text
 Run now
+-> normal job handler
 ```
 
-A confirmation may be appropriate for expensive operations.
+For jobs that explicitly support forced execution:
+
+```text
+Force refresh
+-> force handler
+```
+Metadata Sync currently supports both modes.
+
+---
+
+# Forced Job Execution
+
+Forced execution is opt-in per Background Job.
+A job may define a separate forced handler.
+If a job does not support forced execution:
+
+```text
+force=true
+-> 400 background_job_force_not_supported
+```
+
+The request is rejected before execution state is persisted as running.
+
+Forced execution must never silently fall back to normal execution.
 
 ---
 
@@ -1718,6 +1736,7 @@ Backend immediately rejects future admin operations; frontend removes admin UI a
 [ ] execution history UI
 [ ] structured result presentation
 [ ] manual Run Now where appropriate
+[x] Force refresh
 [ ] overlapping-run protection
 [ ] worker/scheduler health
 ```

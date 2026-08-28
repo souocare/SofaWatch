@@ -64,13 +64,18 @@ Implemented or established:
 - checked/refreshed/skipped/failed sync counters;
 - partial-failure preservation;
 - job results persisted even when individual items fail;
-- administrator/server-management direction.
+- administrator/server-management direction;
+- manual `Run now` execution;
+- optional forced execution handler per job;
+- explicit forced execution through `force=true`;
+- rejection of forced execution for unsupported jobs;
+- duplicate/concurrent execution protection;
+- administrator frontend controls for manual execution.
 
 Planned/evolving:
 
 - final Background Jobs administration UI;
 - worker/scheduler health visibility;
-- manual Run Now controls where appropriate;
 - richer execution-detail presentation;
 - overlap/concurrency hardening and validation;
 - additional recurring jobs;
@@ -790,15 +795,22 @@ Only add this if it improves operational visibility.
 
 # Manual Run
 
-Administrator UI may eventually expose:
+Administrator UI exposes `Run now` for supported Background Jobs.
+
+A normal manual execution uses the job's normal handler and preserves the same business semantics as scheduled execution.
+
+For Metadata Sync:
 
 ```text
+Scheduled execution
+-> normal handler
+
 Run now
+-> normal handler
+
+Force refresh
+-> force handler
 ```
-
-for appropriate jobs.
-
-This is an explicit privileged mutation.
 
 ---
 
@@ -1419,7 +1431,9 @@ Historical UI should tolerate compatible older result records.
 [ ] execution history
 [ ] structured-result cards
 [ ] safe error presentation
-[ ] manual Run Now
+[x] manual Run Now
+[x] forced execution where supported
+[x] force confirmation for expensive operations
 [ ] local Retry/refresh
 [ ] mobile layout
 [ ] desktop layout

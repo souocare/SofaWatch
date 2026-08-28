@@ -51,7 +51,10 @@ Implemented or established:
 - Movie rewatches;
 - integration with global History;
 - integration with Statistics;
-- Search and Explore Movie support.
+- Search and Explore Movie support;
+- protected Movie poster/backdrop endpoints;
+- local Movie artwork caching;
+- authenticated Movie artwork loading in Flutter.
 
 Future work is mainly richer Movie-specific discovery/details, final responsive validation, external ratings/provider work, and any additional Library presentation refinements.
 
@@ -544,6 +547,75 @@ Exact availability depends on the normalized backend model.
 
 ---
 
+# Protected Movie Artwork
+
+Persisted SofaWatch Movies expose protected local artwork endpoints for:
+
+```text
+poster
+backdrop
+```
+
+The backend image pipeline is conceptually:
+
+```text
+Movie provider path
+        |
+        v
+SofaWatch protected image endpoint
+        |
+        v
+authenticated request
+        |
+        v
+local image cache
+        |
+        v
+persist local image path
+        |
+        v
+serve cached artwork
+```
+
+Movie poster/backdrop endpoints require SofaWatch authentication.
+
+The backend supports storage, caching, resolution, and protected delivery for Movie posters and backdrops.
+
+The first protected image request can populate the local cache from the provider when required.
+
+Flutter therefore loads persisted SofaWatch Movie artwork through the shared authenticated server-image component rather than through a plain unauthenticated network request.
+
+Server-relative protected image URLs remain local-domain references and are resolved against the configured SofaWatch server at the presentation boundary.
+
+Conceptually:
+
+```text
+Persisted SofaWatch Movie
+-> relative /api/v1/images/... URL
+-> ServerNetworkImage
+-> resolve SofaWatch server URL
+-> attach Bearer authentication
+-> request protected artwork
+```
+
+Provider previews in Search and Explore remain deliberately separate.
+
+Those results may represent Movies that have not yet been imported into SofaWatch, so their public/provider artwork can continue to use provider URLs directly.
+
+Conceptually:
+
+```text
+Search / Explore provider result
+-> public provider artwork
+
+Persisted SofaWatch Movie
+-> protected SofaWatch artwork
+```
+
+This distinction prevents protected local artwork infrastructure from incorrectly requiring a local Movie entity for provider-only discovery results.
+
+---
+
 # Library Action in Movie Details
 
 Movie Details can allow Library/watchlist changes.
@@ -779,6 +851,8 @@ Profile can expose:
 
 Full Movie Library and History remain dedicated feature experiences.
 
+Persisted Movie artwork shown through Profile uses the same authenticated protected-artwork infrastructure as other local Movie presentation.
+
 See [Profile](profile.md).
 
 ---
@@ -818,6 +892,8 @@ The backend owns:
 - user scoping;
 - personal rating persistence;
 - normalized metadata;
+- protected Movie artwork endpoints;
+- Movie artwork storage and caching;
 - business classification rules.
 
 ---
@@ -834,6 +910,7 @@ Flutter owns:
 - loading/error/empty states;
 - watch-history presentation;
 - personal rating controls;
+- authenticated loading of persisted SofaWatch artwork;
 - responsive behavior.
 
 Flutter should not recreate backend classification rules.
@@ -907,9 +984,13 @@ Valid Movie empty states include:
 - no Movie viewing history;
 - no personal rating;
 - no external rating from a provider;
-- no recommendations.
+- no recommendations;
+- missing Movie poster;
+- missing Movie backdrop.
 
 These are not generic errors.
+
+Missing artwork should use the appropriate presentation fallback rather than being treated as a Movie loading failure.
 
 ---
 
@@ -927,7 +1008,9 @@ Possible failures include:
 - conflict;
 - provider failure;
 - invalid response;
-- server failure.
+- server failure;
+- protected artwork unavailable;
+- protected artwork download/cache failure.
 
 Raw Dio/provider/database errors should not be displayed directly.
 
@@ -1016,7 +1099,8 @@ Final Movie validation should include:
 Relevant considerations include:
 
 - efficient poster grids;
-- image caching;
+- protected local image caching;
+- avoiding repeated provider artwork downloads after caching;
 - avoiding repeated provider imports;
 - idempotent import;
 - pagination/bounded Movie collections;
@@ -1048,6 +1132,17 @@ Movie history ordering
 personal rating isolation
 Statistics integration
 provider failure mapping
+Movie poster storage path
+Movie backdrop storage path
+Movie poster caching
+Movie backdrop caching
+Movie poster resolution
+Movie backdrop resolution
+protected Movie poster endpoint
+protected Movie backdrop endpoint
+missing Movie artwork
+Movie artwork cache/download failure
+authentication protection for Movie artwork
 ```
 
 Frontend tests should cover:
@@ -1067,6 +1162,9 @@ viewing history
 event deletion
 personal rating
 external rating presentation when available
+protected poster loading
+protected backdrop loading
+artwork fallback/error state
 responsive layout
 partial failures
 ```
@@ -1140,6 +1238,38 @@ IMDb rating unavailable
 -> show no IMDb rating
 -> do not fabricate/fallback-label another source as IMDb
 ```
+
+## Missing Movie Artwork
+
+```text
+Movie exists
+poster/backdrop unavailable
+-> Movie remains valid
+-> presentation uses artwork fallback
+```
+
+Missing artwork must not make the Movie itself unavailable.
+
+## Protected Artwork Not Yet Cached
+
+```text
+local artwork path absent
+provider artwork path present
+-> protected image request
+-> download/cache provider artwork
+-> persist local path
+-> serve artwork
+```
+
+## Provider Preview Is Not Yet Local
+
+```text
+Search / Explore Movie result
+-> no local SofaWatch Movie required
+-> provider artwork remains usable
+```
+
+The frontend should not force protected local artwork semantics onto provider-only discovery results.
 
 ---
 
@@ -1222,6 +1352,7 @@ Only implement when supported by real data and clear product rules.
 [ ] Movie history regression tests
 [ ] rewatch regression tests
 [ ] Library classification regression tests
+[ ] protected artwork regression tests
 [ ] integration tests
 ```
 
@@ -1238,6 +1369,14 @@ Only implement when supported by real data and clear product rules.
 > Every Movie viewing is a real `MovieWatchEvent`.
 
 > Rewatch creates another event and preserves previous history.
+
+> Persisted SofaWatch Movie posters and backdrops are served through authenticated protected image endpoints.
+
+> Movie artwork can be cached locally on demand while preserving provider artwork paths as metadata.
+
+> Persisted local Movie artwork uses the shared authenticated frontend image component.
+
+> Search and Explore provider previews remain separate from protected local Movie artwork because the media may not yet exist locally.
 
 > Personal SofaWatch ratings must remain separate from TMDB, IMDb, or other external ratings.
 

@@ -976,8 +976,23 @@ The Background Jobs feature owns:
 - schedules;
 - status;
 - execution history;
-- structured results;
-- manual execution where supported.
+- structured results.
+
+For Metadata Sync, Profile currently exposes two distinct administrator actions:
+
+```text
+Run now
+-> normal synchronization
+-> respects freshness rules
+
+Force refresh
+-> deep forced synchronization
+-> refreshes Show, Season, and Episode metadata
+```
+
+Force refresh is presented separately because it can make significantly more provider requests.
+
+The action requires explicit confirmation and is disabled while the job is busy.
 
 See [Background Jobs](background-jobs.md).
 
