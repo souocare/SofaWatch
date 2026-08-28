@@ -222,12 +222,33 @@ Domain code should remain independent from Flutter, Dio, and raw JSON.
 - [x] Episode metadata
 - [x] Genres
 - [x] Images
+- [x] Protected local image delivery and caching
+- [x] Show poster/backdrop caching
+- [x] Season poster caching
+- [x] Episode still caching
+- [x] Movie poster/backdrop caching
 - [x] Trending
 - [x] Popular/discovery data
 - [x] Metadata refresh/synchronization
+- [x] Forced deep metadata refresh for Shows, Seasons, and Episodes
 - [x] Provider error mapping
 - [x] Provider timeout configuration
 - [x] Provider health diagnostics
+
+### Protected Artwork
+
+- [x] SofaWatch-owned image endpoints
+- [x] Authenticated image access
+- [x] Local image cache
+- [x] Show poster/backdrop support
+- [x] Season poster support
+- [x] Episode still support
+- [x] Movie poster/backdrop support
+- [x] Shared frontend `ServerNetworkImage`
+- [x] Server-relative protected image URLs resolved at presentation time
+- [x] Authentication headers included for protected artwork requests
+- [x] Search provider artwork remains independently loadable before local media import
+- [x] Explore provider artwork remains independently loadable before local media import
 
 ## 5.2 Internal Identity
 
@@ -668,6 +689,7 @@ watched_at = newest event timestamp
 - [x] Metadata
 - [x] Backdrop
 - [x] Poster
+- [x] Authenticated protected artwork loading
 - [x] Title
 - [x] Overview
 - [x] Genres
@@ -699,6 +721,8 @@ watched_at = newest event timestamp
 - [x] Episode watch history
 - [x] Remove individual watch event
 - [x] Refresh Episode/Season progress after history changes
+- [x] Episode still artwork when available
+- [x] Episode-specific artwork without Show poster/backdrop substitution
 
 
 ## 15.4 Bulk Watched Actions
@@ -729,7 +753,7 @@ watched_at = newest event timestamp
 - [x] Backend tests
 - [x] Frontend interaction tests
 
-## 15.4 Remaining Work
+## 15.6 Remaining Work
 
 - [ ] Final remaining Seasons/Episodes functionality tests
 - [?] Separate Season Details page only if a real product need appears
@@ -824,6 +848,9 @@ Planned work:
 
 - [x] Movie Details infrastructure
 - [x] Metadata
+- [x] Poster
+- [x] Backdrop
+- [x] Authenticated protected artwork loading
 - [x] Library/Watchlist state
 - [x] Watched state
 - [x] Watch history
@@ -992,6 +1019,7 @@ Insights:
 - [x] Most rewatched Movies
 - [x] Top Show genres
 - [x] Top Movie genres
+- [x] Protected artwork for Show, Episode, and Movie insight rows
 
 ## 22.5 Library Statistics
 
@@ -1420,15 +1448,35 @@ Current/intended diagnostics include:
 - [x] Duration
 - [x] Structured results
 - [x] Manual Run Now
+- [x] Optional forced execution handler per job
+- [x] Normal and forced execution remain explicitly separate
+- [x] Unsupported forced execution is rejected
+- [x] Unsupported force requests do not leave a job in Running state
+- [x] Existing concurrent/running-job protection applies to manual execution
 
 ## 39.2 Metadata Sync Job
 
 - [x] Registered metadata synchronization job
 - [x] Periodic execution
-- [x] Refresh policy
+- [x] Every-eight-hours schedule
+- [x] Normal refresh policy
+- [x] Manual Run Now using normal refresh semantics
+- [x] Explicit Force refresh
+- [x] Forced refresh ignores normal metadata freshness
+- [x] Forced Show metadata refresh
+- [x] Forced Season metadata refresh
+- [x] Forced Episode metadata refresh through the canonical Season/Episode synchronization service
+- [x] Recovery of metadata that became available after the original import or previous synchronization
+- [x] Recovery of previously missing Episode still artwork when subsequently available from the provider
 - [x] Checked/refreshed/skipped/failed result concepts
+- [x] Forced deep-refresh metrics
 - [x] Partial-failure recording
 - [x] Execution history
+- [x] Administrator Profile Run now action
+- [x] Administrator Profile Force refresh action
+- [x] Force-refresh information/help
+- [x] Explicit confirmation before Force refresh
+- [x] Busy-state/double-execution protection in the frontend
 
 ## 39.3 Future Improvements
 
