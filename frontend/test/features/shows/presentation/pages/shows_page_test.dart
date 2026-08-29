@@ -477,9 +477,26 @@ void main() {
 
       expect(find.text('The Last of Us'), findsOneWidget);
 
-      expect(find.textContaining('S01 E04'), findsOneWidget);
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'shows-stale-watching-next-title-episode-next',
+          ),
+        ),
+        findsOneWidget,
+      );
 
-      expect(find.text('Please Hold to My Hand'), findsOneWidget);
+      expect(
+        find.textContaining('S01 E04 • Please Hold to My Hand'),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('shows-stale-watching-progress-100088'),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('does not duplicate stale Show in Watch Next', (
@@ -568,14 +585,15 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      final Finder staleTitle = find.byKey(
-        const ValueKey<String>('shows-stale-watching-title-100088'),
+      final Finder staleShowDetails = find.byKey(
+        const ValueKey<String>('shows-stale-watching-show-details-100088'),
       );
 
-      await tester.ensureVisible(staleTitle);
+      await tester.ensureVisible(staleShowDetails);
       await tester.pumpAndSettle();
 
-      await tester.tap(staleTitle);
+      await tester.tap(staleShowDetails);
+      await tester.pumpAndSettle();
       await tester.pumpAndSettle();
 
       expect(
@@ -3236,6 +3254,98 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
+    });
+    testWidgets('paginates stale Watching Shows after six mobile cards', (
+      WidgetTester tester,
+    ) async {
+      final List<StaleWatchingShow> staleShows =
+          List<StaleWatchingShow>.generate(7, (int index) {
+            final int number = index + 1;
+
+            return StaleWatchingShow(
+              libraryEntryId: 'library-stale-$number',
+              libraryStatus: LibraryStatus.watching,
+              showId: 'show-stale-$number',
+              showTmdbId: 100000 + number,
+              showTitle: 'Stale Show $number',
+              posterUrl: null,
+              backdropUrl: null,
+              lastWatched: StaleWatchingEpisode(
+                id: 'last-$number',
+                tmdbId: 200000 + number,
+                seasonNumber: 1,
+                episodeNumber: number,
+                title: 'Last Episode $number',
+                watchedAt: DateTime.utc(2026, 5, 1),
+              ),
+              nextEpisode: WatchNextEpisode(
+                id: 'next-$number',
+                tmdbId: 300000 + number,
+                seasonNumber: 1,
+                episodeNumber: number + 1,
+                title: 'Next Episode $number',
+                runtime: 45,
+              ),
+              progress: const LibraryShowProgress(
+                watchedEpisodes: 4,
+                airedEpisodes: 10,
+                percentage: 40,
+                caughtUp: false,
+              ),
+            );
+          });
+
+      final ShowsCubit cubit = ShowsCubit(
+        repository: _FakeShowsRepository(
+          shows: <LibraryShow>[_show],
+          staleWatching: staleShows,
+        ),
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('shows-stale-watching-pager')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('shows-stale-watching-page-indicator'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(find.text('Stale Show 1'), findsOneWidget);
+
+      /*
+     * The seventh Show belongs to the second page and should not yet be
+     * painted by the PageView.
+     */
+      expect(find.text('Stale Show 7'), findsNothing);
+
+      final Finder stalePager = find.byKey(
+        const ValueKey<String>('shows-stale-watching-pager'),
+      );
+
+      await tester.ensureVisible(stalePager);
+      await tester.pumpAndSettle();
+
+      final Offset pagerTopLeft = tester.getTopLeft(stalePager);
+
+      await tester.dragFrom(
+        Offset(pagerTopLeft.dx + 200, pagerTopLeft.dy + 100),
+        const Offset(-500, 0),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Stale Show 7'), findsOneWidget);
     });
   });
 }

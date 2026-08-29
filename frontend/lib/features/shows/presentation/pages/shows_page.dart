@@ -606,17 +606,20 @@ class _StaleWatchingSection extends StatelessWidget {
           ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: AppSpacing.lg),
+
         if (hasError)
           _StaleWatchingFailure(onRetry: onRetry)
         else if (items.isEmpty)
           const _StaleWatchingEmpty()
+        else if (isDesktop)
+          ..._buildDesktopItems()
         else
-          ..._buildItems(),
+          _StaleWatchingPager(items: items),
       ],
     );
   }
 
-  List<Widget> _buildItems() {
+  List<Widget> _buildDesktopItems() {
     final List<Widget> widgets = <Widget>[];
 
     for (int index = 0; index < items.length; index++) {
@@ -624,10 +627,341 @@ class _StaleWatchingSection extends StatelessWidget {
         widgets.add(const SizedBox(height: AppSpacing.md));
       }
 
-      widgets.add(_StaleWatchingRow(item: items[index], isDesktop: isDesktop));
+      widgets.add(_StaleWatchingRow(item: items[index], isDesktop: true));
     }
 
     return widgets;
+  }
+}
+
+class _StaleWatchingPager extends StatefulWidget {
+  const _StaleWatchingPager({required this.items});
+
+  static const int _itemsPerPage = 6;
+  static const int _columns = 2;
+  static const int _rows = 3;
+
+  final List<StaleWatchingShow> items;
+
+  @override
+  State<_StaleWatchingPager> createState() => _StaleWatchingPagerState();
+}
+
+class _StaleWatchingPagerState extends State<_StaleWatchingPager> {
+  late final PageController _pageController;
+
+  int _currentPage = 0;
+
+  int get _pageCount =>
+      (widget.items.length / _StaleWatchingPager._itemsPerPage).ceil();
+
+  @override
+  void initState() {
+    super.initState();
+
+    _pageController = PageController();
+  }
+
+  @override
+  void didUpdateWidget(covariant _StaleWatchingPager oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final int lastPage = _pageCount > 0 ? _pageCount - 1 : 0;
+
+    if (_currentPage > lastPage) {
+      _currentPage = lastPage;
+
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(lastPage);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double cardWidth =
+            (constraints.maxWidth - AppSpacing.md) /
+            _StaleWatchingPager._columns;
+
+        /*
+         * 16:9 artwork plus compact metadata below it.
+         */
+        final double artworkHeight = cardWidth * 9 / 16;
+        const double metadataHeight = 92;
+
+        final double cardHeight =
+            artworkHeight + AppSpacing.sm + metadataHeight;
+
+        final double pageHeight =
+            (cardHeight * _StaleWatchingPager._rows) +
+            (AppSpacing.md * (_StaleWatchingPager._rows - 1));
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            SizedBox(
+              height: pageHeight,
+              child: PageView.builder(
+                key: const ValueKey<String>('shows-stale-watching-pager'),
+                controller: _pageController,
+                physics: const PageScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                itemCount: _pageCount,
+                onPageChanged: (int page) {
+                  setState(() {
+                    _currentPage = page;
+                  });
+                },
+                itemBuilder: (BuildContext context, int pageIndex) {
+                  final int startIndex =
+                      pageIndex * _StaleWatchingPager._itemsPerPage;
+
+                  final int endIndex =
+                      (startIndex + _StaleWatchingPager._itemsPerPage).clamp(
+                        0,
+                        widget.items.length,
+                      );
+
+                  final List<StaleWatchingShow> pageItems = widget.items
+                      .sublist(startIndex, endIndex);
+
+                  return GridView.builder(
+                    key: ValueKey<String>(
+                      'shows-stale-watching-page-$pageIndex',
+                    ),
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    itemCount: pageItems.length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: _StaleWatchingPager._columns,
+                      crossAxisSpacing: AppSpacing.md,
+                      mainAxisSpacing: AppSpacing.md,
+                      mainAxisExtent: cardHeight,
+                    ),
+                    itemBuilder: (BuildContext context, int itemIndex) {
+                      return _StaleWatchingCard(item: pageItems[itemIndex]);
+                    },
+                  );
+                },
+              ),
+            ),
+
+            if (_pageCount > 1) ...<Widget>[
+              const SizedBox(height: AppSpacing.md),
+              _StaleWatchingPageIndicator(
+                currentPage: _currentPage,
+                pageCount: _pageCount,
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _StaleWatchingCard extends StatelessWidget {
+  const _StaleWatchingCard({required this.item});
+
+  final StaleWatchingShow item;
+
+  @override
+  Widget build(BuildContext context) {
+    final WatchNextEpisode nextEpisode = item.nextEpisode;
+
+    final double progressValue = item.progress.airedEpisodes > 0
+        ? item.progress.percentage / 100
+        : 0;
+
+    return Column(
+      key: ValueKey<String>('shows-stale-watching-${item.showTmdbId}'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Material(
+          color: AppColors.surfaceHigh,
+          borderRadius: AppRadius.borderLarge,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            key: ValueKey<String>(
+              'shows-stale-watching-show-details-${item.showTmdbId}',
+            ),
+            onTap: () {
+              context.pushNamed(
+                AppRoute.showDetails.name,
+                pathParameters: <String, String>{
+                  'showId': item.showTmdbId.toString(),
+                },
+              );
+            },
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  _StaleWatchingArtwork(
+                    imageUrl:
+                        nextEpisode.stillUrl ??
+                        item.backdropUrl ??
+                        item.posterUrl,
+                  ),
+
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.sm,
+                        0,
+                        AppSpacing.sm,
+                        AppSpacing.sm,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: AppRadius.borderFull,
+                        child: LinearProgressIndicator(
+                          key: ValueKey<String>(
+                            'shows-stale-watching-progress-${item.showTmdbId}',
+                          ),
+                          value: progressValue,
+                          minHeight: 5,
+                          backgroundColor: AppColors.progressTrack,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColors.progressValue,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+
+        Text(
+          item.showTitle,
+          key: ValueKey<String>(
+            'shows-stale-watching-title-${item.showTmdbId}',
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+
+        const SizedBox(height: AppSpacing.xs),
+
+        _EpisodeDetailsLink(
+          episodeId: nextEpisode.id,
+          linkKey: ValueKey<String>(
+            'shows-stale-watching-next-episode-details-${nextEpisode.id}',
+          ),
+          child: Text(
+            '${_formatEpisodeCode(nextEpisode.code)} • ${nextEpisode.title}',
+            key: ValueKey<String>(
+              'shows-stale-watching-next-title-${nextEpisode.id}',
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.xs),
+
+        Text(
+          _compactLastWatchedLabel(item.lastWatched.watchedAt),
+          key: ValueKey<String>('shows-stale-watching-last-${item.showTmdbId}'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
+        ),
+      ],
+    );
+  }
+}
+
+class _StaleWatchingArtwork extends StatelessWidget {
+  const _StaleWatchingArtwork({required this.imageUrl});
+
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl == null) {
+      return const DecoratedBox(
+        decoration: BoxDecoration(color: AppColors.surface),
+        child: Center(
+          child: Icon(Icons.tv_outlined, size: 36, color: AppColors.textMuted),
+        ),
+      );
+    }
+
+    return ServerNetworkImage(
+      imageUrl: imageUrl!,
+      fit: BoxFit.cover,
+      errorBuilder:
+          (BuildContext context, Object error, StackTrace? stackTrace) {
+            return const DecoratedBox(
+              decoration: BoxDecoration(color: AppColors.surface),
+              child: Center(
+                child: Icon(
+                  Icons.tv_outlined,
+                  size: 36,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            );
+          },
+    );
+  }
+}
+
+class _StaleWatchingPageIndicator extends StatelessWidget {
+  const _StaleWatchingPageIndicator({
+    required this.currentPage,
+    required this.pageCount,
+  });
+
+  final int currentPage;
+  final int pageCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      key: const ValueKey<String>('shows-stale-watching-page-indicator'),
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List<Widget>.generate(pageCount, (int index) {
+        final bool isSelected = index == currentPage;
+
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: isSelected ? 18 : 6,
+          height: 6,
+          margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppColors.textPrimary
+                : AppColors.outlineVariant,
+            borderRadius: AppRadius.borderFull,
+          ),
+        );
+      }),
+    );
   }
 }
 
@@ -2326,7 +2660,7 @@ class _HaventStartedSection extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'Shows in your Watchlist that you have not started yet.',
+          'Up to 5 random shows from your Watchlist that you have not started yet.',
           style: Theme.of(
             context,
           ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
@@ -2570,12 +2904,16 @@ class _UpToDateSection extends StatelessWidget {
           ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: AppSpacing.lg),
-        ..._buildItems(),
+
+        if (isDesktop)
+          ..._buildDesktopItems()
+        else
+          _UpToDateCarousel(items: items),
       ],
     );
   }
 
-  List<Widget> _buildItems() {
+  List<Widget> _buildDesktopItems() {
     final List<Widget> widgets = <Widget>[];
 
     for (int index = 0; index < items.length; index++) {
@@ -2583,10 +2921,217 @@ class _UpToDateSection extends StatelessWidget {
         widgets.add(const SizedBox(height: AppSpacing.md));
       }
 
-      widgets.add(_UpToDateRow(show: items[index], isDesktop: isDesktop));
+      widgets.add(_UpToDateRow(show: items[index], isDesktop: true));
     }
 
     return widgets;
+  }
+}
+
+class _UpToDateCarousel extends StatelessWidget {
+  const _UpToDateCarousel({required this.items});
+
+  static const double _posterAspectRatio = 2 / 3;
+  static const double _metadataHeight = 64;
+
+  final List<LibraryShow> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        /*
+         * Two complete cards are visible on a phone.
+         *
+         * A small portion of the horizontal scroll behaviour remains obvious
+         * through the natural spacing between cards.
+         */
+        final double cardWidth = (constraints.maxWidth - AppSpacing.md) / 2;
+
+        final double posterHeight = cardWidth / _posterAspectRatio;
+
+        final double carouselHeight =
+            posterHeight + AppSpacing.sm + _metadataHeight;
+
+        return SizedBox(
+          height: carouselHeight,
+          child: ListView.separated(
+            key: const ValueKey<String>('shows-up-to-date-carousel'),
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: items.length,
+            separatorBuilder: (BuildContext context, int index) {
+              return const SizedBox(width: AppSpacing.md);
+            },
+            itemBuilder: (BuildContext context, int index) {
+              return SizedBox(
+                width: cardWidth,
+                child: _UpToDateCard(show: items[index]),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _UpToDateCard extends StatelessWidget {
+  const _UpToDateCard({required this.show});
+
+  final LibraryShow show;
+
+  @override
+  Widget build(BuildContext context) {
+    final double progressValue = show.progress.airedEpisodes > 0
+        ? show.progress.percentage / 100
+        : 0;
+
+    return Column(
+      key: ValueKey<String>('shows-up-to-date-${show.tmdbId}'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Material(
+          color: AppColors.surfaceHigh,
+          borderRadius: AppRadius.borderLarge,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () {
+              context.pushNamed(
+                AppRoute.showDetails.name,
+                pathParameters: <String, String>{
+                  'showId': show.tmdbId.toString(),
+                },
+              );
+            },
+            child: AspectRatio(
+              aspectRatio: 2 / 3,
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  _UpToDatePoster(imageUrl: show.posterUrl),
+
+                  /*
+                   * Keep the real library progress in the card even though
+                   * caught-up Shows will normally be at 100% of aired Episodes.
+                   */
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.sm,
+                        0,
+                        AppSpacing.sm,
+                        AppSpacing.sm,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: AppRadius.borderFull,
+                        child: LinearProgressIndicator(
+                          key: ValueKey<String>(
+                            'shows-library-progress-${show.tmdbId}',
+                          ),
+                          value: progressValue,
+                          minHeight: 5,
+                          backgroundColor: AppColors.progressTrack,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColors.progressValue,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  /*
+                   * The check communicates the important state visually:
+                   * everything currently released has been watched.
+                   */
+                  const Positioned(
+                    top: AppSpacing.sm,
+                    right: AppSpacing.sm,
+                    child: _UpToDateCheck(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          show.title,
+          key: ValueKey<String>('shows-up-to-date-title-${show.tmdbId}'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          show.showStatus,
+          key: ValueKey<String>('shows-up-to-date-label-${show.tmdbId}'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _UpToDatePoster extends StatelessWidget {
+  const _UpToDatePoster({required this.imageUrl});
+
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl == null) {
+      return const DecoratedBox(
+        decoration: BoxDecoration(color: AppColors.surface),
+        child: Center(
+          child: Icon(Icons.tv_outlined, size: 40, color: AppColors.textMuted),
+        ),
+      );
+    }
+
+    return ServerNetworkImage(
+      imageUrl: imageUrl!,
+      fit: BoxFit.cover,
+      errorBuilder:
+          (BuildContext context, Object error, StackTrace? stackTrace) {
+            return const DecoratedBox(
+              decoration: BoxDecoration(color: AppColors.surface),
+              child: Center(
+                child: Icon(
+                  Icons.tv_outlined,
+                  size: 40,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            );
+          },
+    );
+  }
+}
+
+class _UpToDateCheck extends StatelessWidget {
+  const _UpToDateCheck();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.72),
+        shape: BoxShape.circle,
+      ),
+      child: const Padding(
+        padding: EdgeInsets.all(AppSpacing.xs),
+        child: Icon(Icons.check_rounded, size: 20, color: Colors.white),
+      ),
+    );
   }
 }
 
@@ -2711,4 +3256,43 @@ String _formatEpisodeCode(String value) {
     RegExp(r'^(S\d+)(E\d+)$'),
     (Match match) => '${match.group(1)} ${match.group(2)}',
   );
+}
+
+String _compactLastWatchedLabel(DateTime watchedAt) {
+  final DateTime now = DateTime.now();
+  final int days = now.difference(watchedAt).inDays;
+
+  if (days <= 0) {
+    return 'Last watched today';
+  }
+
+  if (days == 1) {
+    return 'Last watched yesterday';
+  }
+
+  if (days < 14) {
+    return 'Last watched $days days ago';
+  }
+
+  if (days < 60) {
+    final int weeks = days ~/ 7;
+
+    return weeks == 1
+        ? 'Last watched 1 week ago'
+        : 'Last watched $weeks weeks ago';
+  }
+
+  if (days < 365) {
+    final int months = days ~/ 30;
+
+    return months == 1
+        ? 'Last watched 1 month ago'
+        : 'Last watched $months months ago';
+  }
+
+  final int years = days ~/ 365;
+
+  return years == 1
+      ? 'Last watched 1 year ago'
+      : 'Last watched $years years ago';
 }
