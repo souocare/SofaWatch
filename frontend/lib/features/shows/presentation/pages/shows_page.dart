@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -12,7 +13,6 @@ import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 
@@ -222,13 +222,6 @@ class _ShowsPageState extends State<ShowsPage>
                         staleWatching: state.staleWatching,
                         staleWatchingError: state.staleWatchingError,
                         haventStarted: state.haventStarted,
-                        watchHistory: state.watchHistory,
-                        hasLoadedWatchHistory: state.hasLoadedWatchHistory,
-                        hasMoreWatchHistory: state.hasMoreWatchHistory,
-                        isLoadingWatchHistory: state.isLoadingWatchHistory,
-                        isLoadingMoreWatchHistory:
-                            state.isLoadingMoreWatchHistory,
-                        watchHistoryError: state.watchHistoryError,
                         updatingWatchNextEpisodeId:
                             state.updatingWatchNextEpisodeId,
                         startingShowId: state.startingShowId,
@@ -395,13 +388,7 @@ class _WatchListTab extends StatefulWidget {
     required this.staleWatching,
     required this.staleWatchingError,
     required this.haventStarted,
-    required this.watchHistory,
-    required this.hasLoadedWatchHistory,
-    required this.hasMoreWatchHistory,
     required this.upToDate,
-    required this.isLoadingWatchHistory,
-    required this.isLoadingMoreWatchHistory,
-    required this.watchHistoryError,
     required this.updatingWatchNextEpisodeId,
     required this.startingShowId,
     required this.updatingWatchHistoryEventId,
@@ -417,12 +404,6 @@ class _WatchListTab extends StatefulWidget {
   final List<LibraryShow> haventStarted;
   final List<LibraryShow> upToDate;
 
-  final List<WatchHistoryItem> watchHistory;
-  final bool hasLoadedWatchHistory;
-  final bool hasMoreWatchHistory;
-  final bool isLoadingWatchHistory;
-  final bool isLoadingMoreWatchHistory;
-  final Object? watchHistoryError;
   final String? startingShowId;
   final String? updatingWatchHistoryEventId;
 
@@ -431,8 +412,11 @@ class _WatchListTab extends StatefulWidget {
 }
 
 class _WatchListTabState extends State<_WatchListTab> {
-  static const double _loadMoreThreshold = 240;
   static const double _desktopContentMaxWidth = 1040;
+  static const int _haventStartedPreviewLimit = 5;
+
+  List<String> _haventStartedPreviewIds = <String>[];
+  bool _showAllHaventStarted = false;
 
   late final ScrollController _scrollController;
 
@@ -440,45 +424,57 @@ class _WatchListTabState extends State<_WatchListTab> {
   void initState() {
     super.initState();
 
-    _scrollController = ScrollController()..addListener(_handleScroll);
+    _scrollController = ScrollController();
+    _refreshHaventStartedPreview();
+  }
+
+  @override
+  void didUpdateWidget(covariant _WatchListTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final Set<String> previousIds = oldWidget.haventStarted
+        .map((LibraryShow show) => show.showId)
+        .toSet();
+
+    final Set<String> currentIds = widget.haventStarted
+        .map((LibraryShow show) => show.showId)
+        .toSet();
+
+    if (!setEquals(previousIds, currentIds)) {
+      _refreshHaventStartedPreview();
+    }
+  }
+
+  void _refreshHaventStartedPreview() {
+    final List<LibraryShow> shuffled = List<LibraryShow>.of(
+      widget.haventStarted,
+    )..shuffle();
+
+    _haventStartedPreviewIds = shuffled
+        .take(_haventStartedPreviewLimit)
+        .map((LibraryShow show) => show.showId)
+        .toList(growable: false);
+
+    _showAllHaventStarted = false;
+  }
+
+  List<LibraryShow> get _visibleHaventStarted {
+    if (_showAllHaventStarted) {
+      return widget.haventStarted;
+    }
+
+    final Set<String> selectedIds = _haventStartedPreviewIds.toSet();
+
+    return widget.haventStarted
+        .where((LibraryShow show) => selectedIds.contains(show.showId))
+        .toList(growable: false);
   }
 
   @override
   void dispose() {
-    _scrollController
-      ..removeListener(_handleScroll)
-      ..dispose();
+    _scrollController.dispose();
 
     super.dispose();
-  }
-
-  void _handleScroll() {
-    if (!_scrollController.hasClients) {
-      return;
-    }
-
-    final ScrollPosition position = _scrollController.position;
-
-    if (position.extentAfter > _loadMoreThreshold) {
-      return;
-    }
-
-    final ShowsCubit cubit = context.read<ShowsCubit>();
-    final ShowsState state = cubit.state;
-
-    if (state.watchHistoryError != null) {
-      return;
-    }
-
-    if (!state.hasLoadedWatchHistory) {
-      cubit.loadWatchHistory();
-
-      return;
-    }
-
-    if (state.hasMoreWatchHistory) {
-      cubit.loadMoreWatchHistory();
-    }
   }
 
   @override
@@ -541,10 +537,17 @@ class _WatchListTabState extends State<_WatchListTab> {
                     ],
 
                     _HaventStartedSection(
-                      items: widget.haventStarted,
+                      items: _visibleHaventStarted,
+                      totalItems: widget.haventStarted.length,
+                      isExpanded: _showAllHaventStarted,
                       startingShowId: widget.startingShowId,
                       onStart: (String showId) {
                         context.read<ShowsCubit>().startShow(showId: showId);
+                      },
+                      onSeeAll: () {
+                        setState(() {
+                          _showAllHaventStarted = !_showAllHaventStarted;
+                        });
                       },
                       isDesktop: isDesktop,
                     ),
@@ -559,47 +562,6 @@ class _WatchListTabState extends State<_WatchListTab> {
                     ),
 
                     const SizedBox(height: AppSpacing.section),
-
-                    _WatchHistorySection(
-                      items: widget.watchHistory,
-                      hasLoaded: widget.hasLoadedWatchHistory,
-                      hasMore: widget.hasMoreWatchHistory,
-                      isLoading: widget.isLoadingWatchHistory,
-                      isLoadingMore: widget.isLoadingMoreWatchHistory,
-                      hasError: widget.watchHistoryError != null,
-                      updatingEventId: widget.updatingWatchHistoryEventId,
-                      onRewatch:
-                          ({
-                            required String eventId,
-                            required String episodeId,
-                          }) {
-                            context
-                                .read<ShowsCubit>()
-                                .rewatchWatchHistoryEpisode(
-                                  eventId: eventId,
-                                  episodeId: episodeId,
-                                );
-                          },
-                      onMarkUnwatched:
-                          ({
-                            required String eventId,
-                            required String episodeId,
-                          }) {
-                            context
-                                .read<ShowsCubit>()
-                                .markWatchHistoryEpisodeUnwatched(
-                                  eventId: eventId,
-                                  episodeId: episodeId,
-                                );
-                          },
-                      onRetryInitial: context
-                          .read<ShowsCubit>()
-                          .retryWatchHistory,
-                      onRetryMore: context
-                          .read<ShowsCubit>()
-                          .loadMoreWatchHistory,
-                      isDesktop: isDesktop,
-                    ),
                   ],
                 ),
               ),
@@ -679,7 +641,7 @@ class _StaleWatchingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       key: ValueKey<String>('shows-stale-watching-${item.showTmdbId}'),
-      color: AppColors.surfaceHigh,
+      color: AppColors.surfaceSubtle,
       borderRadius: AppRadius.borderLarge,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -692,12 +654,15 @@ class _StaleWatchingRow extends StatelessWidget {
           );
         },
         child: Padding(
-          padding: AppSpacing.cardPadding,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               _WatchNextPoster(url: item.posterUrl, width: isDesktop ? 72 : 56),
-              const SizedBox(width: AppSpacing.lg),
+              const SizedBox(width: AppSpacing.md),
               Expanded(child: _StaleWatchingInformation(item: item)),
               const SizedBox(width: AppSpacing.md),
               const Icon(
@@ -723,7 +688,7 @@ class _StaleWatchingInformation extends StatelessWidget {
     final WatchNextEpisode nextEpisode = item.nextEpisode;
 
     final List<String> nextEpisodeMetadata = <String>[
-      nextEpisode.code,
+      _formatEpisodeCode(nextEpisode.code),
       if (nextEpisode.runtime != null) '${nextEpisode.runtime} min',
     ];
 
@@ -758,7 +723,7 @@ class _StaleWatchingInformation extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  '${lastWatched.code} • '
+                  '${_formatEpisodeCode(lastWatched.code)} • '
                   '${_lastWatchedLabel(lastWatched.watchedAt)}',
                   key: ValueKey<String>(
                     'shows-stale-watching-last-${item.showTmdbId}',
@@ -928,7 +893,7 @@ class _WatchNextSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       key: const ValueKey<String>('shows-watch-next-section'),
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Text(
           'Watch Next',
@@ -936,244 +901,264 @@ class _WatchNextSection extends StatelessWidget {
             context,
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
         ),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.md),
         if (hasError)
           _WatchNextFailure(onRetry: onRetry)
         else if (items.isEmpty)
           const _WatchNextEmpty()
         else
-          ..._buildItems(),
+          _WatchNextCarousel(
+            items: items,
+            updatingEpisodeId: updatingEpisodeId,
+            onMarkWatched: onMarkWatched,
+          ),
       ],
     );
   }
+}
 
-  List<Widget> _buildItems() {
-    final List<Widget> widgets = <Widget>[];
+class _WatchNextCarousel extends StatefulWidget {
+  const _WatchNextCarousel({
+    required this.items,
+    required this.updatingEpisodeId,
+    required this.onMarkWatched,
+  });
 
-    for (int index = 0; index < items.length; index++) {
-      final WatchNextShow item = items[index];
+  final List<WatchNextShow> items;
+  final String? updatingEpisodeId;
+  final ValueChanged<String> onMarkWatched;
 
-      if (index > 0) {
-        widgets.add(const SizedBox(height: AppSpacing.md));
-      }
+  @override
+  State<_WatchNextCarousel> createState() => _WatchNextCarouselState();
+}
 
-      widgets.add(
-        _WatchNextRow(
-          item: item,
-          isDesktop: isDesktop,
-          isMarkingWatched: updatingEpisodeId == item.nextEpisode.id,
-          onMarkWatched: () {
-            onMarkWatched(item.nextEpisode.id);
-          },
-        ),
-      );
-    }
+class _WatchNextCarouselState extends State<_WatchNextCarousel> {
+  static const double _mobileViewportFraction = 0.86;
+  static const double _artworkAspectRatio = 16 / 9;
+  static const double _metadataHeight = 64;
 
-    return widgets;
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _pageController = PageController(viewportFraction: _mobileViewportFraction);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double cardWidth = constraints.maxWidth * _mobileViewportFraction;
+
+        final double artworkHeight = cardWidth / _artworkAspectRatio;
+
+        final double carouselHeight =
+            artworkHeight + AppSpacing.sm + _metadataHeight;
+
+        return SizedBox(
+          height: carouselHeight,
+          child: PageView.builder(
+            key: const ValueKey<String>('shows-watch-next-carousel'),
+            controller: _pageController,
+            padEnds: false,
+            physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
+            itemCount: widget.items.length,
+            itemBuilder: (BuildContext context, int index) {
+              final WatchNextShow item = widget.items[index];
+
+              return Padding(
+                padding: EdgeInsets.only(
+                  right: index < widget.items.length - 1
+                      ? AppSpacing.md
+                      : AppSpacing.none,
+                ),
+                child: _WatchNextCard(
+                  item: item,
+                  isUpdating: widget.updatingEpisodeId == item.nextEpisode.id,
+                  onMarkWatched: () {
+                    widget.onMarkWatched(item.nextEpisode.id);
+                  },
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
   }
 }
 
-class _WatchNextRow extends StatelessWidget {
-  const _WatchNextRow({
+class _WatchNextCard extends StatelessWidget {
+  const _WatchNextCard({
     required this.item,
-    required this.isDesktop,
-    required this.isMarkingWatched,
+    required this.isUpdating,
     required this.onMarkWatched,
   });
 
   final WatchNextShow item;
-  final bool isDesktop;
-  final bool isMarkingWatched;
+  final bool isUpdating;
   final VoidCallback onMarkWatched;
 
   @override
   Widget build(BuildContext context) {
-    final episode = item.nextEpisode;
-
-    return Material(
-      key: ValueKey<String>('shows-watch-next-${item.showTmdbId}'),
-      color: AppColors.surfaceHigh,
-      borderRadius: AppRadius.borderLarge,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          context.pushNamed(
-            AppRoute.showDetails.name,
-            pathParameters: <String, String>{
-              'showId': item.showTmdbId.toString(),
-            },
-          );
-        },
-        child: Padding(
-          padding: AppSpacing.cardPadding,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              _WatchNextPoster(url: item.posterUrl, width: isDesktop ? 72 : 56),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(child: _WatchNextInformation(item: item)),
-              const SizedBox(width: AppSpacing.md),
-              _WatchNextMarkWatchedButton(
-                episodeId: episode.id,
-                isLoading: isMarkingWatched,
-                onPressed: onMarkWatched,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textMuted,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WatchNextMarkWatchedButton extends StatelessWidget {
-  const _WatchNextMarkWatchedButton({
-    required this.episodeId,
-    required this.isLoading,
-    required this.onPressed,
-  });
-
-  final String episodeId;
-  final bool isLoading;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: isLoading
-          ? 'Marking episode as watched'
-          : 'Mark episode as watched',
-      child: SizedBox(
-        width: 40,
-        height: 40,
-        child: isLoading
-            ? Center(
-                key: ValueKey<String>(
-                  'shows-watch-next-mark-watched-loading-$episodeId',
-                ),
-                child: const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              )
-            : IconButton(
-                key: ValueKey<String>(
-                  'shows-watch-next-mark-watched-$episodeId',
-                ),
-                onPressed: onPressed,
-                tooltip: 'Mark as watched',
-                icon: const Icon(
-                  Icons.check_rounded,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-      ),
-    );
-  }
-}
-
-class _WatchNextInformation extends StatelessWidget {
-  const _WatchNextInformation({required this.item});
-
-  final WatchNextShow item;
-
-  @override
-  Widget build(BuildContext context) {
-    final episode = item.nextEpisode;
-    final progress = item.progress;
-
-    final List<String> metadata = <String>[
-      episode.code,
-      if (episode.runtime != null) '${episode.runtime} min',
-      if (episode.airDate != null)
-        MaterialLocalizations.of(context).formatMediumDate(episode.airDate!),
-    ];
-
-    final double progressValue = progress.airedEpisodes > 0
-        ? progress.percentage / 100
-        : 0;
+    final WatchNextEpisode episode = item.nextEpisode;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(
-          item.showTitle,
-          key: ValueKey<String>('shows-watch-next-title-${item.showTmdbId}'),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        _EpisodeDetailsLink(
-          episodeId: episode.id,
-          linkKey: ValueKey<String>(
-            'shows-watch-next-episode-details-${episode.id}',
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  episode.title,
-                  key: ValueKey<String>(
-                    'shows-watch-next-episode-title-${episode.id}',
+        Material(
+          key: ValueKey<String>('shows-watch-next-${item.showTmdbId}'),
+          color: AppColors.surfaceHigh,
+          borderRadius: AppRadius.borderLarge,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            key: ValueKey<String>(
+              'shows-watch-next-episode-details-${episode.id}',
+            ),
+            onTap: () {
+              context.pushNamed(
+                AppRoute.episodeDetails.name,
+                pathParameters: <String, String>{'episodeId': episode.id},
+              );
+            },
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  _WatchNextArtwork(
+                    imageUrl: episode.stillUrl ?? item.backdropUrl,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  metadata.join(' • '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        0,
+                        AppSpacing.md,
+                        AppSpacing.sm,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: AppRadius.borderFull,
+                        child: LinearProgressIndicator(
+                          value: item.progress.percentage / 100,
+                          minHeight: 6,
+                          backgroundColor: AppColors.progressTrack,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColors.progressValue,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Expanded(
-              child: ClipRRect(
-                borderRadius: AppRadius.borderSmall,
-                child: LinearProgressIndicator(
-                  key: ValueKey<String>(
-                    'shows-watch-next-progress-${item.showTmdbId}',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    item.showTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  value: progressValue,
-                  minHeight: 4,
-                  backgroundColor: AppColors.surfaceLow,
-                ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    '${_formatEpisodeCode(episode.code)} • '
+                    '${episode.title}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            Text(
-              '${progress.watchedEpisodes}/${progress.airedEpisodes}',
-              key: ValueKey<String>(
-                'shows-watch-next-progress-label-${item.showTmdbId}',
+            if (isUpdating)
+              SizedBox(
+                key: ValueKey<String>(
+                  'shows-watch-next-mark-watched-loading-${episode.id}',
+                ),
+                width: 40,
+                height: 40,
+                child: const Center(
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              )
+            else
+              IconButton(
+                key: ValueKey<String>(
+                  'shows-watch-next-mark-watched-${episode.id}',
+                ),
+                tooltip: 'Mark as watched',
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                padding: EdgeInsets.zero,
+                onPressed: onMarkWatched,
+                icon: const Icon(Icons.check_circle_outline_rounded, size: 30),
               ),
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-            ),
           ],
         ),
       ],
+    );
+  }
+}
+
+class _WatchNextArtwork extends StatelessWidget {
+  const _WatchNextArtwork({required this.imageUrl});
+
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(color: AppColors.surface),
+      child: imageUrl == null
+          ? const Center(
+              child: Icon(
+                Icons.tv_outlined,
+                size: 48,
+                color: AppColors.textMuted,
+              ),
+            )
+          : ServerNetworkImage(
+              imageUrl: imageUrl!,
+              fit: BoxFit.cover,
+              errorBuilder:
+                  (BuildContext context, Object error, StackTrace? stackTrace) {
+                    return const Center(
+                      child: Icon(
+                        Icons.tv_outlined,
+                        size: 48,
+                        color: AppColors.textMuted,
+                      ),
+                    );
+                  },
+            ),
     );
   }
 }
@@ -1274,433 +1259,6 @@ class _WatchNextFailure extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-typedef _WatchHistoryEpisodeAction =
-    void Function({required String eventId, required String episodeId});
-
-class _WatchHistorySection extends StatelessWidget {
-  const _WatchHistorySection({
-    required this.items,
-    required this.hasLoaded,
-    required this.hasMore,
-    required this.isLoading,
-    required this.isLoadingMore,
-    required this.hasError,
-    required this.onRetryInitial,
-    required this.onRetryMore,
-    required this.isDesktop,
-    required this.updatingEventId,
-    required this.onRewatch,
-    required this.onMarkUnwatched,
-  });
-
-  final List<WatchHistoryItem> items;
-  final bool hasLoaded;
-  final bool hasMore;
-  final bool isLoading;
-  final bool isLoadingMore;
-  final bool hasError;
-
-  final VoidCallback onRetryInitial;
-  final VoidCallback onRetryMore;
-
-  final bool isDesktop;
-  final String? updatingEventId;
-  final _WatchHistoryEpisodeAction onRewatch;
-  final _WatchHistoryEpisodeAction onMarkUnwatched;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      key: const ValueKey<String>('shows-watch-history-section'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          'Watch History',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          'Episodes you have watched, from newest to oldest.',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-
-        if (!hasLoaded && isLoading)
-          const _WatchHistoryLoading()
-        else if (!hasLoaded && hasError)
-          _WatchHistoryFailure(onRetry: onRetryInitial)
-        else if (!hasLoaded)
-          const _WatchHistoryNotLoaded()
-        else if (items.isEmpty)
-          const _WatchHistoryEmpty()
-        else ...<Widget>[
-          ..._buildItems(),
-          const SizedBox(height: AppSpacing.lg),
-          if (isLoadingMore)
-            const _WatchHistoryLoadingMore()
-          else if (hasError)
-            _WatchHistoryLoadMoreFailure(onRetry: onRetryMore)
-          else if (!hasMore)
-            const _WatchHistoryEnd(),
-        ],
-      ],
-    );
-  }
-
-  List<Widget> _buildItems() {
-    final List<Widget> widgets = <Widget>[];
-
-    for (int index = 0; index < items.length; index++) {
-      if (index > 0) {
-        widgets.add(const SizedBox(height: AppSpacing.md));
-      }
-
-      final WatchHistoryItem item = items[index];
-
-      widgets.add(
-        _WatchHistoryRow(
-          item: item,
-          isUpdating: updatingEventId == item.eventId,
-          onRewatch: () {
-            onRewatch(eventId: item.eventId, episodeId: item.episode.id);
-          },
-          onMarkUnwatched: () {
-            onMarkUnwatched(eventId: item.eventId, episodeId: item.episode.id);
-          },
-          isDesktop: isDesktop,
-        ),
-      );
-    }
-
-    return widgets;
-  }
-}
-
-class _WatchHistoryRow extends StatelessWidget {
-  const _WatchHistoryRow({
-    required this.item,
-    required this.isUpdating,
-    required this.onRewatch,
-    required this.onMarkUnwatched,
-    required this.isDesktop,
-  });
-
-  final WatchHistoryItem item;
-  final bool isUpdating;
-  final VoidCallback onRewatch;
-  final VoidCallback onMarkUnwatched;
-  final bool isDesktop;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      key: ValueKey<String>('shows-watch-history-${item.eventId}'),
-      color: AppColors.surfaceHigh,
-      borderRadius: AppRadius.borderLarge,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: isUpdating
-            ? null
-            : () {
-                context.pushNamed(
-                  AppRoute.showDetails.name,
-                  pathParameters: <String, String>{
-                    'showId': item.showTmdbId.toString(),
-                  },
-                );
-              },
-        child: Padding(
-          padding: AppSpacing.cardPadding,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              _WatchNextPoster(url: item.posterUrl, width: isDesktop ? 72 : 56),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(child: _WatchHistoryInformation(item: item)),
-              const SizedBox(width: AppSpacing.md),
-              if (isUpdating)
-                SizedBox(
-                  key: ValueKey<String>(
-                    'shows-watch-history-progress-${item.eventId}',
-                  ),
-                  width: 40,
-                  height: 40,
-                  child: const Center(
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                )
-              else ...<Widget>[
-                IconButton(
-                  key: ValueKey<String>(
-                    'shows-watch-history-rewatch-${item.eventId}',
-                  ),
-                  tooltip: 'Watched again',
-                  onPressed: onRewatch,
-                  icon: const Icon(
-                    Icons.replay_rounded,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                IconButton(
-                  key: ValueKey<String>(
-                    'shows-watch-history-unwatched-${item.eventId}',
-                  ),
-                  tooltip: 'Mark as unwatched',
-                  onPressed: onMarkUnwatched,
-                  icon: const Icon(
-                    Icons.visibility_off_outlined,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WatchHistoryInformation extends StatelessWidget {
-  const _WatchHistoryInformation({required this.item});
-
-  final WatchHistoryItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final episode = item.episode;
-
-    final List<String> metadata = <String>[
-      episode.code,
-      if (episode.runtime != null) '${episode.runtime} min',
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          item.showTitle,
-          key: ValueKey<String>('shows-watch-history-title-${item.eventId}'),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        _EpisodeDetailsLink(
-          episodeId: episode.id,
-          linkKey: ValueKey<String>(
-            'shows-watch-history-episode-details-${episode.id}',
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  episode.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  metadata.join(' • '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Watched ${MaterialLocalizations.of(context).formatMediumDate(episode.watchedAt)}',
-          key: ValueKey<String>('shows-watch-history-date-${item.eventId}'),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-        ),
-      ],
-    );
-  }
-}
-
-class _WatchHistoryNotLoaded extends StatelessWidget {
-  const _WatchHistoryNotLoaded();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      key: const ValueKey<String>('shows-watch-history-not-loaded'),
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
-      child: Text(
-        'Scroll down to load your Watch History.',
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-      ),
-    );
-  }
-}
-
-class _WatchHistoryLoading extends StatelessWidget {
-  const _WatchHistoryLoading();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      key: ValueKey<String>('shows-watch-history-loading'),
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-        child: CircularProgressIndicator(),
-      ),
-    );
-  }
-}
-
-class _WatchHistoryLoadingMore extends StatelessWidget {
-  const _WatchHistoryLoadingMore();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      key: ValueKey<String>('shows-watch-history-loading-more'),
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-        child: CircularProgressIndicator(),
-      ),
-    );
-  }
-}
-
-class _WatchHistoryEmpty extends StatelessWidget {
-  const _WatchHistoryEmpty();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      key: const ValueKey<String>('shows-watch-history-empty'),
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
-      child: Text(
-        'No watched episodes yet.',
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-      ),
-    );
-  }
-}
-
-class _WatchHistoryFailure extends StatelessWidget {
-  const _WatchHistoryFailure({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return _WatchHistoryErrorCard(
-      cardKey: const ValueKey<String>('shows-watch-history-failure'),
-      message: 'Could not load Watch History.',
-      buttonKey: const ValueKey<String>('shows-watch-history-retry'),
-      onRetry: onRetry,
-    );
-  }
-}
-
-class _WatchHistoryLoadMoreFailure extends StatelessWidget {
-  const _WatchHistoryLoadMoreFailure({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return _WatchHistoryErrorCard(
-      cardKey: const ValueKey<String>('shows-watch-history-load-more-failure'),
-      message: 'Could not load older history.',
-      buttonKey: const ValueKey<String>('shows-watch-history-load-more-retry'),
-      onRetry: onRetry,
-    );
-  }
-}
-
-class _WatchHistoryErrorCard extends StatelessWidget {
-  const _WatchHistoryErrorCard({
-    required this.cardKey,
-    required this.message,
-    required this.buttonKey,
-    required this.onRetry,
-  });
-
-  final Key cardKey;
-  final String message;
-  final Key buttonKey;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      key: cardKey,
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderLarge,
-      ),
-      child: Padding(
-        padding: AppSpacing.cardPadding,
-        child: Row(
-          children: <Widget>[
-            const Icon(Icons.error_outline_rounded, color: AppColors.textMuted),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Text(
-                message,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            TextButton(
-              key: buttonKey,
-              onPressed: onRetry,
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WatchHistoryEnd extends StatelessWidget {
-  const _WatchHistoryEnd();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      key: const ValueKey<String>('shows-watch-history-end'),
-      child: Text(
-        'That is your complete Watch History.',
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
       ),
     );
   }
@@ -2729,12 +2287,18 @@ class _HaventStartedSection extends StatelessWidget {
     required this.startingShowId,
     required this.onStart,
     required this.isDesktop,
+    required this.totalItems,
+    required this.isExpanded,
+    required this.onSeeAll,
   });
 
   final List<LibraryShow> items;
   final String? startingShowId;
   final ValueChanged<String> onStart;
   final bool isDesktop;
+  final int totalItems;
+  final bool isExpanded;
+  final VoidCallback onSeeAll;
 
   @override
   Widget build(BuildContext context) {
@@ -2742,11 +2306,23 @@ class _HaventStartedSection extends StatelessWidget {
       key: const ValueKey<String>('shows-havent-started-section'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(
-          "Haven't Started",
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                "Haven't Started",
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            if (totalItems > _WatchListTabState._haventStartedPreviewLimit)
+              TextButton(
+                key: const ValueKey<String>('shows-havent-started-see-all'),
+                onPressed: onSeeAll,
+                child: Text(isExpanded ? 'Show Less' : 'See All'),
+              ),
+          ],
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
@@ -2803,7 +2379,7 @@ class _HaventStartedRow extends StatelessWidget {
     final bool canStart = show.firstAvailableEpisode != null;
     return Material(
       key: ValueKey<String>('shows-havent-started-${show.tmdbId}'),
-      color: AppColors.surfaceHigh,
+      color: AppColors.surfaceSubtle,
       borderRadius: AppRadius.borderLarge,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -2818,12 +2394,15 @@ class _HaventStartedRow extends StatelessWidget {
                 );
               },
         child: Padding(
-          padding: AppSpacing.cardPadding,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               _WatchNextPoster(url: show.posterUrl, width: isDesktop ? 72 : 56),
-              const SizedBox(width: AppSpacing.lg),
+              const SizedBox(width: AppSpacing.md),
               Expanded(child: _HaventStartedInformation(show: show)),
               const SizedBox(width: AppSpacing.md),
               FilledButton.tonalIcon(
@@ -2866,7 +2445,7 @@ class _HaventStartedInformation extends StatelessWidget {
     ];
 
     final List<String> episodeMetadata = <String>[
-      if (firstEpisode != null) firstEpisode.code,
+      if (firstEpisode != null) _formatEpisodeCode(firstEpisode.code),
       if (firstEpisode?.runtime != null) '${firstEpisode!.runtime} min',
     ];
 
@@ -3125,4 +2704,11 @@ class _EpisodeDetailsLink extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatEpisodeCode(String value) {
+  return value.replaceFirstMapped(
+    RegExp(r'^(S\d+)(E\d+)$'),
+    (Match match) => '${match.group(1)} ${match.group(2)}',
+  );
 }

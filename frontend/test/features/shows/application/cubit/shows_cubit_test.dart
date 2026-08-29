@@ -2099,6 +2099,12 @@ StaleWatchingShow _staleWatchingShow() {
       runtime: 52,
       stillUrl: null,
     ),
+    progress: const LibraryShowProgress(
+      watchedEpisodes: 4,
+      airedEpisodes: 10,
+      percentage: 40,
+      caughtUp: false,
+    ),
   );
 }
 
@@ -2943,6 +2949,12 @@ final class _ChangingRefreshRepository implements ShowsRepository {
         backdropUrl: base.backdropUrl,
         lastWatched: base.lastWatched,
         nextEpisode: base.nextEpisode,
+        progress: const LibraryShowProgress(
+          watchedEpisodes: 4,
+          airedEpisodes: 10,
+          percentage: 40,
+          caughtUp: false,
+        ),
       ),
     ];
   }

@@ -16,7 +16,6 @@ import 'package:sofawatch/features/shows/domain/models/stale_watching_episode.da
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_history_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
@@ -106,30 +105,33 @@ void main() {
 
       expect(find.text('Severance'), findsOneWidget);
 
-      expect(find.text("Woe's Hollow"), findsOneWidget);
+      expect(find.textContaining('S02 E04'), findsOneWidget);
 
-      expect(find.textContaining('S02E04'), findsOneWidget);
+      expect(find.textContaining("Woe's Hollow"), findsOneWidget);
 
-      expect(find.textContaining('52 min'), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey<String>('shows-watch-next-progress-95396')),
-        findsOneWidget,
+      final Finder watchNextCard = find.byKey(
+        const ValueKey<String>('shows-watch-next-95396'),
       );
 
+      expect(watchNextCard, findsOneWidget);
+
       expect(
-        find.byKey(
-          const ValueKey<String>('shows-watch-next-progress-label-95396'),
+        find.descendant(
+          of: watchNextCard,
+          matching: find.byType(LinearProgressIndicator),
         ),
         findsOneWidget,
       );
 
-      expect(find.text('7/10'), findsOneWidget);
+      final Finder progressIndicatorFinder = find.descendant(
+        of: watchNextCard,
+        matching: find.byType(LinearProgressIndicator),
+      );
+
+      expect(progressIndicatorFinder, findsOneWidget);
+
       final LinearProgressIndicator progressIndicator = tester
-          .widget<LinearProgressIndicator>(
-            find.byKey(
-              const ValueKey<String>('shows-watch-next-progress-95396'),
-            ),
-          );
+          .widget<LinearProgressIndicator>(progressIndicatorFinder);
 
       expect(progressIndicator.value, 0.7);
     });
@@ -333,42 +335,6 @@ void main() {
       );
     });
 
-    testWidgets('opens Show Details from Watch Next', (
-      WidgetTester tester,
-    ) async {
-      final ShowsCubit cubit = ShowsCubit(
-        repository: _FakeShowsRepository(
-          shows: <LibraryShow>[_show],
-          watchNext: <WatchNextShow>[_watchNextShow],
-        ),
-      );
-
-      addTearDown(cubit.close);
-
-      await cubit.load();
-
-      final GoRouter router = _buildRouter(cubit: cubit);
-
-      addTearDown(router.dispose);
-
-      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-
-      await tester.pumpAndSettle();
-
-      await tester.tap(
-        find.byKey(const ValueKey<String>('shows-watch-next-title-95396')),
-      );
-
-      await tester.pumpAndSettle();
-
-      expect(
-        find.byKey(const ValueKey<String>('fake-show-details')),
-        findsOneWidget,
-      );
-
-      expect(find.text('Show 95396'), findsOneWidget);
-    });
-
     testWidgets('shows Watch Next failure without failing the whole page', (
       WidgetTester tester,
     ) async {
@@ -511,7 +477,7 @@ void main() {
 
       expect(find.text('The Last of Us'), findsOneWidget);
 
-      expect(find.textContaining('S01E04'), findsOneWidget);
+      expect(find.textContaining('S01 E04'), findsOneWidget);
 
       expect(find.text('Please Hold to My Hand'), findsOneWidget);
     });
@@ -542,6 +508,12 @@ void main() {
           episodeNumber: 4,
           title: "Woe's Hollow",
           runtime: 52,
+        ),
+        progress: const LibraryShowProgress(
+          watchedEpisodes: 4,
+          airedEpisodes: 10,
+          percentage: 40,
+          caughtUp: false,
         ),
       );
 
@@ -686,8 +658,13 @@ void main() {
 
       final Finder watchListScrollable = find.descendant(
         of: watchList,
-        matching: find.byType(Scrollable),
+        matching: find.byWidgetPredicate(
+          (Widget widget) =>
+              widget is Scrollable &&
+              widget.axisDirection == AxisDirection.down,
+        ),
       );
+      expect(watchListScrollable, findsOneWidget);
 
       await tester.scrollUntilVisible(
         find.byKey(const ValueKey<String>('shows-stale-watching-failure')),
@@ -732,8 +709,14 @@ void main() {
 
       final Finder watchListScrollable = find.descendant(
         of: watchList,
-        matching: find.byType(Scrollable),
+        matching: find.byWidgetPredicate(
+          (Widget widget) =>
+              widget is Scrollable &&
+              widget.axisDirection == AxisDirection.down,
+        ),
       );
+
+      expect(watchListScrollable, findsOneWidget);
 
       final Finder failure = find.byKey(
         const ValueKey<String>('shows-stale-watching-failure'),
@@ -862,7 +845,7 @@ void main() {
 
       expect(find.text('Breaking Bad'), findsOneWidget);
 
-      expect(find.text('S01E01 • 58 min'), findsOneWidget);
+      expect(find.text('S01 E01 • 58 min'), findsOneWidget);
       expect(find.text('Pilot'), findsOneWidget);
 
       expect(
@@ -1249,250 +1232,7 @@ void main() {
 
       expect(find.text('Show 1396'), findsOneWidget);
     });
-    testWidgets('loads Watch History when scrolling near the bottom', (
-      WidgetTester tester,
-    ) async {
-      final _WatchHistoryTrackingRepository repository =
-          _WatchHistoryTrackingRepository(
-            shows: <LibraryShow>[_show],
-            firstPage: WatchHistoryPage(
-              items: <WatchHistoryItem>[
-                _watchHistoryItem(
-                  eventId: 'watch-event-1',
-                  episodeId: 'history-1',
-                  episodeNumber: 4,
-                  title: "Woe's Hollow",
-                ),
-              ],
-              nextCursor: null,
-              hasMore: false,
-            ),
-          );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
-
-      addTearDown(cubit.close);
-
-      await cubit.load();
-
-      await tester.pumpWidget(_buildTestApp(cubit: cubit));
-      await tester.pumpAndSettle();
-
-      expect(repository.watchHistoryCalls, 0);
-
-      await _scrollWatchListNearBottom(tester);
-
-      expect(repository.watchHistoryCalls, 1);
-
-      expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-1')),
-        findsOneWidget,
-      );
-
-      expect(find.text("Woe's Hollow"), findsOneWidget);
-      expect(find.textContaining('S02E04'), findsOneWidget);
-    });
-
-    testWidgets('loads more Watch History while preserving existing items', (
-      WidgetTester tester,
-    ) async {
-      final _PaginatedWatchHistoryRepository repository =
-          _PaginatedWatchHistoryRepository(shows: <LibraryShow>[_show]);
-
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
-
-      addTearDown(cubit.close);
-
-      await cubit.load();
-
-      await tester.pumpWidget(_buildTestApp(cubit: cubit));
-      await tester.pumpAndSettle();
-
-      await _scrollWatchListNearBottom(tester);
-
-      expect(repository.watchHistoryCalls, 1);
-
-      expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-1')),
-        findsOneWidget,
-      );
-
-      await _scrollWatchListNearBottom(tester);
-
-      expect(repository.watchHistoryCalls, 2);
-
-      expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-1')),
-        findsOneWidget,
-      );
-
-      expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-2')),
-        findsOneWidget,
-      );
-
-      expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-end')),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('shows Watch History empty state without retry loop', (
-      WidgetTester tester,
-    ) async {
-      final _WatchHistoryTrackingRepository repository =
-          _WatchHistoryTrackingRepository(
-            shows: <LibraryShow>[_show],
-            firstPage: const WatchHistoryPage(
-              items: <WatchHistoryItem>[],
-              nextCursor: null,
-              hasMore: false,
-            ),
-          );
-
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
-
-      addTearDown(cubit.close);
-
-      await cubit.load();
-
-      await tester.pumpWidget(_buildTestApp(cubit: cubit));
-      await tester.pumpAndSettle();
-
-      await _scrollWatchListNearBottom(tester);
-
-      expect(repository.watchHistoryCalls, 1);
-
-      expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-empty')),
-        findsOneWidget,
-      );
-
-      await _scrollWatchListNearBottom(tester);
-
-      expect(
-        repository.watchHistoryCalls,
-        1,
-        reason: 'An empty loaded History must not be requested repeatedly.',
-      );
-    });
-
-    testWidgets('retries initial Watch History failure', (
-      WidgetTester tester,
-    ) async {
-      final _RetryWatchHistoryRepository repository =
-          _RetryWatchHistoryRepository(shows: <LibraryShow>[_show]);
-
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
-
-      addTearDown(cubit.close);
-
-      await cubit.load();
-
-      await tester.pumpWidget(_buildTestApp(cubit: cubit));
-      await tester.pumpAndSettle();
-
-      await _scrollWatchListNearBottom(tester);
-
-      expect(repository.watchHistoryCalls, 1);
-
-      expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-failure')),
-        findsOneWidget,
-      );
-
-      final Finder retryButton = find.byKey(
-        const ValueKey<String>('shows-watch-history-retry'),
-      );
-
-      await tester.ensureVisible(retryButton);
-      await tester.pumpAndSettle();
-
-      await tester.tap(retryButton);
-      await tester.pumpAndSettle();
-
-      expect(repository.watchHistoryCalls, 2);
-
-      expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-failure')),
-        findsNothing,
-      );
-
-      expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-1')),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('preserves Watch History and retries failed pagination', (
-      WidgetTester tester,
-    ) async {
-      final _RetryWatchHistoryPaginationRepository repository =
-          _RetryWatchHistoryPaginationRepository(shows: <LibraryShow>[_show]);
-
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
-
-      addTearDown(cubit.close);
-
-      await cubit.load();
-
-      await tester.pumpWidget(_buildTestApp(cubit: cubit));
-      await tester.pumpAndSettle();
-
-      await _scrollWatchListNearBottom(tester);
-
-      expect(repository.watchHistoryCalls, 1);
-
-      expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-1')),
-        findsOneWidget,
-      );
-
-      await _scrollWatchListNearBottom(tester);
-
-      expect(repository.watchHistoryCalls, 2);
-
-      expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-1')),
-        findsOneWidget,
-      );
-
-      expect(
-        find.byKey(
-          const ValueKey<String>('shows-watch-history-load-more-failure'),
-        ),
-        findsOneWidget,
-      );
-
-      final Finder retryButton = find.byKey(
-        const ValueKey<String>('shows-watch-history-load-more-retry'),
-      );
-
-      await tester.ensureVisible(retryButton);
-      await tester.pumpAndSettle();
-
-      await tester.tap(retryButton);
-      await tester.pumpAndSettle();
-
-      expect(repository.watchHistoryCalls, 3);
-
-      expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-1')),
-        findsOneWidget,
-      );
-
-      expect(
-        find.byKey(const ValueKey<String>('shows-watch-history-watch-event-2')),
-        findsOneWidget,
-      );
-
-      expect(
-        find.byKey(
-          const ValueKey<String>('shows-watch-history-load-more-failure'),
-        ),
-        findsNothing,
-      );
-    });
     testWidgets('marks Watch Next Episode as watched', (
       WidgetTester tester,
     ) async {
@@ -1684,125 +1424,7 @@ void main() {
         expect(button.onPressed, isNull);
       },
     );
-    testWidgets('rewatches an Episode directly from Watch History', (
-      WidgetTester tester,
-    ) async {
-      final _RewatchWatchHistoryRepository repository =
-          _RewatchWatchHistoryRepository(shows: <LibraryShow>[_show]);
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
-      addTearDown(cubit.close);
-
-      await cubit.load();
-
-      await tester.pumpWidget(_buildTestApp(cubit: cubit));
-      await tester.pumpAndSettle();
-
-      expect(
-        repository.watchHistoryCalls,
-        0,
-        reason: 'Watch History is loaded lazily.',
-      );
-
-      await _scrollWatchListNearBottom(tester);
-
-      expect(repository.watchHistoryCalls, 1);
-
-      final Finder rewatchButton = find.byKey(
-        const ValueKey<String>('shows-watch-history-rewatch-watch-event-old'),
-      );
-
-      expect(rewatchButton, findsOneWidget);
-
-      await tester.ensureVisible(rewatchButton);
-      await tester.pumpAndSettle();
-
-      await tester.tap(rewatchButton);
-      await tester.pumpAndSettle();
-
-      expect(repository.markEpisodeWatchedCalls, 1);
-      expect(repository.markedEpisodeIds, <String>['episode-1']);
-
-      expect(
-        repository.watchHistoryCalls,
-        2,
-        reason: 'Rewatch must refresh Watch History from the backend.',
-      );
-
-      expect(
-        find.byKey(
-          const ValueKey<String>('shows-watch-history-watch-event-new'),
-        ),
-        findsOneWidget,
-      );
-
-      expect(
-        find.byKey(
-          const ValueKey<String>('shows-watch-history-watch-event-old'),
-        ),
-        findsOneWidget,
-      );
-    });
-    testWidgets('preserves Watch History when rewatch fails', (
-      WidgetTester tester,
-    ) async {
-      final _RewatchWatchHistoryFailureRepository repository =
-          _RewatchWatchHistoryFailureRepository(shows: <LibraryShow>[_show]);
-
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
-      addTearDown(cubit.close);
-
-      await cubit.load();
-
-      await tester.pumpWidget(_buildTestApp(cubit: cubit));
-      await tester.pumpAndSettle();
-
-      await _scrollWatchListNearBottom(tester);
-
-      expect(repository.watchHistoryCalls, 1);
-
-      final Finder historyRow = find.byKey(
-        const ValueKey<String>('shows-watch-history-watch-event-old'),
-      );
-
-      final Finder rewatchButton = find.byKey(
-        const ValueKey<String>('shows-watch-history-rewatch-watch-event-old'),
-      );
-
-      expect(historyRow, findsOneWidget);
-      expect(rewatchButton, findsOneWidget);
-
-      await tester.ensureVisible(rewatchButton);
-      await tester.pumpAndSettle();
-
-      await tester.tap(rewatchButton);
-      await tester.pumpAndSettle();
-
-      expect(repository.markEpisodeWatchedCalls, 1);
-
-      expect(
-        repository.watchHistoryCalls,
-        1,
-        reason:
-            'Watch History must not be replaced or reloaded after the mutation itself fails.',
-      );
-
-      expect(
-        historyRow,
-        findsOneWidget,
-        reason: 'A failed rewatch must preserve the existing History row.',
-      );
-
-      expect(find.text('Could not update Watch History.'), findsOneWidget);
-
-      expect(
-        find.byKey(
-          const ValueKey<String>('shows-watch-history-rewatch-watch-event-old'),
-        ),
-        findsOneWidget,
-        reason: 'The Rewatch action must become available again after failure.',
-      );
-    });
     testWidgets(
       'loads earlier Upcoming episodes when user scrolls back to the top',
       (WidgetTester tester) async {
@@ -3618,18 +3240,6 @@ void main() {
   });
 }
 
-Future<void> _scrollWatchListNearBottom(WidgetTester tester) async {
-  final Finder watchList = find.byKey(
-    const ValueKey<String>('shows-watch-list'),
-  );
-
-  expect(watchList, findsOneWidget);
-
-  await tester.drag(watchList, const Offset(0, -1000));
-
-  await tester.pumpAndSettle();
-}
-
 void _setTestViewport(WidgetTester tester, {required Size size}) {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = size;
@@ -3732,34 +3342,6 @@ final WatchNextShow _watchNextShow = WatchNextShow(
   ),
 );
 
-WatchHistoryItem _watchHistoryItem({
-  required String episodeId,
-  required int episodeNumber,
-  required String title,
-  String eventId = 'watch-event-1',
-}) {
-  return WatchHistoryItem(
-    showId: 'show-uuid',
-    eventId: eventId,
-    showTmdbId: 95396,
-    showTitle: 'Severance',
-    posterUrl: null,
-    backdropUrl: null,
-    episode: WatchHistoryEpisode(
-      id: episodeId,
-      tmdbId: 3000000 + episodeNumber,
-      seasonNumber: 2,
-      watchCount: 1,
-      episodeNumber: episodeNumber,
-      title: title,
-      watchedAt: DateTime.utc(2026, 8, 13, 20),
-      airDate: DateTime.utc(2026, 8, 10),
-      runtime: 52,
-      stillUrl: null,
-    ),
-  );
-}
-
 final LibraryShow _upToDateShow = LibraryShow(
   libraryEntryId: 'library-up-to-date',
   showId: 'show-up-to-date',
@@ -3807,6 +3389,12 @@ final StaleWatchingShow _staleWatchingShow = StaleWatchingShow(
     airDate: DateTime(2023, 2, 5),
     runtime: 46,
     stillUrl: null,
+  ),
+  progress: const LibraryShowProgress(
+    watchedEpisodes: 4,
+    airedEpisodes: 10,
+    percentage: 40,
+    caughtUp: false,
   ),
 );
 
@@ -4209,457 +3797,6 @@ final class _RetryStaleWatchingRepository implements ShowsRepository {
 
   @override
   Future<void> markEpisodeWatched({required String episodeId}) async {}
-
-  @override
-  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
-
-  @override
-  Future<void> startShow({required String showId}) async {}
-
-  @override
-  Future<List<UpcomingItem>> getMissedRecently() async {
-    return const <UpcomingItem>[];
-  }
-
-  @override
-  Future<List<UpcomingItem>> getUpcoming({
-    DateTime? fromDate,
-    DateTime? toDate,
-    int? limit,
-  }) async {
-    return const <UpcomingItem>[];
-  }
-}
-
-final class _WatchHistoryTrackingRepository implements ShowsRepository {
-  _WatchHistoryTrackingRepository({
-    required this.shows,
-    required this.firstPage,
-  });
-
-  final List<LibraryShow> shows;
-  final WatchHistoryPage firstPage;
-
-  int watchHistoryCalls = 0;
-
-  @override
-  Future<List<LibraryShow>> getLibraryShows() async => shows;
-
-  @override
-  Future<List<WatchNextShow>> getWatchNext({int? limit}) async =>
-      const <WatchNextShow>[];
-
-  @override
-  Future<List<StaleWatchingShow>> getStaleWatching() async =>
-      const <StaleWatchingShow>[];
-
-  @override
-  Future<WatchHistoryPage> getWatchHistory({
-    int limit = 30,
-    String? cursor,
-  }) async {
-    watchHistoryCalls++;
-
-    return firstPage;
-  }
-
-  @override
-  Future<void> markEpisodeWatched({required String episodeId}) async {}
-
-  @override
-  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
-
-  @override
-  Future<void> startShow({required String showId}) async {}
-
-  @override
-  Future<List<UpcomingItem>> getMissedRecently() async {
-    return const <UpcomingItem>[];
-  }
-
-  @override
-  Future<List<UpcomingItem>> getUpcoming({
-    DateTime? fromDate,
-    DateTime? toDate,
-    int? limit,
-  }) async {
-    return const <UpcomingItem>[];
-  }
-}
-
-final class _PaginatedWatchHistoryRepository implements ShowsRepository {
-  _PaginatedWatchHistoryRepository({required this.shows});
-
-  final List<LibraryShow> shows;
-
-  int watchHistoryCalls = 0;
-
-  @override
-  Future<List<LibraryShow>> getLibraryShows() async => shows;
-
-  @override
-  Future<List<WatchNextShow>> getWatchNext({int? limit}) async =>
-      const <WatchNextShow>[];
-
-  @override
-  Future<List<StaleWatchingShow>> getStaleWatching() async =>
-      const <StaleWatchingShow>[];
-
-  @override
-  Future<WatchHistoryPage> getWatchHistory({
-    int limit = 30,
-    String? cursor,
-  }) async {
-    watchHistoryCalls++;
-
-    if (cursor == null) {
-      return WatchHistoryPage(
-        items: <WatchHistoryItem>[
-          _watchHistoryItem(
-            eventId: 'watch-event-1',
-            episodeId: 'history-1',
-            episodeNumber: 4,
-            title: "Woe's Hollow",
-          ),
-        ],
-        nextCursor: 'cursor-1',
-        hasMore: true,
-      );
-    }
-
-    expect(cursor, 'cursor-1');
-
-    return WatchHistoryPage(
-      items: <WatchHistoryItem>[
-        _watchHistoryItem(
-          eventId: 'watch-event-2',
-          episodeId: 'history-2',
-          episodeNumber: 3,
-          title: 'Who Is Alive?',
-        ),
-      ],
-      nextCursor: null,
-      hasMore: false,
-    );
-  }
-
-  @override
-  Future<void> markEpisodeWatched({required String episodeId}) async {}
-
-  @override
-  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
-
-  @override
-  Future<void> startShow({required String showId}) async {}
-
-  @override
-  Future<List<UpcomingItem>> getMissedRecently() async {
-    return const <UpcomingItem>[];
-  }
-
-  @override
-  Future<List<UpcomingItem>> getUpcoming({
-    DateTime? fromDate,
-    DateTime? toDate,
-    int? limit,
-  }) async {
-    return const <UpcomingItem>[];
-  }
-}
-
-final class _RetryWatchHistoryRepository implements ShowsRepository {
-  _RetryWatchHistoryRepository({required this.shows});
-
-  final List<LibraryShow> shows;
-
-  int watchHistoryCalls = 0;
-
-  @override
-  Future<List<LibraryShow>> getLibraryShows() async => shows;
-
-  @override
-  Future<List<WatchNextShow>> getWatchNext({int? limit}) async =>
-      const <WatchNextShow>[];
-
-  @override
-  Future<List<StaleWatchingShow>> getStaleWatching() async =>
-      const <StaleWatchingShow>[];
-
-  @override
-  Future<WatchHistoryPage> getWatchHistory({
-    int limit = 30,
-    String? cursor,
-  }) async {
-    watchHistoryCalls++;
-
-    if (watchHistoryCalls == 1) {
-      throw const AppException.connection();
-    }
-
-    return WatchHistoryPage(
-      items: <WatchHistoryItem>[
-        _watchHistoryItem(
-          eventId: 'watch-event-1',
-          episodeId: 'history-1',
-          episodeNumber: 4,
-          title: "Woe's Hollow",
-        ),
-      ],
-      nextCursor: null,
-      hasMore: false,
-    );
-  }
-
-  @override
-  Future<void> markEpisodeWatched({required String episodeId}) async {}
-
-  @override
-  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
-
-  @override
-  Future<void> startShow({required String showId}) async {}
-
-  @override
-  Future<List<UpcomingItem>> getMissedRecently() async {
-    return const <UpcomingItem>[];
-  }
-
-  @override
-  Future<List<UpcomingItem>> getUpcoming({
-    DateTime? fromDate,
-    DateTime? toDate,
-    int? limit,
-  }) async {
-    return const <UpcomingItem>[];
-  }
-}
-
-final class _RetryWatchHistoryPaginationRepository implements ShowsRepository {
-  _RetryWatchHistoryPaginationRepository({required this.shows});
-
-  final List<LibraryShow> shows;
-
-  int watchHistoryCalls = 0;
-
-  @override
-  Future<List<LibraryShow>> getLibraryShows() async => shows;
-
-  @override
-  Future<List<WatchNextShow>> getWatchNext({int? limit}) async =>
-      const <WatchNextShow>[];
-
-  @override
-  Future<List<StaleWatchingShow>> getStaleWatching() async =>
-      const <StaleWatchingShow>[];
-
-  @override
-  Future<WatchHistoryPage> getWatchHistory({
-    int limit = 30,
-    String? cursor,
-  }) async {
-    watchHistoryCalls++;
-
-    if (cursor == null) {
-      return WatchHistoryPage(
-        items: <WatchHistoryItem>[
-          _watchHistoryItem(
-            eventId: 'watch-event-1',
-            episodeId: 'history-1',
-            episodeNumber: 4,
-            title: "Woe's Hollow",
-          ),
-        ],
-        nextCursor: 'cursor-1',
-        hasMore: true,
-      );
-    }
-
-    if (watchHistoryCalls == 2) {
-      throw const AppException.connection();
-    }
-
-    return WatchHistoryPage(
-      items: <WatchHistoryItem>[
-        _watchHistoryItem(
-          eventId: 'watch-event-2',
-          episodeId: 'history-2',
-          episodeNumber: 3,
-          title: 'Who Is Alive?',
-        ),
-      ],
-      nextCursor: null,
-      hasMore: false,
-    );
-  }
-
-  @override
-  Future<void> markEpisodeWatched({required String episodeId}) async {}
-
-  @override
-  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
-
-  @override
-  Future<void> startShow({required String showId}) async {}
-
-  @override
-  Future<List<UpcomingItem>> getMissedRecently() async {
-    return const <UpcomingItem>[];
-  }
-
-  @override
-  Future<List<UpcomingItem>> getUpcoming({
-    DateTime? fromDate,
-    DateTime? toDate,
-    int? limit,
-  }) async {
-    return const <UpcomingItem>[];
-  }
-}
-
-final class _RewatchWatchHistoryRepository implements ShowsRepository {
-  _RewatchWatchHistoryRepository({required this.shows});
-
-  final List<LibraryShow> shows;
-
-  int watchHistoryCalls = 0;
-  int markEpisodeWatchedCalls = 0;
-
-  final List<String> markedEpisodeIds = <String>[];
-
-  @override
-  Future<List<LibraryShow>> getLibraryShows() async {
-    return shows;
-  }
-
-  @override
-  Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
-    return const <WatchNextShow>[];
-  }
-
-  @override
-  Future<List<StaleWatchingShow>> getStaleWatching() async {
-    return const <StaleWatchingShow>[];
-  }
-
-  @override
-  Future<WatchHistoryPage> getWatchHistory({
-    int limit = 30,
-    String? cursor,
-  }) async {
-    watchHistoryCalls++;
-
-    if (watchHistoryCalls == 1) {
-      return WatchHistoryPage(
-        items: <WatchHistoryItem>[
-          _watchHistoryItem(
-            eventId: 'watch-event-old',
-            episodeId: 'episode-1',
-            episodeNumber: 4,
-            title: "Woe's Hollow",
-          ),
-        ],
-        nextCursor: null,
-        hasMore: false,
-      );
-    }
-
-    return WatchHistoryPage(
-      items: <WatchHistoryItem>[
-        _watchHistoryItem(
-          eventId: 'watch-event-new',
-          episodeId: 'episode-1',
-          episodeNumber: 4,
-          title: "Woe's Hollow",
-        ),
-        _watchHistoryItem(
-          eventId: 'watch-event-old',
-          episodeId: 'episode-1',
-          episodeNumber: 4,
-          title: "Woe's Hollow",
-        ),
-      ],
-      nextCursor: null,
-      hasMore: false,
-    );
-  }
-
-  @override
-  Future<void> markEpisodeWatched({required String episodeId}) async {
-    markEpisodeWatchedCalls++;
-    markedEpisodeIds.add(episodeId);
-  }
-
-  @override
-  Future<void> markEpisodeUnwatched({required String episodeId}) async {}
-
-  @override
-  Future<void> startShow({required String showId}) async {}
-
-  @override
-  Future<List<UpcomingItem>> getMissedRecently() async {
-    return const <UpcomingItem>[];
-  }
-
-  @override
-  Future<List<UpcomingItem>> getUpcoming({
-    DateTime? fromDate,
-    DateTime? toDate,
-    int? limit,
-  }) async {
-    return const <UpcomingItem>[];
-  }
-}
-
-final class _RewatchWatchHistoryFailureRepository implements ShowsRepository {
-  _RewatchWatchHistoryFailureRepository({required this.shows});
-
-  final List<LibraryShow> shows;
-
-  int watchHistoryCalls = 0;
-  int markEpisodeWatchedCalls = 0;
-
-  @override
-  Future<List<LibraryShow>> getLibraryShows() async {
-    return shows;
-  }
-
-  @override
-  Future<List<WatchNextShow>> getWatchNext({int? limit}) async {
-    return const <WatchNextShow>[];
-  }
-
-  @override
-  Future<List<StaleWatchingShow>> getStaleWatching() async {
-    return const <StaleWatchingShow>[];
-  }
-
-  @override
-  Future<WatchHistoryPage> getWatchHistory({
-    int limit = 30,
-    String? cursor,
-  }) async {
-    watchHistoryCalls++;
-
-    return WatchHistoryPage(
-      items: <WatchHistoryItem>[
-        _watchHistoryItem(
-          eventId: 'watch-event-old',
-          episodeId: 'episode-1',
-          episodeNumber: 4,
-          title: "Woe's Hollow",
-        ),
-      ],
-      nextCursor: null,
-      hasMore: false,
-    );
-  }
-
-  @override
-  Future<void> markEpisodeWatched({required String episodeId}) {
-    markEpisodeWatchedCalls++;
-
-    throw const AppException.connection();
-  }
 
   @override
   Future<void> markEpisodeUnwatched({required String episodeId}) async {}

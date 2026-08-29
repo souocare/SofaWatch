@@ -34,6 +34,7 @@ class WatchNextProgressResponse(BaseModel):
         ge=0,
         le=100,
     )
+    caught_up: bool
 
 
 class WatchNextShowResponse(BaseModel):

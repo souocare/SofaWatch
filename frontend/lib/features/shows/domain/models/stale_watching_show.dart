@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
+import 'package:sofawatch/features/shows/domain/models/library_show_progress.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
 
@@ -12,6 +13,7 @@ final class StaleWatchingShow extends Equatable {
     required this.showTitle,
     required this.lastWatched,
     required this.nextEpisode,
+    required this.progress,
     this.posterUrl,
     this.backdropUrl,
   });
@@ -28,6 +30,7 @@ final class StaleWatchingShow extends Equatable {
 
   final StaleWatchingEpisode lastWatched;
   final WatchNextEpisode nextEpisode;
+  final LibraryShowProgress progress;
 
   @override
   List<Object?> get props => <Object?>[
@@ -40,5 +43,6 @@ final class StaleWatchingShow extends Equatable {
     backdropUrl,
     lastWatched,
     nextEpisode,
+    progress,
   ];
 }

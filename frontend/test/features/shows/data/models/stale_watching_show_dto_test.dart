@@ -38,6 +38,12 @@ void main() {
             'runtime': 51,
             'still_url': 'https://example.com/next.jpg',
           },
+          'progress': <String, dynamic>{
+            'watched_episodes': 3,
+            'aired_episodes': 10,
+            'percentage': 30.0,
+            'caught_up': false,
+          },
         },
       ).toDomain();
 
@@ -63,6 +69,10 @@ void main() {
       expect(result.nextEpisode.code, 'S01E04');
 
       expect(result.nextEpisode.title, 'The You You Are');
+      expect(result.progress.watchedEpisodes, 3);
+      expect(result.progress.airedEpisodes, 10);
+      expect(result.progress.percentage, 30.0);
+      expect(result.progress.caughtUp, isFalse);
     });
 
     test('supports optional image and Episode metadata', () {
@@ -98,6 +108,12 @@ void main() {
             'runtime': null,
             'still_url': null,
           },
+          'progress': <String, dynamic>{
+            'watched_episodes': 3,
+            'aired_episodes': 10,
+            'percentage': 30.0,
+            'caught_up': false,
+          },
         },
       ).toDomain();
 
@@ -111,6 +127,10 @@ void main() {
       expect(result.nextEpisode.airDate, isNull);
 
       expect(result.nextEpisode.runtime, isNull);
+      expect(result.progress.watchedEpisodes, 3);
+      expect(result.progress.airedEpisodes, 10);
+      expect(result.progress.percentage, 30.0);
+      expect(result.progress.caughtUp, isFalse);
     });
 
     test('rejects malformed watched_at', () {
@@ -137,6 +157,12 @@ void main() {
             'season_number': 1,
             'episode_number': 4,
             'title': 'The You You Are',
+          },
+          'progress': <String, dynamic>{
+            'watched_episodes': 3,
+            'aired_episodes': 10,
+            'percentage': 30.0,
+            'caught_up': false,
           },
         });
       }, throwsA(isA<FormatException>()));

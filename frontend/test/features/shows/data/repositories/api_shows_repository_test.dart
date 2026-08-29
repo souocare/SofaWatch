@@ -382,6 +382,12 @@ void main() {
               'runtime': 51,
               'still_url': 'https://example.com/next.jpg',
             },
+            'progress': <String, dynamic>{
+              'watched_episodes': 3,
+              'aired_episodes': 10,
+              'percentage': 30.0,
+              'caught_up': false,
+            },
           },
         ]);
       });
@@ -408,6 +414,10 @@ void main() {
       expect(item.lastWatched.code, 'S01E03');
       expect(item.nextEpisode.code, 'S01E04');
       expect(item.nextEpisode.title, 'The You You Are');
+      expect(item.progress.watchedEpisodes, 3);
+      expect(item.progress.airedEpisodes, 10);
+      expect(item.progress.percentage, 30.0);
+      expect(item.progress.caughtUp, isFalse);
     });
 
     test('supports an empty stale Watching collection', () async {

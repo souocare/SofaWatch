@@ -4,6 +4,7 @@ from unittest.mock import Mock
 from uuid import UUID, uuid4
 
 from app.models.enums import LibraryStatus
+from app.repositories.episode import EpisodeRepository
 from app.repositories.episode_progress import (
     EpisodeProgressRepository,
     LastWatchedEpisode,
@@ -73,10 +74,14 @@ def create_episode(
 def create_service(
     *,
     library_repository: Mock,
+    episode_repository: Mock,
     progress_repository: Mock,
 ) -> StaleWatchingService:
+    """Create StaleWatchingService with mocked repositories."""
+
     return StaleWatchingService(
         library_repository=library_repository,
+        episode_repository=episode_repository,
         progress_repository=progress_repository,
     )
 
@@ -85,6 +90,7 @@ def test_includes_show_when_activity_and_pending_episode_are_stale() -> None:
     """Include a Watching Show inactive for more than 60 days."""
 
     library_repository = Mock(spec=LibraryRepository)
+    episode_repository = Mock(spec=EpisodeRepository)
     progress_repository = Mock(spec=EpisodeProgressRepository)
 
     show = create_show()
@@ -124,8 +130,17 @@ def test_includes_show_when_activity_and_pending_episode_are_stale() -> None:
         )
     }
 
+    episode_repository.get_aired_counts_by_show_ids.return_value = {
+        show.id: 10,
+    }
+
+    progress_repository.get_watched_aired_counts_by_show_ids.return_value = {
+        show.id: 4,
+    }
+
     service = create_service(
         library_repository=library_repository,
+        episode_repository=episode_repository,
         progress_repository=progress_repository,
     )
 
@@ -145,11 +160,17 @@ def test_includes_show_when_activity_and_pending_episode_are_stale() -> None:
 
     assert item.next_episode.episode_number == 4
 
+    assert item.progress.watched_episodes == 4
+    assert item.progress.aired_episodes == 10
+    assert item.progress.percentage == 40.0
+    assert item.progress.caught_up is False
+
 
 def test_excludes_show_when_pending_episode_is_recent() -> None:
     """Keep newly available content out of stale Watching."""
 
     library_repository = Mock(spec=LibraryRepository)
+    episode_repository = Mock(spec=EpisodeRepository)
     progress_repository = Mock(spec=EpisodeProgressRepository)
 
     show = create_show()
@@ -187,8 +208,17 @@ def test_excludes_show_when_pending_episode_is_recent() -> None:
         )
     }
 
+    episode_repository.get_aired_counts_by_show_ids.return_value = {
+        show.id: 10,
+    }
+
+    progress_repository.get_watched_aired_counts_by_show_ids.return_value = {
+        show.id: 8,
+    }
+
     service = create_service(
         library_repository=library_repository,
+        episode_repository=episode_repository,
         progress_repository=progress_repository,
     )
 
@@ -203,6 +233,7 @@ def test_excludes_show_when_last_watched_less_than_60_days_ago() -> None:
     """Exclude a Watching Show that was viewed recently."""
 
     library_repository = Mock(spec=LibraryRepository)
+    episode_repository = Mock(spec=EpisodeRepository)
     progress_repository = Mock(spec=EpisodeProgressRepository)
 
     show = create_show()
@@ -227,6 +258,7 @@ def test_excludes_show_when_last_watched_less_than_60_days_ago() -> None:
 
     service = create_service(
         library_repository=library_repository,
+        episode_repository=episode_repository,
         progress_repository=progress_repository,
     )
 
@@ -237,12 +269,15 @@ def test_excludes_show_when_last_watched_less_than_60_days_ago() -> None:
     assert result == []
 
     progress_repository.list_next_unwatched_for_shows.assert_not_called()
+    episode_repository.get_aired_counts_by_show_ids.assert_not_called()
+    progress_repository.get_watched_aired_counts_by_show_ids.assert_not_called()
 
 
 def test_excludes_show_that_has_never_been_started() -> None:
     """Exclude a Show when no watched Episode exists."""
 
     library_repository = Mock(spec=LibraryRepository)
+    episode_repository = Mock(spec=EpisodeRepository)
     progress_repository = Mock(spec=EpisodeProgressRepository)
 
     show = create_show()
@@ -254,6 +289,7 @@ def test_excludes_show_that_has_never_been_started() -> None:
 
     service = create_service(
         library_repository=library_repository,
+        episode_repository=episode_repository,
         progress_repository=progress_repository,
     )
 
@@ -264,12 +300,15 @@ def test_excludes_show_that_has_never_been_started() -> None:
     assert result == []
 
     progress_repository.list_next_unwatched_for_shows.assert_not_called()
+    episode_repository.get_aired_counts_by_show_ids.assert_not_called()
+    progress_repository.get_watched_aired_counts_by_show_ids.assert_not_called()
 
 
 def test_excludes_caught_up_show_without_next_unwatched_episode() -> None:
     """Exclude a stale Show that has no aired unwatched Episode left."""
 
     library_repository = Mock(spec=LibraryRepository)
+    episode_repository = Mock(spec=EpisodeRepository)
     progress_repository = Mock(spec=EpisodeProgressRepository)
 
     show = create_show()
@@ -296,6 +335,7 @@ def test_excludes_caught_up_show_without_next_unwatched_episode() -> None:
 
     service = create_service(
         library_repository=library_repository,
+        episode_repository=episode_repository,
         progress_repository=progress_repository,
     )
 
@@ -305,11 +345,15 @@ def test_excludes_caught_up_show_without_next_unwatched_episode() -> None:
 
     assert result == []
 
+    episode_repository.get_aired_counts_by_show_ids.assert_not_called()
+    progress_repository.get_watched_aired_counts_by_show_ids.assert_not_called()
+
 
 def test_orders_oldest_activity_first() -> None:
     """Order stale Shows by oldest watched activity first."""
 
     library_repository = Mock(spec=LibraryRepository)
+    episode_repository = Mock(spec=EpisodeRepository)
     progress_repository = Mock(spec=EpisodeProgressRepository)
 
     older_show = create_show(
@@ -392,8 +436,19 @@ def test_orders_oldest_activity_first() -> None:
         ),
     }
 
+    episode_repository.get_aired_counts_by_show_ids.return_value = {
+        older_show.id: 10,
+        newer_show.id: 20,
+    }
+
+    progress_repository.get_watched_aired_counts_by_show_ids.return_value = {
+        older_show.id: 4,
+        newer_show.id: 12,
+    }
+
     service = create_service(
         library_repository=library_repository,
+        episode_repository=episode_repository,
         progress_repository=progress_repository,
     )
 
@@ -409,17 +464,29 @@ def test_orders_oldest_activity_first() -> None:
     assert result[0].last_watched.watched_at == older_watched_at
     assert result[1].last_watched.watched_at == newer_watched_at
 
+    assert result[0].progress.watched_episodes == 4
+    assert result[0].progress.aired_episodes == 10
+    assert result[0].progress.percentage == 40.0
+    assert result[0].progress.caught_up is False
+
+    assert result[1].progress.watched_episodes == 12
+    assert result[1].progress.aired_episodes == 20
+    assert result[1].progress.percentage == 60.0
+    assert result[1].progress.caught_up is False
+
 
 def test_empty_watching_library_does_not_query_progress() -> None:
     """Avoid progress queries when there are no Watching Shows."""
 
     library_repository = Mock(spec=LibraryRepository)
+    episode_repository = Mock(spec=EpisodeRepository)
     progress_repository = Mock(spec=EpisodeProgressRepository)
 
     library_repository.list_shows_by_user.return_value = []
 
     service = create_service(
         library_repository=library_repository,
+        episode_repository=episode_repository,
         progress_repository=progress_repository,
     )
 
@@ -431,18 +498,22 @@ def test_empty_watching_library_does_not_query_progress() -> None:
 
     progress_repository.list_last_watched_for_shows.assert_not_called()
     progress_repository.list_next_unwatched_for_shows.assert_not_called()
+    episode_repository.get_aired_counts_by_show_ids.assert_not_called()
+    progress_repository.get_watched_aired_counts_by_show_ids.assert_not_called()
 
 
 def test_requests_only_watching_library_entries() -> None:
     """Stale Watching must read only Shows currently marked as Watching."""
 
     library_repository = Mock(spec=LibraryRepository)
+    episode_repository = Mock(spec=EpisodeRepository)
     progress_repository = Mock(spec=EpisodeProgressRepository)
 
     library_repository.list_shows_by_user.return_value = []
 
     service = create_service(
         library_repository=library_repository,
+        episode_repository=episode_repository,
         progress_repository=progress_repository,
     )
 
@@ -458,3 +529,8 @@ def test_requests_only_watching_library_entries() -> None:
         user_id,
         status=LibraryStatus.WATCHING,
     )
+
+    progress_repository.list_last_watched_for_shows.assert_not_called()
+    progress_repository.list_next_unwatched_for_shows.assert_not_called()
+    episode_repository.get_aired_counts_by_show_ids.assert_not_called()
+    progress_repository.get_watched_aired_counts_by_show_ids.assert_not_called()

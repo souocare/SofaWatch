@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from app.models.enums import LibraryStatus
+from app.repositories.episode import EpisodeRepository
 from app.repositories.episode_progress import (
     EpisodeProgressRepository,
     LastWatchedEpisode,
@@ -13,6 +14,7 @@ from app.schemas.stale_watching import (
     StaleWatchingEpisodeResponse,
     StaleWatchingShowResponse,
 )
+from app.schemas.watch_next import WatchNextProgressResponse
 from app.services.watch_list_rules import (
     as_utc,
     belongs_to_stale_watching,
@@ -27,9 +29,11 @@ class StaleWatchingService:
         self,
         *,
         library_repository: LibraryRepository,
+        episode_repository: EpisodeRepository,
         progress_repository: EpisodeProgressRepository,
     ) -> None:
         self._library_repository = library_repository
+        self._episode_repository = episode_repository
         self._progress_repository = progress_repository
 
     def list_for_user(
@@ -81,6 +85,22 @@ class StaleWatchingService:
             as_of=now.date(),
         )
 
+        if not next_by_show:
+            return []
+
+        aired_counts = self._episode_repository.get_aired_counts_by_show_ids(
+            show_ids=stale_show_ids,
+            as_of=now.date(),
+        )
+
+        watched_aired_counts = (
+            self._progress_repository.get_watched_aired_counts_by_show_ids(
+                user_id=user_id,
+                show_ids=stale_show_ids,
+                as_of=now.date(),
+            )
+        )
+
         results: list[StaleWatchingShowResponse] = []
 
         for entry in eligible_entries:
@@ -106,6 +126,26 @@ class StaleWatchingService:
 
             last_episode = last_watched.episode
             next_episode_model = next_episode.episode
+
+            aired_episodes = aired_counts.get(
+                show_id,
+                0,
+            )
+
+            watched_episodes = watched_aired_counts.get(
+                show_id,
+                0,
+            )
+
+            percentage = (
+                watched_episodes / aired_episodes * 100
+                if aired_episodes > 0
+                else 0.0
+            )
+            caught_up = (
+                aired_episodes > 0
+                and watched_episodes == aired_episodes
+            )
 
             results.append(
                 StaleWatchingShowResponse(
@@ -134,6 +174,12 @@ class StaleWatchingService:
                         air_date=next_episode_model.air_date,
                         runtime=next_episode_model.runtime,
                         still_url=next_episode_model.still_url,
+                    ),
+                    progress=WatchNextProgressResponse(
+                        watched_episodes=watched_episodes,
+                        aired_episodes=aired_episodes,
+                        percentage=percentage,
+                        caught_up=caught_up,
                     ),
                 )
             )

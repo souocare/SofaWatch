@@ -191,7 +191,9 @@ final class ShowsState extends Equatable {
     return libraryShows
         .where(
           (LibraryShow show) =>
-              show.status == LibraryStatus.watching && show.progress.caughtUp,
+              show.status == LibraryStatus.watching &&
+              show.progress.caughtUp &&
+              _isOngoingShow(show.showStatus),
         )
         .toList(growable: false);
   }
@@ -401,4 +403,12 @@ final class ShowsState extends Equatable {
     isRefreshing,
     refreshError,
   ];
+}
+
+bool _isOngoingShow(String status) {
+  final String normalized = status.trim().toLowerCase();
+
+  return normalized != 'ended' &&
+      normalized != 'canceled' &&
+      normalized != 'cancelled';
 }

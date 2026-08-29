@@ -239,14 +239,22 @@ void main() {
             final String? toDate =
                 options.queryParameters['to_date'] as String?;
 
-            final bool isTodayRequest =
-                fromDate != null && toDate != null && fromDate == toDate;
+            final DateTime? from = fromDate == null
+                ? null
+                : DateTime.tryParse(fromDate);
+
+            final DateTime? to = toDate == null
+                ? null
+                : DateTime.tryParse(toDate);
+
+            final bool isPremieringTodayRequest =
+                from != null && to != null && to.difference(from).inDays == 1;
 
             handler.resolve(
               Response<List<dynamic>>(
                 requestOptions: options,
                 statusCode: 200,
-                data: isTodayRequest
+                data: isPremieringTodayRequest
                     ? <dynamic>[
                         <String, dynamic>{
                           'library_entry_id': 'library-entry-1',
@@ -264,7 +272,7 @@ void main() {
                             'season_number': 2,
                             'episode_number': 1,
                             'title': 'Hello, Ms. Cobel',
-                            'air_date': fromDate,
+                            'air_date': toDate,
                             'runtime': 52,
                             'still_url': null,
                             'is_watched': false,

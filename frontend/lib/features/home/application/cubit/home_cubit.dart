@@ -643,21 +643,6 @@ final class HomeCubit extends Cubit<HomeState> {
   // Helpers
   // ---------------------------------------------------------------------------
 
-  List<UpcomingItem> _markEpisodeWatchedInItems(
-    List<UpcomingItem> items,
-    String episodeId,
-  ) {
-    return items
-        .map((UpcomingItem item) {
-          if (item.episode.id != episodeId) {
-            return item;
-          }
-
-          return item.copyWith(episode: item.episode.copyWith(isWatched: true));
-        })
-        .toList(growable: false);
-  }
-
   List<UpcomingItem> _removeEpisode(
     List<UpcomingItem> items,
     String episodeId,

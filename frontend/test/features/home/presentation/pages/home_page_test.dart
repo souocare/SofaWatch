@@ -588,15 +588,6 @@ void main() {
       );
 
       expect(find.text('Not started'), findsOneWidget);
-
-      expect(
-        find.byKey(
-          const ValueKey<String>(
-            'home-premiering-today-not-started-planning-episode',
-          ),
-        ),
-        findsOneWidget,
-      );
     });
     testWidgets('shows Rewatch for repeated Recent Activity watches', (
       WidgetTester tester,
@@ -748,20 +739,21 @@ final class _FakeShowsRepository implements ShowsRepository {
     int? limit,
   }) async {
     /*
-     * Home uses the same Upcoming endpoint for:
-     *
-     * - Premiering Today: fromDate == toDate
-     * - Upcoming: future date range
-     *
-     * Keep the distinction explicit in the fake so page tests can
-     * configure both collections independently.
-     */
+    * Home uses the same Upcoming endpoint for:
+    *
+    * - Premiering Today: yesterday through today
+    * - Upcoming: tomorrow through the configured future window
+    *
+    * Premiering Today therefore ends today, while Upcoming starts
+    * strictly after today.
+    */
+    final DateTime today = DateTime(2026, 8, 17);
+
     final bool isPremieringToday =
         fromDate != null &&
         toDate != null &&
-        fromDate.year == toDate.year &&
-        fromDate.month == toDate.month &&
-        fromDate.day == toDate.day;
+        fromDate == today.subtract(const Duration(days: 1)) &&
+        toDate == today;
 
     final List<UpcomingItem> result = isPremieringToday
         ? premieringToday

@@ -72,7 +72,7 @@ void main() {
     );
   });
   group('HomeCubit Premiering Today', () {
-    test('loads only today and limits Home results', () async {
+    test('loads yesterday and today and limits Home results', () async {
       final _FakeShowsRepository repository = _FakeShowsRepository(
         upcoming: List<UpcomingItem>.generate(
           8,
@@ -96,35 +96,43 @@ void main() {
         hasLength(HomeCubit.premieringTodayLimit),
       );
 
-      expect(repository.requestedFromDate, _referenceToday);
+      expect(
+        repository.requestedFromDate,
+        _referenceToday.subtract(const Duration(days: 1)),
+      );
+
       expect(repository.requestedToDate, _referenceToday);
       expect(repository.requestedUpcomingLimit, HomeCubit.premieringTodayLimit);
 
       await cubit.close();
     });
 
-    test('uses the injected current day when the date advances', () async {
-      final DateTime simulatedToday = DateTime(2026, 8, 18);
+    test(
+      'uses the injected current day window when the date advances',
+      () async {
+        final DateTime simulatedToday = DateTime(2026, 8, 18);
 
-      final _FakeShowsRepository repository = _FakeShowsRepository(
-        upcoming: <UpcomingItem>[
-          _upcomingItem(episodeId: 'episode-18', airDate: simulatedToday),
-        ],
-      );
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          upcoming: <UpcomingItem>[
+            _upcomingItem(episodeId: 'episode-18', airDate: simulatedToday),
+          ],
+        );
 
-      final HomeCubit cubit = HomeCubit(
-        viewingStateChangeNotifier: viewingStateChangeNotifier,
-        repository: repository,
-        now: () => DateTime(2026, 8, 18, 9, 15),
-      );
+        final HomeCubit cubit = HomeCubit(
+          viewingStateChangeNotifier: viewingStateChangeNotifier,
+          repository: repository,
+          now: () => DateTime(2026, 8, 18, 9, 15),
+        );
 
-      await cubit.loadPremieringToday();
+        await cubit.loadPremieringToday();
 
-      expect(repository.requestedFromDate, simulatedToday);
-      expect(repository.requestedToDate, simulatedToday);
+        expect(repository.requestedFromDate, DateTime(2026, 8, 17));
 
-      await cubit.close();
-    });
+        expect(repository.requestedToDate, simulatedToday);
+
+        await cubit.close();
+      },
+    );
 
     test('marks Premiering Today Episode as watched', () async {
       final _FakeShowsRepository repository = _FakeShowsRepository(
@@ -151,7 +159,7 @@ void main() {
 
       expect(repository.markWatchedCalls, 1);
 
-      expect(cubit.state.premieringToday.single.episode.isWatched, isTrue);
+      expect(cubit.state.premieringToday, isEmpty);
 
       expect(cubit.state.updatingEpisodeId, isNull);
       expect(cubit.state.updatingEpisodeSource, isNull);
@@ -186,7 +194,7 @@ void main() {
 
       expect(repository.markWatchedCalls, 1);
 
-      expect(cubit.state.premieringToday.single.episode.isWatched, isTrue);
+      expect(cubit.state.premieringToday, isEmpty);
 
       expect(cubit.state.updatingEpisodeId, isNull);
       expect(cubit.state.updatingEpisodeSource, isNull);
@@ -749,7 +757,7 @@ void main() {
         source: HomeWatchSource.premieringToday,
       );
 
-      expect(cubit.state.premieringToday.single.episode.isWatched, isTrue);
+      expect(cubit.state.premieringToday, isEmpty);
 
       expect(cubit.state.missedRecently, isEmpty);
 
@@ -782,7 +790,7 @@ void main() {
         source: HomeWatchSource.missedRecently,
       );
 
-      expect(cubit.state.premieringToday.single.episode.isWatched, isTrue);
+      expect(cubit.state.premieringToday, isEmpty);
 
       expect(cubit.state.missedRecently, isEmpty);
 
@@ -954,7 +962,7 @@ void main() {
 
         expect(repository.markWatchedCalls, 1);
 
-        expect(cubit.state.premieringToday.single.episode.isWatched, isTrue);
+        expect(cubit.state.premieringToday, isEmpty);
 
         expect(repository.watchHistoryCalls, 1);
 
@@ -1119,7 +1127,7 @@ void main() {
           source: HomeWatchSource.premieringToday,
         );
 
-        expect(cubit.state.premieringToday.single.episode.isWatched, isTrue);
+        expect(cubit.state.premieringToday, isEmpty);
 
         expect(cubit.state.missedRecently, isEmpty);
 

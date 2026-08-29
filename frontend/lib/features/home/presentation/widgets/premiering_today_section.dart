@@ -279,13 +279,23 @@ class _PremieringTodayCarousel extends StatefulWidget {
 }
 
 class _PremieringTodayCarouselState extends State<_PremieringTodayCarousel> {
+  static const double _mobileViewportFraction = 0.86;
+  static const double _artworkAspectRatio = 16 / 9;
+
+  /*
+   * Planning cards contain an additional badge below the Episode metadata,
+   * so the carousel must reserve enough vertical space for the tallest card.
+   */
+  static const double _standardMetadataHeight = 64;
+  static const double _planningMetadataHeight = 96;
+
   late final PageController _pageController;
 
   @override
   void initState() {
     super.initState();
 
-    _pageController = PageController(viewportFraction: 0.86);
+    _pageController = PageController(viewportFraction: _mobileViewportFraction);
   }
 
   @override
@@ -296,33 +306,52 @@ class _PremieringTodayCarouselState extends State<_PremieringTodayCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 260,
-      child: PageView.builder(
-        key: const ValueKey<String>('home-premiering-today-carousel'),
-        controller: _pageController,
-        padEnds: false,
-        physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
-        itemCount: widget.items.length,
-        itemBuilder: (BuildContext context, int index) {
-          final UpcomingItem item = widget.items[index];
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double cardWidth = constraints.maxWidth * _mobileViewportFraction;
 
-          return Padding(
-            padding: EdgeInsets.only(
-              right: index < widget.items.length - 1
-                  ? AppSpacing.md
-                  : AppSpacing.none,
-            ),
-            child: _PremieringTodayCard(
-              item: item,
-              isUpdating:
-                  widget.updatingEpisodeSource ==
-                      HomeWatchSource.premieringToday &&
-                  widget.updatingEpisodeId == item.episode.id,
-            ),
-          );
-        },
-      ),
+        final double artworkHeight = cardWidth / _artworkAspectRatio;
+
+        final bool hasPlanningItem = widget.items.any(
+          (UpcomingItem item) => item.libraryStatus == LibraryStatus.planning,
+        );
+
+        final double metadataHeight = hasPlanningItem
+            ? _planningMetadataHeight
+            : _standardMetadataHeight;
+
+        final double carouselHeight =
+            artworkHeight + AppSpacing.sm + metadataHeight;
+
+        return SizedBox(
+          height: carouselHeight,
+          child: PageView.builder(
+            key: const ValueKey<String>('home-premiering-today-carousel'),
+            controller: _pageController,
+            padEnds: false,
+            physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
+            itemCount: widget.items.length,
+            itemBuilder: (BuildContext context, int index) {
+              final UpcomingItem item = widget.items[index];
+
+              return Padding(
+                padding: EdgeInsets.only(
+                  right: index < widget.items.length - 1
+                      ? AppSpacing.md
+                      : AppSpacing.none,
+                ),
+                child: _PremieringTodayCard(
+                  item: item,
+                  isUpdating:
+                      widget.updatingEpisodeSource ==
+                          HomeWatchSource.premieringToday &&
+                      widget.updatingEpisodeId == item.episode.id,
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }

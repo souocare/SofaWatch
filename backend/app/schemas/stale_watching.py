@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from app.models.enums import LibraryStatus
 from app.schemas.show import ShowSummaryResponse
+from app.schemas.watch_next import WatchNextProgressResponse
 
 
 class StaleWatchingEpisodeResponse(BaseModel):
@@ -40,3 +41,4 @@ class StaleWatchingShowResponse(BaseModel):
 
     last_watched: LastWatchedEpisodeResponse
     next_episode: StaleWatchingEpisodeResponse
+    progress: WatchNextProgressResponse

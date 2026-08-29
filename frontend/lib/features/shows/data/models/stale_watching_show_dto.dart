@@ -1,4 +1,5 @@
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
+import 'package:sofawatch/features/shows/data/models/library_show_progress_dto.dart';
 import 'package:sofawatch/features/shows/data/models/stale_watching_episode_dto.dart';
 import 'package:sofawatch/features/shows/data/models/watch_next_episode_dto.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
@@ -12,6 +13,7 @@ final class StaleWatchingShowDto {
     required this.showTitle,
     required this.lastWatched,
     required this.nextEpisode,
+    required this.progress,
     this.posterUrl,
     this.backdropUrl,
   });
@@ -21,6 +23,7 @@ final class StaleWatchingShowDto {
     final Map<String, dynamic> lastWatched = _requiredMap(json, 'last_watched');
 
     final Map<String, dynamic> nextEpisode = _requiredMap(json, 'next_episode');
+    final Map<String, dynamic> progress = _requiredMap(json, 'progress');
 
     return StaleWatchingShowDto(
       libraryEntryId: _requiredString(json, 'library_entry_id'),
@@ -34,6 +37,7 @@ final class StaleWatchingShowDto {
       backdropUrl: _optionalString(show['backdrop_url']),
       lastWatched: StaleWatchingEpisodeDto.fromJson(lastWatched),
       nextEpisode: WatchNextEpisodeDto.fromJson(nextEpisode),
+      progress: LibraryShowProgressDto.fromJson(progress),
     );
   }
 
@@ -49,6 +53,7 @@ final class StaleWatchingShowDto {
 
   final StaleWatchingEpisodeDto lastWatched;
   final WatchNextEpisodeDto nextEpisode;
+  final LibraryShowProgressDto progress;
 
   StaleWatchingShow toDomain() {
     return StaleWatchingShow(
@@ -58,6 +63,7 @@ final class StaleWatchingShowDto {
       showTmdbId: showTmdbId,
       showTitle: showTitle,
       posterUrl: posterUrl,
+      progress: progress.toDomain(),
       backdropUrl: backdropUrl,
       lastWatched: lastWatched.toDomain(),
       nextEpisode: nextEpisode.toDomain(),

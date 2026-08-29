@@ -14,11 +14,10 @@ from app.core.exceptions import APIError
 from app.schemas.episode import EpisodeResponse
 from app.schemas.episode_details import EpisodeDetailsResponse
 from app.schemas.episode_progress import (
-    EpisodeProgressResponse,
+    EpisodeProgressWithWatchCountResponse,
     EpisodeWatchedRequest,
     EpisodeWatchedWithPreviousResponse,
     PreviousUnwatchedEpisodesResponse,
-    EpisodeProgressWithWatchCountResponse,
 )
 from app.schemas.episode_watch_event import EpisodeWatchEventResponse
 from app.services.episode_progress import EpisodeNotWatchableError
