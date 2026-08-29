@@ -3347,6 +3347,99 @@ void main() {
 
       expect(find.text('Stale Show 7'), findsOneWidget);
     });
+    testWidgets(
+      'shows Haven\'t Started refresh only when at least six Shows exist',
+      (WidgetTester tester) async {
+        final List<LibraryShow> fiveShows = List<LibraryShow>.generate(
+          5,
+          (int index) => _makeHaventStartedShow(index: index + 1),
+        );
+
+        final ShowsCubit cubitWithFive = ShowsCubit(
+          repository: _FakeShowsRepository(shows: fiveShows),
+        );
+
+        addTearDown(cubitWithFive.close);
+
+        await cubitWithFive.load();
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubitWithFive));
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('shows-havent-started-refresh')),
+          findsNothing,
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+
+        final List<LibraryShow> sixShows = List<LibraryShow>.generate(
+          6,
+          (int index) => _makeHaventStartedShow(index: index + 1),
+        );
+
+        final ShowsCubit cubitWithSix = ShowsCubit(
+          repository: _FakeShowsRepository(shows: sixShows),
+        );
+
+        addTearDown(cubitWithSix.close);
+
+        await cubitWithSix.load();
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubitWithSix));
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('shows-havent-started-refresh')),
+          findsOneWidget,
+        );
+      },
+    );
+    testWidgets(
+      'refreshes Haven\'t Started preview while keeping five visible Shows',
+      (WidgetTester tester) async {
+        final List<LibraryShow> shows = List<LibraryShow>.generate(
+          8,
+          (int index) => _makeHaventStartedShow(index: index + 1),
+        );
+
+        final ShowsCubit cubit = ShowsCubit(
+          repository: _FakeShowsRepository(shows: shows),
+        );
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubit));
+
+        await tester.pumpAndSettle();
+
+        final Finder refreshButton = find.byKey(
+          const ValueKey<String>('shows-havent-started-refresh'),
+        );
+
+        expect(refreshButton, findsOneWidget);
+
+        int visibleCount() {
+          return shows.where((LibraryShow show) {
+            return find
+                .byKey(ValueKey<String>('shows-havent-started-${show.tmdbId}'))
+                .evaluate()
+                .isNotEmpty;
+          }).length;
+        }
+
+        expect(visibleCount(), 5);
+
+        await tester.tap(refreshButton);
+        await tester.pumpAndSettle();
+
+        expect(visibleCount(), 5);
+      },
+    );
   });
 }
 
@@ -4802,4 +4895,20 @@ final class _PendingRefreshShowsRepository implements ShowsRepository {
   Future<List<UpcomingItem>> getMissedRecently() async {
     return const <UpcomingItem>[];
   }
+}
+
+LibraryShow _makeHaventStartedShow({required int index}) {
+  return LibraryShow(
+    libraryEntryId: 'library-havent-started-$index',
+    showId: 'show-havent-started-$index',
+    tmdbId: 500000 + index,
+    title: 'Haven\'t Started Show $index',
+    originalTitle: 'Haven\'t Started Show $index',
+    status: LibraryStatus.planning,
+    showStatus: 'Returning Series',
+    voteAverage: 8,
+    createdAt: DateTime.utc(2026, 8, 1),
+    updatedAt: DateTime.utc(2026, 8, 10),
+    progress: _emptyLibraryShowProgress,
+  );
 }

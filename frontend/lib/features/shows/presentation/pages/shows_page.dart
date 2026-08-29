@@ -458,6 +458,12 @@ class _WatchListTabState extends State<_WatchListTab> {
     _showAllHaventStarted = false;
   }
 
+  void _refreshHaventStartedPicks() {
+    setState(() {
+      _refreshHaventStartedPreview();
+    });
+  }
+
   List<LibraryShow> get _visibleHaventStarted {
     if (_showAllHaventStarted) {
       return widget.haventStarted;
@@ -549,6 +555,7 @@ class _WatchListTabState extends State<_WatchListTab> {
                           _showAllHaventStarted = !_showAllHaventStarted;
                         });
                       },
+                      onRefresh: _refreshHaventStartedPicks,
                       isDesktop: isDesktop,
                     ),
 
@@ -2624,6 +2631,7 @@ class _HaventStartedSection extends StatelessWidget {
     required this.totalItems,
     required this.isExpanded,
     required this.onSeeAll,
+    required this.onRefresh,
   });
 
   final List<LibraryShow> items;
@@ -2633,6 +2641,7 @@ class _HaventStartedSection extends StatelessWidget {
   final int totalItems;
   final bool isExpanded;
   final VoidCallback onSeeAll;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -2650,6 +2659,15 @@ class _HaventStartedSection extends StatelessWidget {
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
+
+            if (totalItems >= 6 && !isExpanded)
+              IconButton(
+                key: const ValueKey<String>('shows-havent-started-refresh'),
+                tooltip: 'Show different picks',
+                onPressed: onRefresh,
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+
             if (totalItems > _WatchListTabState._haventStartedPreviewLimit)
               TextButton(
                 key: const ValueKey<String>('shows-havent-started-see-all'),
