@@ -123,7 +123,7 @@ void main() {
       );
 
       expect(
-        find.descendant(of: statisticsGrid, matching: find.text('Watch time')),
+        find.descendant(of: statisticsGrid, matching: find.text('Time')),
         findsOneWidget,
       );
     });

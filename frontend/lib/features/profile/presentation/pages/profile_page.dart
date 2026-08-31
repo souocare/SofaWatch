@@ -481,73 +481,79 @@ class _ProfileStatisticsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool useWideLayout =
-            constraints.maxWidth >= AppBreakpoints.profileFourColumns;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            GridView.count(
-              key: const ValueKey<String>('profile-statistics-grid'),
-              crossAxisCount: useWideLayout ? 3 : 2,
-              crossAxisSpacing: AppSpacing.sm,
-              mainAxisSpacing: AppSpacing.sm,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisExtent: _profileServerMetricCardExtent,
-              children: <Widget>[
-                _ProfileStatisticCard(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Container(
+          key: const ValueKey<String>('profile-statistics-grid'),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.md,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceHigh,
+            borderRadius: AppRadius.borderLarge,
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                child: _ProfileStatisticItem(
                   cardKey: 'profile-stat-shows',
                   icon: Icons.tv_rounded,
                   value: summary.showsWatched.toString(),
                   label: 'Shows',
                 ),
-                _ProfileStatisticCard(
+              ),
+              const _ProfileStatisticDivider(),
+              Expanded(
+                child: _ProfileStatisticItem(
                   cardKey: 'profile-stat-movies',
                   icon: Icons.movie_rounded,
                   value: summary.moviesWatched.toString(),
                   label: 'Movies',
                 ),
-                _ProfileStatisticCard(
+              ),
+              const _ProfileStatisticDivider(),
+              Expanded(
+                child: _ProfileStatisticItem(
                   cardKey: 'profile-stat-episodes',
                   icon: Icons.play_circle_rounded,
                   value: summary.episodesWatched.toString(),
                   label: 'Episodes',
                 ),
-                _ProfileStatisticCard(
+              ),
+              const _ProfileStatisticDivider(),
+              Expanded(
+                child: _ProfileStatisticItem(
                   cardKey: 'profile-stat-watch-time',
                   icon: Icons.schedule_rounded,
                   value: formatProfileWatchTime(summary.watchTimeMinutes),
-                  label: 'Watch time',
+                  label: 'Time',
                 ),
-              ],
-            ),
-
-            const SizedBox(height: AppSpacing.md),
-
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(
-                key: const ValueKey<String>(
-                  'profile-detailed-statistics-action',
-                ),
-                onPressed: () {
-                  context.pushNamed(AppRoute.detailedStatistics.name);
-                },
-                child: const Text('View detailed statistics →'),
               ),
-            ),
-          ],
-        );
-      },
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            key: const ValueKey<String>('profile-detailed-statistics-action'),
+            onPressed: () {
+              context.pushNamed(AppRoute.detailedStatistics.name);
+            },
+            child: const Text('View detailed statistics →'),
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _ProfileStatisticCard extends StatelessWidget {
-  const _ProfileStatisticCard({
+class _ProfileStatisticItem extends StatelessWidget {
+  const _ProfileStatisticItem({
     required this.cardKey,
     required this.icon,
     required this.value,
@@ -561,44 +567,57 @@ class _ProfileStatisticCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Semantics(
       key: ValueKey<String>(cardKey),
-      padding: AppSpacing.cardPadding,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderLarge,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Icon(icon, size: 22, color: AppColors.textSecondary),
-
-          const SizedBox(height: AppSpacing.sm),
-
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-          ),
-
-          const SizedBox(height: AppSpacing.xs),
-
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
+      container: true,
+      label: '$label: $value',
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, size: 20, color: AppColors.primary),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
             ),
-          ),
-        ],
+            const SizedBox(height: 2),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class _ProfileStatisticDivider extends StatelessWidget {
+  const _ProfileStatisticDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 48,
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: AppSpacing.sm,
+      ),
+      color: AppColors.outlineVariant,
     );
   }
 }
@@ -608,27 +627,28 @@ class _ProfileStatisticsLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool useWideLayout =
-            constraints.maxWidth >= AppBreakpoints.profileFourColumns;
-
-        return GridView.count(
-          key: const ValueKey<String>('profile-statistics-loading'),
-          crossAxisCount: useWideLayout ? 3 : 2,
-          crossAxisSpacing: AppSpacing.sm,
-          mainAxisSpacing: AppSpacing.sm,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisExtent: _profileServerMetricCardExtent,
-          children: const <Widget>[
-            _ProfileStatisticSkeleton(),
-            _ProfileStatisticSkeleton(),
-            _ProfileStatisticSkeleton(),
-            _ProfileStatisticSkeleton(),
-          ],
-        );
-      },
+    return Container(
+      key: const ValueKey<String>('profile-statistics-loading'),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: const Row(
+        children: <Widget>[
+          Expanded(child: _ProfileStatisticSkeleton()),
+          _ProfileStatisticDivider(),
+          Expanded(child: _ProfileStatisticSkeleton()),
+          _ProfileStatisticDivider(),
+          Expanded(child: _ProfileStatisticSkeleton()),
+          _ProfileStatisticDivider(),
+          Expanded(child: _ProfileStatisticSkeleton()),
+        ],
+      ),
     );
   }
 }
@@ -638,11 +658,38 @@ class _ProfileStatisticSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderLarge,
-        border: Border.all(color: AppColors.outlineVariant),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Container(
+            width: 20,
+            height: 20,
+            decoration: const BoxDecoration(
+              color: AppColors.surfaceSubtle,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Container(
+            width: 34,
+            height: 18,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceSubtle,
+              borderRadius: AppRadius.borderSmall,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Container(
+            width: 42,
+            height: 10,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceSubtle,
+              borderRadius: AppRadius.borderSmall,
+            ),
+          ),
+        ],
       ),
     );
   }
