@@ -10,9 +10,28 @@ import 'package:sofawatch/features/history/application/cubit/history_state.dart'
 import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
 import 'package:sofawatch/features/history/domain/models/history_item.dart';
 import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
 
 class HistoryPage extends StatelessWidget {
-  const HistoryPage({super.key});
+  const HistoryPage({this.mediaType = HistoryMediaType.all, super.key});
+
+  final HistoryMediaType mediaType;
+
+  String get _pageTitle {
+    return switch (mediaType) {
+      HistoryMediaType.all => 'History',
+      HistoryMediaType.episodes => 'Episode History',
+      HistoryMediaType.movies => 'Movie History',
+    };
+  }
+
+  String get _contentTitle {
+    return switch (mediaType) {
+      HistoryMediaType.all => 'Your viewing history',
+      HistoryMediaType.episodes => 'Your episode history',
+      HistoryMediaType.movies => 'Your movie history',
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,9 +39,9 @@ class HistoryPage extends StatelessWidget {
       key: const ValueKey<String>('history-page'),
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text(
-          'History',
-          key: ValueKey<String>('history-page-title'),
+        title: Text(
+          _pageTitle,
+          key: const ValueKey<String>('history-page-title'),
         ),
       ),
       body: SafeArea(
@@ -41,10 +60,10 @@ class HistoryPage extends StatelessWidget {
             }
 
             if (state.isEmpty) {
-              return const _HistoryEmpty();
+              return _HistoryEmpty(mediaType: mediaType);
             }
 
-            return _HistoryContent(state: state);
+            return _HistoryContent(state: state, title: _contentTitle);
           },
         ),
       ),
@@ -53,9 +72,10 @@ class HistoryPage extends StatelessWidget {
 }
 
 class _HistoryContent extends StatelessWidget {
-  const _HistoryContent({required this.state});
+  const _HistoryContent({required this.state, required this.title});
 
   final HistoryState state;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +95,7 @@ class _HistoryContent extends StatelessWidget {
                   AppSpacing.md,
                 ),
                 child: Text(
-                  'Your viewing history',
+                  title,
                   style: Theme.of(
                     context,
                   ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
@@ -430,10 +450,24 @@ class _HistoryLoading extends StatelessWidget {
 }
 
 class _HistoryEmpty extends StatelessWidget {
-  const _HistoryEmpty();
+  const _HistoryEmpty({required this.mediaType});
+
+  final HistoryMediaType mediaType;
 
   @override
   Widget build(BuildContext context) {
+    final String title = switch (mediaType) {
+      HistoryMediaType.all => 'No viewing history yet',
+      HistoryMediaType.episodes => 'No episode history yet',
+      HistoryMediaType.movies => 'No movie history yet',
+    };
+
+    final String message = switch (mediaType) {
+      HistoryMediaType.all => 'Episodes and Movies you watch will appear here.',
+      HistoryMediaType.episodes => 'Episodes you watch will appear here.',
+      HistoryMediaType.movies => 'Movies you watch will appear here.',
+    };
+
     return Center(
       key: const ValueKey<String>('history-empty'),
       child: Padding(
@@ -448,14 +482,14 @@ class _HistoryEmpty extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'No viewing history yet',
+              title,
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Episodes and Movies you watch will appear here.',
+              message,
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,

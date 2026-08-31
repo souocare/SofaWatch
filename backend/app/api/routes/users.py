@@ -18,11 +18,11 @@ from app.schemas.data_import import (
 )
 from app.schemas.user import (
     AdminUserResponse,
+    AdminUsersSummaryResponse,
     CurrentUserPasswordUpdateRequest,
     CurrentUserResponse,
     CurrentUserUpdateRequest,
     PasswordRecoveryResponse,
-    AdminUsersSummaryResponse
 )
 from app.services.user import (
     CurrentPasswordInvalidError,

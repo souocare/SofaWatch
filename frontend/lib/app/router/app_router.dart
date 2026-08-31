@@ -37,6 +37,7 @@ import 'package:sofawatch/features/explore/presentation/pages/explore_page.dart'
 import 'package:sofawatch/features/history/application/cubit/history_cubit.dart';
 import 'package:sofawatch/features/history/application/cubit/history_preview_cubit.dart';
 import 'package:sofawatch/features/history/data/repositories/api_history_repository.dart';
+import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
 import 'package:sofawatch/features/history/presentation/pages/history_page.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/presentation/pages/home_page.dart';
@@ -692,6 +693,13 @@ GoRouter createAppRouter({
                     name: AppRoute.history.name,
                     path: RoutePaths.history,
                     builder: (BuildContext context, GoRouterState state) {
+                      final HistoryMediaType mediaType =
+                          switch (state.uri.queryParameters['type']) {
+                            'episode' => HistoryMediaType.episodes,
+                            'movie' => HistoryMediaType.movies,
+                            _ => HistoryMediaType.all,
+                          };
+
                       return BlocProvider<HistoryCubit>(
                         create: (BuildContext context) {
                           return HistoryCubit(
@@ -700,9 +708,10 @@ GoRouter createAppRouter({
                             ),
                             viewingStateChangeNotifier: context
                                 .read<ViewingStateChangeNotifier>(),
+                            mediaType: mediaType,
                           )..load();
                         },
-                        child: const HistoryPage(),
+                        child: HistoryPage(mediaType: mediaType),
                       );
                     },
                   ),

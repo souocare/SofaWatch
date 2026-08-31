@@ -9,6 +9,7 @@ import 'package:sofawatch/features/history/application/cubit/history_cubit.dart'
 import 'package:sofawatch/features/history/domain/models/history_episode.dart';
 import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
 import 'package:sofawatch/features/history/domain/models/history_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
 import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
 import 'package:sofawatch/features/history/domain/models/history_page.dart'
     as history_domain;
@@ -395,6 +396,7 @@ class _HistoryRepository implements HistoryRepository {
   Future<history_domain.HistoryPage> getHistory({
     int limit = 30,
     String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
   }) async {
     calls += 1;
 
@@ -424,6 +426,7 @@ final class _RetryHistoryRepository implements HistoryRepository {
   Future<history_domain.HistoryPage> getHistory({
     int limit = 30,
     String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
   }) async {
     calls += 1;
 
@@ -451,6 +454,7 @@ final class _PaginationFailureHistoryRepository implements HistoryRepository {
   Future<history_domain.HistoryPage> getHistory({
     int limit = 30,
     String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
   }) async {
     calls += 1;
 

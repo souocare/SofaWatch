@@ -8,6 +8,7 @@ import 'package:sofawatch/features/history/application/cubit/history_state.dart'
 import 'package:sofawatch/features/history/domain/models/history_episode.dart';
 import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
 import 'package:sofawatch/features/history/domain/models/history_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
 import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
 import 'package:sofawatch/features/history/domain/models/history_page.dart';
 import 'package:sofawatch/features/history/domain/models/history_preview.dart';
@@ -74,6 +75,7 @@ void main() {
       expect(repository.calls, 1);
       expect(repository.requests.single.limit, 30);
       expect(repository.requests.single.cursor, isNull);
+      expect(repository.requests.single.mediaType, HistoryMediaType.all);
     });
 
     test('supports an empty first History page', () async {
@@ -508,6 +510,65 @@ void main() {
       expect(repository.calls, 1);
       expect(cubit.state.hasLoaded, isTrue);
     });
+    test('forwards Episode History media type when loading', () async {
+      final _HistoryRepository repository = _HistoryRepository(
+        pages: <String?, HistoryPage>{
+          null: HistoryPage(
+            items: <HistoryItem>[_episodeItem1],
+            hasMore: false,
+          ),
+        },
+      );
+
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: repository,
+        mediaType: HistoryMediaType.episodes,
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      expect(cubit.state.items, <HistoryItem>[_episodeItem1]);
+
+      expect(repository.calls, 1);
+      expect(repository.requests.single.mediaType, HistoryMediaType.episodes);
+    });
+    test('preserves Movie History media type when loading more', () async {
+      final _HistoryRepository repository = _HistoryRepository(
+        pages: <String?, HistoryPage>{
+          null: HistoryPage(
+            items: <HistoryItem>[_movieItem1],
+            nextCursor: 'cursor-1',
+            hasMore: true,
+          ),
+          'cursor-1': HistoryPage(
+            items: <HistoryItem>[_movieItem2],
+            hasMore: false,
+          ),
+        },
+      );
+
+      final HistoryCubit cubit = HistoryCubit(
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+        repository: repository,
+        mediaType: HistoryMediaType.movies,
+      );
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+      await cubit.loadMore();
+
+      expect(repository.requests, hasLength(2));
+
+      expect(repository.requests[0].mediaType, HistoryMediaType.movies);
+
+      expect(repository.requests[1].mediaType, HistoryMediaType.movies);
+
+      expect(repository.requests[1].cursor, 'cursor-1');
+    });
   });
 
   group('HistoryState', () {
@@ -589,10 +650,15 @@ final HistoryEpisodeItem _episodeItem2 = HistoryEpisodeItem(
 );
 
 final class _HistoryRequest {
-  const _HistoryRequest({required this.limit, required this.cursor});
+  const _HistoryRequest({
+    required this.limit,
+    required this.cursor,
+    required this.mediaType,
+  });
 
   final int limit;
   final String? cursor;
+  final HistoryMediaType mediaType;
 }
 
 class _HistoryRepository implements HistoryRepository {
@@ -616,10 +682,16 @@ class _HistoryRepository implements HistoryRepository {
   }
 
   @override
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) async {
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) async {
     calls += 1;
 
-    requests.add(_HistoryRequest(limit: limit, cursor: cursor));
+    requests.add(
+      _HistoryRequest(limit: limit, cursor: cursor, mediaType: mediaType),
+    );
 
     final AppException? failure = initialError;
 
@@ -641,7 +713,11 @@ final class _UnexpectedHistoryRepository implements HistoryRepository {
   }
 
   @override
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) {
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) {
     throw StateError('Unexpected History failure.');
   }
 }
@@ -665,7 +741,11 @@ final class _ControlledHistoryRepository implements HistoryRepository {
   }
 
   @override
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) {
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) {
     calls += 1;
 
     return _result.future;
@@ -692,7 +772,11 @@ final class _ControlledPaginationHistoryRepository
   }
 
   @override
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) {
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) {
     if (cursor == null) {
       return Future<HistoryPage>.value(
         HistoryPage(
@@ -720,7 +804,11 @@ final class _PaginationFailureRepository implements HistoryRepository {
   }
 
   @override
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) async {
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) async {
     if (cursor == null) {
       return HistoryPage(
         items: <HistoryItem>[_movieItem1],
@@ -740,7 +828,11 @@ final class _UnexpectedPaginationRepository implements HistoryRepository {
   }
 
   @override
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) async {
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) async {
     if (cursor == null) {
       return HistoryPage(
         items: <HistoryItem>[_movieItem1],
@@ -762,7 +854,11 @@ final class _RetryHistoryRepository implements HistoryRepository {
   }
 
   @override
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) async {
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) async {
     calls += 1;
 
     if (calls == 1) {
@@ -782,7 +878,11 @@ final class _ReloadHistoryRepository implements HistoryRepository {
   }
 
   @override
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) async {
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) async {
     calls += 1;
 
     if (calls == 1) {
@@ -802,7 +902,11 @@ final class _RetryPaginationRepository implements HistoryRepository {
   }
 
   @override
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) async {
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) async {
     if (cursor == null) {
       return HistoryPage(
         items: <HistoryItem>[_movieItem1],

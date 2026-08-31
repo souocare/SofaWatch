@@ -6,6 +6,7 @@ import 'package:sofawatch/features/history/data/models/history_preview_dto.dart'
 import 'package:sofawatch/features/history/domain/models/history_page.dart';
 import 'package:sofawatch/features/history/domain/models/history_preview.dart';
 import 'package:sofawatch/features/history/domain/repositories/history_repository.dart';
+import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
 
 final class ApiHistoryRepository implements HistoryRepository {
   const ApiHistoryRepository(this._apiClient);
@@ -37,7 +38,11 @@ final class ApiHistoryRepository implements HistoryRepository {
   }
 
   @override
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) async {
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) async {
     try {
       final Response<Map<String, dynamic>> response = await _apiClient
           .get<Map<String, dynamic>>(
@@ -45,6 +50,7 @@ final class ApiHistoryRepository implements HistoryRepository {
             queryParameters: <String, dynamic>{
               'limit': limit,
               'cursor': ?cursor,
+              'media_type': ?mediaType.apiValue,
             },
           );
 

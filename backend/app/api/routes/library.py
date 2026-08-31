@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Path, Query, status
@@ -344,6 +344,16 @@ def list_history(
             description="Opaque cursor returned by the previous History page.",
         ),
     ] = None,
+    media_type: Annotated[
+        Literal["episode", "movie"] | None,
+        Query(
+            description=(
+                "Return viewing events for the current user in newest-first cursor "
+                "pagination. By default Episode and Movie events are combined; "
+                "media_type may restrict the timeline to one media type."
+            ),
+        ),
+    ] = None,
 ) -> HistoryPageResponse:
     """Return one cursor-paginated page of combined viewing History."""
 
@@ -352,6 +362,7 @@ def list_history(
             user_id=current_user.id,
             limit=limit,
             cursor=cursor,
+            media_type=media_type,
         )
     except ValueError as error:
         raise APIError(

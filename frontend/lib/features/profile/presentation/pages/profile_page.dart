@@ -1338,6 +1338,12 @@ class _ProfileHistoryContent extends StatelessWidget {
           _ProfileHistoryGroup(
             groupKey: 'profile-history-episodes',
             title: 'Episodes',
+            onSeeAll: () {
+              context.pushNamed(
+                AppRoute.history.name,
+                queryParameters: const <String, String>{'type': 'episode'},
+              );
+            },
             children: preview.episodes
                 .map(
                   (HistoryEpisodeItem item) =>
@@ -1353,6 +1359,12 @@ class _ProfileHistoryContent extends StatelessWidget {
           _ProfileHistoryGroup(
             groupKey: 'profile-history-movies',
             title: 'Movies',
+            onSeeAll: () {
+              context.pushNamed(
+                AppRoute.history.name,
+                queryParameters: const <String, String>{'type': 'movie'},
+              );
+            },
             children: preview.movies
                 .map(
                   (HistoryMovieItem item) =>
@@ -1370,11 +1382,13 @@ class _ProfileHistoryGroup extends StatelessWidget {
     required this.groupKey,
     required this.title,
     required this.children,
+    required this.onSeeAll,
   });
 
   final String groupKey;
   final String title;
   final List<Widget> children;
+  final VoidCallback onSeeAll;
 
   @override
   Widget build(BuildContext context) {
@@ -1382,12 +1396,33 @@ class _ProfileHistoryGroup extends StatelessWidget {
       key: ValueKey<String>(groupKey),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Text(
-          title,
-          key: ValueKey<String>('$groupKey-title'),
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                title,
+                key: ValueKey<String>('$groupKey-title'),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+
+            TextButton(
+              key: ValueKey<String>('$groupKey-see-all'),
+              onPressed: onSeeAll,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xs,
+                  vertical: AppSpacing.xs,
+                ),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('See All'),
+            ),
+          ],
         ),
 
         const SizedBox(height: AppSpacing.sm),

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from app.repositories.episode_watch_event import (
@@ -27,6 +28,7 @@ _HISTORY_MEDIA_RANK = {
     "episode": 0,
     "movie": 1,
 }
+HistoryMediaType = Literal["episode", "movie"]
 
 
 class HistoryService:
@@ -70,6 +72,7 @@ class HistoryService:
         user_id: UUID,
         limit: int = 30,
         cursor: str | None = None,
+        media_type: HistoryMediaType | None = None,
     ) -> HistoryPageResponse:
         """Return one page of combined Episode and Movie viewing History."""
 
@@ -78,6 +81,20 @@ class HistoryService:
                 items=[],
                 next_cursor=None,
                 has_more=False,
+            )
+
+        if media_type == "episode":
+            return self._list_episode_history(
+                user_id=user_id,
+                limit=limit,
+                cursor=cursor,
+            )
+
+        if media_type == "movie":
+            return self._list_movie_history(
+                user_id=user_id,
+                limit=limit,
+                cursor=cursor,
             )
 
         decoded_cursor = HistoryCursorCodec.decode(cursor) if cursor is not None else None
@@ -149,6 +166,125 @@ class HistoryService:
 
         return HistoryPageResponse(
             items=page_items,
+            next_cursor=next_cursor,
+            has_more=has_more,
+        )
+
+    def _list_episode_history(
+        self,
+        *,
+        user_id: UUID,
+        limit: int,
+        cursor: str | None,
+    ) -> HistoryPageResponse:
+        """Return one page containing only Episode viewing History."""
+
+        decoded_cursor = (
+            HistoryCursorCodec.decode(cursor)
+            if cursor is not None
+            else None
+        )
+
+        if decoded_cursor is not None and decoded_cursor.media_type != "episode":
+            raise ValueError("History cursor does not belong to Episode History.")
+
+        page = self._episode_watch_event_repository.list_watch_history(
+            user_id=user_id,
+            limit=limit + 1,
+            before_watched_at=(
+                decoded_cursor.watched_at
+                if decoded_cursor is not None
+                else None
+            ),
+            before_event_id=(
+                decoded_cursor.event_id
+                if decoded_cursor is not None
+                else None
+            ),
+        )
+
+        items = [
+            self._build_episode_item(item)
+            for item in page.items[:limit]
+        ]
+
+        has_more = len(page.items) > limit or page.has_more
+
+        next_cursor: str | None = None
+
+        if has_more and items:
+            last_item = items[-1]
+
+            next_cursor = HistoryCursorCodec.encode(
+                HistoryCursor(
+                    watched_at=last_item.watched_at,
+                    media_type="episode",
+                    event_id=last_item.event_id,
+                )
+            )
+
+        return HistoryPageResponse(
+            items=items,
+            next_cursor=next_cursor,
+            has_more=has_more,
+        )
+
+
+    def _list_movie_history(
+        self,
+        *,
+        user_id: UUID,
+        limit: int,
+        cursor: str | None,
+    ) -> HistoryPageResponse:
+        """Return one page containing only Movie viewing History."""
+
+        decoded_cursor = (
+            HistoryCursorCodec.decode(cursor)
+            if cursor is not None
+            else None
+        )
+
+        if decoded_cursor is not None and decoded_cursor.media_type != "movie":
+            raise ValueError("History cursor does not belong to Movie History.")
+
+        page = self._movie_watch_event_repository.list_watch_history(
+            user_id=user_id,
+            limit=limit + 1,
+            before_watched_at=(
+                decoded_cursor.watched_at
+                if decoded_cursor is not None
+                else None
+            ),
+            before_event_id=(
+                decoded_cursor.event_id
+                if decoded_cursor is not None
+                else None
+            ),
+        )
+
+        items = [
+            self._build_movie_item(item)
+            for item in page.items[:limit]
+        ]
+
+        has_more = len(page.items) > limit or page.has_more
+
+        next_cursor: str | None = None
+
+        if has_more and items:
+            last_item = items[-1]
+
+            next_cursor = HistoryCursorCodec.encode(
+                HistoryCursor(
+                    watched_at=last_item.watched_at,
+                    media_type="movie",
+                    event_id=last_item.event_id,
+                )
+            )
+
+        return HistoryPageResponse(
+            items=items,
             next_cursor=next_cursor,
             has_more=has_more,
         )

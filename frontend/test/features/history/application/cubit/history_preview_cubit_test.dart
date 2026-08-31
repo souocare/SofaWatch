@@ -7,6 +7,7 @@ import 'package:sofawatch/features/history/application/cubit/history_preview_cub
 import 'package:sofawatch/features/history/application/cubit/history_preview_state.dart';
 import 'package:sofawatch/features/history/domain/models/history_episode.dart';
 import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
 import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
 import 'package:sofawatch/features/history/domain/models/history_page.dart';
 import 'package:sofawatch/features/history/domain/models/history_preview.dart';
@@ -235,7 +236,11 @@ class _HistoryRepository implements HistoryRepository {
   }
 
   @override
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) {
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) {
     throw UnimplementedError();
   }
 }
@@ -270,7 +275,11 @@ final class _ControlledHistoryRepository implements HistoryRepository {
   }
 
   @override
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) {
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) {
     throw UnimplementedError();
   }
 }
@@ -290,7 +299,11 @@ final class _RetryHistoryRepository implements HistoryRepository {
   }
 
   @override
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) {
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) {
     throw UnimplementedError();
   }
 }

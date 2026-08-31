@@ -1,8 +1,13 @@
 import 'package:sofawatch/features/history/domain/models/history_page.dart';
 import 'package:sofawatch/features/history/domain/models/history_preview.dart';
+import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
 
 abstract interface class HistoryRepository {
   Future<HistoryPreview> getPreview();
 
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor});
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  });
 }

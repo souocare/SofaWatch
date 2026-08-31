@@ -5100,3 +5100,105 @@ def test_list_history_rejects_invalid_limit(
     )
 
     assert response.status_code == 422
+
+def test_list_history_can_filter_episode_history(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Return only Episode events when media_type=episode."""
+
+    user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    season = create_season(
+        db_session,
+        show=show,
+        tmdb_id=200001,
+        season_number=1,
+        title="Season 1",
+    )
+
+    episode = create_episode(
+        db_session,
+        season=season,
+        tmdb_id=123456,
+        episode_number=1,
+        title="Good News About Hell",
+        air_date=date(2022, 2, 18),
+    )
+
+    episode_event = create_episode_watch_event(
+        db_session,
+        user=user,
+        episode=episode,
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    movie = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    create_movie_watch_event(
+        db_session,
+        user=user,
+        movie=movie,
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            21,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    response = client.get(
+        "/api/v1/library/history",
+        params={
+            "media_type": "episode",
+        },
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert [item["event_id"] for item in body["items"]] == [
+        str(episode_event.id),
+    ]
+
+    assert [item["media_type"] for item in body["items"]] == [
+        "episode",
+    ]
+
+def test_list_history_rejects_invalid_media_type(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Reject unsupported History media types."""
+
+    create_local_user(db_session)
+
+    response = client.get(
+        "/api/v1/library/history",
+        params={
+            "media_type": "show",
+        },
+    )
+
+    assert response.status_code == 422
+

@@ -5,6 +5,7 @@ import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/history/application/cubit/history_state.dart';
 import 'package:sofawatch/features/history/domain/models/history_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
 import 'package:sofawatch/features/history/domain/models/history_page.dart';
 import 'package:sofawatch/features/history/domain/repositories/history_repository.dart';
 
@@ -12,6 +13,7 @@ final class HistoryCubit extends Cubit<HistoryState> {
   HistoryCubit({
     required this._repository,
     required ViewingStateChangeNotifier viewingStateChangeNotifier,
+    this.mediaType = HistoryMediaType.all,
   }) : super(const HistoryState()) {
     _viewingStateChangeSubscription = viewingStateChangeNotifier.changes.listen(
       (_) {
@@ -21,6 +23,7 @@ final class HistoryCubit extends Cubit<HistoryState> {
   }
 
   final HistoryRepository _repository;
+  final HistoryMediaType mediaType;
 
   late final StreamSubscription<void> _viewingStateChangeSubscription;
 
@@ -46,7 +49,10 @@ final class HistoryCubit extends Cubit<HistoryState> {
     );
 
     try {
-      final HistoryPage page = await _repository.getHistory(limit: _pageSize);
+      final HistoryPage page = await _repository.getHistory(
+        limit: _pageSize,
+        mediaType: mediaType,
+      );
 
       if (isClosed) {
         return;
@@ -97,6 +103,7 @@ final class HistoryCubit extends Cubit<HistoryState> {
       final HistoryPage page = await _repository.getHistory(
         limit: _pageSize,
         cursor: cursor,
+        mediaType: mediaType,
       );
 
       if (isClosed) {

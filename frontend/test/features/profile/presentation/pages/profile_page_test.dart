@@ -19,6 +19,7 @@ import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart
 import 'package:sofawatch/features/history/application/cubit/history_preview_cubit.dart';
 import 'package:sofawatch/features/history/domain/models/history_episode.dart';
 import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
 import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
 import 'package:sofawatch/features/history/domain/models/history_page.dart';
 import 'package:sofawatch/features/history/domain/models/history_preview.dart';
@@ -732,6 +733,16 @@ void main() {
       );
 
       expect(
+        find.byKey(const ValueKey<String>('profile-history-episodes-see-all')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-movies-see-all')),
+        findsOneWidget,
+      );
+
+      expect(
         find.byKey(
           const ValueKey<String>('profile-history-episode-episode-event-1'),
         ),
@@ -800,6 +811,16 @@ void main() {
       );
 
       expect(
+        find.byKey(const ValueKey<String>('profile-history-episodes-see-all')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-movies-see-all')),
+        findsNothing,
+      );
+
+      expect(
         find.byKey(
           const ValueKey<String>('profile-history-episode-episode-event-1'),
         ),
@@ -857,6 +878,16 @@ void main() {
       expect(
         find.byKey(const ValueKey<String>('profile-history-movies')),
         findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-movies-see-all')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-history-episodes-see-all')),
+        findsNothing,
       );
 
       expect(
@@ -5131,7 +5162,11 @@ final class _FakeHistoryRepository implements HistoryRepository {
   }
 
   @override
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) {
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) {
     throw UnimplementedError('Full History is not used by ProfilePage tests.');
   }
 }
@@ -5153,7 +5188,11 @@ final class _ControlledHistoryRepository implements HistoryRepository {
   }
 
   @override
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) {
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) {
     throw UnimplementedError('Full History is not used by ProfilePage tests.');
   }
 }
@@ -5173,7 +5212,11 @@ final class _RetryHistoryRepository implements HistoryRepository {
   }
 
   @override
-  Future<HistoryPage> getHistory({int limit = 30, String? cursor}) {
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) {
     throw UnimplementedError('Full History is not used by ProfilePage tests.');
   }
 }

@@ -928,3 +928,236 @@ def test_invalid_cursor_is_rejected_before_repository_calls(
 
     episode_repository.list_watch_history.assert_not_called()
     movie_repository.list_watch_history.assert_not_called()
+
+
+def test_list_for_user_can_return_only_episode_history(
+    service: HistoryService,
+    episode_repository: Mock,
+    movie_repository: Mock,
+) -> None:
+    """Return only Episode events when Episode History is requested."""
+
+    newer_event = make_episode_history_event(
+        event_id="40000000-0000-0000-0000-000000000002",
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            21,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    older_event = make_episode_history_event(
+        event_id="40000000-0000-0000-0000-000000000001",
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    episode_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[
+            newer_event,
+            older_event,
+        ],
+        has_more=False,
+    )
+
+    result = service.list_for_user(
+        user_id=USER_ID,
+        limit=10,
+        media_type="episode",
+    )
+
+    assert [item.event_id for item in result.items] == [
+        newer_event.event_id,
+        older_event.event_id,
+    ]
+
+    assert all(item.media_type == "episode" for item in result.items)
+    assert result.has_more is False
+    assert result.next_cursor is None
+
+    episode_repository.list_watch_history.assert_called_once_with(
+        user_id=USER_ID,
+        limit=11,
+        before_watched_at=None,
+        before_event_id=None,
+    )
+
+    movie_repository.list_watch_history.assert_not_called()
+
+def test_list_for_user_can_return_only_movie_history(
+    service: HistoryService,
+    episode_repository: Mock,
+    movie_repository: Mock,
+) -> None:
+    """Return only Movie events when Movie History is requested."""
+
+    newer_event = make_movie_history_event(
+        event_id="50000000-0000-0000-0000-000000000002",
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            21,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    older_event = make_movie_history_event(
+        event_id="50000000-0000-0000-0000-000000000001",
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    movie_repository.list_watch_history.return_value = (
+        MovieWatchHistoryEventPage(
+            items=[
+                newer_event,
+                older_event,
+            ],
+            has_more=False,
+        )
+    )
+
+    result = service.list_for_user(
+        user_id=USER_ID,
+        limit=10,
+        media_type="movie",
+    )
+
+    assert [item.event_id for item in result.items] == [
+        newer_event.event_id,
+        older_event.event_id,
+    ]
+
+    assert all(item.media_type == "movie" for item in result.items)
+    assert result.has_more is False
+    assert result.next_cursor is None
+
+    movie_repository.list_watch_history.assert_called_once_with(
+        user_id=USER_ID,
+        limit=11,
+        before_watched_at=None,
+        before_event_id=None,
+    )
+
+    episode_repository.list_watch_history.assert_not_called()
+
+
+def test_list_for_user_paginates_episode_history(
+    service: HistoryService,
+    episode_repository: Mock,
+    movie_repository: Mock,
+) -> None:
+    """Continue Episode-only History with an Episode cursor."""
+
+    cursor_event = make_episode_history_event(
+        event_id="40000000-0000-0000-0000-000000000002",
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            21,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    older_event = make_episode_history_event(
+        event_id="40000000-0000-0000-0000-000000000001",
+        watched_at=datetime(
+            2026,
+            8,
+            19,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    cursor = HistoryCursorCodec.encode(
+        HistoryCursor(
+            watched_at=cursor_event.watched_at,
+            media_type="episode",
+            event_id=cursor_event.event_id,
+        )
+    )
+
+    episode_repository.list_watch_history.return_value = WatchHistoryEventPage(
+        items=[older_event],
+        has_more=False,
+    )
+
+    result = service.list_for_user(
+        user_id=USER_ID,
+        limit=10,
+        cursor=cursor,
+        media_type="episode",
+    )
+
+    assert [item.event_id for item in result.items] == [
+        older_event.event_id,
+    ]
+
+    assert result.has_more is False
+    assert result.next_cursor is None
+
+    episode_repository.list_watch_history.assert_called_once_with(
+        user_id=USER_ID,
+        limit=11,
+        before_watched_at=cursor_event.watched_at,
+        before_event_id=cursor_event.event_id,
+    )
+
+    movie_repository.list_watch_history.assert_not_called()
+
+def test_list_for_user_rejects_movie_cursor_for_episode_history(
+    service: HistoryService,
+    episode_repository: Mock,
+    movie_repository: Mock,
+) -> None:
+    """Reject a cursor belonging to another History media type."""
+
+    cursor = HistoryCursorCodec.encode(
+        HistoryCursor(
+            watched_at=datetime(
+                2026,
+                8,
+                19,
+                21,
+                0,
+                tzinfo=UTC,
+            ),
+            media_type="movie",
+            event_id=UUID(
+                "50000000-0000-0000-0000-000000000001"
+            ),
+        )
+    )
+
+    with pytest.raises(ValueError):
+        service.list_for_user(
+            user_id=USER_ID,
+            cursor=cursor,
+            media_type="episode",
+        )
+
+    episode_repository.list_watch_history.assert_not_called()
+    movie_repository.list_watch_history.assert_not_called()
+
+
