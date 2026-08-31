@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -77,4 +77,21 @@ class UserRepository:
                     User.username.asc(),
                 )
             )
+        )
+
+    def count_summary(self) -> tuple[int, int, int]:
+        """Return total, active, and administrator user counts."""
+
+        row = self._session.execute(
+            select(
+                func.count(User.id),
+                func.count(User.id).filter(User.is_active.is_(True)),
+                func.count(User.id).filter(User.is_admin.is_(True)),
+            )
+        ).one()
+
+        return (
+            int(row[0]),
+            int(row[1]),
+            int(row[2]),
         )

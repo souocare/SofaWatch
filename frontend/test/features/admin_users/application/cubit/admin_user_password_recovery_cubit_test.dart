@@ -5,6 +5,7 @@ import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/admin_users/application/cubit/admin_user_password_recovery_cubit.dart';
 import 'package:sofawatch/features/admin_users/application/cubit/admin_user_password_recovery_state.dart';
 import 'package:sofawatch/features/admin_users/domain/models/admin_user.dart';
+import 'package:sofawatch/features/admin_users/domain/models/admin_users_summary.dart';
 import 'package:sofawatch/features/admin_users/domain/models/password_recovery_link.dart';
 import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_repository.dart';
 
@@ -157,6 +158,11 @@ final class _FakeAdminUsersRepository implements AdminUsersRepository {
       'listUsers is not used by password recovery cubit tests.',
     );
   }
+
+  @override
+  Future<AdminUsersSummary> getSummary() {
+    throw UnimplementedError();
+  }
 }
 
 final class _PendingAdminUsersRepository implements AdminUsersRepository {
@@ -181,5 +187,10 @@ final class _PendingAdminUsersRepository implements AdminUsersRepository {
     throw UnimplementedError(
       'listUsers is not used by password recovery cubit tests.',
     );
+  }
+
+  @override
+  Future<AdminUsersSummary> getSummary() {
+    throw UnimplementedError();
   }
 }

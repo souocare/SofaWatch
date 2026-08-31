@@ -16,6 +16,8 @@ import 'package:sofawatch/features/admin_users/application/cubit/admin_user_pass
 import 'package:sofawatch/features/admin_users/application/cubit/admin_user_password_recovery_state.dart';
 import 'package:sofawatch/features/admin_users/application/cubit/admin_users_cubit.dart';
 import 'package:sofawatch/features/admin_users/application/cubit/admin_users_state.dart';
+import 'package:sofawatch/features/admin_users/application/cubit/admin_users_summary_cubit.dart';
+import 'package:sofawatch/features/admin_users/application/cubit/admin_users_summary_state.dart';
 import 'package:sofawatch/features/admin_users/domain/models/admin_user.dart';
 import 'package:sofawatch/features/admin_users/domain/models/password_recovery_link.dart';
 import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_repository.dart';
@@ -122,6 +124,8 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xl),
 
                   const _ProfileServerGate(),
+
+                  const SizedBox(height: AppSpacing.xxxl),
 
                   const _ProfileUsersGate(),
 
@@ -2655,14 +2659,13 @@ class _ProfileServerGate extends StatelessWidget {
                         )..load();
                       },
                     ),
-                    if (showDesktopDetails)
-                      BlocProvider<ServerHealthCubit>(
-                        create: (BuildContext context) {
-                          return ServerHealthCubit(
-                            repository: context.read<ServerRepository>(),
-                          )..load();
-                        },
-                      ),
+                    BlocProvider<ServerHealthCubit>(
+                      create: (BuildContext context) {
+                        return ServerHealthCubit(
+                          repository: context.read<ServerRepository>(),
+                        )..load();
+                      },
+                    ),
                     if (showDesktopDetails)
                       BlocProvider<ServerLogsCubit>(
                         create: (BuildContext context) {
@@ -2725,11 +2728,7 @@ class _ProfileServerSection extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.section),
         ] else ...<Widget>[
-          const _ProfileMobileAdministrationRow(
-            rowKey: 'profile-server-mobile-summary',
-            icon: Icons.dns_rounded,
-            title: 'Server',
-          ),
+          const _ProfileMobileServerSummary(),
           const SizedBox(height: AppSpacing.section),
         ],
 
@@ -2749,11 +2748,15 @@ class _ProfileMobileAdministrationRow extends StatelessWidget {
     required this.rowKey,
     required this.icon,
     required this.title,
+    this.subtitle,
+    this.trailing,
   });
 
   final String rowKey;
   final IconData icon;
   final String title;
+  final String? subtitle;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -2781,15 +2784,38 @@ class _ProfileMobileAdministrationRow extends StatelessWidget {
               alignment: Alignment.center,
               child: Icon(icon, size: 20, color: AppColors.primary),
             ),
+
             const SizedBox(width: AppSpacing.md),
+
             Expanded(
-              child: Text(
-                title,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+
+                  if (subtitle != null) ...<Widget>[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
+
+            if (trailing != null) ...<Widget>[
+              const SizedBox(width: AppSpacing.sm),
+              trailing!,
+            ],
           ],
         ),
       ),
@@ -4979,12 +5005,15 @@ class _ProfileUsersGate extends StatelessWidget {
             MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet;
 
         if (!useDesktopLayout) {
-          return const Padding(
-            padding: EdgeInsets.only(bottom: AppSpacing.section),
-            child: _ProfileMobileAdministrationRow(
-              rowKey: 'profile-users-mobile-summary',
-              icon: Icons.people_outline_rounded,
-              title: 'Users',
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.section),
+            child: BlocProvider<AdminUsersSummaryCubit>(
+              create: (BuildContext context) {
+                return AdminUsersSummaryCubit(
+                  repository: context.read<AdminUsersRepository>(),
+                )..load();
+              },
+              child: const _ProfileMobileUsersSection(),
             ),
           );
         }
@@ -5000,6 +5029,57 @@ class _ProfileUsersGate extends StatelessWidget {
             child: const _ProfileUsersSection(),
           ),
         );
+      },
+    );
+  }
+}
+
+class _ProfileMobileUsersSection extends StatelessWidget {
+  const _ProfileMobileUsersSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<AdminUsersSummaryCubit, AdminUsersSummaryState>(
+      builder: (BuildContext context, AdminUsersSummaryState state) {
+        return switch (state) {
+          AdminUsersSummaryInitial() ||
+          AdminUsersSummaryLoading() => const _ProfileMobileAdministrationRow(
+            rowKey: 'profile-users-mobile-summary',
+            icon: Icons.people_outline_rounded,
+            title: 'Users',
+            subtitle: 'Loading users…',
+            trailing: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+
+          AdminUsersSummarySuccess(:final summary) =>
+            _ProfileMobileAdministrationRow(
+              rowKey: 'profile-users-mobile-summary',
+              icon: Icons.people_outline_rounded,
+              title: 'Users',
+              subtitle: _formatUsersSummary(
+                total: summary.total,
+                active: summary.active,
+                admins: summary.admins,
+              ),
+            ),
+
+          AdminUsersSummaryFailure(:final error) =>
+            _ProfileMobileAdministrationRow(
+              rowKey: 'profile-users-mobile-summary',
+              icon: Icons.people_outline_rounded,
+              title: 'Users',
+              subtitle: AppErrorMessageMapper.map(error),
+              trailing: TextButton(
+                key: const ValueKey<String>('profile-users-mobile-retry'),
+                onPressed: context.read<AdminUsersSummaryCubit>().retry,
+                child: const Text('Retry'),
+              ),
+            ),
+        };
       },
     );
   }
@@ -5281,17 +5361,6 @@ class _ProfileSecurityGate extends StatelessWidget {
         final bool useDesktopLayout =
             MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet;
 
-        if (!useDesktopLayout) {
-          return const Padding(
-            padding: EdgeInsets.only(bottom: AppSpacing.section),
-            child: _ProfileMobileAdministrationRow(
-              rowKey: 'profile-security-mobile-summary',
-              icon: Icons.security_rounded,
-              title: 'Security',
-            ),
-          );
-        }
-
         return Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.section),
           child: BlocProvider<SecuritySettingsCubit>(
@@ -5300,10 +5369,111 @@ class _ProfileSecurityGate extends StatelessWidget {
                 repository: context.read<SecuritySettingsRepository>(),
               )..load();
             },
-            child: const _ProfileSecuritySection(),
+            child: useDesktopLayout
+                ? const _ProfileSecuritySection()
+                : const _ProfileMobileSecuritySection(),
           ),
         );
       },
+    );
+  }
+}
+
+class _ProfileMobileSecuritySection extends StatelessWidget {
+  const _ProfileMobileSecuritySection();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocConsumer<SecuritySettingsCubit, SecuritySettingsState>(
+      listenWhen:
+          (SecuritySettingsState previous, SecuritySettingsState current) {
+            final AppException? previousError = switch (previous) {
+              SecuritySettingsSuccess(:final updateError) => updateError,
+              _ => null,
+            };
+
+            final AppException? currentError = switch (current) {
+              SecuritySettingsSuccess(:final updateError) => updateError,
+              _ => null,
+            };
+
+            return previousError != currentError && currentError != null;
+          },
+      listener: (BuildContext context, SecuritySettingsState state) {
+        final AppException? error = switch (state) {
+          SecuritySettingsSuccess(:final updateError) => updateError,
+          _ => null,
+        };
+
+        if (error == null) {
+          return;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppErrorMessageMapper.map(error))),
+        );
+
+        context.read<SecuritySettingsCubit>().clearUpdateError();
+      },
+      builder: (BuildContext context, SecuritySettingsState state) {
+        return switch (state) {
+          SecuritySettingsInitial() ||
+          SecuritySettingsLoading() => const _ProfileMobileAdministrationRow(
+            rowKey: 'profile-security-mobile-summary',
+            icon: Icons.security_rounded,
+            title: 'Security',
+            subtitle: 'Loading registration settings…',
+            trailing: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+
+          SecuritySettingsSuccess(:final settings, :final isUpdating) =>
+            _ProfileMobileAdministrationRow(
+              rowKey: 'profile-security-mobile-summary',
+              icon: Icons.security_rounded,
+              title: 'Security',
+              subtitle: settings.openRegistration
+                  ? 'Registration open'
+                  : 'Registration closed',
+              trailing: Switch(
+                key: const ValueKey<String>(
+                  'profile-security-mobile-open-registration',
+                ),
+                value: settings.openRegistration,
+                onChanged: isUpdating
+                    ? null
+                    : context.read<SecuritySettingsCubit>().setOpenRegistration,
+              ),
+            ),
+
+          SecuritySettingsFailure(:final error) =>
+            _ProfileMobileSecurityFailure(error: error),
+        };
+      },
+    );
+  }
+}
+
+class _ProfileMobileSecurityFailure extends StatelessWidget {
+  const _ProfileMobileSecurityFailure({required this.error});
+
+  final AppException error;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ProfileMobileAdministrationRow(
+      rowKey: 'profile-security-mobile-summary',
+      icon: Icons.security_rounded,
+      title: 'Security',
+      subtitle: AppErrorMessageMapper.map(error),
+      trailing: TextButton(
+        key: const ValueKey<String>('profile-security-mobile-retry'),
+        onPressed: context.read<SecuritySettingsCubit>().retry,
+        child: const Text('Retry'),
+      ),
     );
   }
 }
@@ -6754,4 +6924,63 @@ class _AdminPasswordRecoverySuccess extends StatelessWidget {
       ],
     );
   }
+}
+
+class _ProfileMobileServerSummary extends StatelessWidget {
+  const _ProfileMobileServerSummary();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ServerHealthCubit, ServerHealthState>(
+      builder: (BuildContext context, ServerHealthState state) {
+        return switch (state) {
+          ServerHealthInitial() ||
+          ServerHealthLoading() => const _ProfileMobileAdministrationRow(
+            rowKey: 'profile-server-mobile-summary',
+            icon: Icons.dns_rounded,
+            title: 'Server',
+            subtitle: 'Checking server health…',
+            trailing: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+
+          ServerHealthSuccess(:final health) => _ProfileMobileAdministrationRow(
+            rowKey: 'profile-server-mobile-summary',
+            icon: Icons.dns_rounded,
+            title: 'Server',
+            subtitle:
+                '${_serverHealthStatusLabel(health.status)}'
+                ' · Uptime ${_formatServerUptime(health.uptimeSeconds)}',
+          ),
+
+          ServerHealthFailure(:final error) => _ProfileMobileAdministrationRow(
+            rowKey: 'profile-server-mobile-summary',
+            icon: Icons.dns_rounded,
+            title: 'Server',
+            subtitle: AppErrorMessageMapper.map(error),
+            trailing: TextButton(
+              key: const ValueKey<String>('profile-server-mobile-retry'),
+              onPressed: context.read<ServerHealthCubit>().retry,
+              child: const Text('Retry'),
+            ),
+          ),
+        };
+      },
+    );
+  }
+}
+
+String _formatUsersSummary({
+  required int total,
+  required int active,
+  required int admins,
+}) {
+  final String usersLabel = total == 1 ? 'user' : 'users';
+  final String activeLabel = active == 1 ? 'active' : 'active';
+  final String adminsLabel = admins == 1 ? 'admin' : 'admins';
+
+  return '$total $usersLabel · $active $activeLabel · $admins $adminsLabel';
 }

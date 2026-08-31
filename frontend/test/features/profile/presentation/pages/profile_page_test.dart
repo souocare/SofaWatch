@@ -10,6 +10,7 @@ import 'package:sofawatch/core/errors/app_error_message_mapper.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/admin_users/domain/models/admin_user.dart';
+import 'package:sofawatch/features/admin_users/domain/models/admin_users_summary.dart';
 import 'package:sofawatch/features/admin_users/domain/models/password_recovery_link.dart';
 import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_repository.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
@@ -3242,42 +3243,78 @@ void main() {
     });
   });
   group('ProfilePage Security', () {
-    testWidgets(
-      'shows compact Security row and does not load settings on mobile',
-      (WidgetTester tester) async {
-        _useMobileViewport(tester);
+    testWidgets('shows compact Security settings on mobile', (
+      WidgetTester tester,
+    ) async {
+      _useMobileViewport(tester);
 
-        final _FakeSecuritySettingsRepository securityRepository =
-            _FakeSecuritySettingsRepository();
+      final _FakeSecuritySettingsRepository securityRepository =
+          _FakeSecuritySettingsRepository(
+            settings: const SecuritySettings(openRegistration: false),
+          );
 
-        await tester.pumpWidget(
-          _buildTestApp(securitySettingsRepository: securityRepository),
-        );
+      await tester.pumpWidget(
+        _buildTestApp(securitySettingsRepository: securityRepository),
+      );
 
-        await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-        expect(
-          find.byKey(const ValueKey<String>('profile-security-mobile-summary')),
-          findsOneWidget,
-        );
+      expect(
+        find.byKey(const ValueKey<String>('profile-security-mobile-summary')),
+        findsOneWidget,
+      );
 
-        expect(
-          find.byKey(const ValueKey<String>('profile-security')),
-          findsNothing,
-        );
+      expect(
+        find.byKey(const ValueKey<String>('profile-security')),
+        findsNothing,
+      );
 
-        expect(
-          find.byKey(
-            const ValueKey<String>('profile-security-open-registration'),
-          ),
-          findsNothing,
-        );
+      expect(find.text('Registration closed'), findsOneWidget);
 
-        expect(find.text('Open registration'), findsNothing);
+      final Finder switchFinder = find.byKey(
+        const ValueKey<String>('profile-security-mobile-open-registration'),
+      );
 
-        expect(securityRepository.getSettingsCalls, 0);
-      },
-    );
+      expect(switchFinder, findsOneWidget);
+      expect(tester.widget<Switch>(switchFinder).value, isFalse);
+      await tester.ensureVisible(switchFinder);
+
+      expect(securityRepository.getSettingsCalls, 1);
+    });
+
+    testWidgets('updates Open registration from mobile Security', (
+      WidgetTester tester,
+    ) async {
+      _useMobileViewport(tester);
+
+      final _FakeSecuritySettingsRepository securityRepository =
+          _FakeSecuritySettingsRepository(
+            settings: const SecuritySettings(openRegistration: false),
+          );
+
+      await tester.pumpWidget(
+        _buildTestApp(securitySettingsRepository: securityRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder switchFinder = find.byKey(
+        const ValueKey<String>('profile-security-mobile-open-registration'),
+      );
+
+      expect(tester.widget<Switch>(switchFinder).value, isFalse);
+      await tester.ensureVisible(switchFinder);
+
+      await tester.tap(switchFinder);
+      await tester.pumpAndSettle();
+
+      expect(securityRepository.updateCalls, 1);
+      expect(securityRepository.lastEnabled, isTrue);
+
+      expect(tester.widget<Switch>(switchFinder).value, isTrue);
+
+      expect(find.text('Registration open'), findsOneWidget);
+    });
     testWidgets('shows full Security settings for administrator on desktop', (
       WidgetTester tester,
     ) async {
@@ -4466,27 +4503,7 @@ void main() {
         findsOneWidget,
       );
     });
-    testWidgets('shows compact Users row and does not load users on mobile', (
-      WidgetTester tester,
-    ) async {
-      _useMobileViewport(tester);
 
-      final _CountingAdminUsersRepository repository =
-          _CountingAdminUsersRepository();
-
-      await tester.pumpWidget(_buildTestApp(adminUsersRepository: repository));
-
-      await tester.pumpAndSettle();
-
-      expect(
-        find.byKey(const ValueKey<String>('profile-users-mobile-summary')),
-        findsOneWidget,
-      );
-
-      expect(find.byKey(const ValueKey<String>('profile-users')), findsNothing);
-
-      expect(repository.listCalls, 0);
-    });
     testWidgets('shows Users at desktop breakpoint', (
       WidgetTester tester,
     ) async {
@@ -4516,8 +4533,9 @@ void main() {
       );
 
       expect(repository.listCalls, 1);
+      expect(repository.summaryCalls, 0);
     });
-    testWidgets('shows compact Users row and does not load users on mobile', (
+    testWidgets('shows compact Users summary on mobile', (
       WidgetTester tester,
     ) async {
       _useMobileViewport(tester);
@@ -4536,7 +4554,10 @@ void main() {
 
       expect(find.byKey(const ValueKey<String>('profile-users')), findsNothing);
 
+      expect(find.text('5 users · 4 active · 1 admin'), findsOneWidget);
+
       expect(repository.listCalls, 0);
+      expect(repository.summaryCalls, 1);
     });
     testWidgets('shows full Users section and loads users on desktop', (
       WidgetTester tester,
@@ -4561,6 +4582,7 @@ void main() {
       );
 
       expect(repository.listCalls, 1);
+      expect(repository.summaryCalls, 0);
     });
   });
 }
@@ -6147,16 +6169,33 @@ final class _FakeAdminUsersRepository implements AdminUsersRepository {
       expiresAt: DateTime.utc(2026, 8, 26, 10),
     );
   }
+
+  @override
+  Future<AdminUsersSummary> getSummary() async {
+    return AdminUsersSummary(
+      total: users.length,
+      active: users.where((AdminUser user) => user.isActive).length,
+      admins: users.where((AdminUser user) => user.isAdmin).length,
+    );
+  }
 }
 
 final class _CountingAdminUsersRepository implements AdminUsersRepository {
   int listCalls = 0;
+  int summaryCalls = 0;
 
   @override
   Future<List<AdminUser>> listUsers() async {
     listCalls += 1;
 
     return const <AdminUser>[];
+  }
+
+  @override
+  Future<AdminUsersSummary> getSummary() async {
+    summaryCalls += 1;
+
+    return const AdminUsersSummary(total: 5, active: 4, admins: 1);
   }
 
   @override

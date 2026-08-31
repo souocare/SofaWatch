@@ -22,6 +22,7 @@ from app.schemas.user import (
     CurrentUserResponse,
     CurrentUserUpdateRequest,
     PasswordRecoveryResponse,
+    AdminUsersSummaryResponse
 )
 from app.services.user import (
     CurrentPasswordInvalidError,
@@ -265,4 +266,29 @@ def import_current_user_data(
     return service.import_user_data(
         user_id=current_user.id,
         export=export,
+    )
+
+@router.get(
+    "/summary",
+    response_model=AdminUsersSummaryResponse,
+    summary="Get users summary",
+    description=(
+        "Return aggregate SofaWatch user counts for administrative "
+        "interfaces. Only administrators may access this operation."
+    ),
+)
+def get_users_summary(
+    admin_user: AdminUserDependency,
+    user_service: UserServiceDependency,
+) -> AdminUsersSummaryResponse:
+    """Return aggregate administrative information about SofaWatch users."""
+
+    del admin_user
+
+    total, active, admins = user_service.get_users_summary()
+
+    return AdminUsersSummaryResponse(
+        total=total,
+        active=active,
+        admins=admins,
     )

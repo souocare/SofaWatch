@@ -75,3 +75,10 @@ class AdminUserResponse(BaseModel):
     display_name: str
     is_active: bool
     is_admin: bool
+
+class AdminUsersSummaryResponse(BaseModel):
+    """Aggregate administrative user counts."""
+
+    total: int = Field(ge=0)
+    active: int = Field(ge=0)
+    admins: int = Field(ge=0)

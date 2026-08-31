@@ -125,3 +125,8 @@ class UserService:
         """Return all SofaWatch users."""
 
         return self._user_repository.list_all()
+
+    def get_users_summary(self) -> tuple[int, int, int]:
+        """Return aggregate user counts for administrative summaries."""
+
+        return self._user_repository.count_summary()

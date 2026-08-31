@@ -3,6 +3,7 @@ import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/admin_users/application/cubit/admin_users_cubit.dart';
 import 'package:sofawatch/features/admin_users/application/cubit/admin_users_state.dart';
 import 'package:sofawatch/features/admin_users/domain/models/admin_user.dart';
+import 'package:sofawatch/features/admin_users/domain/models/admin_users_summary.dart';
 import 'package:sofawatch/features/admin_users/domain/models/password_recovery_link.dart';
 import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_repository.dart';
 
@@ -129,6 +130,11 @@ final class _FakeAdminUsersRepository implements AdminUsersRepository {
   Future<PasswordRecoveryLink> startPasswordRecovery({required String userId}) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<AdminUsersSummary> getSummary() {
+    throw UnimplementedError();
+  }
 }
 
 final class _RetryAdminUsersRepository implements AdminUsersRepository {
@@ -147,6 +153,11 @@ final class _RetryAdminUsersRepository implements AdminUsersRepository {
 
   @override
   Future<PasswordRecoveryLink> startPasswordRecovery({required String userId}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<AdminUsersSummary> getSummary() {
     throw UnimplementedError();
   }
 }
