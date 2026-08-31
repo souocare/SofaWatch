@@ -842,9 +842,10 @@ class _ProfileLibraryContent extends StatelessWidget {
         _ProfileLibraryGroup(
           groupKey: 'profile-library-shows',
           title: 'Shows',
+          totalItems: preview.totalShows,
           isEmpty: preview.shows.isEmpty,
           emptyMessage: 'No Shows in your Library yet.',
-          onSeeAll: () {
+          onViewAll: () {
             context.pushNamed(
               AppRoute.libraryCollection.name,
               queryParameters: const <String, String>{'tab': 'shows'},
@@ -867,9 +868,10 @@ class _ProfileLibraryContent extends StatelessWidget {
         _ProfileLibraryGroup(
           groupKey: 'profile-library-movies',
           title: 'Movies',
+          totalItems: preview.totalMovies,
           isEmpty: preview.movies.isEmpty,
           emptyMessage: 'No Movies in your Library yet.',
-          onSeeAll: () {
+          onViewAll: () {
             context.pushNamed(
               AppRoute.libraryCollection.name,
               queryParameters: const <String, String>{'tab': 'movies'},
@@ -895,18 +897,20 @@ class _ProfileLibraryGroup extends StatelessWidget {
   const _ProfileLibraryGroup({
     required this.groupKey,
     required this.title,
+    required this.totalItems,
     required this.isEmpty,
     required this.emptyMessage,
     required this.children,
-    required this.onSeeAll,
+    required this.onViewAll,
   });
 
   final String groupKey;
   final String title;
+  final int totalItems;
   final bool isEmpty;
   final String emptyMessage;
   final List<Widget> children;
-  final VoidCallback onSeeAll;
+  final VoidCallback onViewAll;
 
   @override
   Widget build(BuildContext context) {
@@ -925,51 +929,129 @@ class _ProfileLibraryGroup extends StatelessWidget {
                 ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
-
             TextButton(
-              key: ValueKey<String>('$groupKey-see-all'),
-              onPressed: onSeeAll,
-              child: const Text('See All'),
+              key: ValueKey<String>('$groupKey-view-all-header'),
+              onPressed: onViewAll,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xs,
+                  vertical: AppSpacing.xs,
+                ),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'View All ($totalItems)',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         ),
-
         const SizedBox(height: AppSpacing.sm),
-
         if (isEmpty)
           _ProfileLibraryEmpty(
             emptyKey: '$groupKey-empty',
             message: emptyMessage,
           )
-        else ...<Widget>[
+        else
           SizedBox(
             key: ValueKey<String>('$groupKey-list'),
             height: 200,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: children.length,
+              itemCount: children.length + 1,
               separatorBuilder: (BuildContext context, int index) {
                 return const SizedBox(width: AppSpacing.sm);
               },
               itemBuilder: (BuildContext context, int index) {
+                if (index == children.length) {
+                  return _ProfileLibraryViewAllPoster(
+                    viewAllKey: '$groupKey-view-all',
+                    totalItems: totalItems,
+                    onTap: onViewAll,
+                  );
+                }
+
                 return children[index];
               },
             ),
           ),
+      ],
+    );
+  }
+}
 
-          const SizedBox(height: AppSpacing.sm),
+class _ProfileLibraryViewAllPoster extends StatelessWidget {
+  const _ProfileLibraryViewAllPoster({
+    required this.viewAllKey,
+    required this.totalItems,
+    required this.onTap,
+  });
 
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              key: ValueKey<String>('$groupKey-see-all-footer'),
-              onPressed: onSeeAll,
-              icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-              label: const Text('See All'),
+  final String viewAllKey;
+  final int totalItems;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      key: ValueKey<String>(viewAllKey),
+      width: 108,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: AspectRatio(
+          aspectRatio: 2 / 3,
+          child: Material(
+            color: AppColors.surfaceSubtle,
+            borderRadius: AppRadius.borderLarge,
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceHigh,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.grid_view_rounded,
+                        size: 22,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'View All',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '($totalItems)',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-        ],
-      ],
+        ),
+      ),
     );
   }
 }

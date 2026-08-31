@@ -131,6 +131,8 @@ void main() {
 }
 
 const LibraryPreview _preview = LibraryPreview(
+  totalShows: 23,
+  totalMovies: 14,
   shows: <LibraryPreviewShow>[
     LibraryPreviewShow(
       id: 'show-id',

@@ -135,6 +135,8 @@ class LibraryPreviewMovieResponse(BaseModel):
 class LibraryPreviewResponse(BaseModel):
     """Recently added media displayed in the Profile Library preview."""
 
+    total_shows: int = Field(ge=0)
+    total_movies: int = Field(ge=0)
     shows: list[LibraryPreviewShowResponse]
     movies: list[LibraryPreviewMovieResponse]
 

@@ -1,13 +1,20 @@
 import 'package:equatable/equatable.dart';
 
 final class LibraryPreview extends Equatable {
-  const LibraryPreview({required this.shows, required this.movies});
+  const LibraryPreview({
+    required this.totalShows,
+    required this.totalMovies,
+    required this.shows,
+    required this.movies,
+  });
 
+  final int totalShows;
+  final int totalMovies;
   final List<LibraryPreviewShow> shows;
   final List<LibraryPreviewMovie> movies;
 
   @override
-  List<Object?> get props => <Object?>[shows, movies];
+  List<Object?> get props => <Object?>[totalShows, totalMovies, shows, movies];
 }
 
 final class LibraryPreviewShow extends Equatable {

@@ -461,7 +461,16 @@ class LibraryService:
             if entry.movie is not None
         ]
 
+        total_shows = self._library_repository.count_shows_by_user(
+            user_id=user_id,
+        )
+        total_movies = self._library_repository.count_movies_by_user(
+            user_id=user_id,
+        )
+
         return LibraryPreviewResponse(
+            total_shows=total_shows,
+            total_movies=total_movies,
             shows=shows,
             movies=movies,
         )

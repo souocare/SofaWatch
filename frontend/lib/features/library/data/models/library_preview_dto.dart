@@ -1,10 +1,17 @@
 import 'package:sofawatch/features/library/domain/models/library_preview.dart';
 
 final class LibraryPreviewDto {
-  const LibraryPreviewDto({required this.shows, required this.movies});
+  const LibraryPreviewDto({
+    required this.totalShows,
+    required this.totalMovies,
+    required this.shows,
+    required this.movies,
+  });
 
   factory LibraryPreviewDto.fromJson(Map<String, dynamic> json) {
     return LibraryPreviewDto(
+      totalShows: _requiredNonNegativeInt(json, 'total_shows'),
+      totalMovies: _requiredNonNegativeInt(json, 'total_movies'),
       shows: _parseList(
         json,
         key: 'shows',
@@ -18,6 +25,8 @@ final class LibraryPreviewDto {
     );
   }
 
+  final int totalShows;
+  final int totalMovies;
   final List<LibraryPreviewShowDto> shows;
   final List<LibraryPreviewMovieDto> movies;
 
@@ -25,6 +34,8 @@ final class LibraryPreviewDto {
     required String? Function(String? path) resolveUrl,
   }) {
     return LibraryPreview(
+      totalShows: totalShows,
+      totalMovies: totalMovies,
       shows: shows
           .map(
             (LibraryPreviewShowDto item) =>
@@ -188,4 +199,14 @@ String? _resolveOptionalUrl(
   }
 
   return resolveUrl(value);
+}
+
+int _requiredNonNegativeInt(Map<String, dynamic> json, String key) {
+  final Object? value = json[key];
+
+  if (value is! int || value < 0) {
+    throw FormatException('$key must be a non-negative integer.');
+  }
+
+  return value;
 }

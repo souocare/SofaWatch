@@ -1138,6 +1138,9 @@ def test_get_preview_for_user_returns_recent_shows_movies_and_progress(
         movie_entry,
     ]
 
+    library_repository.count_shows_by_user.return_value = 2
+    library_repository.count_movies_by_user.return_value = 1
+
     episode_repository.get_aired_counts_by_show_ids.return_value = {
         first_show_id: 10,
         second_show_id: 62,
@@ -1199,6 +1202,8 @@ def test_get_preview_for_user_returns_recent_shows_movies_and_progress(
         first_show_id,
         second_show_id,
     ]
+    assert result.total_shows == 2
+    assert result.total_movies == 1
 
 
 def test_get_preview_for_user_uses_zero_for_missing_show_progress(
@@ -1226,6 +1231,9 @@ def test_get_preview_for_user_uses_zero_for_missing_show_progress(
     episode_repository.get_aired_counts_by_show_ids.return_value = {}
     episode_progress_repository.get_watched_aired_counts_by_show_ids.return_value = {}
 
+    library_repository.count_shows_by_user.return_value = 1
+    library_repository.count_movies_by_user.return_value = 0
+
     result = library_service.get_preview_for_user(
         user_id=user_id,
     )
@@ -1234,6 +1242,8 @@ def test_get_preview_for_user_uses_zero_for_missing_show_progress(
 
     assert result.shows[0].watched_episodes == 0
     assert result.shows[0].aired_episodes == 0
+    assert result.total_shows == 1
+    assert result.total_movies == 0
 
     assert result.movies == []
 
@@ -1250,6 +1260,8 @@ def test_get_preview_for_user_supports_empty_library(
 
     library_repository.list_recent_shows_by_user.return_value = []
     library_repository.list_recent_movies_by_user.return_value = []
+    library_repository.count_shows_by_user.return_value = 0
+    library_repository.count_movies_by_user.return_value = 0
 
     result = library_service.get_preview_for_user(
         user_id=user_id,
@@ -1257,6 +1269,8 @@ def test_get_preview_for_user_supports_empty_library(
 
     assert result.shows == []
     assert result.movies == []
+    assert result.total_shows == 0
+    assert result.total_movies == 0
 
     library_repository.list_recent_shows_by_user.assert_called_once_with(
         user_id=user_id,

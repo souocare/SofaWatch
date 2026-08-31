@@ -4482,9 +4482,14 @@ def test_get_library_preview_returns_recent_shows_and_movies(
     body = response.json()
 
     assert set(body) == {
+        "total_shows",
+        "total_movies",
         "shows",
         "movies",
     }
+
+    assert body["total_shows"] == 1
+    assert body["total_movies"] == 1
 
     assert len(body["shows"]) == 1
 
@@ -4520,6 +4525,8 @@ def test_get_library_preview_returns_empty_collections_for_empty_library(
     assert response.status_code == 200
 
     assert response.json() == {
+        "total_shows": 0,
+        "total_movies": 0,
         "shows": [],
         "movies": [],
     }

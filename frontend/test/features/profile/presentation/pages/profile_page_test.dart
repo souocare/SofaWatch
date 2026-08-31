@@ -419,6 +419,8 @@ void main() {
         _buildTestApp(
           libraryRepository: const _FakeLibraryRepository(
             preview: LibraryPreview(
+              totalShows: 23,
+              totalMovies: 14,
               shows: <LibraryPreviewShow>[],
               movies: <LibraryPreviewMovie>[
                 LibraryPreviewMovie(
@@ -457,6 +459,8 @@ void main() {
         _buildTestApp(
           libraryRepository: const _FakeLibraryRepository(
             preview: LibraryPreview(
+              totalShows: 23,
+              totalMovies: 14,
               shows: <LibraryPreviewShow>[
                 LibraryPreviewShow(
                   id: 'show-1',
@@ -648,7 +652,7 @@ void main() {
 
       expect(find.text('438631'), findsOneWidget);
     });
-    testWidgets('shows See All actions for Shows and Movies', (
+    testWidgets('shows totals and View All posters for Shows and Movies', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
@@ -662,26 +666,26 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const ValueKey<String>('profile-library-shows-see-all')),
-        findsOneWidget,
-      );
-
-      expect(
         find.byKey(
-          const ValueKey<String>('profile-library-shows-see-all-footer'),
+          const ValueKey<String>('profile-library-shows-view-all-header'),
         ),
         findsOneWidget,
       );
 
       expect(
-        find.byKey(const ValueKey<String>('profile-library-movies-see-all')),
+        find.byKey(
+          const ValueKey<String>('profile-library-movies-view-all-header'),
+        ),
         findsOneWidget,
       );
 
       expect(
-        find.byKey(
-          const ValueKey<String>('profile-library-movies-see-all-footer'),
-        ),
+        find.byKey(const ValueKey<String>('profile-library-shows-view-all')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-library-movies-view-all')),
         findsOneWidget,
       );
     });
@@ -4745,6 +4749,8 @@ const StatisticsSummary _summary = StatisticsSummary(
 );
 
 const LibraryPreview _libraryPreview = LibraryPreview(
+  totalShows: 23,
+  totalMovies: 14,
   shows: <LibraryPreviewShow>[
     LibraryPreviewShow(
       id: 'show-1',

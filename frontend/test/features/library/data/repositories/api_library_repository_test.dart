@@ -393,6 +393,8 @@ void main() {
               requestOptions: options,
               statusCode: 200,
               data: <String, dynamic>{
+                'total_shows': 1,
+                'total_movies': 1,
                 'shows': <dynamic>[
                   <String, dynamic>{
                     'show': <String, dynamic>{
@@ -436,6 +438,8 @@ void main() {
     expect(preview.movies.first.id, 'movie-uuid');
     expect(preview.movies.first.tmdbId, 438631);
     expect(preview.movies.first.title, 'Dune');
+    expect(preview.totalShows, 1);
+    expect(preview.totalMovies, 1);
   });
 
   test('resolves Library preview poster URLs against the server', () async {
@@ -449,6 +453,8 @@ void main() {
               requestOptions: options,
               statusCode: 200,
               data: <String, dynamic>{
+                'total_shows': 1,
+                'total_movies': 1,
                 'shows': <dynamic>[
                   <String, dynamic>{
                     'show': <String, dynamic>{
@@ -491,6 +497,8 @@ void main() {
       preview.movies.first.posterUrl,
       'http://localhost:8000/api/v1/images/movies/movie-uuid/poster',
     );
+    expect(preview.totalShows, 1);
+    expect(preview.totalMovies, 1);
   });
 
   test('supports Library preview items without posters', () async {
@@ -504,6 +512,8 @@ void main() {
               requestOptions: options,
               statusCode: 200,
               data: <String, dynamic>{
+                'total_shows': 1,
+                'total_movies': 1,
                 'shows': <dynamic>[
                   <String, dynamic>{
                     'show': <String, dynamic>{
@@ -539,6 +549,8 @@ void main() {
 
     expect(preview.shows.first.posterUrl, isNull);
     expect(preview.movies.first.posterUrl, isNull);
+    expect(preview.totalShows, 1);
+    expect(preview.totalMovies, 1);
   });
 
   test('supports an empty Library preview', () async {
@@ -552,6 +564,8 @@ void main() {
               requestOptions: options,
               statusCode: 200,
               data: <String, dynamic>{
+                'total_shows': 0,
+                'total_movies': 0,
                 'shows': <dynamic>[],
                 'movies': <dynamic>[],
               },
@@ -569,6 +583,8 @@ void main() {
 
     expect(preview.shows, isEmpty);
     expect(preview.movies, isEmpty);
+    expect(preview.totalShows, 0);
+    expect(preview.totalMovies, 0);
   });
 
   test('maps invalid Library preview response to invalidData', () async {
