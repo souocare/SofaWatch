@@ -129,6 +129,9 @@ class ProfilePage extends StatelessWidget {
                   const _ProfileUsersGate(),
 
                   const _ProfileSecurityGate(),
+
+                  const SizedBox(height: AppSpacing.section),
+                  const _ProfileSessionActions(),
                 ],
               ),
             ),
@@ -255,6 +258,81 @@ class _ProfileAccountSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('profile-account-section'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'Account',
+          key: const ValueKey<String>('profile-account-title'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Material(
+          color: AppColors.surfaceHigh,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppRadius.borderLarge,
+            side: const BorderSide(color: AppColors.outlineVariant),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            key: const ValueKey<String>('profile-change-password-action'),
+            onTap: () {
+              _showChangePassword(context);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              child: Row(
+                children: <Widget>[
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: AppRadius.borderMedium,
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.password_rounded,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Text(
+                      'Change password',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: AppColors.textSecondary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileSessionActions extends StatelessWidget {
+  const _ProfileSessionActions();
+
+  @override
+  Widget build(BuildContext context) {
     return BlocBuilder<AuthCubit, AuthState>(
       buildWhen: (AuthState previous, AuthState current) {
         return previous.runtimeType != current.runtimeType &&
@@ -269,162 +347,48 @@ class _ProfileAccountSection extends StatelessWidget {
             state is AuthLoggingOut || state is AuthLoggingOutEverywhere;
 
         return Column(
-          key: const ValueKey<String>('profile-account-section'),
+          key: const ValueKey<String>('profile-session-actions'),
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Text(
-              'Account',
-              key: const ValueKey<String>('profile-account-title'),
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            OutlinedButton.icon(
+              key: const ValueKey<String>('profile-logout-action'),
+              onPressed: isLoggingOut
+                  ? null
+                  : () {
+                      _confirmLogout(context);
+                    },
+              icon: state is AuthLoggingOut
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.logout_rounded),
+              label: const Text('Log out'),
             ),
-
-            const SizedBox(height: AppSpacing.md),
-
-            Material(
-              color: AppColors.surfaceHigh,
-              shape: RoundedRectangleBorder(
-                borderRadius: AppRadius.borderLarge,
-                side: const BorderSide(color: AppColors.outlineVariant),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                key: const ValueKey<String>('profile-change-password-action'),
-                onTap: isLoggingOut
-                    ? null
-                    : () {
-                        _showChangePassword(context);
-                      },
-                child: Padding(
-                  padding: AppSpacing.cardPadding,
-                  child: Row(
-                    children: <Widget>[
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: AppRadius.borderMedium,
-                        ),
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.password_rounded,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-
-                      const SizedBox(width: AppSpacing.lg),
-
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              'Change password',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-
-                            const SizedBox(height: AppSpacing.xs),
-
-                            Text(
-                              'Update your password using your current password.',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: AppColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(width: AppSpacing.md),
-
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: AppColors.textSecondary,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
             const SizedBox(height: AppSpacing.sm),
-
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.surfaceHigh,
-                borderRadius: AppRadius.borderLarge,
-                border: Border.all(color: AppColors.outlineVariant),
-              ),
-              child: InkWell(
-                key: const ValueKey<String>('profile-logout-everywhere-action'),
-                borderRadius: AppRadius.borderLarge,
-                onTap: isLoggingOut
-                    ? null
-                    : () {
-                        _confirmLogoutEverywhere(context);
-                      },
-                child: Padding(
-                  padding: AppSpacing.cardPadding,
-                  child: Row(
-                    children: <Widget>[
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.errorContainer.withValues(
-                            alpha: 0.28,
-                          ),
-                          borderRadius: AppRadius.borderMedium,
-                        ),
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.logout_rounded,
-                          color: AppColors.error,
-                        ),
-                      ),
-
-                      const SizedBox(width: AppSpacing.lg),
-
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              'Log out everywhere',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-
-                            const SizedBox(height: AppSpacing.xs),
-
-                            Text(
-                              'End all active SofaWatch sessions on every device.',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: AppColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(width: AppSpacing.md),
-
-                      if (state is AuthLoggingOutEverywhere)
-                        const SizedBox(
-                          width: 20,
-                          height: 20,
+            TextButton(
+              key: const ValueKey<String>('profile-logout-everywhere-action'),
+              onPressed: isLoggingOut
+                  ? null
+                  : () {
+                      _confirmLogoutEverywhere(context);
+                    },
+              style: TextButton.styleFrom(foregroundColor: AppColors.error),
+              child: state is AuthLoggingOutEverywhere
+                  ? const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        SizedBox(
+                          width: 18,
+                          height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      else
-                        const Icon(
-                          Icons.chevron_right_rounded,
-                          color: AppColors.textSecondary,
                         ),
-                    ],
-                  ),
-                ),
-              ),
+                        SizedBox(width: AppSpacing.sm),
+                        Text('Logging out everywhere…'),
+                      ],
+                    )
+                  : const Text('Log out everywhere'),
             ),
           ],
         );
@@ -5338,6 +5302,43 @@ Future<void> _openSofaWatchWeb(BuildContext context) async {
   ScaffoldMessenger.of(context).showSnackBar(
     const SnackBar(content: Text('SofaWatch Web could not be opened.')),
   );
+}
+
+Future<void> _confirmLogout(BuildContext context) async {
+  final bool? confirmed = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        key: const ValueKey<String>('profile-logout-dialog'),
+        title: const Text('Log out?'),
+        content: const Text(
+          'You will be signed out of SofaWatch on this device.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            key: const ValueKey<String>('profile-logout-cancel'),
+            onPressed: () {
+              Navigator.of(dialogContext).pop(false);
+            },
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const ValueKey<String>('profile-logout-confirm'),
+            onPressed: () {
+              Navigator.of(dialogContext).pop(true);
+            },
+            child: const Text('Log out'),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (confirmed != true || !context.mounted) {
+    return;
+  }
+
+  await context.read<AuthCubit>().logout();
 }
 
 Future<void> _confirmLogoutEverywhere(BuildContext context) async {

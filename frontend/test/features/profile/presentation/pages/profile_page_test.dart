@@ -3143,6 +3143,110 @@ void main() {
       );
     });
     group('ProfilePage Account', () {
+      testWidgets('shows Log out action', (WidgetTester tester) async {
+        await tester.pumpWidget(_buildTestApp());
+
+        await tester.pumpAndSettle();
+
+        final Finder logoutAction = find.byKey(
+          const ValueKey<String>('profile-logout-action'),
+        );
+
+        expect(logoutAction, findsOneWidget);
+
+        await tester.ensureVisible(logoutAction);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Log out'), findsOneWidget);
+      });
+
+      testWidgets('asks for confirmation before logging out', (
+        WidgetTester tester,
+      ) async {
+        await tester.pumpWidget(_buildTestApp());
+
+        await tester.pumpAndSettle();
+
+        final Finder logoutAction = find.byKey(
+          const ValueKey<String>('profile-logout-action'),
+        );
+
+        await tester.ensureVisible(logoutAction);
+        await tester.pumpAndSettle();
+
+        await tester.tap(logoutAction);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('profile-logout-dialog')),
+          findsOneWidget,
+        );
+
+        expect(find.text('Log out?'), findsOneWidget);
+
+        expect(
+          find.text('You will be signed out of SofaWatch on this device.'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('cancelling does not log out', (WidgetTester tester) async {
+        final _FakeAuthRepository authRepository = _FakeAuthRepository();
+
+        await tester.pumpWidget(_buildTestApp(authRepository: authRepository));
+
+        await tester.pumpAndSettle();
+
+        final Finder logoutAction = find.byKey(
+          const ValueKey<String>('profile-logout-action'),
+        );
+
+        await tester.ensureVisible(logoutAction);
+        await tester.pumpAndSettle();
+
+        await tester.tap(logoutAction);
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('profile-logout-cancel')),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(authRepository.logoutCalls, 0);
+
+        expect(
+          find.byKey(const ValueKey<String>('profile-logout-dialog')),
+          findsNothing,
+        );
+      });
+
+      testWidgets('confirmation logs out', (WidgetTester tester) async {
+        final _FakeAuthRepository authRepository = _FakeAuthRepository();
+
+        await tester.pumpWidget(_buildTestApp(authRepository: authRepository));
+
+        await tester.pumpAndSettle();
+
+        final Finder logoutAction = find.byKey(
+          const ValueKey<String>('profile-logout-action'),
+        );
+
+        await tester.ensureVisible(logoutAction);
+        await tester.pumpAndSettle();
+
+        await tester.tap(logoutAction);
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('profile-logout-confirm')),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(authRepository.logoutCalls, 1);
+      });
+
       testWidgets('shows Log out everywhere action', (
         WidgetTester tester,
       ) async {
@@ -3150,19 +3254,16 @@ void main() {
 
         await tester.pumpAndSettle();
 
-        expect(
-          find.byKey(
-            const ValueKey<String>('profile-logout-everywhere-action'),
-          ),
-          findsOneWidget,
+        final Finder logoutEverywhereAction = find.byKey(
+          const ValueKey<String>('profile-logout-everywhere-action'),
         );
+
+        expect(logoutEverywhereAction, findsOneWidget);
+
+        await tester.ensureVisible(logoutEverywhereAction);
+        await tester.pumpAndSettle();
 
         expect(find.text('Log out everywhere'), findsOneWidget);
-
-        expect(
-          find.text('End all active SofaWatch sessions on every device.'),
-          findsOneWidget,
-        );
       });
 
       testWidgets('asks for confirmation before logging out everywhere', (
@@ -3172,18 +3273,14 @@ void main() {
 
         await tester.pumpAndSettle();
 
-        await tester.ensureVisible(
-          find.byKey(
-            const ValueKey<String>('profile-logout-everywhere-action'),
-          ),
+        final Finder logoutEverywhereAction = find.byKey(
+          const ValueKey<String>('profile-logout-everywhere-action'),
         );
 
-        await tester.tap(
-          find.byKey(
-            const ValueKey<String>('profile-logout-everywhere-action'),
-          ),
-        );
+        await tester.ensureVisible(logoutEverywhereAction);
+        await tester.pumpAndSettle();
 
+        await tester.tap(logoutEverywhereAction);
         await tester.pumpAndSettle();
 
         expect(
@@ -3213,18 +3310,14 @@ void main() {
 
         await tester.pumpAndSettle();
 
-        await tester.ensureVisible(
-          find.byKey(
-            const ValueKey<String>('profile-logout-everywhere-action'),
-          ),
+        final Finder logoutEverywhereAction = find.byKey(
+          const ValueKey<String>('profile-logout-everywhere-action'),
         );
 
-        await tester.tap(
-          find.byKey(
-            const ValueKey<String>('profile-logout-everywhere-action'),
-          ),
-        );
+        await tester.ensureVisible(logoutEverywhereAction);
+        await tester.pumpAndSettle();
 
+        await tester.tap(logoutEverywhereAction);
         await tester.pumpAndSettle();
 
         await tester.tap(
@@ -3254,18 +3347,14 @@ void main() {
 
         await tester.pumpAndSettle();
 
-        await tester.ensureVisible(
-          find.byKey(
-            const ValueKey<String>('profile-logout-everywhere-action'),
-          ),
+        final Finder logoutEverywhereAction = find.byKey(
+          const ValueKey<String>('profile-logout-everywhere-action'),
         );
 
-        await tester.tap(
-          find.byKey(
-            const ValueKey<String>('profile-logout-everywhere-action'),
-          ),
-        );
+        await tester.ensureVisible(logoutEverywhereAction);
+        await tester.pumpAndSettle();
 
+        await tester.tap(logoutEverywhereAction);
         await tester.pumpAndSettle();
 
         await tester.tap(
