@@ -1074,9 +1074,15 @@ A failure in one section should not unnecessarily break another.
 - [x] Episodes
 - [x] Movies
 - [x] Global `watched_at DESC` ordering
-- [x] Pagination/load-more behavior where required
+- [x] Backend media-type filtering
+- [x] Opaque cursor pagination
+- [x] Media-scoped cursors/pagination
+- [x] Pagination/load-more behavior
+- [x] Filter-specific titles and empty states
 - [x] Episode → Episode Details
 - [x] Movie → Movie Details
+- [x] Profile Episode `See All`
+- [x] Profile Movie `See All`
 
 ---
 

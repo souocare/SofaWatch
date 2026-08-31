@@ -55,9 +55,16 @@ Implemented or established:
 - viewing-state recalculation after event deletion;
 - History integration with Statistics;
 - navigation from History to associated media;
-- user-scoped History.
+- user-scoped History;
+- full combined History page;
+- Episode-only full History;
+- Movie-only full History;
+- backend `media_type` filtering for full History;
+- cursor pagination scoped to the selected History media type;
+- Profile `See All` navigation into Episode and Movie History;
+- media-specific History titles and empty states.
 
-The full History experience is intended to support:
+The full History experience supports:
 
 ```text
 All
@@ -65,7 +72,9 @@ Episodes
 Movies
 ```
 
-with pagination/load-more where needed.
+The combined History remains the default timeline, while Episode-only and Movie-only History are server-filtered views of the same canonical viewing events.
+
+All full-History views use cursor-based pagination/load-more rather than loading an unlimited lifetime history.
 
 Remaining work is primarily final full-History UX validation, pagination/large-history validation, Movie/Episode correction consistency, responsive/accessibility validation, and import/export integration audits.
 
@@ -288,17 +297,18 @@ When multiple events have the same timestamp, the backend should use a determini
 
 # History Types
 
-The full History experience supports conceptual filters:
+The full History experience supports three views:
 
-```text
-All
-Episodes
-Movies
-```
+    All
+    Episodes
+    Movies
 
-These filters change which event types are included.
+`All` is the default combined timeline.
 
-They should not create separate incompatible history models.
+`Episodes` and `Movies` reuse the same History domain/application
+architecture while requesting server-filtered data. Filtering happens on
+the backend before pagination so pages remain complete and cursor semantics
+remain correct.
 
 ---
 
@@ -761,23 +771,21 @@ Pagination or Load More should be supported rather than loading an unlimited lif
 
 # Stable Pagination
 
-Because History is sorted by timestamps, pagination must remain deterministic.
+Full History uses opaque cursor-based pagination.
 
-If offset pagination is used, concurrent new events can shift rows.
-
-For a personal self-hosted application this may be acceptable initially, but stable ordering is still required.
-
-If scale/UX later demands it, cursor-based pagination using:
+The cursor preserves deterministic continuation across:
 
 ```text
-watched_at
-+
-event identity
+    watched_at
+
+    media type
+
+    event identity
 ```
 
-can provide stronger stability.
+For filtered Episode or Movie History, the cursor is scoped to the selected media type and cannot be reused with an incompatible filter.
 
-Do not introduce cursor complexity without a real need.
+The frontend treats the cursor as opaque and returns it unchanged when requesting the next page.
 
 ---
 
@@ -813,19 +821,21 @@ The user can retry loading older events.
 
 ---
 
-# Filter Changes
+# Filter Navigation
 
-Switching:
+History currently exposes media-specific full views through navigation:
 
 ```text
-All -> Episodes -> Movies
+    /history
+    /history?type=episode
+    /history?type=movie
 ```
 
-should use clearly scoped data/state.
+Profile History provides separate `See All` actions for Episode and Movie
+history.
 
-If each filter has independent pagination, the application can preserve previously loaded filter state where beneficial.
-
-Avoid accidental mixing of cursors/pages between filters.
+Each route owns correctly scoped History pagination state, preventing pages
+or cursors from different media types from being mixed.
 
 ---
 

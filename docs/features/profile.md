@@ -395,13 +395,27 @@ Combined History
 -> Profile preview
 ```
 
+The Profile preview does not paginate and does not load the user's complete
+History. Full media-specific history is delegated to the History feature.
+
 ---
 
 # History Navigation
 
-Selecting the section can open full History.
+Profile keeps History as a lightweight preview rather than owning the full
+timeline.
 
-Selecting an individual entry can navigate to the associated media where the current UX supports it.
+Each populated History group provides a dedicated `See All` action:
+
+    Episodes -> /history?type=episode
+    Movies   -> /history?type=movie
+
+The destination reuses the canonical History feature and its cursor
+pagination rather than introducing Profile-specific History pages or
+repositories.
+
+Selecting an individual preview entry continues to navigate to the
+associated Episode or Movie details experience.
 
 ---
 

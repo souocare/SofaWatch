@@ -1212,6 +1212,19 @@ and can contain:
 
 The media type should be explicit enough for the frontend to navigate to the correct detail experience.
 
+
+Full History supports an optional server-side media filter:
+
+```text
+    media_type=episode
+    media_type=movie
+```
+When omitted, History returns the combined Episode/Movie timeline.
+
+Filtering must happen before pagination on the backend. The frontend must
+not request a combined page and discard items of the unwanted media type,
+because doing so would produce incomplete pages and incorrect pagination.
+
 ---
 
 ## 69. History Pagination
@@ -1223,6 +1236,16 @@ When full History is paginated, the frontend should:
 - avoid duplicate requests;
 - surface pagination errors separately;
 - retain current filters such as All/Episodes/Movies.
+
+History pagination is cursor-based.
+
+The frontend must treat `next_cursor` as opaque and send it back unchanged
+for the same History media scope.
+
+A cursor obtained for Episode-only History must not be reused for Movie-only
+History, and vice versa.
+
+Changing History media scope starts a new first-page request.
 
 ---
 
