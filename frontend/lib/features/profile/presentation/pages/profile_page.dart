@@ -100,7 +100,7 @@ class ProfilePage extends StatelessWidget {
 
                   const SizedBox(height: AppSpacing.xl),
 
-                  const _ProfileAccountSection(),
+                  _ProfileAccountSection(isWeb: isWeb),
 
                   const SizedBox(height: AppSpacing.section),
 
@@ -117,9 +117,6 @@ class ProfilePage extends StatelessWidget {
                   if (isWeb) ...<Widget>[
                     const SizedBox(height: AppSpacing.xl),
                     const _ProfileDataTransferSection(),
-                  ] else ...<Widget>[
-                    const SizedBox(height: AppSpacing.xl),
-                    const _ProfileWebAppSection(),
                   ],
 
                   const SizedBox(height: AppSpacing.xl),
@@ -254,7 +251,9 @@ class _ProfileIdentityCard extends StatelessWidget {
 }
 
 class _ProfileAccountSection extends StatelessWidget {
-  const _ProfileAccountSection();
+  const _ProfileAccountSection({required this.isWeb});
+
+  final bool isWeb;
 
   @override
   Widget build(BuildContext context) {
@@ -323,6 +322,62 @@ class _ProfileAccountSection extends StatelessWidget {
             ),
           ),
         ),
+        if (!isWeb) ...<Widget>[
+          const SizedBox(height: AppSpacing.sm),
+          Material(
+            color: AppColors.surfaceHigh,
+            shape: RoundedRectangleBorder(
+              borderRadius: AppRadius.borderLarge,
+              side: const BorderSide(color: AppColors.outlineVariant),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              key: const ValueKey<String>('profile-open-web-app'),
+              onTap: () {
+                _openSofaWatchWeb(context);
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: AppRadius.borderMedium,
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.language_rounded,
+                        size: 20,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Text(
+                        'Open SofaWatch Web',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    const Icon(
+                      Icons.open_in_new_rounded,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -501,14 +556,30 @@ class _ProfileStatisticsContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
+
         Align(
-          alignment: Alignment.centerLeft,
+          alignment: Alignment.centerRight,
           child: TextButton(
             key: const ValueKey<String>('profile-detailed-statistics-action'),
             onPressed: () {
               context.pushNamed(AppRoute.detailedStatistics.name);
             },
-            child: const Text('View detailed statistics →'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+                vertical: AppSpacing.xs,
+              ),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              'View detailed statistics →',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ),
       ],
@@ -923,7 +994,7 @@ class _ProfileLibraryGroup extends StatelessWidget {
         else
           SizedBox(
             key: ValueKey<String>('$groupKey-list'),
-            height: 200,
+            height: 210,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: children.length + 1,
@@ -1054,14 +1125,13 @@ class _ProfileLibraryPoster extends StatelessWidget {
 
           const SizedBox(height: AppSpacing.xs),
 
-          Flexible(
-            child: Text(
-              title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+          Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              height: 1.25,
             ),
           ),
         ],
@@ -1656,91 +1726,6 @@ Future<void> _pickDataImportFile(BuildContext context) async {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('The selected file could not be opened.')),
-    );
-  }
-}
-
-class _ProfileWebAppSection extends StatelessWidget {
-  const _ProfileWebAppSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      key: const ValueKey<String>('profile-web-app'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Text(
-          'Web App',
-          key: const ValueKey<String>('profile-web-app-title'),
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-        ),
-
-        const SizedBox(height: AppSpacing.md),
-
-        Container(
-          key: const ValueKey<String>('profile-web-app-card'),
-          padding: AppSpacing.cardPadding,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceHigh,
-            borderRadius: AppRadius.borderLarge,
-            border: Border.all(color: AppColors.outlineVariant),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  const Icon(Icons.language_rounded, size: 24),
-
-                  const SizedBox(width: AppSpacing.md),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          'SofaWatch Web',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-
-                        const SizedBox(height: AppSpacing.xs),
-
-                        Text(
-                          'Open SofaWatch in your browser to access '
-                          'additional settings and Web-only features.',
-                          key: const ValueKey<String>(
-                            'profile-web-app-description',
-                          ),
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: AppColors.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: AppSpacing.lg),
-
-              Align(
-                alignment: Alignment.centerLeft,
-                child: FilledButton.icon(
-                  key: const ValueKey<String>('profile-open-web-app'),
-                  onPressed: () {
-                    _openSofaWatchWeb(context);
-                  },
-                  icon: const Icon(Icons.open_in_new_rounded),
-                  label: const Text('Open SofaWatch Web'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
@@ -2652,38 +2637,49 @@ class _ProfileServerGate extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            const SizedBox(height: AppSpacing.section),
+        return LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final bool showDesktopDetails =
+                constraints.maxWidth >= AppBreakpoints.profileFourColumns;
 
-            MultiBlocProvider(
-              providers: <BlocProvider<dynamic>>[
-                BlocProvider<ServerHealthCubit>(
-                  create: (BuildContext context) {
-                    return ServerHealthCubit(
-                      repository: context.read<ServerRepository>(),
-                    )..load();
-                  },
-                ),
-                BlocProvider<BackgroundJobsCubit>(
-                  create: (BuildContext context) {
-                    return BackgroundJobsCubit(
-                      repository: context.read<ServerRepository>(),
-                    )..load();
-                  },
-                ),
-                BlocProvider<ServerLogsCubit>(
-                  create: (BuildContext context) {
-                    return ServerLogsCubit(
-                      repository: context.read<ServerRepository>(),
-                    )..load();
-                  },
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                const SizedBox(height: AppSpacing.section),
+                MultiBlocProvider(
+                  providers: <BlocProvider<dynamic>>[
+                    BlocProvider<BackgroundJobsCubit>(
+                      create: (BuildContext context) {
+                        return BackgroundJobsCubit(
+                          repository: context.read<ServerRepository>(),
+                        )..load();
+                      },
+                    ),
+                    if (showDesktopDetails)
+                      BlocProvider<ServerHealthCubit>(
+                        create: (BuildContext context) {
+                          return ServerHealthCubit(
+                            repository: context.read<ServerRepository>(),
+                          )..load();
+                        },
+                      ),
+                    if (showDesktopDetails)
+                      BlocProvider<ServerLogsCubit>(
+                        create: (BuildContext context) {
+                          return ServerLogsCubit(
+                            repository: context.read<ServerRepository>(),
+                            pageSize: 10,
+                          )..load();
+                        },
+                      ),
+                  ],
+                  child: _ProfileServerSection(
+                    showDesktopDetails: showDesktopDetails,
+                  ),
                 ),
               ],
-              child: const _ProfileServerSection(),
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -2691,7 +2687,9 @@ class _ProfileServerGate extends StatelessWidget {
 }
 
 class _ProfileServerSection extends StatelessWidget {
-  const _ProfileServerSection();
+  const _ProfileServerSection({required this.showDesktopDetails});
+
+  final bool showDesktopDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -2699,42 +2697,102 @@ class _ProfileServerSection extends StatelessWidget {
       key: const ValueKey<String>('profile-server'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Text(
-          'Server',
-          key: const ValueKey<String>('profile-server-title'),
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-        ),
+        if (showDesktopDetails) ...<Widget>[
+          Text(
+            'Server',
+            key: const ValueKey<String>('profile-server-title'),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          BlocBuilder<ServerHealthCubit, ServerHealthState>(
+            builder: (BuildContext context, ServerHealthState state) {
+              return switch (state) {
+                ServerHealthInitial() ||
+                ServerHealthLoading() => const _ProfileServerLoading(),
 
-        const SizedBox(height: AppSpacing.md),
+                ServerHealthSuccess(:final health) =>
+                  _ProfileServerHealthSummary(health: health),
 
-        BlocBuilder<ServerHealthCubit, ServerHealthState>(
-          builder: (BuildContext context, ServerHealthState state) {
-            return switch (state) {
-              ServerHealthInitial() ||
-              ServerHealthLoading() => const _ProfileServerLoading(),
-
-              ServerHealthSuccess(:final health) => _ProfileServerHealthSummary(
-                health: health,
-              ),
-
-              ServerHealthFailure(:final error) => SectionFailureCard(
-                failureKey: 'profile-server-failure',
-                error: error,
-                onRetry: context.read<ServerHealthCubit>().retry,
-              ),
-            };
-          },
-        ),
-        const SizedBox(height: AppSpacing.section),
+                ServerHealthFailure(:final error) => SectionFailureCard(
+                  failureKey: 'profile-server-failure',
+                  error: error,
+                  onRetry: context.read<ServerHealthCubit>().retry,
+                ),
+              };
+            },
+          ),
+          const SizedBox(height: AppSpacing.section),
+        ] else ...<Widget>[
+          const _ProfileMobileAdministrationRow(
+            rowKey: 'profile-server-mobile-summary',
+            icon: Icons.dns_rounded,
+            title: 'Server',
+          ),
+          const SizedBox(height: AppSpacing.section),
+        ],
 
         const _ProfileBackgroundJobsSection(),
 
-        const SizedBox(height: AppSpacing.section),
-
-        const _ProfileServerLogsSection(),
+        if (showDesktopDetails) ...<Widget>[
+          const SizedBox(height: AppSpacing.section),
+          const _ProfileServerLogsSection(),
+        ],
       ],
+    );
+  }
+}
+
+class _ProfileMobileAdministrationRow extends StatelessWidget {
+  const _ProfileMobileAdministrationRow({
+    required this.rowKey,
+    required this.icon,
+    required this.title,
+  });
+
+  final String rowKey;
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      key: ValueKey<String>(rowKey),
+      color: AppColors.surfaceHigh,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadius.borderLarge,
+        side: const BorderSide(color: AppColors.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: AppRadius.borderMedium,
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 20, color: AppColors.primary),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(
+                title,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -3600,6 +3658,287 @@ class _ProfileBackgroundJobCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool useCompactLayout =
+        MediaQuery.sizeOf(context).width < AppBreakpoints.tablet;
+
+    if (useCompactLayout) {
+      return _ProfileBackgroundJobCompactCard(
+        job: job,
+        isSubmitting: isSubmitting,
+        runFailure: runFailure,
+      );
+    }
+
+    return _ProfileBackgroundJobDesktopCard(
+      job: job,
+      isSubmitting: isSubmitting,
+      runFailure: runFailure,
+    );
+  }
+}
+
+class _ProfileBackgroundJobCompactCard extends StatelessWidget {
+  const _ProfileBackgroundJobCompactCard({
+    required this.job,
+    required this.isSubmitting,
+    required this.runFailure,
+  });
+
+  final BackgroundJob job;
+  final bool isSubmitting;
+  final AppException? runFailure;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isBusy = isSubmitting || job.isRunning;
+    final bool supportsForceRefresh = job.key == 'metadata_sync';
+
+    return Container(
+      key: ValueKey<String>('profile-background-job-${job.key}'),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: AppRadius.borderMedium,
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.sync_rounded,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
+              ),
+
+              const SizedBox(width: AppSpacing.md),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      job.name,
+                      key: ValueKey<String>(
+                        'profile-background-job-${job.key}-name',
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+
+                    const SizedBox(height: 2),
+
+                    Text(
+                      job.schedule,
+                      key: ValueKey<String>(
+                        'profile-background-job-${job.key}-schedule',
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: AppSpacing.sm),
+
+              _ProfileBackgroundJobStatus(job: job),
+            ],
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  'Last run: ${_formatBackgroundJobDate(job.lastStartedAt)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: AppSpacing.sm),
+
+              SizedBox(
+                height: 34,
+                child: OutlinedButton(
+                  key: ValueKey<String>(
+                    'profile-background-job-${job.key}-run-now',
+                  ),
+                  onPressed: isBusy
+                      ? null
+                      : () {
+                          context.read<BackgroundJobsCubit>().runNow(job.key);
+                        },
+                  child: isBusy
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Text(
+                              job.isRunning ? 'Running' : 'Starting',
+                              key: ValueKey<String>(
+                                'profile-background-job-${job.key}-run-state',
+                              ),
+                            ),
+                          ],
+                        )
+                      : const Text('Run now'),
+                ),
+              ),
+            ],
+          ),
+
+          if (supportsForceRefresh) ...<Widget>[
+            const SizedBox(height: AppSpacing.xs),
+
+            Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  TextButton(
+                    key: ValueKey<String>(
+                      'profile-background-job-${job.key}-force-refresh',
+                    ),
+                    onPressed: isBusy
+                        ? null
+                        : () {
+                            _confirmForceRefresh(
+                              context: context,
+                              jobKey: job.key,
+                            );
+                          },
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                        vertical: AppSpacing.xs,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text('Force refresh'),
+                  ),
+
+                  IconButton(
+                    key: ValueKey<String>(
+                      'profile-background-job-${job.key}-force-refresh-info',
+                    ),
+                    tooltip: 'About Force refresh',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () {
+                      _showForceRefreshInfo(context);
+                    },
+                    icon: const Icon(Icons.info_outline_rounded, size: 18),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          if (job.lastError case final String error) ...<Widget>[
+            const SizedBox(height: AppSpacing.sm),
+
+            Text(
+              error,
+              key: ValueKey<String>(
+                'profile-background-job-${job.key}-last-error',
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            ),
+          ],
+
+          if (runFailure case final AppException error) ...<Widget>[
+            const SizedBox(height: AppSpacing.sm),
+
+            Container(
+              key: ValueKey<String>(
+                'profile-background-job-${job.key}-run-failure',
+              ),
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: AppRadius.borderMedium,
+                border: Border.all(color: AppColors.outlineVariant),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    size: 18,
+                    color: AppColors.textSecondary,
+                  ),
+
+                  const SizedBox(width: AppSpacing.sm),
+
+                  Expanded(
+                    child: Text(
+                      AppErrorMessageMapper.map(error),
+                      key: ValueKey<String>(
+                        'profile-background-job-${job.key}-run-failure-message',
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileBackgroundJobDesktopCard extends StatelessWidget {
+  const _ProfileBackgroundJobDesktopCard({
+    required this.job,
+    required this.isSubmitting,
+    required this.runFailure,
+  });
+
+  final BackgroundJob job;
+  final bool isSubmitting;
+  final AppException? runFailure;
+
+  @override
+  Widget build(BuildContext context) {
     final BackgroundJobResultSummary? result = job.lastResult;
 
     return Container(
@@ -3631,7 +3970,9 @@ class _ProfileBackgroundJobCard extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
+
                   const SizedBox(height: AppSpacing.xs),
+
                   Text(
                     job.schedule,
                     key: ValueKey<String>(
@@ -3650,7 +3991,9 @@ class _ProfileBackgroundJobCard extends StatelessWidget {
                     : CrossAxisAlignment.end,
                 children: <Widget>[
                   _ProfileBackgroundJobStatus(job: job),
+
                   const SizedBox(height: AppSpacing.sm),
+
                   _ProfileBackgroundJobRunAction(
                     job: job,
                     isSubmitting: isSubmitting,
@@ -3666,7 +4009,9 @@ class _ProfileBackgroundJobCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     identity,
+
                     const SizedBox(height: AppSpacing.md),
+
                     Align(alignment: Alignment.centerLeft, child: actions),
                   ],
                 );
@@ -3679,7 +4024,9 @@ class _ProfileBackgroundJobCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Expanded(child: identity),
+
                   const SizedBox(width: AppSpacing.md),
+
                   actions,
                 ],
               );
@@ -3756,6 +4103,7 @@ class _ProfileBackgroundJobCard extends StatelessWidget {
               ),
             ),
           ],
+
           if (runFailure case final AppException error) ...<Widget>[
             const SizedBox(height: AppSpacing.md),
 
@@ -3784,7 +4132,8 @@ class _ProfileBackgroundJobCard extends StatelessWidget {
                     child: Text(
                       AppErrorMessageMapper.map(error),
                       key: ValueKey<String>(
-                        'profile-background-job-${job.key}-run-failure-message',
+                        'profile-background-job-${job.key}'
+                        '-run-failure-message',
                       ),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
@@ -3820,7 +4169,7 @@ class _ProfileBackgroundJobStatus extends StatelessWidget {
           ),
 
           const SizedBox(width: AppSpacing.sm),
-        ] else
+        ] else ...<Widget>[
           Icon(
             job.isHealthy
                 ? Icons.check_circle_outline_rounded
@@ -3829,7 +4178,8 @@ class _ProfileBackgroundJobStatus extends StatelessWidget {
             color: AppColors.textSecondary,
           ),
 
-        if (!job.isRunning) const SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: AppSpacing.sm),
+        ],
 
         Text(
           _backgroundJobStatusLabel(job.status),
@@ -3883,6 +4233,8 @@ class _ProfileBackgroundJobRunAction extends StatelessWidget {
                         height: 14,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
+
+                      const SizedBox(width: AppSpacing.sm),
 
                       Text(
                         job.isRunning ? 'Running' : 'Starting',
@@ -4068,9 +4420,12 @@ class _ProfileBackgroundJobsLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool useCompactLayout =
+        MediaQuery.sizeOf(context).width < AppBreakpoints.tablet;
+
     return Container(
       key: const ValueKey<String>('profile-background-jobs-loading'),
-      height: 180,
+      height: useCompactLayout ? 96 : 180,
       decoration: BoxDecoration(
         color: AppColors.surfaceHigh,
         borderRadius: AppRadius.borderLarge,
@@ -4453,52 +4808,77 @@ class _ProfileServerLogsFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final int pageSize = state.page.limit;
+
+    final int currentPage = state.page.total == 0
+        ? 1
+        : (state.page.offset ~/ pageSize) + 1;
+
+    final int totalPages = state.page.total == 0
+        ? 1
+        : ((state.page.total + pageSize - 1) ~/ pageSize);
+
+    final bool hasPrevious = state.page.offset > 0;
+    final bool hasNext = state.page.hasNext;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Row(
           children: <Widget>[
+            OutlinedButton(
+              key: const ValueKey<String>('profile-server-logs-previous-page'),
+              onPressed: !hasPrevious || state.isLoadingMore
+                  ? null
+                  : () {
+                      context.read<ServerLogsCubit>().previousPage();
+                    },
+              child: const Text('Previous'),
+            ),
+
             Expanded(
               child: Text(
-                '${state.page.items.length} of ${state.page.total} logs',
-                key: const ValueKey<String>('profile-server-logs-count'),
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                'Page $currentPage of $totalPages',
+                key: const ValueKey<String>('profile-server-logs-page'),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
 
-            if (state.page.hasNext)
-              OutlinedButton(
-                key: const ValueKey<String>('profile-server-logs-load-more'),
-                onPressed: state.isLoadingMore
-                    ? null
-                    : () {
-                        context.read<ServerLogsCubit>().loadMore();
-                      },
-                child: state.isLoadingMore
-                    ? const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-
-                          SizedBox(width: AppSpacing.sm),
-
-                          Text('Loading'),
-                        ],
-                      )
-                    : const Text('Load more'),
-              ),
+            OutlinedButton(
+              key: const ValueKey<String>('profile-server-logs-next-page'),
+              onPressed: !hasNext || state.isLoadingMore
+                  ? null
+                  : () {
+                      context.read<ServerLogsCubit>().nextPage();
+                    },
+              child: state.isLoadingMore
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Next'),
+            ),
           ],
+        ),
+
+        const SizedBox(height: AppSpacing.xs),
+
+        Text(
+          '${state.page.total} logs',
+          key: const ValueKey<String>('profile-server-logs-count'),
+          textAlign: TextAlign.center,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
         ),
 
         if (state.paginationError case final AppException error) ...<Widget>[
           const SizedBox(height: AppSpacing.md),
-
           _ProfileServerLogsInlineFailure(
             failureKey: 'profile-server-logs-pagination-failure',
             error: error,
@@ -4591,11 +4971,22 @@ class _ProfileUsersGate extends StatelessWidget {
           _ => false,
         };
 
+        if (!isAdmin) {
+          return const SizedBox.shrink();
+        }
+
         final bool useDesktopLayout =
             MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet;
 
-        if (!isAdmin || !useDesktopLayout) {
-          return const SizedBox.shrink();
+        if (!useDesktopLayout) {
+          return const Padding(
+            padding: EdgeInsets.only(bottom: AppSpacing.section),
+            child: _ProfileMobileAdministrationRow(
+              rowKey: 'profile-users-mobile-summary',
+              icon: Icons.people_outline_rounded,
+              title: 'Users',
+            ),
+          );
         }
 
         return Padding(
@@ -4885,6 +5276,20 @@ class _ProfileSecurityGate extends StatelessWidget {
 
         if (!isAdmin) {
           return const SizedBox.shrink();
+        }
+
+        final bool useDesktopLayout =
+            MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet;
+
+        if (!useDesktopLayout) {
+          return const Padding(
+            padding: EdgeInsets.only(bottom: AppSpacing.section),
+            child: _ProfileMobileAdministrationRow(
+              rowKey: 'profile-security-mobile-summary',
+              icon: Icons.security_rounded,
+              title: 'Security',
+            ),
+          );
         }
 
         return Padding(

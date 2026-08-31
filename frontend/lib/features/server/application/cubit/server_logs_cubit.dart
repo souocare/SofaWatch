@@ -5,7 +5,7 @@ import 'package:sofawatch/features/server/domain/models/server_logs.dart';
 import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
 
 final class ServerLogsCubit extends Cubit<ServerLogsState> {
-  ServerLogsCubit({required this._repository, this.pageSize = 50})
+  ServerLogsCubit({required this._repository, this.pageSize = 10})
     : super(const ServerLogsInitial());
 
   final ServerRepository _repository;
@@ -123,7 +123,7 @@ final class ServerLogsCubit extends Cubit<ServerLogsState> {
     try {
       final ServerLogsPage page = await _repository.getLogs(
         level: currentState.level,
-        offset: 0,
+        offset: currentState.page.offset,
         limit: pageSize,
       );
 
@@ -177,23 +177,54 @@ final class ServerLogsCubit extends Cubit<ServerLogsState> {
     }
   }
 
-  Future<void> loadMore() async {
+  int? _lastRequestedOffset;
+
+  Future<void> nextPage() {
     final ServerLogsState currentState = state;
 
-    if (currentState is! ServerLogsSuccess || !currentState.canLoadMore) {
+    if (currentState is! ServerLogsSuccess ||
+        !currentState.page.hasNext ||
+        currentState.isLoadingMore) {
+      return Future<void>.value();
+    }
+
+    return _loadPage(currentState.page.offset + pageSize);
+  }
+
+  Future<void> previousPage() {
+    final ServerLogsState currentState = state;
+
+    if (currentState is! ServerLogsSuccess ||
+        currentState.page.offset <= 0 ||
+        currentState.isLoadingMore) {
+      return Future<void>.value();
+    }
+
+    return _loadPage(
+      (currentState.page.offset - pageSize).clamp(0, currentState.page.total),
+    );
+  }
+
+  Future<void> _loadPage(int offset) async {
+    final ServerLogsState currentState = state;
+
+    if (currentState is! ServerLogsSuccess ||
+        currentState.isLoadingMore ||
+        currentState.isRefreshing) {
       return;
     }
 
     final int generation = _generation;
+    _lastRequestedOffset = offset;
 
     emit(
       currentState.copyWith(isLoadingMore: true, clearPaginationError: true),
     );
 
     try {
-      final ServerLogsPage nextPage = await _repository.getLogs(
+      final ServerLogsPage page = await _repository.getLogs(
         level: currentState.level,
-        offset: currentState.page.items.length,
+        offset: offset,
         limit: pageSize,
       );
 
@@ -207,17 +238,9 @@ final class ServerLogsCubit extends Cubit<ServerLogsState> {
         return;
       }
 
-      final ServerLogsPage combinedPage = ServerLogsPage(
-        items: <ServerLogEntry>[...currentState.page.items, ...nextPage.items],
-        offset: 0,
-        limit: pageSize,
-        total: nextPage.total,
-        hasNext: nextPage.hasNext,
-      );
-
       emit(
         latestState.copyWith(
-          page: combinedPage,
+          page: page,
           isLoadingMore: false,
           clearPaginationError: true,
         ),
@@ -255,7 +278,13 @@ final class ServerLogsCubit extends Cubit<ServerLogsState> {
   }
 
   Future<void> retryPagination() {
-    return loadMore();
+    final int? offset = _lastRequestedOffset;
+
+    if (offset == null) {
+      return Future<void>.value();
+    }
+
+    return _loadPage(offset);
   }
 
   @override

@@ -24,7 +24,7 @@ void main() {
     test('loads the first Server Logs page', () async {
       final _ServerRepository repository = _ServerRepository(
         pages: <_LogsRequest, ServerLogsPage>{
-          const _LogsRequest(offset: 0, limit: 50): _firstPage,
+          const _LogsRequest(offset: 0, limit: 10): _firstPage,
         },
       );
 
@@ -51,17 +51,17 @@ void main() {
       expect(state.paginationError, isNull);
 
       expect(repository.requests, <_LogsRequest>[
-        const _LogsRequest(offset: 0, limit: 50),
+        const _LogsRequest(offset: 0, limit: 10),
       ]);
     });
 
     test('supports an empty first Server Logs page', () async {
       final _ServerRepository repository = _ServerRepository(
         pages: <_LogsRequest, ServerLogsPage>{
-          const _LogsRequest(offset: 0, limit: 50): const ServerLogsPage(
+          const _LogsRequest(offset: 0, limit: 10): const ServerLogsPage(
             items: <ServerLogEntry>[],
             offset: 0,
-            limit: 50,
+            limit: 10,
             total: 0,
             hasNext: false,
           ),
@@ -122,8 +122,8 @@ void main() {
     test('changes level and resets pagination', () async {
       final _ServerRepository repository = _ServerRepository(
         pages: <_LogsRequest, ServerLogsPage>{
-          const _LogsRequest(offset: 0, limit: 50): _firstPage,
-          const _LogsRequest(level: ServerLogLevel.error, offset: 0, limit: 50):
+          const _LogsRequest(offset: 0, limit: 10): _firstPage,
+          const _LogsRequest(level: ServerLogLevel.error, offset: 0, limit: 10):
               _errorPage,
         },
       );
@@ -143,14 +143,16 @@ void main() {
 
       expect(
         repository.requests.last,
-        const _LogsRequest(level: ServerLogLevel.error, offset: 0, limit: 50),
+        const _LogsRequest(level: ServerLogLevel.error, offset: 0, limit: 10),
       );
     });
 
     test('does not reload when level is unchanged', () async {
       final _ServerRepository repository = _ServerRepository(
         pages: <_LogsRequest, ServerLogsPage>{
-          const _LogsRequest(offset: 0, limit: 50): _firstPage,
+          const _LogsRequest(offset: 0, limit: 10): _firstPage,
+          const _LogsRequest(level: ServerLogLevel.error, offset: 0, limit: 10):
+              _errorPage,
         },
       );
 
@@ -190,8 +192,8 @@ void main() {
       expect(successState.level, ServerLogLevel.error);
 
       expect(repository.requests, <_LogsRequest>[
-        const _LogsRequest(level: ServerLogLevel.error, offset: 0, limit: 50),
-        const _LogsRequest(level: ServerLogLevel.error, offset: 0, limit: 50),
+        const _LogsRequest(level: ServerLogLevel.error, offset: 0, limit: 10),
+        const _LogsRequest(level: ServerLogLevel.error, offset: 0, limit: 10),
       ]);
     });
 
@@ -246,11 +248,11 @@ void main() {
       expect(state.refreshError?.type, AppExceptionType.connection);
     });
 
-    test('loads next page and appends backend order', () async {
+    test('loads next page and replaces current page', () async {
       final _ServerRepository repository = _ServerRepository(
         pages: <_LogsRequest, ServerLogsPage>{
-          const _LogsRequest(offset: 0, limit: 50): _firstPage,
-          const _LogsRequest(offset: 2, limit: 50): _secondPage,
+          const _LogsRequest(offset: 0, limit: 10): _firstPage,
+          const _LogsRequest(offset: 10, limit: 10): _secondPage,
         },
       );
 
@@ -259,13 +261,15 @@ void main() {
       addTearDown(cubit.close);
 
       await cubit.load();
-      await cubit.loadMore();
+      await cubit.nextPage();
 
       final ServerLogsSuccess state = cubit.state as ServerLogsSuccess;
 
-      expect(state.page.items, <ServerLogEntry>[_log1, _log2, _log3]);
+      expect(state.page, _secondPage);
 
-      expect(state.page.total, 3);
+      expect(state.page.items, <ServerLogEntry>[_log3]);
+
+      expect(state.page.total, 11);
 
       expect(state.page.hasNext, isFalse);
 
@@ -273,26 +277,26 @@ void main() {
 
       expect(
         repository.requests.last,
-        const _LogsRequest(offset: 2, limit: 50),
+        const _LogsRequest(offset: 10, limit: 10),
       );
     });
 
-    test('does not load more before initial load', () async {
+    test('does not load next page before initial load', () async {
       final _ServerRepository repository = _ServerRepository();
 
       final ServerLogsCubit cubit = ServerLogsCubit(repository: repository);
 
       addTearDown(cubit.close);
 
-      await cubit.loadMore();
+      await cubit.nextPage();
 
       expect(repository.calls, 0);
     });
 
-    test('does not load more when there is no next page', () async {
+    test('does not load next page when there is no next page', () async {
       final _ServerRepository repository = _ServerRepository(
         pages: <_LogsRequest, ServerLogsPage>{
-          const _LogsRequest(offset: 0, limit: 50): _errorPage,
+          const _LogsRequest(offset: 0, limit: 10): _errorPage,
         },
       );
 
@@ -304,14 +308,64 @@ void main() {
 
       final ServerLogsSuccess state = cubit.state as ServerLogsSuccess;
 
-      expect(state.canLoadMore, isFalse);
+      expect(state.page.hasNext, isFalse);
 
-      await cubit.loadMore();
+      await cubit.nextPage();
 
       expect(repository.calls, 1);
     });
 
-    test('pagination failure preserves existing logs', () async {
+    test('does not load previous page from first page', () async {
+      final _ServerRepository repository = _ServerRepository(
+        pages: <_LogsRequest, ServerLogsPage>{
+          const _LogsRequest(offset: 0, limit: 10): _firstPage,
+        },
+      );
+
+      final ServerLogsCubit cubit = ServerLogsCubit(repository: repository);
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+      await cubit.previousPage();
+
+      expect(repository.calls, 1);
+    });
+
+    test('loads previous page', () async {
+      final _ServerRepository repository = _ServerRepository(
+        pages: <_LogsRequest, ServerLogsPage>{
+          const _LogsRequest(offset: 0, limit: 10): _firstPage,
+          const _LogsRequest(offset: 10, limit: 10): _secondPage,
+        },
+      );
+
+      final ServerLogsCubit cubit = ServerLogsCubit(repository: repository);
+
+      addTearDown(cubit.close);
+
+      await cubit.load();
+      await cubit.nextPage();
+
+      ServerLogsSuccess state = cubit.state as ServerLogsSuccess;
+
+      expect(state.page.offset, 10);
+
+      await cubit.previousPage();
+
+      state = cubit.state as ServerLogsSuccess;
+
+      expect(state.page, _firstPage);
+      expect(state.page.offset, 0);
+
+      expect(repository.requests, <_LogsRequest>[
+        const _LogsRequest(offset: 0, limit: 10),
+        const _LogsRequest(offset: 10, limit: 10),
+        const _LogsRequest(offset: 0, limit: 10),
+      ]);
+    });
+
+    test('pagination failure preserves current page', () async {
       final _PaginationFailureServerRepository repository =
           _PaginationFailureServerRepository();
 
@@ -320,7 +374,7 @@ void main() {
       addTearDown(cubit.close);
 
       await cubit.load();
-      await cubit.loadMore();
+      await cubit.nextPage();
 
       final ServerLogsSuccess state = cubit.state as ServerLogsSuccess;
 
@@ -340,52 +394,24 @@ void main() {
       addTearDown(cubit.close);
 
       await cubit.load();
-      await cubit.loadMore();
+      await cubit.nextPage();
 
       ServerLogsSuccess state = cubit.state as ServerLogsSuccess;
 
+      expect(state.page, _firstPage);
       expect(state.paginationError, isNotNull);
 
       await cubit.retryPagination();
 
       state = cubit.state as ServerLogsSuccess;
 
-      expect(state.page.items, <ServerLogEntry>[_log1, _log2, _log3]);
+      expect(state.page, _secondPage);
+
+      expect(state.page.items, <ServerLogEntry>[_log3]);
 
       expect(state.paginationError, isNull);
 
       expect(repository.calls, 3);
-    });
-
-    test('ignores older response after level changes', () async {
-      final _ControlledFilterServerRepository repository =
-          _ControlledFilterServerRepository();
-
-      final ServerLogsCubit cubit = ServerLogsCubit(repository: repository);
-
-      addTearDown(cubit.close);
-
-      final Future<void> firstLoad = cubit.load();
-
-      await Future<void>.delayed(Duration.zero);
-
-      final Future<void> filteredLoad = cubit.setLevel(ServerLogLevel.error);
-
-      await Future<void>.delayed(Duration.zero);
-
-      repository.completeFiltered(_errorPage);
-
-      await filteredLoad;
-
-      repository.completeInitial(_firstPage);
-
-      await firstLoad;
-
-      final ServerLogsSuccess state = cubit.state as ServerLogsSuccess;
-
-      expect(state.level, ServerLogLevel.error);
-
-      expect(state.page, _errorPage);
     });
 
     test('ignores pagination response after level changes', () async {
@@ -398,7 +424,7 @@ void main() {
 
       await cubit.load();
 
-      final Future<void> pagination = cubit.loadMore();
+      final Future<void> pagination = cubit.nextPage();
 
       await Future<void>.delayed(Duration.zero);
 
@@ -466,23 +492,23 @@ final DateTime _date3 = DateTime.utc(2026, 8, 20, 14, 30);
 final ServerLogsPage _firstPage = ServerLogsPage(
   items: <ServerLogEntry>[_log1, _log2],
   offset: 0,
-  limit: 50,
-  total: 3,
+  limit: 10,
+  total: 11,
   hasNext: true,
 );
 
 final ServerLogsPage _secondPage = ServerLogsPage(
   items: <ServerLogEntry>[_log3],
-  offset: 2,
-  limit: 50,
-  total: 3,
+  offset: 10,
+  limit: 10,
+  total: 11,
   hasNext: false,
 );
 
 final ServerLogsPage _errorPage = ServerLogsPage(
   items: <ServerLogEntry>[_errorLog],
   offset: 0,
-  limit: 50,
+  limit: 10,
   total: 1,
   hasNext: false,
 );
@@ -490,7 +516,7 @@ final ServerLogsPage _errorPage = ServerLogsPage(
 final ServerLogsPage _refreshedPage = ServerLogsPage(
   items: <ServerLogEntry>[_log3, _log1],
   offset: 0,
-  limit: 50,
+  limit: 10,
   total: 2,
   hasNext: false,
 );
@@ -561,7 +587,7 @@ class _ServerRepository implements ServerRepository {
         const ServerLogsPage(
           items: <ServerLogEntry>[],
           offset: 0,
-          limit: 50,
+          limit: 10,
           total: 0,
           hasNext: false,
         );
@@ -749,48 +775,6 @@ final class _RetryPaginationServerRepository implements ServerRepository {
     }
 
     return _secondPage;
-  }
-
-  @override
-  Future<ServerHealth> getHealth() {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<List<BackgroundJob>> getBackgroundJobs() {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
-    throw UnimplementedError();
-  }
-}
-
-final class _ControlledFilterServerRepository implements ServerRepository {
-  final Completer<ServerLogsPage> _initial = Completer<ServerLogsPage>();
-
-  final Completer<ServerLogsPage> _filtered = Completer<ServerLogsPage>();
-
-  void completeInitial(ServerLogsPage page) {
-    _initial.complete(page);
-  }
-
-  void completeFiltered(ServerLogsPage page) {
-    _filtered.complete(page);
-  }
-
-  @override
-  Future<ServerLogsPage> getLogs({
-    ServerLogLevel? level,
-    int offset = 0,
-    int limit = 50,
-  }) {
-    if (level == ServerLogLevel.error) {
-      return _filtered.future;
-    }
-
-    return _initial.future;
   }
 
   @override

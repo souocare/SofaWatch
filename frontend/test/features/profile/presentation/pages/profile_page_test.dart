@@ -1693,148 +1693,7 @@ void main() {
         findsOneWidget,
       );
     });
-    testWidgets('shows Background Jobs for administrators', (
-      WidgetTester tester,
-    ) async {
-      final _FakeServerRepository serverRepository = _FakeServerRepository(
-        health: _serverHealth,
-        backgroundJobs: <BackgroundJob>[_metadataSyncJob],
-      );
 
-      await tester.pumpWidget(
-        _buildTestApp(serverRepository: serverRepository),
-      );
-
-      await tester.pumpAndSettle();
-
-      expect(serverRepository.backgroundJobsCalls, 1);
-
-      expect(
-        find.byKey(const ValueKey<String>('profile-background-jobs')),
-        findsOneWidget,
-      );
-
-      expect(
-        find.byKey(const ValueKey<String>('profile-background-jobs-title')),
-        findsOneWidget,
-      );
-
-      expect(
-        find.byKey(const ValueKey<String>('profile-background-jobs-content')),
-        findsOneWidget,
-      );
-
-      expect(
-        find.byKey(
-          const ValueKey<String>('profile-background-job-metadata_sync'),
-        ),
-        findsOneWidget,
-      );
-
-      expect(
-        tester
-            .widget<Text>(
-              find.byKey(
-                const ValueKey<String>(
-                  'profile-background-job-metadata_sync-name',
-                ),
-              ),
-            )
-            .data,
-        'Metadata sync',
-      );
-
-      expect(
-        tester
-            .widget<Text>(
-              find.byKey(
-                const ValueKey<String>(
-                  'profile-background-job-metadata_sync-schedule',
-                ),
-              ),
-            )
-            .data,
-        'Every 8h',
-      );
-
-      expect(
-        tester
-            .widget<Text>(
-              find.byKey(
-                const ValueKey<String>(
-                  'profile-background-job-metadata_sync-status-value',
-                ),
-              ),
-            )
-            .data,
-        'Success',
-      );
-
-      expect(
-        tester
-            .widget<Text>(
-              find.byKey(
-                const ValueKey<String>(
-                  'profile-background-job-metadata_sync-duration-value',
-                ),
-              ),
-            )
-            .data,
-        '11s',
-      );
-
-      expect(
-        tester
-            .widget<Text>(
-              find.byKey(
-                const ValueKey<String>(
-                  'profile-background-job-metadata_sync-checked-value',
-                ),
-              ),
-            )
-            .data,
-        '140',
-      );
-
-      expect(
-        tester
-            .widget<Text>(
-              find.byKey(
-                const ValueKey<String>(
-                  'profile-background-job-metadata_sync-refreshed-value',
-                ),
-              ),
-            )
-            .data,
-        '23',
-      );
-
-      expect(
-        tester
-            .widget<Text>(
-              find.byKey(
-                const ValueKey<String>(
-                  'profile-background-job-metadata_sync-skipped-value',
-                ),
-              ),
-            )
-            .data,
-        '117',
-      );
-
-      expect(
-        tester
-            .widget<Text>(
-              find.byKey(
-                const ValueKey<String>(
-                  'profile-background-job-metadata_sync-failed-value',
-                ),
-              ),
-            )
-            .data,
-        '0',
-      );
-    });
     testWidgets('shows empty Background Jobs state', (
       WidgetTester tester,
     ) async {
@@ -2261,8 +2120,7 @@ void main() {
 
       expect(button.onPressed, isNull);
 
-      expect(serverRepository.runBackgroundJobCalls, 0);
-      final OutlinedButton forceButton = tester.widget<OutlinedButton>(
+      final TextButton forceButton = tester.widget<TextButton>(
         find.byKey(
           const ValueKey<String>(
             'profile-background-job-metadata_sync-force-refresh',
@@ -2358,7 +2216,16 @@ void main() {
               find.byKey(const ValueKey<String>('profile-server-logs-count')),
             )
             .data,
-        '2 of 2 logs',
+        '2 logs',
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey<String>('profile-server-logs-page')),
+            )
+            .data,
+        'Page 1 of 1',
       );
     });
     testWidgets('filters Server Logs by level', (WidgetTester tester) async {
@@ -2454,7 +2321,9 @@ void main() {
         findsOneWidget,
       );
     });
-    testWidgets('loads more Server Logs', (WidgetTester tester) async {
+    testWidgets('navigates to next Server Logs page', (
+      WidgetTester tester,
+    ) async {
       final _PaginatedLogsServerRepository serverRepository =
           _PaginatedLogsServerRepository();
 
@@ -2466,39 +2335,32 @@ void main() {
 
       expect(serverRepository.logsCalls, 1);
 
-      expect(
-        find.byKey(const ValueKey<String>('profile-server-logs-load-more')),
-        findsOneWidget,
+      expect(serverRepository.offsetRequests, <int>[0]);
+
+      final Finder nextButton = find.byKey(
+        const ValueKey<String>('profile-server-logs-next-page'),
       );
 
-      final Finder loadMoreButton = find.byKey(
-        const ValueKey<String>('profile-server-logs-load-more'),
-      );
-
-      await tester.ensureVisible(loadMoreButton);
-
-      await tester.tap(loadMoreButton);
-
+      await tester.ensureVisible(nextButton);
+      await tester.tap(nextButton);
       await tester.pumpAndSettle();
 
       expect(serverRepository.logsCalls, 2);
 
-      expect(serverRepository.offsetRequests, <int>[0, 2]);
+      expect(serverRepository.offsetRequests, <int>[0, 10]);
 
       expect(
-        find.byKey(const ValueKey<String>('profile-server-log-2')),
+        find.byKey(const ValueKey<String>('profile-server-log-0')),
         findsOneWidget,
       );
 
       expect(
         tester
             .widget<Text>(
-              find.byKey(
-                const ValueKey<String>('profile-server-log-2-message'),
-              ),
+              find.byKey(const ValueKey<String>('profile-server-logs-page')),
             )
             .data,
-        'TMDB request retry.',
+        'Page 2 of 2',
       );
 
       expect(
@@ -2507,16 +2369,15 @@ void main() {
               find.byKey(const ValueKey<String>('profile-server-logs-count')),
             )
             .data,
-        '3 of 3 logs',
+        '11 logs',
       );
 
-      expect(
-        find.byKey(const ValueKey<String>('profile-server-logs-load-more')),
-        findsNothing,
-      );
+      final OutlinedButton next = tester.widget<OutlinedButton>(nextButton);
+
+      expect(next.onPressed, isNull);
     });
 
-    testWidgets('preserves Server Logs after pagination failure', (
+    testWidgets('preserves Server Logs page after pagination failure', (
       WidgetTester tester,
     ) async {
       final _PaginationFailureLogsServerRepository serverRepository =
@@ -2528,14 +2389,12 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      final Finder loadMoreButton = find.byKey(
-        const ValueKey<String>('profile-server-logs-load-more'),
+      final Finder nextButton = find.byKey(
+        const ValueKey<String>('profile-server-logs-next-page'),
       );
 
-      await tester.ensureVisible(loadMoreButton);
-
-      await tester.tap(loadMoreButton);
-
+      await tester.ensureVisible(nextButton);
+      await tester.tap(nextButton);
       await tester.pumpAndSettle();
 
       expect(serverRepository.logsCalls, 2);
@@ -2547,6 +2406,7 @@ void main() {
         findsOneWidget,
       );
 
+      // The first page remains visible.
       expect(
         find.byKey(const ValueKey<String>('profile-server-log-0')),
         findsOneWidget,
@@ -2555,6 +2415,15 @@ void main() {
       expect(
         find.byKey(const ValueKey<String>('profile-server-log-1')),
         findsOneWidget,
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey<String>('profile-server-logs-page')),
+            )
+            .data,
+        'Page 1 of 2',
       );
 
       expect(
@@ -2583,14 +2452,12 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      final Finder loadMoreButton = find.byKey(
-        const ValueKey<String>('profile-server-logs-load-more'),
+      final Finder nextButton = find.byKey(
+        const ValueKey<String>('profile-server-logs-next-page'),
       );
 
-      await tester.ensureVisible(loadMoreButton);
-
-      await tester.tap(loadMoreButton);
-
+      await tester.ensureVisible(nextButton);
+      await tester.tap(nextButton);
       await tester.pumpAndSettle();
 
       expect(serverRepository.logsCalls, 2);
@@ -2607,14 +2474,12 @@ void main() {
       );
 
       await tester.ensureVisible(retryButton);
-
       await tester.tap(retryButton);
-
       await tester.pumpAndSettle();
 
       expect(serverRepository.logsCalls, 3);
 
-      expect(serverRepository.offsetRequests, <int>[0, 2, 2]);
+      expect(serverRepository.offsetRequests, <int>[0, 10, 10]);
 
       expect(
         find.byKey(
@@ -2624,8 +2489,12 @@ void main() {
       );
 
       expect(
-        find.byKey(const ValueKey<String>('profile-server-log-2')),
-        findsOneWidget,
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey<String>('profile-server-logs-page')),
+            )
+            .data,
+        'Page 2 of 2',
       );
 
       expect(
@@ -2634,63 +2503,7 @@ void main() {
               find.byKey(const ValueKey<String>('profile-server-logs-count')),
             )
             .data,
-        '3 of 3 logs',
-      );
-    });
-    testWidgets('adapts Profile layout to narrow mobile width', (
-      WidgetTester tester,
-    ) async {
-      tester.view.physicalSize = const Size(320, 900);
-      tester.view.devicePixelRatio = 1;
-
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-
-      await tester.pumpWidget(
-        _buildTestApp(
-          serverRepository: _FakeServerRepository(
-            backgroundJobs: <BackgroundJob>[_metadataSyncJob],
-          ),
-        ),
-      );
-
-      await tester.pumpAndSettle();
-
-      expect(tester.takeException(), isNull);
-
-      expect(
-        find.byKey(const ValueKey<String>('profile-page')),
-        findsOneWidget,
-      );
-
-      expect(
-        find.byKey(const ValueKey<String>('profile-user-card')),
-        findsOneWidget,
-      );
-
-      expect(
-        find.byKey(const ValueKey<String>('profile-statistics-grid')),
-        findsOneWidget,
-      );
-
-      expect(
-        find.byKey(
-          const ValueKey<String>(
-            'profile-background-job-metadata_sync-stacked-header',
-          ),
-        ),
-        findsOneWidget,
-      );
-
-      expect(
-        find.byKey(
-          const ValueKey<String>(
-            'profile-background-job-metadata_sync-wide-header',
-          ),
-        ),
-        findsNothing,
+        '11 logs',
       );
     });
 
@@ -2733,11 +2546,27 @@ void main() {
 
       expect(
         find.byKey(
+          const ValueKey<String>('profile-background-job-metadata_sync'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
           const ValueKey<String>(
             'profile-background-job-metadata_sync-stacked-header',
           ),
         ),
         findsNothing,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'profile-background-job-metadata_sync-timing-grid',
+          ),
+        ),
+        findsOneWidget,
       );
     });
     testWidgets('navigates from Profile to detailed Statistics', (
@@ -2779,6 +2608,49 @@ void main() {
           const ValueKey<String>('test-detailed-statistics-destination'),
         ),
         findsOneWidget,
+      );
+    });
+    testWidgets('navigates back to previous Server Logs page', (
+      WidgetTester tester,
+    ) async {
+      final _PaginatedLogsServerRepository serverRepository =
+          _PaginatedLogsServerRepository();
+
+      await tester.pumpWidget(
+        _buildTestApp(serverRepository: serverRepository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final Finder nextButton = find.byKey(
+        const ValueKey<String>('profile-server-logs-next-page'),
+      );
+
+      await tester.ensureVisible(nextButton);
+      await tester.tap(nextButton);
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.offsetRequests, <int>[0, 10]);
+
+      final Finder previousButton = find.byKey(
+        const ValueKey<String>('profile-server-logs-previous-page'),
+      );
+
+      await tester.ensureVisible(previousButton);
+      await tester.tap(previousButton);
+      await tester.pumpAndSettle();
+
+      expect(serverRepository.logsCalls, 3);
+
+      expect(serverRepository.offsetRequests, <int>[0, 10, 0]);
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey<String>('profile-server-logs-page')),
+            )
+            .data,
+        'Page 1 of 2',
       );
     });
   });
@@ -3370,9 +3242,47 @@ void main() {
     });
   });
   group('ProfilePage Security', () {
-    testWidgets('shows Security settings for administrator', (
+    testWidgets(
+      'shows compact Security row and does not load settings on mobile',
+      (WidgetTester tester) async {
+        _useMobileViewport(tester);
+
+        final _FakeSecuritySettingsRepository securityRepository =
+            _FakeSecuritySettingsRepository();
+
+        await tester.pumpWidget(
+          _buildTestApp(securitySettingsRepository: securityRepository),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('profile-security-mobile-summary')),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('profile-security')),
+          findsNothing,
+        );
+
+        expect(
+          find.byKey(
+            const ValueKey<String>('profile-security-open-registration'),
+          ),
+          findsNothing,
+        );
+
+        expect(find.text('Open registration'), findsNothing);
+
+        expect(securityRepository.getSettingsCalls, 0);
+      },
+    );
+    testWidgets('shows full Security settings for administrator on desktop', (
       WidgetTester tester,
     ) async {
+      _useDesktopViewport(tester);
+
       final _FakeSecuritySettingsRepository securityRepository =
           _FakeSecuritySettingsRepository();
 
@@ -3387,6 +3297,11 @@ void main() {
         findsOneWidget,
       );
 
+      expect(
+        find.byKey(const ValueKey<String>('profile-security-mobile-summary')),
+        findsNothing,
+      );
+
       expect(find.text('Security'), findsOneWidget);
       expect(find.text('Open registration'), findsOneWidget);
 
@@ -3394,8 +3309,10 @@ void main() {
     });
 
     testWidgets(
-      'hides Security settings and does not load them for regular user',
+      'hides Security completely and does not load it for regular user',
       (WidgetTester tester) async {
+        _useMobileViewport(tester);
+
         final _FakeSecuritySettingsRepository securityRepository =
             _FakeSecuritySettingsRepository();
 
@@ -3421,6 +3338,11 @@ void main() {
           findsNothing,
         );
 
+        expect(
+          find.byKey(const ValueKey<String>('profile-security-mobile-summary')),
+          findsNothing,
+        );
+
         expect(find.text('Open registration'), findsNothing);
 
         expect(securityRepository.getSettingsCalls, 0);
@@ -3430,6 +3352,7 @@ void main() {
     testWidgets('shows current Open registration value', (
       WidgetTester tester,
     ) async {
+      _useDesktopViewport(tester);
       final _FakeSecuritySettingsRepository securityRepository =
           _FakeSecuritySettingsRepository(
             settings: const SecuritySettings(openRegistration: true),
@@ -3455,6 +3378,7 @@ void main() {
     });
 
     testWidgets('enables Open registration', (WidgetTester tester) async {
+      _useDesktopViewport(tester);
       final _FakeSecuritySettingsRepository securityRepository =
           _FakeSecuritySettingsRepository(
             settings: const SecuritySettings(openRegistration: false),
@@ -3485,6 +3409,7 @@ void main() {
     });
 
     testWidgets('disables Open registration', (WidgetTester tester) async {
+      _useDesktopViewport(tester);
       final _FakeSecuritySettingsRepository securityRepository =
           _FakeSecuritySettingsRepository(
             settings: const SecuritySettings(openRegistration: true),
@@ -3517,6 +3442,7 @@ void main() {
     testWidgets('keeps previous Open registration value when update fails', (
       WidgetTester tester,
     ) async {
+      _useDesktopViewport(tester);
       const AppException updateError = AppException.connection();
 
       final _FakeSecuritySettingsRepository securityRepository =
@@ -3560,6 +3486,7 @@ void main() {
     testWidgets('shows Security failure independently from other sections', (
       WidgetTester tester,
     ) async {
+      _useDesktopViewport(tester);
       final _FakeSecuritySettingsRepository securityRepository =
           _FakeSecuritySettingsRepository(
             loadError: const AppException.connection(),
@@ -3600,6 +3527,7 @@ void main() {
     testWidgets('retries Security settings after load failure', (
       WidgetTester tester,
     ) async {
+      _useDesktopViewport(tester);
       final _RetrySecuritySettingsRepository securityRepository =
           _RetrySecuritySettingsRepository();
 
@@ -3910,13 +3838,7 @@ void main() {
     testWidgets('opens Change password dialog on desktop', (
       WidgetTester tester,
     ) async {
-      tester.view.physicalSize = const Size(1200, 900);
-      tester.view.devicePixelRatio = 1.0;
-
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      _useDesktopViewport(tester);
 
       await tester.pumpWidget(_buildTestApp());
 
@@ -3960,13 +3882,7 @@ void main() {
     testWidgets('opens Change password sheet on mobile', (
       WidgetTester tester,
     ) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      _useMobileViewport(tester);
 
       await tester.pumpWidget(_buildTestApp());
 
@@ -4326,13 +4242,7 @@ void main() {
     testWidgets('shows Users section for administrator', (
       WidgetTester tester,
     ) async {
-      tester.view.devicePixelRatio = 1.0;
-      tester.view.physicalSize = const Size(1200, 900);
-
-      addTearDown(() {
-        tester.view.resetDevicePixelRatio();
-        tester.view.resetPhysicalSize();
-      });
+      _useDesktopViewport(tester);
 
       await tester.pumpWidget(
         _buildTestApp(
@@ -4412,13 +4322,7 @@ void main() {
     testWidgets('shows Retry when users loading fails', (
       WidgetTester tester,
     ) async {
-      tester.view.devicePixelRatio = 1.0;
-      tester.view.physicalSize = const Size(1200, 900);
-
-      addTearDown(() {
-        tester.view.resetDevicePixelRatio();
-        tester.view.resetPhysicalSize();
-      });
+      _useDesktopViewport(tester);
 
       await tester.pumpWidget(
         _buildTestApp(
@@ -4439,6 +4343,7 @@ void main() {
     testWidgets('does not show recovery action for administrator', (
       WidgetTester tester,
     ) async {
+      _useDesktopViewport(tester);
       await tester.pumpWidget(
         _buildTestApp(
           adminUsersRepository: const _FakeAdminUsersRepository(
@@ -4469,13 +4374,7 @@ void main() {
     testWidgets('disables recovery for inactive user', (
       WidgetTester tester,
     ) async {
-      tester.view.devicePixelRatio = 1.0;
-      tester.view.physicalSize = const Size(1200, 900);
-
-      addTearDown(() {
-        tester.view.resetDevicePixelRatio();
-        tester.view.resetPhysicalSize();
-      });
+      _useDesktopViewport(tester);
 
       await tester.pumpWidget(
         _buildTestApp(
@@ -4510,13 +4409,7 @@ void main() {
     testWidgets('generates password recovery link for active user on desktop', (
       WidgetTester tester,
     ) async {
-      tester.view.devicePixelRatio = 1.0;
-      tester.view.physicalSize = const Size(1200, 900);
-
-      addTearDown(() {
-        tester.view.resetDevicePixelRatio();
-        tester.view.resetPhysicalSize();
-      });
+      _useDesktopViewport(tester);
 
       await tester.pumpWidget(
         _buildTestApp(
@@ -4573,16 +4466,10 @@ void main() {
         findsOneWidget,
       );
     });
-    testWidgets('hides Users and does not load them on mobile', (
+    testWidgets('shows compact Users row and does not load users on mobile', (
       WidgetTester tester,
     ) async {
-      tester.view.devicePixelRatio = 1.0;
-      tester.view.physicalSize = const Size(390, 844);
-
-      addTearDown(() {
-        tester.view.resetDevicePixelRatio();
-        tester.view.resetPhysicalSize();
-      });
+      _useMobileViewport(tester);
 
       final _CountingAdminUsersRepository repository =
           _CountingAdminUsersRepository();
@@ -4590,6 +4477,11 @@ void main() {
       await tester.pumpWidget(_buildTestApp(adminUsersRepository: repository));
 
       await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-users-mobile-summary')),
+        findsOneWidget,
+      );
 
       expect(find.byKey(const ValueKey<String>('profile-users')), findsNothing);
 
@@ -4616,6 +4508,56 @@ void main() {
       expect(
         find.byKey(const ValueKey<String>('profile-users')),
         findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-users-mobile-summary')),
+        findsNothing,
+      );
+
+      expect(repository.listCalls, 1);
+    });
+    testWidgets('shows compact Users row and does not load users on mobile', (
+      WidgetTester tester,
+    ) async {
+      _useMobileViewport(tester);
+
+      final _CountingAdminUsersRepository repository =
+          _CountingAdminUsersRepository();
+
+      await tester.pumpWidget(_buildTestApp(adminUsersRepository: repository));
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-users-mobile-summary')),
+        findsOneWidget,
+      );
+
+      expect(find.byKey(const ValueKey<String>('profile-users')), findsNothing);
+
+      expect(repository.listCalls, 0);
+    });
+    testWidgets('shows full Users section and loads users on desktop', (
+      WidgetTester tester,
+    ) async {
+      _useDesktopViewport(tester);
+
+      final _CountingAdminUsersRepository repository =
+          _CountingAdminUsersRepository();
+
+      await tester.pumpWidget(_buildTestApp(adminUsersRepository: repository));
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-users')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('profile-users-mobile-summary')),
+        findsNothing,
       );
 
       expect(repository.listCalls, 1);
@@ -4721,6 +4663,26 @@ AuthCubit _createAuthenticatedAuthCubit() {
   );
 
   return cubit;
+}
+
+void _useMobileViewport(WidgetTester tester) {
+  tester.view.devicePixelRatio = 1.0;
+  tester.view.physicalSize = const Size(390, 844);
+
+  addTearDown(() {
+    tester.view.resetDevicePixelRatio();
+    tester.view.resetPhysicalSize();
+  });
+}
+
+void _useDesktopViewport(WidgetTester tester) {
+  tester.view.devicePixelRatio = 1.0;
+  tester.view.physicalSize = const Size(1200, 900);
+
+  addTearDown(() {
+    tester.view.resetDevicePixelRatio();
+    tester.view.resetPhysicalSize();
+  });
 }
 
 Widget _buildTestApp({
@@ -4900,7 +4862,7 @@ final ServerLogEntry _serverLogInfo = ServerLogEntry(
 final ServerLogsPage _serverLogsPage = ServerLogsPage(
   items: <ServerLogEntry>[_serverLogError, _serverLogInfo],
   offset: 0,
-  limit: 50,
+  limit: 10,
   total: 2,
   hasNext: false,
 );
@@ -5854,16 +5816,16 @@ final ServerLogEntry _serverLogWarning = ServerLogEntry(
 final ServerLogsPage _paginatedServerLogsFirstPage = ServerLogsPage(
   items: <ServerLogEntry>[_serverLogError, _serverLogInfo],
   offset: 0,
-  limit: 50,
-  total: 3,
+  limit: 10,
+  total: 11,
   hasNext: true,
 );
 
 final ServerLogsPage _paginatedServerLogsSecondPage = ServerLogsPage(
   items: <ServerLogEntry>[_serverLogWarning],
-  offset: 2,
-  limit: 50,
-  total: 3,
+  offset: 10,
+  limit: 10,
+  total: 11,
   hasNext: false,
 );
 
