@@ -1,6 +1,6 @@
+import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
 import 'package:sofawatch/features/history/domain/models/history_page.dart';
 import 'package:sofawatch/features/history/domain/models/history_preview.dart';
-import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
 
 abstract interface class HistoryRepository {
   Future<HistoryPreview> getPreview();

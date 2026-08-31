@@ -17,9 +17,9 @@ class ExploreHeader extends StatelessWidget {
         Text(
           'Explore',
           key: const ValueKey<String>('explore-page-title'),
-          style: textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(

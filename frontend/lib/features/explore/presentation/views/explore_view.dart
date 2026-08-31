@@ -38,39 +38,41 @@ class ExploreView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool isDesktop = constraints.maxWidth >= AppBreakpoints.tablet;
+    return SafeArea(
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final bool isDesktop = constraints.maxWidth >= AppBreakpoints.tablet;
 
-        return SingleChildScrollView(
-          key: const ValueKey<String>('explore-scroll-view'),
-          padding: EdgeInsets.only(
-            left: isDesktop
-                ? AppSpacing.desktopHorizontalPadding
-                : AppSpacing.mobileHorizontalPadding,
-            right: isDesktop
-                ? AppSpacing.desktopHorizontalPadding
-                : AppSpacing.mobileHorizontalPadding,
-            top: AppSpacing.xxl,
-            bottom: AppSpacing.section,
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: AppSpacing.maxContentWidth,
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  ExploreHeader(),
-                  SizedBox(height: AppSpacing.xxxl),
-                  _ExploreContent(),
-                ],
+          return SingleChildScrollView(
+            key: const ValueKey<String>('explore-scroll-view'),
+            padding: EdgeInsets.only(
+              left: isDesktop
+                  ? AppSpacing.desktopHorizontalPadding
+                  : AppSpacing.mobileHorizontalPadding,
+              right: isDesktop
+                  ? AppSpacing.desktopHorizontalPadding
+                  : AppSpacing.mobileHorizontalPadding,
+              top: AppSpacing.xl,
+              bottom: AppSpacing.section,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: AppSpacing.maxContentWidth,
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    ExploreHeader(),
+                    SizedBox(height: AppSpacing.xxxl),
+                    _ExploreContent(),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
