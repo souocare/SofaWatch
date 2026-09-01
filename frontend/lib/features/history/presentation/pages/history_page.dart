@@ -9,8 +9,8 @@ import 'package:sofawatch/features/history/application/cubit/history_cubit.dart'
 import 'package:sofawatch/features/history/application/cubit/history_state.dart';
 import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
 import 'package:sofawatch/features/history/domain/models/history_item.dart';
-import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
 import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
+import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
 
 class HistoryPage extends StatelessWidget {
   const HistoryPage({this.mediaType = HistoryMediaType.all, super.key});

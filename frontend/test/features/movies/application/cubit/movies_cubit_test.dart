@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/movies/application/cubit/movies_cubit.dart';
 import 'package:sofawatch/features/movies/application/models/movies_sort.dart';
@@ -375,6 +376,48 @@ void main() {
       ]);
 
       await cubit.close();
+    });
+    test('refreshes Movies when viewing state changes', () async {
+      final ViewingStateChangeNotifier viewingStateChangeNotifier =
+          ViewingStateChangeNotifier();
+
+      final _SequencedMoviesRepository repository = _SequencedMoviesRepository(
+        responses: <List<LibraryMovie>>[
+          <LibraryMovie>[_watchlistMovie],
+          <LibraryMovie>[_watchedMovie],
+        ],
+      );
+
+      final MoviesCubit cubit = MoviesCubit(
+        repository: repository,
+        viewingStateChangeNotifier: viewingStateChangeNotifier,
+      );
+
+      await cubit.load();
+
+      expect(repository.calls, 1);
+
+      expect(cubit.state.libraryMovies, <LibraryMovie>[_watchlistMovie]);
+
+      expect(cubit.state.watchlist, <LibraryMovie>[_watchlistMovie]);
+
+      expect(cubit.state.watched, isEmpty);
+
+      viewingStateChangeNotifier.notifyChanged();
+
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(repository.calls, 2);
+
+      expect(cubit.state.libraryMovies, <LibraryMovie>[_watchedMovie]);
+
+      expect(cubit.state.watchlist, isEmpty);
+
+      expect(cubit.state.watched, <LibraryMovie>[_watchedMovie]);
+
+      await cubit.close();
+      await viewingStateChangeNotifier.dispose();
     });
   });
 }

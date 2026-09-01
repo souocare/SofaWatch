@@ -3,10 +3,10 @@ import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/history/data/models/history_page_dto.dart';
 import 'package:sofawatch/features/history/data/models/history_preview_dto.dart';
+import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
 import 'package:sofawatch/features/history/domain/models/history_page.dart';
 import 'package:sofawatch/features/history/domain/models/history_preview.dart';
 import 'package:sofawatch/features/history/domain/repositories/history_repository.dart';
-import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
 
 final class ApiHistoryRepository implements HistoryRepository {
   const ApiHistoryRepository(this._apiClient);

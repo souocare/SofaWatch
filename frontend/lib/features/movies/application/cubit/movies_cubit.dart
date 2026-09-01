@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/movies/application/cubit/movies_state.dart';
 import 'package:sofawatch/features/movies/application/models/movies_filter.dart';
 import 'package:sofawatch/features/movies/application/models/movies_sort.dart';
@@ -7,9 +10,19 @@ import 'package:sofawatch/features/movies/domain/models/library_movie.dart';
 import 'package:sofawatch/features/movies/domain/repositories/movies_repository.dart';
 
 final class MoviesCubit extends Cubit<MoviesState> {
-  MoviesCubit({required this.repository}) : super(const MoviesState());
+  MoviesCubit({
+    required this.repository,
+    ViewingStateChangeNotifier? viewingStateChangeNotifier,
+  }) : super(const MoviesState()) {
+    _viewingStateChangeSubscription = viewingStateChangeNotifier?.changes
+        .listen((_) {
+          unawaited(refresh());
+        });
+  }
 
   final MoviesRepository repository;
+
+  StreamSubscription<void>? _viewingStateChangeSubscription;
 
   Future<void> load() async {
     if (state.isLoading) {
@@ -137,5 +150,11 @@ final class MoviesCubit extends Cubit<MoviesState> {
     }
 
     emit(state.copyWith(searchQuery: '', filter: MoviesFilter.all));
+  }
+
+  @override
+  Future<void> close() async {
+    await _viewingStateChangeSubscription?.cancel();
+    return super.close();
   }
 }

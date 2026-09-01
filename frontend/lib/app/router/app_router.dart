@@ -51,7 +51,9 @@ import 'package:sofawatch/features/library/presentation/pages/library_collection
 import 'package:sofawatch/features/movie_details/application/cubit/movie_details_cubit.dart';
 import 'package:sofawatch/features/movie_details/data/repositories/api_movie_details_repository.dart';
 import 'package:sofawatch/features/movie_details/presentation/pages/movie_details_page.dart';
+import 'package:sofawatch/features/movies/application/cubit/movie_history_cubit.dart';
 import 'package:sofawatch/features/movies/application/cubit/movies_cubit.dart';
+import 'package:sofawatch/features/movies/data/repositories/api_movie_viewing_repository.dart';
 import 'package:sofawatch/features/movies/data/repositories/api_movies_repository.dart';
 import 'package:sofawatch/features/movies/presentation/pages/movies_page.dart';
 import 'package:sofawatch/features/profile/application/cubit/data_transfer_cubit.dart';
@@ -491,12 +493,33 @@ GoRouter createAppRouter({
                 builder: (BuildContext context, GoRouterState state) {
                   final ApiClient apiClient = context.read<ApiClient>();
 
-                  return BlocProvider<MoviesCubit>(
-                    create: (BuildContext context) {
-                      return MoviesCubit(
-                        repository: ApiMoviesRepository(apiClient),
-                      )..load();
-                    },
+                  final ViewingStateChangeNotifier viewingStateChangeNotifier =
+                      context.read<ViewingStateChangeNotifier>();
+
+                  return MultiBlocProvider(
+                    providers: <BlocProvider<dynamic>>[
+                      BlocProvider<MoviesCubit>(
+                        create: (BuildContext context) {
+                          return MoviesCubit(
+                            repository: ApiMoviesRepository(apiClient),
+                            viewingStateChangeNotifier:
+                                viewingStateChangeNotifier,
+                          )..load();
+                        },
+                      ),
+                      BlocProvider<MovieHistoryCubit>(
+                        create: (BuildContext context) {
+                          return MovieHistoryCubit(
+                            historyRepository: ApiHistoryRepository(apiClient),
+                            viewingRepository: ApiMovieViewingRepository(
+                              apiClient,
+                            ),
+                            viewingStateChangeNotifier:
+                                viewingStateChangeNotifier,
+                          )..load();
+                        },
+                      ),
+                    ],
                     child: const MoviesPage(),
                   );
                 },
