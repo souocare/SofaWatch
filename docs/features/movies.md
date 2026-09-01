@@ -303,6 +303,32 @@ It is different from:
 
 Watchlist mutations are user-scoped.
 
+
+## Mobile Watchlist Presentation
+
+The mobile Movies Watchlist uses a compact three-column poster grid.
+
+Each Watchlist Movie can expose a quick watched action directly on the poster.
+
+That action records a real `MovieWatchEvent`; it does not merely change the Library status locally.
+
+After a successful viewing mutation:
+
+```text
+POST MovieWatchEvent
+    |
+    v
+ViewingStateChangeNotifier
+    |
+    +-> Movies refresh
+    +-> Movie History refresh
+    +-> global History consumers refresh where subscribed
+```
+
+The backend remains the source of truth.
+
+Once the refreshed Library state reflects the Movie as completed, it no longer appears in the Watchlist classification.
+
 ---
 
 # Upcoming Movies
@@ -660,7 +686,9 @@ A separate historical-entry flow can support an explicit timestamp if the produc
 
 # Movie Viewing History
 
-Movie Details can expose the Movie's individual viewing events.
+Movie viewing history is event-based.
+
+Each visible History entry represents one real `MovieWatchEvent`.
 
 Ordering:
 
@@ -668,9 +696,62 @@ Ordering:
 watched_at DESC
 ```
 
-Each row is a real viewing.
+The same Movie may therefore appear multiple times when it has been watched more than once.
 
-This is separate from global History, which combines Movies and Episodes.
+The Movies page exposes a compact mobile History preview with:
+
+```text
+up to 18 viewing events
+6 events per page
+3 columns
+2 rows
+horizontal swipe navigation
+page indicator dots
+```
+
+Each History card includes:
+
+* poster;
+* Movie title;
+* watched date;
+* watched time;
+* viewing-event action.
+
+The checked viewing-event action opens contextual actions for that specific event.
+
+Supported actions include:
+
+* Watched again;
+* Remove this watch.
+
+Watched again creates a new MovieWatchEvent using the current time and preserves all previous events.
+
+Remove this watch removes only the selected viewing event. The backend then recalculates the effective Movie viewing state.
+
+The preview includes See All as an additional page after the History pages.
+
+The navigation page does not replace one of the 18 viewing events.
+
+Conceptually:
+
+```text
+18 events
+    |
+    +-> page 1: events 1-6
+    +-> page 2: events 7-12
+    +-> page 3: events 13-18
+    +-> page 4: See All
+```
+
+See All opens the Movie-filtered full History experience:
+
+
+```text
+/history?type=movie
+```
+
+The full History experience remains owned by the History feature rather than duplicated inside Movies.
+
 
 ---
 
@@ -1167,6 +1248,18 @@ protected backdrop loading
 artwork fallback/error state
 responsive layout
 partial failures
+Watchlist three-column mobile grid
+Watchlist quick watched action
+viewing-state notifier refresh
+Movie History duplicate events
+Movie History six-item pages
+Movie History 3 x 2 layout
+Movie History horizontal paging
+Movie History page indicators
+preservation of all 18 preview events
+See All as an additional page
+Watched Again from History preview
+individual History event deletion
 ```
 
 ---
@@ -1349,9 +1442,9 @@ Only implement when supported by real data and clear product rules.
 [ ] desktop responsive audit
 [ ] ultrawide audit
 [ ] accessibility audit
-[ ] Movie history regression tests
-[ ] rewatch regression tests
-[ ] Library classification regression tests
+[x] Movie history regression tests
+[x] rewatch regression tests
+[x] Library classification regression tests
 [ ] protected artwork regression tests
 [ ] integration tests
 ```

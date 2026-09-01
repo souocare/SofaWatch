@@ -843,8 +843,69 @@ Planned work:
 - [x] Movie import
 - [x] Movie Library support
 - [x] Movie watch events
+- [x] Movie viewing repository
+- [x] Movie History application layer
+- [x] Backend-owned Movie viewing state
+- [x] Shared viewing-state change notifications
 
-## 19.2 Movie Details
+## 19.2 Movies Main Page
+
+- [x] Watchlist
+- [x] Coming Soon
+- [x] Watched / Movie History preview
+- [x] Local Search
+- [x] Local filters
+- [x] Local sorting
+- [x] Refresh
+- [x] Loading state
+- [x] Failure state
+- [x] Empty state
+- [x] No-results state
+
+## 19.3 Mobile Watchlist
+
+- [x] Three-column poster grid
+- [x] Consistent poster/card geometry
+- [x] Quick watched action on poster
+- [x] Quick watched action creates a real `MovieWatchEvent`
+- [x] Per-Movie mutation loading
+- [x] Double-submit protection
+- [x] Refresh Library classification after successful watch
+- [x] Watched Movie disappears from Watchlist after backend refresh
+
+## 19.4 Watched / Movie History Preview
+
+- [x] Uses real `MovieWatchEvent` history
+- [x] Newest-first ordering
+- [x] Same Movie can appear multiple times
+- [x] Up to 18 events
+- [x] Six events per page
+- [x] Three columns x two rows
+- [x] Horizontal swipe navigation
+- [x] Page indicator dots
+- [x] Poster
+- [x] Movie title
+- [x] Watched date
+- [x] Watched time
+- [x] Per-event checked action
+- [x] `Watched again`
+- [x] Remove individual viewing event
+- [x] Preserve previous events when rewatching
+- [x] Targeted event/Movie mutation loading
+- [x] Isolated History loading/failure/retry behavior
+- [x] `See All` as an additional page
+- [x] Preserve all 18 event slots when `See All` is present
+- [x] Navigate `See All` to Movie-only full History
+
+## 19.5 Synchronization
+
+- [x] Viewing mutation announces shared state change
+- [x] Movies Library refreshes after viewing changes
+- [x] Movie History refreshes after viewing changes
+- [x] Existing loaded data remains feature-owned
+- [x] Backend remains source of truth
+
+## 19.6 Movie Details
 
 - [x] Movie Details infrastructure
 - [x] Metadata
@@ -858,14 +919,33 @@ Planned work:
 - [x] Personal-rating concept
 - [>] External ratings kept separately when implemented
 
-## 19.3 Future Movie Work
+## 19.7 Tests
 
-- [>] More advanced movie discovery
-- [>] Coming Soon
+- [x] Movie History Cubit tests
+- [x] Movies Cubit tests
+- [x] Viewing-state notifier refresh test
+- [x] Movies page widget tests
+- [x] Watchlist quick-watch regression test
+- [x] Duplicate Movie viewing-event regression test
+- [x] 3 x 2 History pagination regression tests
+- [x] 18-event preview preservation test
+- [x] Swipe / See All regression tests
+- [x] Rewatch action test
+- [x] Individual viewing-event deletion test
+- [x] Movies feature test suite
+- [x] Full Flutter test suite
+- [x] Flutter analyzer
+
+## 19.8 Remaining Movie Work
+
+- [>] Desktop/responsive Movies validation
+- [>] Accessibility validation
+- [>] More advanced Movie discovery
 - [>] Recommendation improvements
 - [>] Because You Watched...
 - [>] More Like This
-- [>] Final Movies Library organization
+- [>] External ratings/provider work
+- [>] Additional Movie Library presentation refinements where useful
 
 ---
 

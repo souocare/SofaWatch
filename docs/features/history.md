@@ -353,6 +353,55 @@ Each entry can include:
 - watched timestamp;
 - rewatch context where useful.
 
+
+The Movies feature also consumes Movie-only History as a compact preview.
+
+This preview is not a separate history model.
+
+It uses the same canonical `MovieWatchEvent` records as:
+
+- full Movie History;
+- combined History;
+- Statistics;
+- Home activity where applicable.
+
+Repeated viewings of the same Movie therefore remain repeated entries in the Movies-page preview.
+
+
+---
+
+# Movies Page Preview
+
+The Movies page exposes a bounded Movie History preview.
+
+Current mobile presentation:
+
+```text
+maximum events: 18
+events per page: 6
+grid: 3 columns x 2 rows
+ordering: newest first
+navigation: horizontal swipe
+```
+
+See All is an additional navigation page after the available event pages.
+
+It must not consume one of the preview event slots.
+
+Selecting See All opens the full Movie-filtered History view.
+
+Viewing-event actions from the preview continue to operate on canonical History events:
+
+```text
+Watched Again
+-> create another MovieWatchEvent
+
+Remove this watch
+-> delete only the selected MovieWatchEvent
+```
+
+Successful viewing mutations are announced through the shared viewing-state change notification mechanism so interested feature Cubits can reload their own backend-owned data.
+
 ---
 
 # Profile Preview
@@ -430,7 +479,9 @@ See [Show Details](show-details.md).
 
 # Movie-Specific History
 
-Movie Details can similarly expose all `MovieWatchEvent` records for one Movie.
+Movie-specific experiences can expose projections of canonical `MovieWatchEvent` records.
+
+Movie Details can expose all viewing events for one Movie, while the Movies page exposes a bounded recent Movie History preview across Movies.
 
 The events remain the same records used by global History and Statistics.
 
