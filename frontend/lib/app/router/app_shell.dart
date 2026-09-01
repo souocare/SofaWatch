@@ -950,10 +950,15 @@ class _MobilePillVisualStyle {
 }
 
 class _MobilePillSurface extends StatelessWidget {
-  const _MobilePillSurface({required this.child, this.keyValue});
+  const _MobilePillSurface({
+    required this.child,
+    this.keyValue,
+    this.showBorder = true,
+  });
 
   final Widget child;
   final String? keyValue;
+  final bool showBorder;
 
   @override
   Widget build(BuildContext context) {
@@ -965,7 +970,7 @@ class _MobilePillSurface extends StatelessWidget {
       decoration: BoxDecoration(
         color: style.backgroundColor,
         borderRadius: AppRadius.borderFull,
-        border: Border.all(color: style.borderColor),
+        border: showBorder ? Border.all(color: style.borderColor) : null,
       ),
       child: Material(
         color: Colors.transparent,
@@ -1310,6 +1315,7 @@ class _MobileSearchPill extends StatelessWidget {
         keyValue: isExpanded
             ? 'mobile-search-expanded-pill'
             : 'mobile-search-pill',
+        showBorder: !isExpanded,
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[

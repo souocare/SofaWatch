@@ -797,7 +797,7 @@ void main() {
 
       expect(
         find.byKey(const ValueKey<String>('movies-filter-menu')),
-        findsOneWidget,
+        findsNothing,
       );
 
       expect(
@@ -938,7 +938,7 @@ void main() {
 
       await cubit.close();
     });
-    testWidgets('lays out Search Filter and Sort horizontally on desktop', (
+    testWidgets('lays out Search and Sort horizontally on desktop', (
       WidgetTester tester,
     ) async {
       tester.view.physicalSize = const Size(1440, 1000);
@@ -979,26 +979,24 @@ void main() {
         find.byKey(const ValueKey<String>('movies-search-field')),
       );
 
-      final Rect filterRect = tester.getRect(
-        find.byKey(const ValueKey<String>('movies-filter-menu')),
-      );
-
       final Rect sortRect = tester.getRect(
         find.byKey(const ValueKey<String>('movies-sort-menu')),
       );
 
-      /*
-   * Desktop controls share the same horizontal row.
-   */
-      expect((searchRect.center.dy - filterRect.center.dy).abs(), lessThan(2));
-
-      expect((filterRect.center.dy - sortRect.center.dy).abs(), lessThan(2));
+      expect(
+        find.byKey(const ValueKey<String>('movies-filter-menu')),
+        findsNothing,
+      );
 
       /*
-   * Filter and Sort must appear after Search.
-   */
-      expect(filterRect.left, greaterThan(searchRect.left));
-      expect(sortRect.left, greaterThan(filterRect.left));
+ * Desktop Search and Sort share the same horizontal row.
+ */
+      expect((searchRect.center.dy - sortRect.center.dy).abs(), lessThan(2));
+
+      /*
+ * Sort must appear after Search.
+ */
+      expect(sortRect.left, greaterThan(searchRect.left));
 
       expect(tester.takeException(), isNull);
 
@@ -1072,54 +1070,7 @@ void main() {
 
       await cubit.close();
     });
-    testWidgets('filters Watchlist Movies from the filter menu', (
-      WidgetTester tester,
-    ) async {
-      final MoviesCubit cubit = MoviesCubit(
-        repository: _FakeMoviesRepository(
-          movies: <LibraryMovie>[_watchlistMovie, _watchedMovie],
-        ),
-      );
 
-      await cubit.load();
-
-      await tester.pumpWidget(
-        _buildTestApp(
-          cubit: cubit,
-          movieHistoryCubit: dependencies.movieHistoryCubit,
-        ),
-      );
-
-      await tester.pumpAndSettle();
-
-      await tester.tap(
-        find.byKey(const ValueKey<String>('movies-filter-menu')),
-      );
-
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Watchlist').last);
-
-      await tester.pumpAndSettle();
-
-      expect(cubit.state.filter, MoviesFilter.watchlist);
-
-      expect(
-        find.byKey(const ValueKey<String>('movies-card-movie-1')),
-        findsOneWidget,
-      );
-
-      /*
-   * Completed Library Movies are not rendered as Movie cards anymore.
-   * Watched presentation is backed by historical viewing events instead.
-   */
-      expect(
-        find.byKey(const ValueKey<String>('movies-card-movie-2')),
-        findsNothing,
-      );
-
-      await cubit.close();
-    });
     testWidgets('records a watch event from the Watchlist check button', (
       WidgetTester tester,
     ) async {
@@ -1447,196 +1398,95 @@ void main() {
       expect(find.text('See All'), findsOneWidget);
       expect(find.text('Movie history'), findsOneWidget);
     });
-    testWidgets('opens watched Movie actions with rewatch and remove options', (
+
+    testWidgets('renders Coming Soon between Watchlist and Watched', (
       WidgetTester tester,
     ) async {
-      final HistoryMovieItem historyItem = _movieHistoryItem(
-        1,
-        movieId: 'arrival',
-        title: 'Arrival',
-      );
+      await tester.binding.setSurfaceSize(const Size(390, 844));
 
-      final _MoviesPageTestDependencies historyDependencies =
+      addTearDown(() async {
+        await tester.binding.setSurfaceSize(null);
+      });
+
+      final _MoviesPageTestDependencies dependencies =
           _MoviesPageTestDependencies(
-            historyItems: <HistoryMovieItem>[historyItem],
+            historyItems: <HistoryMovieItem>[
+              _movieHistoryItem(
+                1,
+                movieId: _watchedMovie.movieId,
+                title: _watchedMovie.title,
+              ),
+            ],
           );
 
-      addTearDown(historyDependencies.dispose);
-
-      await historyDependencies.movieHistoryCubit.load();
+      addTearDown(dependencies.dispose);
 
       final MoviesCubit cubit = MoviesCubit(
         repository: _FakeMoviesRepository(
-          movies: <LibraryMovie>[_watchlistMovie],
+          movies: <LibraryMovie>[_watchlistMovie, _comingSoonMovie],
         ),
       );
 
       addTearDown(cubit.close);
 
       await cubit.load();
+      await dependencies.movieHistoryCubit.load();
 
       await tester.pumpWidget(
         _buildTestApp(
           cubit: cubit,
-          movieHistoryCubit: historyDependencies.movieHistoryCubit,
+          movieHistoryCubit: dependencies.movieHistoryCubit,
         ),
-      );
-
-      await tester.pump();
-
-      await tester.drag(
-        find.byKey(const ValueKey<String>('movies-scroll-view')),
-        const Offset(0, -600),
-      );
-
-      await tester.pump();
-
-      await tester.tap(
-        find.byKey(const ValueKey<String>('movies-watched-action-event-1')),
       );
 
       await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey<String>('movies-watched-rewatch-event-1')),
-        findsOneWidget,
+      final Finder watchlist = find.byKey(
+        const ValueKey<String>('movies-watchlist'),
       );
 
-      expect(
-        find.byKey(const ValueKey<String>('movies-watched-remove-event-1')),
-        findsOneWidget,
+      final Finder comingSoon = find.byKey(
+        const ValueKey<String>('movies-coming-soon'),
       );
 
-      expect(find.text('Watched again'), findsOneWidget);
-      expect(find.text('Remove this watch'), findsOneWidget);
-    });
-    testWidgets('records another viewing from Watched again', (
-      WidgetTester tester,
-    ) async {
-      final _FakeMovieViewingRepository viewingRepository =
-          _FakeMovieViewingRepository();
-
-      final HistoryMovieItem historyItem = _movieHistoryItem(
-        1,
-        movieId: 'arrival',
-        title: 'Arrival',
+      final Finder watched = find.byKey(
+        const ValueKey<String>('movies-watched'),
       );
 
-      final _MoviesPageTestDependencies historyDependencies =
-          _MoviesPageTestDependencies(
-            historyItems: <HistoryMovieItem>[historyItem],
-            viewingRepository: viewingRepository,
-          );
-
-      addTearDown(historyDependencies.dispose);
-
-      await historyDependencies.movieHistoryCubit.load();
-
-      final MoviesCubit cubit = MoviesCubit(
-        repository: _FakeMoviesRepository(
-          movies: <LibraryMovie>[_watchlistMovie],
-        ),
+      final Finder moviesScrollView = find.byKey(
+        const ValueKey<String>('movies-scroll-view'),
       );
 
-      addTearDown(cubit.close);
+      /*
+   * Watchlist is the first Movie content section.
+   */
+      expect(watchlist, findsOneWidget);
+      expect(moviesScrollView, findsOneWidget);
 
-      await cubit.load();
+      /*
+   * Coming Soon follows Watchlist and may initially be outside
+   * the mobile viewport.
+   */
+      for (int i = 0; i < 5 && comingSoon.evaluate().isEmpty; i++) {
+        await tester.drag(moviesScrollView, const Offset(0, -300));
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          cubit: cubit,
-          movieHistoryCubit: historyDependencies.movieHistoryCubit,
-        ),
-      );
+        await tester.pumpAndSettle();
+      }
 
-      await tester.pump();
+      expect(comingSoon, findsOneWidget);
 
-      await tester.drag(
-        find.byKey(const ValueKey<String>('movies-scroll-view')),
-        const Offset(0, -600),
-      );
+      /*
+   * Watched follows Coming Soon and may require additional scrolling.
+   */
+      for (int i = 0; i < 5 && watched.evaluate().isEmpty; i++) {
+        await tester.drag(moviesScrollView, const Offset(0, -300));
 
-      await tester.pump();
+        await tester.pumpAndSettle();
+      }
 
-      await tester.tap(
-        find.byKey(const ValueKey<String>('movies-watched-action-event-1')),
-      );
+      expect(watched, findsOneWidget);
 
-      await tester.pumpAndSettle();
-
-      await tester.tap(
-        find.byKey(const ValueKey<String>('movies-watched-rewatch-event-1')),
-      );
-
-      await tester.pump();
-
-      expect(viewingRepository.recordedMovieIds, <String>['arrival']);
-    });
-    testWidgets('removes the selected watched Movie event', (
-      WidgetTester tester,
-    ) async {
-      final _FakeMovieViewingRepository viewingRepository =
-          _FakeMovieViewingRepository();
-
-      final HistoryMovieItem historyItem = _movieHistoryItem(
-        1,
-        movieId: 'arrival',
-        title: 'Arrival',
-      );
-
-      final _MoviesPageTestDependencies historyDependencies =
-          _MoviesPageTestDependencies(
-            historyItems: <HistoryMovieItem>[historyItem],
-            viewingRepository: viewingRepository,
-          );
-
-      addTearDown(historyDependencies.dispose);
-
-      await historyDependencies.movieHistoryCubit.load();
-
-      final MoviesCubit cubit = MoviesCubit(
-        repository: _FakeMoviesRepository(
-          movies: <LibraryMovie>[_watchlistMovie],
-        ),
-      );
-
-      addTearDown(cubit.close);
-
-      await cubit.load();
-
-      await tester.pumpWidget(
-        _buildTestApp(
-          cubit: cubit,
-          movieHistoryCubit: historyDependencies.movieHistoryCubit,
-        ),
-      );
-
-      await tester.pump();
-
-      await tester.drag(
-        find.byKey(const ValueKey<String>('movies-scroll-view')),
-        const Offset(0, -600),
-      );
-
-      await tester.pump();
-
-      await tester.tap(
-        find.byKey(const ValueKey<String>('movies-watched-action-event-1')),
-      );
-
-      await tester.pumpAndSettle();
-
-      await tester.tap(
-        find.byKey(const ValueKey<String>('movies-watched-remove-event-1')),
-      );
-
-      await tester.pump();
-
-      expect(viewingRepository.deletedEvents, hasLength(1));
-
-      expect(viewingRepository.deletedEvents.single.movieId, 'arrival');
-
-      expect(viewingRepository.deletedEvents.single.eventId, 'event-1');
+      expect(tester.takeException(), isNull);
     });
   });
 }

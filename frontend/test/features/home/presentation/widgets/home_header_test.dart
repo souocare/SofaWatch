@@ -70,7 +70,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Profile'), findsOneWidget);
-      expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('Settings'), findsNothing);
       expect(find.text('Log out'), findsOneWidget);
     });
 
@@ -132,24 +132,6 @@ void main() {
         find.byKey(const ValueKey<String>('profile-test-page')),
         findsOneWidget,
       );
-    });
-
-    testWidgets('shows temporary Settings feedback', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(_buildTestApp());
-
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const ValueKey<String>('home-user-avatar')));
-
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Settings'));
-
-      await tester.pumpAndSettle();
-
-      expect(find.text('Settings are not available yet.'), findsOneWidget);
     });
 
     testWidgets('logs out from the user menu', (WidgetTester tester) async {

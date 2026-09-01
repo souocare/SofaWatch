@@ -174,6 +174,25 @@ class _ShowsPageState extends State<ShowsPage>
                     return;
                   }
 
+                  final AppException? staleWatchingOperationError =
+                      state.staleWatchingOperationError;
+
+                  if (staleWatchingOperationError != null) {
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            staleWatchingOperationError.isTimeout
+                                ? 'Marking the episode as watched took too long.'
+                                : 'Could not mark the episode as watched.',
+                          ),
+                        ),
+                      );
+
+                    return;
+                  }
+
                   final AppException? watchNextError =
                       state.watchNextOperationError;
 
@@ -224,6 +243,8 @@ class _ShowsPageState extends State<ShowsPage>
                         haventStarted: state.haventStarted,
                         updatingWatchNextEpisodeId:
                             state.updatingWatchNextEpisodeId,
+                        updatingStaleWatchingEpisodeId:
+                            state.updatingStaleWatchingEpisodeId,
                         startingShowId: state.startingShowId,
                         updatingWatchHistoryEventId:
                             state.updatingWatchHistoryEventId,
@@ -274,7 +295,7 @@ class _ShowsHeader extends StatelessWidget {
                   'Shows',
                   key: const ValueKey<String>('shows-page-title'),
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
@@ -392,6 +413,7 @@ class _WatchListTab extends StatefulWidget {
     required this.updatingWatchNextEpisodeId,
     required this.startingShowId,
     required this.updatingWatchHistoryEventId,
+    required this.updatingStaleWatchingEpisodeId,
   });
 
   final List<WatchNextShow> watchNext;
@@ -406,6 +428,8 @@ class _WatchListTab extends StatefulWidget {
 
   final String? startingShowId;
   final String? updatingWatchHistoryEventId;
+
+  final String? updatingStaleWatchingEpisodeId;
 
   @override
   State<_WatchListTab> createState() => _WatchListTabState();
@@ -564,7 +588,15 @@ class _WatchListTabState extends State<_WatchListTab> {
                     _StaleWatchingSection(
                       items: widget.staleWatching,
                       hasError: widget.staleWatchingError != null,
+                      updatingEpisodeId: widget.updatingStaleWatchingEpisodeId,
                       onRetry: context.read<ShowsCubit>().retryStaleWatching,
+                      onMarkWatched: (String episodeId) {
+                        context
+                            .read<ShowsCubit>()
+                            .markStaleWatchingEpisodeWatched(
+                              episodeId: episodeId,
+                            );
+                      },
                       isDesktop: isDesktop,
                     ),
 
@@ -584,13 +616,17 @@ class _StaleWatchingSection extends StatelessWidget {
   const _StaleWatchingSection({
     required this.items,
     required this.hasError,
+    required this.updatingEpisodeId,
     required this.onRetry,
+    required this.onMarkWatched,
     required this.isDesktop,
   });
 
   final List<StaleWatchingShow> items;
   final bool hasError;
+  final String? updatingEpisodeId;
   final VoidCallback onRetry;
+  final ValueChanged<String> onMarkWatched;
   final bool isDesktop;
 
   @override
@@ -621,7 +657,11 @@ class _StaleWatchingSection extends StatelessWidget {
         else if (isDesktop)
           ..._buildDesktopItems()
         else
-          _StaleWatchingPager(items: items),
+          _StaleWatchingPager(
+            items: items,
+            updatingEpisodeId: updatingEpisodeId,
+            onMarkWatched: onMarkWatched,
+          ),
       ],
     );
   }
@@ -642,13 +682,19 @@ class _StaleWatchingSection extends StatelessWidget {
 }
 
 class _StaleWatchingPager extends StatefulWidget {
-  const _StaleWatchingPager({required this.items});
+  const _StaleWatchingPager({
+    required this.items,
+    required this.updatingEpisodeId,
+    required this.onMarkWatched,
+  });
+
+  final List<StaleWatchingShow> items;
+  final String? updatingEpisodeId;
+  final ValueChanged<String> onMarkWatched;
 
   static const int _itemsPerPage = 6;
   static const int _columns = 2;
   static const int _rows = 3;
-
-  final List<StaleWatchingShow> items;
 
   @override
   State<_StaleWatchingPager> createState() => _StaleWatchingPagerState();
@@ -756,7 +802,11 @@ class _StaleWatchingPagerState extends State<_StaleWatchingPager> {
                       mainAxisExtent: cardHeight,
                     ),
                     itemBuilder: (BuildContext context, int itemIndex) {
-                      return _StaleWatchingCard(item: pageItems[itemIndex]);
+                      return _StaleWatchingCard(
+                        item: pageItems[itemIndex],
+                        updatingEpisodeId: widget.updatingEpisodeId,
+                        onMarkWatched: widget.onMarkWatched,
+                      );
                     },
                   );
                 },
@@ -778,13 +828,20 @@ class _StaleWatchingPagerState extends State<_StaleWatchingPager> {
 }
 
 class _StaleWatchingCard extends StatelessWidget {
-  const _StaleWatchingCard({required this.item});
+  const _StaleWatchingCard({
+    required this.item,
+    required this.updatingEpisodeId,
+    required this.onMarkWatched,
+  });
 
   final StaleWatchingShow item;
+  final String? updatingEpisodeId;
+  final ValueChanged<String> onMarkWatched;
 
   @override
   Widget build(BuildContext context) {
     final WatchNextEpisode nextEpisode = item.nextEpisode;
+    final bool isUpdating = updatingEpisodeId == nextEpisode.id;
 
     final double progressValue = item.progress.airedEpisodes > 0
         ? item.progress.percentage / 100
@@ -842,6 +899,44 @@ class _StaleWatchingCard extends StatelessWidget {
                           backgroundColor: AppColors.progressTrack,
                           valueColor: const AlwaysStoppedAnimation<Color>(
                             AppColors.progressValue,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: AppSpacing.xs,
+                    right: AppSpacing.xs,
+                    child: Material(
+                      color: AppColors.surface.withValues(alpha: 0.88),
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        key: ValueKey<String>(
+                          'shows-stale-watching-watch-${nextEpisode.id}',
+                        ),
+                        customBorder: const CircleBorder(),
+                        onTap: isUpdating
+                            ? null
+                            : () {
+                                onMarkWatched(nextEpisode.id);
+                              },
+                        child: SizedBox(
+                          width: 32,
+                          height: 32,
+                          child: Center(
+                            child: isUpdating
+                                ? const SizedBox(
+                                    width: 17,
+                                    height: 17,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.check_rounded,
+                                    size: 19,
+                                    color: AppColors.textSecondary,
+                                  ),
                           ),
                         ),
                       ),

@@ -81,6 +81,7 @@ final class ShowsCubit extends Cubit<ShowsState> {
     emit(
       state.copyWith(
         libraryShows: libraryShows,
+        referenceDate: _today(),
         isLoading: false,
         clearError: true,
       ),
@@ -135,7 +136,14 @@ final class ShowsCubit extends Cubit<ShowsState> {
         return;
       }
 
-      emit(state.copyWith(libraryShows: libraryShows, clearError: true));
+      emit(
+        state.copyWith(
+          libraryShows: libraryShows,
+          referenceDate: _today(),
+          isLoading: false,
+          clearError: true,
+        ),
+      );
     } on AppException catch (error) {
       if (isClosed) {
         return;
@@ -753,6 +761,101 @@ final class ShowsCubit extends Cubit<ShowsState> {
     }
   }
 
+  Future<void> markStaleWatchingEpisodeWatched({
+    required String episodeId,
+  }) async {
+    if (state.updatingStaleWatchingEpisodeId != null) {
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        updatingStaleWatchingEpisodeId: episodeId,
+        clearStaleWatchingOperationError: true,
+      ),
+    );
+
+    try {
+      await repository.markEpisodeWatched(episodeId: episodeId);
+
+      if (isClosed) {
+        return;
+      }
+
+      /*
+     * The backend remains the source of truth.
+     *
+     * Watching the suggested next Episode can affect:
+     *
+     * - Watch Next;
+     * - stale Watching;
+     * - Watch History, when already loaded;
+     * - Upcoming.
+     */
+
+      await _loadWatchNext();
+
+      if (isClosed) {
+        return;
+      }
+
+      await _loadStaleWatching();
+
+      if (isClosed) {
+        return;
+      }
+
+      if (state.hasLoadedWatchHistory) {
+        await loadWatchHistory();
+
+        if (isClosed) {
+          return;
+        }
+      }
+
+      await _loadUpcoming(
+        fromDate: state.upcomingFromDate ?? _initialUpcomingFromDate(),
+        toDate: state.upcomingToDate,
+        referenceDate: state.upcomingReferenceDate ?? _today(),
+      );
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearUpdatingStaleWatchingEpisodeId: true,
+          clearStaleWatchingOperationError: true,
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearUpdatingStaleWatchingEpisodeId: true,
+          staleWatchingOperationError: error,
+        ),
+      );
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          clearUpdatingStaleWatchingEpisodeId: true,
+          staleWatchingOperationError: AppException.unknown(
+            originalError: error,
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> markWatchHistoryEpisodeUnwatched({
     required String eventId,
     required String episodeId,
@@ -957,7 +1060,7 @@ final class ShowsCubit extends Cubit<ShowsState> {
         return;
       }
 
-      emit(state.copyWith(libraryShows: libraryShows));
+      emit(state.copyWith(libraryShows: libraryShows, referenceDate: _today()));
 
       await _loadWatchNext();
 

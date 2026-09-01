@@ -10,7 +10,6 @@ import 'package:sofawatch/features/movies/application/cubit/movie_history_cubit.
 import 'package:sofawatch/features/movies/application/cubit/movie_history_state.dart';
 import 'package:sofawatch/features/movies/application/cubit/movies_cubit.dart';
 import 'package:sofawatch/features/movies/application/cubit/movies_state.dart';
-import 'package:sofawatch/features/movies/application/models/movies_filter.dart';
 import 'package:sofawatch/features/movies/application/models/movies_sort.dart';
 import 'package:sofawatch/features/movies/domain/models/library_movie.dart';
 
@@ -166,6 +165,8 @@ class _MoviesContent extends StatelessWidget {
                     title: 'Coming Soon',
                     movies: state.comingSoon,
                     sectionKey: 'movies-coming-soon',
+                    mobileColumns: 3,
+                    useFullReleaseDate: true,
                   ),
                 ),
               ),
@@ -281,8 +282,6 @@ class _MoviesDesktopControls extends StatelessWidget {
       children: <Widget>[
         Expanded(child: _MoviesSearchField(query: state.searchQuery)),
         const SizedBox(width: AppSpacing.md),
-        _MoviesFilterMenu(selected: state.filter),
-        const SizedBox(width: AppSpacing.sm),
         _MoviesSortMenu(selected: state.sort),
       ],
     );
@@ -301,17 +300,7 @@ class _MoviesMobileControls extends StatelessWidget {
       children: <Widget>[
         _MoviesSearchField(query: state.searchQuery),
         const SizedBox(height: AppSpacing.md),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: _MoviesFilterMenu(selected: state.filter, expand: true),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: _MoviesSortMenu(selected: state.sort, expand: true),
-            ),
-          ],
-        ),
+        _MoviesSortMenu(selected: state.sort, expand: true),
       ],
     );
   }
@@ -402,47 +391,6 @@ class _MoviesSearchFieldState extends State<_MoviesSearchField> {
   }
 }
 
-class _MoviesFilterMenu extends StatelessWidget {
-  const _MoviesFilterMenu({required this.selected, this.expand = false});
-
-  final MoviesFilter selected;
-  final bool expand;
-
-  @override
-  Widget build(BuildContext context) {
-    final Widget child = PopupMenuButton<MoviesFilter>(
-      key: const ValueKey<String>('movies-filter-menu'),
-      tooltip: 'Filter movies',
-      initialValue: selected,
-      onSelected: context.read<MoviesCubit>().setFilter,
-      itemBuilder: (BuildContext context) {
-        return MoviesFilter.values
-            .map((MoviesFilter filter) {
-              return PopupMenuItem<MoviesFilter>(
-                value: filter,
-                child: Row(
-                  children: <Widget>[
-                    if (filter == selected) ...<Widget>[
-                      const Icon(Icons.check_rounded, size: 18),
-                      const SizedBox(width: AppSpacing.sm),
-                    ],
-                    Text(_moviesFilterLabel(filter)),
-                  ],
-                ),
-              );
-            })
-            .toList(growable: false);
-      },
-      child: _MoviesControlButton(
-        icon: Icons.filter_list_rounded,
-        label: _moviesFilterLabel(selected),
-      ),
-    );
-
-    return expand ? SizedBox(width: double.infinity, child: child) : child;
-  }
-}
-
 class _MoviesSortMenu extends StatelessWidget {
   const _MoviesSortMenu({required this.selected, this.expand = false});
 
@@ -527,6 +475,7 @@ class _MovieSection extends StatelessWidget {
     required this.sectionKey,
     this.mobileColumns,
     this.showWatchAction = false,
+    this.useFullReleaseDate = false,
   });
 
   final String title;
@@ -534,6 +483,7 @@ class _MovieSection extends StatelessWidget {
   final String sectionKey;
   final int? mobileColumns;
   final bool showWatchAction;
+  final bool useFullReleaseDate;
 
   @override
   Widget build(BuildContext context) {
@@ -607,6 +557,7 @@ class _MovieSection extends StatelessWidget {
                   return _MovieCard(
                     movie: movies[index],
                     showWatchAction: showWatchAction,
+                    useFullReleaseDate: useFullReleaseDate,
                   );
                 },
               );
@@ -619,10 +570,15 @@ class _MovieSection extends StatelessWidget {
 }
 
 class _MovieCard extends StatelessWidget {
-  const _MovieCard({required this.movie, this.showWatchAction = false});
+  const _MovieCard({
+    required this.movie,
+    this.showWatchAction = false,
+    this.useFullReleaseDate = false,
+  });
 
   final LibraryMovie movie;
   final bool showWatchAction;
+  final bool useFullReleaseDate;
 
   @override
   Widget build(BuildContext context) {
@@ -722,7 +678,9 @@ class _MovieCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            _movieMetadata(movie),
+            useFullReleaseDate
+                ? _movieReleaseDateMetadata(movie)
+                : _movieMetadata(movie),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(
@@ -1194,64 +1152,28 @@ class _MovieHistoryCard extends StatelessWidget {
         children: <Widget>[
           AspectRatio(
             aspectRatio: 2 / 3,
-            child: Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                ClipRRect(
-                  borderRadius: AppRadius.borderLarge,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceHigh,
-                      border: Border.all(color: AppColors.outlineVariant),
-                    ),
-                    child: item.posterUrl == null
-                        ? const _MoviePosterPlaceholder()
-                        : ServerNetworkImage(
-                            imageUrl: item.posterUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder:
-                                (
-                                  BuildContext context,
-                                  Object error,
-                                  StackTrace? stackTrace,
-                                ) {
-                                  return const _MoviePosterPlaceholder();
-                                },
-                          ),
-                  ),
+            child: ClipRRect(
+              borderRadius: AppRadius.borderLarge,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceHigh,
+                  border: Border.all(color: AppColors.outlineVariant),
                 ),
-                Positioned(
-                  top: AppSpacing.xs,
-                  right: AppSpacing.xs,
-                  child: BlocBuilder<MovieHistoryCubit, MovieHistoryState>(
-                    buildWhen:
-                        (
-                          MovieHistoryState previous,
-                          MovieHistoryState current,
-                        ) {
-                          return previous.mutatingEventIds !=
-                                  current.mutatingEventIds ||
-                              previous.mutatingMovieIds !=
-                                  current.mutatingMovieIds;
-                        },
-                    builder: (BuildContext context, MovieHistoryState state) {
-                      final bool isLoading =
-                          state.isEventMutating(item.eventId) ||
-                          state.isMovieMutating(item.movieId);
-
-                      return _MovieHistoryActionButton(
-                        eventId: item.eventId,
-                        isLoading: isLoading,
-                        onPressed: isLoading
-                            ? null
-                            : () {
-                                _showMovieHistoryActions(context, item);
-                              },
-                      );
-                    },
-                  ),
-                ),
-              ],
+                child: item.posterUrl == null
+                    ? const _MoviePosterPlaceholder()
+                    : ServerNetworkImage(
+                        imageUrl: item.posterUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder:
+                            (
+                              BuildContext context,
+                              Object error,
+                              StackTrace? stackTrace,
+                            ) {
+                              return const _MoviePosterPlaceholder();
+                            },
+                      ),
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -1294,44 +1216,6 @@ class _MovieHistoryCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _MovieHistoryActionButton extends StatelessWidget {
-  const _MovieHistoryActionButton({
-    required this.eventId,
-    required this.isLoading,
-    required this.onPressed,
-  });
-
-  final String eventId;
-  final bool isLoading;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      key: ValueKey<String>('movies-watched-action-$eventId'),
-      color: AppColors.surface.withValues(alpha: 0.88),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onPressed,
-        child: SizedBox(
-          width: 32,
-          height: 32,
-          child: Center(
-            child: isLoading
-                ? const SizedBox(
-                    width: 17,
-                    height: 17,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.check_circle_rounded, size: 20),
-          ),
-        ),
       ),
     );
   }
@@ -1497,6 +1381,33 @@ class _MoviesNoResults extends StatelessWidget {
   }
 }
 
+String _movieReleaseDateMetadata(LibraryMovie movie) {
+  final DateTime? releaseDate = movie.releaseDate;
+
+  if (releaseDate == null) {
+    return 'Release date unknown';
+  }
+
+  const List<String> months = <String>[
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  return '${months[releaseDate.month - 1]} '
+      '${releaseDate.day}, '
+      '${releaseDate.year}';
+}
+
 String _movieMetadata(LibraryMovie movie) {
   final List<String> parts = <String>[];
 
@@ -1513,15 +1424,6 @@ String _movieMetadata(LibraryMovie movie) {
   return parts.isEmpty ? movie.movieStatus : parts.join(' • ');
 }
 
-String _moviesFilterLabel(MoviesFilter filter) {
-  return switch (filter) {
-    MoviesFilter.all => 'All',
-    MoviesFilter.watchlist => 'Watchlist',
-    MoviesFilter.watched => 'Watched',
-    MoviesFilter.comingSoon => 'Coming Soon',
-  };
-}
-
 String _moviesSortLabel(MoviesSort sort) {
   return switch (sort) {
     MoviesSort.recentlyUpdated => 'Recently updated',
@@ -1530,71 +1432,6 @@ String _moviesSortLabel(MoviesSort sort) {
     MoviesSort.releaseDateOldest => 'Oldest release',
     MoviesSort.ratingHighest => 'Highest rated',
   };
-}
-
-Future<void> _showMovieHistoryActions(
-  BuildContext context,
-  HistoryMovieItem item,
-) async {
-  final MovieHistoryCubit cubit = context.read<MovieHistoryCubit>();
-
-  await showModalBottomSheet<void>(
-    context: context,
-    showDragHandle: true,
-    backgroundColor: AppColors.surfaceHigh,
-    builder: (BuildContext sheetContext) {
-      return SafeArea(
-        top: false,
-        child: Padding(
-          padding: AppSpacing.cardPaddingLarge,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Text(
-                item.movieTitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(
-                  sheetContext,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Watched ${_formatMovieWatchedAt(item.watchedAt)}',
-                style: Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              FilledButton.tonalIcon(
-                key: ValueKey<String>('movies-watched-rewatch-${item.eventId}'),
-                onPressed: () {
-                  Navigator.of(sheetContext).pop();
-                  cubit.recordWatch(item.movieId);
-                },
-                icon: const Icon(Icons.replay_rounded),
-                label: const Text('Watched again'),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              TextButton.icon(
-                key: ValueKey<String>('movies-watched-remove-${item.eventId}'),
-                onPressed: () {
-                  Navigator.of(sheetContext).pop();
-                  cubit.deleteWatchEvent(
-                    movieId: item.movieId,
-                    eventId: item.eventId,
-                  );
-                },
-                icon: const Icon(Icons.delete_outline_rounded),
-                label: const Text('Remove this watch'),
-              ),
-            ],
-          ),
-        ),
-      );
-    },
-  );
 }
 
 String _formatMovieWatchedDate(DateTime watchedAt) {
@@ -1613,9 +1450,4 @@ String _formatMovieWatchedTime(DateTime watchedAt) {
   final String minute = local.minute.toString().padLeft(2, '0');
 
   return '$hour:$minute';
-}
-
-String _formatMovieWatchedAt(DateTime watchedAt) {
-  return '${_formatMovieWatchedDate(watchedAt)} · '
-      '${_formatMovieWatchedTime(watchedAt)}';
 }

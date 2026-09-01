@@ -365,40 +365,94 @@ void main() {
 
       await cubit.close();
     });
-    test('derives Haven\'t Started from planning Library Shows', () async {
+    test('excludes future planning Shows from Haven\'t Started', () async {
       final ShowsCubit cubit = ShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[
             _libraryShow(
-              tmdbId: 95396,
-              title: 'Severance',
-              status: LibraryStatus.watching,
+              tmdbId: 1,
+              title: 'Already Premiered',
+              status: LibraryStatus.planning,
+              firstAirDate: DateTime(2026, 8, 31),
             ),
             _libraryShow(
-              tmdbId: 1396,
-              title: 'Breaking Bad',
+              tmdbId: 2,
+              title: 'Premieres Today',
               status: LibraryStatus.planning,
+              firstAirDate: DateTime(2026, 9, 1),
             ),
             _libraryShow(
-              tmdbId: 100088,
-              title: 'The Last of Us',
+              tmdbId: 3,
+              title: 'Future Show',
               status: LibraryStatus.planning,
+              firstAirDate: DateTime(2026, 9, 2),
             ),
           ],
         ),
+        now: () => DateTime(2026, 9, 1, 18, 30),
       );
 
       await cubit.load();
 
       expect(
         cubit.state.haventStarted.map((LibraryShow show) => show.tmdbId),
-        <int>[1396, 100088],
+        <int>[1, 2],
       );
-
-      expect(cubit.state.isHaventStartedEmpty, isFalse);
 
       await cubit.close();
     });
+
+    test(
+      'includes a planning Show premiering today in Haven\'t Started',
+      () async {
+        final ShowsCubit cubit = ShowsCubit(
+          repository: _FakeShowsRepository(
+            shows: <LibraryShow>[
+              _libraryShow(
+                tmdbId: 1,
+                title: 'Premieres Today',
+                status: LibraryStatus.planning,
+                firstAirDate: DateTime(2026, 9, 1, 23, 59),
+              ),
+            ],
+          ),
+          now: () => DateTime(2026, 9, 1, 8),
+        );
+
+        await cubit.load();
+
+        expect(cubit.state.haventStarted, hasLength(1));
+        expect(cubit.state.haventStarted.single.tmdbId, 1);
+
+        await cubit.close();
+      },
+    );
+
+    test(
+      'keeps planning Shows without first air date in Haven\'t Started',
+      () async {
+        final ShowsCubit cubit = ShowsCubit(
+          repository: _FakeShowsRepository(
+            shows: <LibraryShow>[
+              _libraryShow(
+                tmdbId: 1,
+                title: 'Unknown Premiere',
+                status: LibraryStatus.planning,
+                firstAirDate: null,
+              ),
+            ],
+          ),
+          now: () => DateTime(2026, 9, 1),
+        );
+
+        await cubit.load();
+
+        expect(cubit.state.haventStarted, hasLength(1));
+        expect(cubit.state.haventStarted.single.tmdbId, 1);
+
+        await cubit.close();
+      },
+    );
 
     test('Haven\'t Started is empty without planning Shows', () async {
       final ShowsCubit cubit = ShowsCubit(
@@ -827,6 +881,113 @@ void main() {
         await cubit.close();
       },
     );
+
+    test(
+      'marks a stale Watching next Episode as watched and refreshes dependent sections',
+      () async {
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
+        );
+
+        final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+        await cubit.load();
+
+        expect(repository.watchNextCalls, 1);
+        expect(repository.staleWatchingCalls, 1);
+
+        await cubit.markStaleWatchingEpisodeWatched(episodeId: 'episode-uuid');
+
+        expect(repository.markEpisodeWatchedCalls, 1);
+        expect(repository.markedEpisodeIds, <String>['episode-uuid']);
+
+        expect(
+          repository.watchNextCalls,
+          2,
+          reason: 'Watch Next must refresh after changing viewing progress.',
+        );
+
+        expect(
+          repository.staleWatchingCalls,
+          2,
+          reason:
+              'Stale Watching must refresh after changing viewing progress.',
+        );
+
+        expect(cubit.state.updatingStaleWatchingEpisodeId, isNull);
+        expect(cubit.state.staleWatchingOperationError, isNull);
+
+        await cubit.close();
+      },
+    );
+
+    test(
+      'preserves stale Watching when marking its Episode as watched fails',
+      () async {
+        const AppException expectedError = AppException.connection();
+
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
+          markEpisodeWatchedError: expectedError,
+        );
+
+        final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+        await cubit.load();
+
+        final List<StaleWatchingShow> staleBefore = cubit.state.staleWatching;
+
+        await cubit.markStaleWatchingEpisodeWatched(episodeId: 'episode-next');
+
+        expect(repository.markEpisodeWatchedCalls, 1);
+
+        expect(
+          repository.staleWatchingCalls,
+          1,
+          reason: 'A failed mutation must not refresh stale Watching.',
+        );
+
+        expect(
+          repository.watchNextCalls,
+          1,
+          reason: 'A failed mutation must not refresh Watch Next.',
+        );
+
+        expect(cubit.state.staleWatching, staleBefore);
+        expect(cubit.state.updatingStaleWatchingEpisodeId, isNull);
+        expect(cubit.state.staleWatchingOperationError, expectedError);
+
+        await cubit.close();
+      },
+    );
+
+    test(
+      'maps unexpected stale Watching operation errors to unknown',
+      () async {
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
+          markEpisodeWatchedUnexpectedError: StateError('boom'),
+        );
+
+        final ShowsCubit cubit = ShowsCubit(repository: repository);
+
+        await cubit.load();
+
+        await cubit.markStaleWatchingEpisodeWatched(episodeId: 'episode-next');
+
+        expect(repository.markEpisodeWatchedCalls, 1);
+
+        expect(
+          cubit.state.staleWatchingOperationError?.type,
+          AppExceptionType.unknown,
+        );
+
+        expect(cubit.state.updatingStaleWatchingEpisodeId, isNull);
+
+        await cubit.close();
+      },
+    );
+
     test(
       'preserves Watch Next when marking an Episode as watched fails',
       () async {
@@ -1993,11 +2154,13 @@ LibraryShow _libraryShow({
   required int tmdbId,
   required String title,
   required LibraryStatus status,
+  DateTime? firstAirDate,
 }) {
   return LibraryShow(
     libraryEntryId: 'library-$tmdbId',
     showId: 'show-$tmdbId',
     tmdbId: tmdbId,
+    firstAirDate: firstAirDate,
     progress: const LibraryShowProgress(
       watchedEpisodes: 0,
       airedEpisodes: 0,

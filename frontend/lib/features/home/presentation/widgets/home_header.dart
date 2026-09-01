@@ -5,7 +5,7 @@ import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
 
-enum HomeUserMenuAction { profile, settings, logout }
+enum HomeUserMenuAction { profile, logout }
 
 class HomeHeader extends StatelessWidget {
   const HomeHeader({
@@ -38,30 +38,24 @@ class HomeHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    _greetingFor(current),
-                    key: const ValueKey<String>('home-greeting'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style:
-                        (compact
-                                ? Theme.of(context).textTheme.titleLarge
-                                : Theme.of(context).textTheme.headlineMedium)
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                  ),
-                  SizedBox(height: compact ? AppSpacing.xs : AppSpacing.sm),
-                  Text(
                     'Home',
                     key: const ValueKey<String>('home-page-title'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style:
-                        (compact
-                                ? Theme.of(context).textTheme.bodyMedium
-                                : Theme.of(context).textTheme.bodyLarge)
-                            ?.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w500,
-                            ),
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    _greetingFor(current),
+                    key: const ValueKey<String>('home-greeting'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
@@ -69,11 +63,9 @@ class HomeHeader extends StatelessWidget {
                     key: const ValueKey<String>('home-date'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style:
-                        (compact
-                                ? Theme.of(context).textTheme.bodyMedium
-                                : Theme.of(context).textTheme.bodyLarge)
-                            ?.copyWith(color: AppColors.textSecondary),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -124,13 +116,7 @@ class _HomeUserMenu extends StatelessWidget {
               label: 'Profile',
             ),
           ),
-          PopupMenuItem<HomeUserMenuAction>(
-            value: HomeUserMenuAction.settings,
-            child: _HomeUserMenuItem(
-              icon: Icons.settings_outlined,
-              label: 'Settings',
-            ),
-          ),
+
           PopupMenuDivider(),
           PopupMenuItem<HomeUserMenuAction>(
             value: HomeUserMenuAction.logout,
@@ -182,18 +168,9 @@ void _handleUserAction(BuildContext context, HomeUserMenuAction action) {
     case HomeUserMenuAction.profile:
       context.goNamed(AppRoute.profile.name);
 
-    case HomeUserMenuAction.settings:
-      _showTemporaryMessage(context, 'Settings are not available yet.');
-
     case HomeUserMenuAction.logout:
       context.read<AuthCubit>().logout();
   }
-}
-
-void _showTemporaryMessage(BuildContext context, String message) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message)));
 }
 
 String _greetingFor(DateTime value) {

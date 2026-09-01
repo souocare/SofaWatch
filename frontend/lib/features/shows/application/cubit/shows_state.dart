@@ -42,6 +42,9 @@ final class ShowsState extends Equatable {
     this.upcomingOperationError,
     this.isRefreshing = false,
     this.refreshError,
+    this.referenceDate,
+    this.updatingStaleWatchingEpisodeId,
+    this.staleWatchingOperationError,
   });
 
   final List<LibraryShow> libraryShows;
@@ -145,6 +148,16 @@ final class ShowsState extends Equatable {
   ///
   /// Upcoming is supplementary data and must not make the Watch List unusable.
   final AppException? upcomingError;
+  final DateTime? referenceDate;
+
+  /// Episode currently being marked as watched from Haven't Watched in a While.
+  final String? updatingStaleWatchingEpisodeId;
+
+  /// Failure while changing Episode progress from Haven't Watched in a While.
+  ///
+  /// Existing stale Watching data must remain visible when the operation fails.
+  final AppException? staleWatchingOperationError;
+
   bool get isUpcomingEmpty => upcoming.isEmpty;
 
   bool get canLoadEarlierUpcoming {
@@ -179,9 +192,33 @@ final class ShowsState extends Equatable {
     return updatingWatchHistoryEventId == eventId;
   }
 
+  bool isStaleWatchingEpisodeUpdating(String episodeId) {
+    return updatingStaleWatchingEpisodeId == episodeId;
+  }
+
   List<LibraryShow> get haventStarted {
+    final DateTime? currentDate = referenceDate;
+
     return libraryShows
-        .where((LibraryShow show) => show.status == LibraryStatus.planning)
+        .where((LibraryShow show) {
+          if (show.status != LibraryStatus.planning) {
+            return false;
+          }
+
+          final DateTime? firstAirDate = show.firstAirDate;
+
+          if (firstAirDate == null || currentDate == null) {
+            return true;
+          }
+
+          final DateTime normalizedFirstAirDate = DateTime(
+            firstAirDate.year,
+            firstAirDate.month,
+            firstAirDate.day,
+          );
+
+          return !normalizedFirstAirDate.isAfter(currentDate);
+        })
         .toList(growable: false);
   }
 
@@ -256,6 +293,12 @@ final class ShowsState extends Equatable {
 
     DateTime? upcomingReferenceDate,
     bool clearUpcomingReferenceDate = false,
+
+    DateTime? referenceDate,
+    String? updatingStaleWatchingEpisodeId,
+    bool clearUpdatingStaleWatchingEpisodeId = false,
+    AppException? staleWatchingOperationError,
+    bool clearStaleWatchingOperationError = false,
   }) {
     return ShowsState(
       libraryShows: libraryShows ?? this.libraryShows,
@@ -303,11 +346,22 @@ final class ShowsState extends Equatable {
           ? null
           : updatingUpcomingEpisodeId ?? this.updatingUpcomingEpisodeId,
 
+      referenceDate: referenceDate ?? this.referenceDate,
+
       upcomingOperationError: clearUpcomingOperationError
           ? null
           : upcomingOperationError ?? this.upcomingOperationError,
 
       isLoadingUpcoming: isLoadingUpcoming ?? this.isLoadingUpcoming,
+
+      updatingStaleWatchingEpisodeId: clearUpdatingStaleWatchingEpisodeId
+          ? null
+          : updatingStaleWatchingEpisodeId ??
+                this.updatingStaleWatchingEpisodeId,
+
+      staleWatchingOperationError: clearStaleWatchingOperationError
+          ? null
+          : staleWatchingOperationError ?? this.staleWatchingOperationError,
 
       isLoadingEarlierUpcoming:
           isLoadingEarlierUpcoming ?? this.isLoadingEarlierUpcoming,
@@ -402,6 +456,10 @@ final class ShowsState extends Equatable {
 
     isRefreshing,
     refreshError,
+
+    referenceDate,
+    updatingStaleWatchingEpisodeId,
+    staleWatchingOperationError,
   ];
 }
 
