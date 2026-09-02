@@ -1555,7 +1555,7 @@ class _WatchNextCard extends StatelessWidget {
                 constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                 padding: EdgeInsets.zero,
                 onPressed: onMarkWatched,
-                icon: const Icon(Icons.check_circle_outline_rounded, size: 30),
+                icon: const Icon(Icons.circle_outlined, size: 30),
               ),
           ],
         ),
@@ -2421,6 +2421,7 @@ class _UpcomingEpisodeRow extends StatelessWidget {
 
               _UpcomingMarkWatchedButton(
                 episodeId: item.episode.id,
+                isWatched: item.episode.isWatched,
                 canMarkWatched: canMarkWatched,
                 isUpdating: isUpdating,
                 onMarkWatched: onMarkWatched,
@@ -2436,12 +2437,14 @@ class _UpcomingEpisodeRow extends StatelessWidget {
 class _UpcomingMarkWatchedButton extends StatelessWidget {
   const _UpcomingMarkWatchedButton({
     required this.episodeId,
+    required this.isWatched,
     required this.canMarkWatched,
     required this.isUpdating,
     required this.onMarkWatched,
   });
 
   final String episodeId;
+  final bool isWatched;
   final bool canMarkWatched;
   final bool isUpdating;
 
@@ -2449,16 +2452,22 @@ class _UpcomingMarkWatchedButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String tooltip = canMarkWatched
-        ? 'Mark episode as watched'
-        : 'This episode has not aired yet';
+    final String tooltip;
+
+    if (isWatched) {
+      tooltip = 'Episode watched';
+    } else if (canMarkWatched) {
+      tooltip = 'Mark episode as watched';
+    } else {
+      tooltip = 'This episode has not aired yet';
+    }
 
     return Tooltip(
       message: tooltip,
       child: IconButton(
         key: ValueKey<String>('shows-upcoming-mark-watched-$episodeId'),
         tooltip: tooltip,
-        onPressed: !canMarkWatched || isUpdating
+        onPressed: !canMarkWatched || isWatched || isUpdating
             ? null
             : () {
                 onMarkWatched(episodeId: episodeId);
@@ -2469,7 +2478,10 @@ class _UpcomingMarkWatchedButton extends StatelessWidget {
                 height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : const Icon(Icons.check_circle_outline_rounded),
+            : Icon(
+                isWatched ? Icons.check_circle_rounded : Icons.circle_outlined,
+                color: isWatched ? Theme.of(context).colorScheme.primary : null,
+              ),
       ),
     );
   }
@@ -2991,14 +3003,51 @@ class _HaventStartedEmpty extends StatelessWidget {
   }
 }
 
-class _UpToDateSection extends StatelessWidget {
+int _upToDatePageCount(int itemCount) {
+  if (itemCount <= 6) {
+    return 1;
+  }
+
+  if (itemCount <= 12) {
+    return 2;
+  }
+
+  return 3;
+}
+
+class _UpToDateSection extends StatefulWidget {
   const _UpToDateSection({required this.items, required this.isDesktop});
 
   final List<LibraryShow> items;
   final bool isDesktop;
 
   @override
+  State<_UpToDateSection> createState() => _UpToDateSectionState();
+}
+
+class _UpToDateSectionState extends State<_UpToDateSection> {
+  late final PageController _pageController;
+
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final int pageCount = _upToDatePageCount(widget.items.length);
+
     return Column(
       key: const ValueKey<String>('shows-up-to-date-section'),
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3009,19 +3058,40 @@ class _UpToDateSection extends StatelessWidget {
             context,
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
         ),
+
         const SizedBox(height: AppSpacing.sm),
+
         Text(
           'Shows where you have watched every episode released so far.',
           style: Theme.of(
             context,
           ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
         ),
+
         const SizedBox(height: AppSpacing.lg),
 
-        if (isDesktop)
+        if (widget.isDesktop)
           ..._buildDesktopItems()
-        else
-          _UpToDateCarousel(items: items),
+        else ...<Widget>[
+          _UpToDateCarousel(
+            items: widget.items,
+            pageController: _pageController,
+            onPageChanged: (int page) {
+              setState(() {
+                _currentPage = page;
+              });
+            },
+          ),
+
+          if (pageCount > 1) ...<Widget>[
+            const SizedBox(height: AppSpacing.md),
+
+            _UpToDatePageIndicator(
+              currentPage: _currentPage,
+              pageCount: pageCount,
+            ),
+          ],
+        ],
       ],
     );
   }
@@ -3029,12 +3099,12 @@ class _UpToDateSection extends StatelessWidget {
   List<Widget> _buildDesktopItems() {
     final List<Widget> widgets = <Widget>[];
 
-    for (int index = 0; index < items.length; index++) {
+    for (int index = 0; index < widget.items.length; index++) {
       if (index > 0) {
         widgets.add(const SizedBox(height: AppSpacing.md));
       }
 
-      widgets.add(_UpToDateRow(show: items[index], isDesktop: true));
+      widgets.add(_UpToDateRow(show: widget.items[index], isDesktop: true));
     }
 
     return widgets;
@@ -3042,49 +3112,267 @@ class _UpToDateSection extends StatelessWidget {
 }
 
 class _UpToDateCarousel extends StatelessWidget {
-  const _UpToDateCarousel({required this.items});
+  const _UpToDateCarousel({
+    required this.items,
+    required this.pageController,
+    required this.onPageChanged,
+  });
 
+  static const int _itemsPerFullPage = 6;
+  static const int _columns = 3;
+  static const int _rows = 2;
+  static const int _previewLimit = 16;
   static const double _posterAspectRatio = 2 / 3;
   static const double _metadataHeight = 64;
 
   final List<LibraryShow> items;
+  final PageController pageController;
+  final ValueChanged<int> onPageChanged;
 
   @override
   Widget build(BuildContext context) {
+    final List<LibraryShow> previewItems = items
+        .take(_previewLimit)
+        .toList(growable: false);
+
+    final int pageCount = _upToDatePageCount(items.length);
+
+    /*
+     * The final preview page reserves its third column for View All
+     * whenever more than 16 Up to Date Shows exist.
+     */
+    final bool showViewAll = items.length > _previewLimit;
+
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        /*
-         * Two complete cards are visible on a phone.
-         *
-         * A small portion of the horizontal scroll behaviour remains obvious
-         * through the natural spacing between cards.
-         */
-        final double cardWidth = (constraints.maxWidth - AppSpacing.md) / 2;
+        final double cardWidth =
+            (constraints.maxWidth - (AppSpacing.md * (_columns - 1))) /
+            _columns;
 
         final double posterHeight = cardWidth / _posterAspectRatio;
 
-        final double carouselHeight =
+        final double cardHeight =
             posterHeight + AppSpacing.sm + _metadataHeight;
 
+        final double pageHeight =
+            (cardHeight * _rows) + (AppSpacing.lg * (_rows - 1));
+
         return SizedBox(
-          height: carouselHeight,
-          child: ListView.separated(
+          height: pageHeight,
+          child: PageView.builder(
             key: const ValueKey<String>('shows-up-to-date-carousel'),
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: items.length,
-            separatorBuilder: (BuildContext context, int index) {
-              return const SizedBox(width: AppSpacing.md);
-            },
-            itemBuilder: (BuildContext context, int index) {
-              return SizedBox(
-                width: cardWidth,
-                child: _UpToDateCard(show: items[index]),
+            controller: pageController,
+            physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
+            itemCount: pageCount,
+            onPageChanged: onPageChanged,
+            itemBuilder: (BuildContext context, int pageIndex) {
+              if (pageIndex == 2 && showViewAll) {
+                final List<LibraryShow> finalPageItems = previewItems
+                    .skip(12)
+                    .take(4)
+                    .toList(growable: false);
+
+                return _UpToDateFinalPage(
+                  items: finalPageItems,
+                  cardWidth: cardWidth,
+                  cardHeight: cardHeight,
+                  pageHeight: pageHeight,
+                  totalItems: items.length,
+                );
+              }
+
+              final int startIndex = pageIndex * _itemsPerFullPage;
+
+              final int endIndex = (startIndex + _itemsPerFullPage).clamp(
+                0,
+                previewItems.length,
+              );
+
+              final List<LibraryShow> pageItems = previewItems.sublist(
+                startIndex,
+                endIndex,
+              );
+
+              return GridView.builder(
+                key: ValueKey<String>('shows-up-to-date-page-$pageIndex'),
+                physics: const NeverScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                itemCount: pageItems.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: _columns,
+                  crossAxisSpacing: AppSpacing.md,
+                  mainAxisSpacing: AppSpacing.lg,
+                  mainAxisExtent: cardHeight,
+                ),
+                itemBuilder: (BuildContext context, int index) {
+                  return _UpToDateCard(show: pageItems[index]);
+                },
               );
             },
           ),
         );
       },
+    );
+  }
+}
+
+class _UpToDateFinalPage extends StatelessWidget {
+  const _UpToDateFinalPage({
+    required this.items,
+    required this.cardWidth,
+    required this.cardHeight,
+    required this.pageHeight,
+    required this.totalItems,
+  });
+
+  final List<LibraryShow> items;
+  final double cardWidth;
+  final double cardHeight;
+  final double pageHeight;
+  final int totalItems;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            children: <Widget>[
+              if (items.isNotEmpty)
+                SizedBox(
+                  height: cardHeight,
+                  child: _UpToDateCard(show: items[0]),
+                ),
+              if (items.length > 2) ...<Widget>[
+                const SizedBox(height: AppSpacing.lg),
+                SizedBox(
+                  height: cardHeight,
+                  child: _UpToDateCard(show: items[2]),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            children: <Widget>[
+              if (items.length > 1)
+                SizedBox(
+                  height: cardHeight,
+                  child: _UpToDateCard(show: items[1]),
+                ),
+              if (items.length > 3) ...<Widget>[
+                const SizedBox(height: AppSpacing.lg),
+                SizedBox(
+                  height: cardHeight,
+                  child: _UpToDateCard(show: items[3]),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        SizedBox(
+          width: cardWidth,
+          height: pageHeight,
+          child: _UpToDateViewAllTile(totalItems: totalItems),
+        ),
+      ],
+    );
+  }
+}
+
+class _UpToDateViewAllTile extends StatelessWidget {
+  const _UpToDateViewAllTile({required this.totalItems});
+
+  final int totalItems;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surfaceHigh,
+      borderRadius: AppRadius.borderLarge,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: const ValueKey<String>('shows-up-to-date-view-all'),
+        onTap: () {
+          context.pushNamed(
+            AppRoute.libraryCollection.name,
+            queryParameters: const <String, String>{'tab': 'shows'},
+          );
+        },
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.borderLarge,
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                const Icon(Icons.grid_view_rounded, size: 30),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'View All',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  '($totalItems)',
+                  key: const ValueKey<String>(
+                    'shows-up-to-date-view-all-count',
+                  ),
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UpToDatePageIndicator extends StatelessWidget {
+  const _UpToDatePageIndicator({
+    required this.currentPage,
+    required this.pageCount,
+  });
+
+  final int currentPage;
+  final int pageCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      key: const ValueKey<String>('shows-up-to-date-page-indicator'),
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List<Widget>.generate(pageCount, (int index) {
+        final bool isSelected = index == currentPage;
+
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: isSelected ? 18 : 6,
+          height: 6,
+          margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppColors.textPrimary
+                : AppColors.outlineVariant,
+            borderRadius: AppRadius.borderFull,
+          ),
+        );
+      }),
     );
   }
 }

@@ -217,7 +217,7 @@ class _WatchedAction extends StatelessWidget {
           episodeId: item.episode.id,
         );
       },
-      icon: const Icon(Icons.check_circle_outline_rounded),
+      icon: const Icon(Icons.circle_outlined),
     );
   }
 }

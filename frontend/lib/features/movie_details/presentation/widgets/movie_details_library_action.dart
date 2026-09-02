@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sofawatch/app/theme/tokens/app_colors.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
 import 'package:sofawatch/features/library/application/cubit/library_item_operation.dart';
@@ -265,7 +266,11 @@ class _WatchedDate extends StatelessWidget {
       key: const ValueKey<String>('movie-details-watched-date'),
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        const Icon(Icons.check_circle_outline_rounded, size: 18),
+        const Icon(
+          Icons.check_circle_rounded,
+          size: 18,
+          color: AppColors.primary,
+        ),
         const SizedBox(width: 8),
         Text(
           'Watched $formattedDate',

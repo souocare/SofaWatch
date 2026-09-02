@@ -238,7 +238,7 @@ class _WatchedAction extends StatelessWidget {
           source: HomeWatchSource.missedRecently,
         );
       },
-      icon: const Icon(Icons.check_circle_outline_rounded),
+      icon: const Icon(Icons.circle_outlined),
     );
   }
 }

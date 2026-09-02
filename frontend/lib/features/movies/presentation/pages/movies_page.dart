@@ -743,7 +743,8 @@ class _MovieHistorySection extends StatefulWidget {
 }
 
 class _MovieHistorySectionState extends State<_MovieHistorySection> {
-  static const int _itemsPerPage = 6;
+  static const int _previewItemLimit = 16;
+  static const int _previewPageCount = 3;
 
   late final PageController _pageController;
 
@@ -787,17 +788,19 @@ class _MovieHistorySectionState extends State<_MovieHistorySection> {
           return const SizedBox.shrink();
         }
 
-        final int historyPageCount = (state.items.length / _itemsPerPage)
-            .ceil();
+        final List<HistoryMovieItem> previewItems = state.items
+            .take(_previewItemLimit)
+            .toList(growable: false);
 
-        /*
-         * See All is intentionally an extra page.
-         *
-         * The preview therefore still contains up to all 18 history
-         * events. No viewing event is sacrificed to make room for
-         * the navigation tile.
-         */
-        final int totalPageCount = historyPageCount + 1;
+        final int contentPageCount = previewItems.length <= 6
+            ? 1
+            : previewItems.length <= 12
+            ? 2
+            : _previewPageCount;
+
+        final bool showViewAll = state.items.length > _previewItemLimit;
+
+        final int totalPageCount = contentPageCount;
 
         final int lastPage = totalPageCount - 1;
 
@@ -838,9 +841,10 @@ class _MovieHistorySectionState extends State<_MovieHistorySection> {
               const SizedBox(height: AppSpacing.md),
 
               _MovieHistoryPager(
-                items: state.items,
+                items: previewItems,
                 pageController: _pageController,
-                historyPageCount: historyPageCount,
+                pageCount: totalPageCount,
+                showViewAll: showViewAll,
                 onPageChanged: (int page) {
                   setState(() {
                     _currentPage = page;
@@ -867,17 +871,19 @@ class _MovieHistoryPager extends StatelessWidget {
   const _MovieHistoryPager({
     required this.items,
     required this.pageController,
-    required this.historyPageCount,
+    required this.pageCount,
+    required this.showViewAll,
     required this.onPageChanged,
   });
 
-  static const int _itemsPerPage = 6;
+  static const int _itemsPerFullPage = 6;
   static const int _columns = 3;
   static const int _rows = 2;
 
   final List<HistoryMovieItem> items;
   final PageController pageController;
-  final int historyPageCount;
+  final int pageCount;
+  final bool showViewAll;
   final ValueChanged<int> onPageChanged;
 
   @override
@@ -890,10 +896,6 @@ class _MovieHistoryPager extends StatelessWidget {
 
         final double posterHeight = cardWidth * 1.5;
 
-        /*
-         * Fixed metadata height:
-         * title + date + time.
-         */
         const double titleHeight = 20;
         const double dateHeight = 18;
         const double timeHeight = 18;
@@ -915,19 +917,33 @@ class _MovieHistoryPager extends StatelessWidget {
             key: const ValueKey<String>('movies-watched-pager'),
             controller: pageController,
             physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
-            itemCount: historyPageCount + 1,
+            itemCount: pageCount,
             onPageChanged: onPageChanged,
             itemBuilder: (BuildContext context, int pageIndex) {
-              if (pageIndex == historyPageCount) {
-                return _MovieHistorySeeAllPage(
+              /*
+               * The third preview page reserves its final column for
+               * View All. That leaves four Movie slots:
+               *
+               * [13] [14] [View All]
+               * [15] [16] [View All]
+               */
+              if (pageIndex == 2 && showViewAll) {
+                final List<HistoryMovieItem> finalPageItems = items
+                    .skip(12)
+                    .take(4)
+                    .toList(growable: false);
+
+                return _MovieHistoryFinalPage(
+                  items: finalPageItems,
                   cardWidth: cardWidth,
+                  cardHeight: cardHeight,
                   pageHeight: pageHeight,
                 );
               }
 
-              final int startIndex = pageIndex * _itemsPerPage;
+              final int startIndex = pageIndex * _itemsPerFullPage;
 
-              final int endIndex = (startIndex + _itemsPerPage).clamp(
+              final int endIndex = (startIndex + _itemsPerFullPage).clamp(
                 0,
                 items.length,
               );
@@ -956,6 +972,77 @@ class _MovieHistoryPager extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _MovieHistoryFinalPage extends StatelessWidget {
+  const _MovieHistoryFinalPage({
+    required this.items,
+    required this.cardWidth,
+    required this.cardHeight,
+    required this.pageHeight,
+  });
+
+  final List<HistoryMovieItem> items;
+  final double cardWidth;
+  final double cardHeight;
+  final double pageHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      key: const ValueKey<String>('movies-watched-final-page'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            children: <Widget>[
+              if (items.isNotEmpty)
+                SizedBox(
+                  height: cardHeight,
+                  child: _MovieHistoryCard(item: items[0]),
+                ),
+              if (items.length > 2) ...<Widget>[
+                const SizedBox(height: AppSpacing.lg),
+                SizedBox(
+                  height: cardHeight,
+                  child: _MovieHistoryCard(item: items[2]),
+                ),
+              ],
+            ],
+          ),
+        ),
+
+        const SizedBox(width: AppSpacing.md),
+
+        Expanded(
+          child: Column(
+            children: <Widget>[
+              if (items.length > 1)
+                SizedBox(
+                  height: cardHeight,
+                  child: _MovieHistoryCard(item: items[1]),
+                ),
+              if (items.length > 3) ...<Widget>[
+                const SizedBox(height: AppSpacing.lg),
+                SizedBox(
+                  height: cardHeight,
+                  child: _MovieHistoryCard(item: items[3]),
+                ),
+              ],
+            ],
+          ),
+        ),
+
+        const SizedBox(width: AppSpacing.md),
+
+        SizedBox(
+          width: cardWidth,
+          height: pageHeight,
+          child: _MovieHistorySeeAllTile(),
+        ),
+      ],
     );
   }
 }
@@ -994,64 +1081,51 @@ class _MovieHistoryPageIndicator extends StatelessWidget {
   }
 }
 
-class _MovieHistorySeeAllPage extends StatelessWidget {
-  const _MovieHistorySeeAllPage({
-    required this.cardWidth,
-    required this.pageHeight,
-  });
-
-  final double cardWidth;
-  final double pageHeight;
+class _MovieHistorySeeAllTile extends StatelessWidget {
+  const _MovieHistorySeeAllTile();
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: SizedBox(
-        width: cardWidth,
-        height: pageHeight,
-        child: Material(
-          color: AppColors.surfaceHigh,
-          borderRadius: AppRadius.borderLarge,
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            key: const ValueKey<String>('movies-watched-see-all'),
-            onTap: () {
-              context.pushNamed(
-                AppRoute.history.name,
-                queryParameters: const <String, String>{'type': 'movie'},
-              );
-            },
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: AppRadius.borderLarge,
-                border: Border.all(color: AppColors.outlineVariant),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    const Icon(Icons.history_rounded, size: 32),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      'See All',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Movie history',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
+    return Material(
+      color: AppColors.surfaceHigh,
+      borderRadius: AppRadius.borderLarge,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: const ValueKey<String>('movies-watched-see-all'),
+        onTap: () {
+          context.pushNamed(
+            AppRoute.history.name,
+            queryParameters: const <String, String>{'type': 'movie'},
+          );
+        },
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.borderLarge,
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                const Icon(Icons.history_rounded, size: 30),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'See All',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
-              ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Movie history',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

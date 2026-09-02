@@ -2141,6 +2141,111 @@ void main() {
           isNotNull,
           reason: 'Previously aired Episodes must be markable as watched.',
         );
+
+        expect(
+          find.descendant(
+            of: buttonFinder,
+            matching: find.byIcon(Icons.circle_outlined),
+          ),
+          findsOneWidget,
+          reason:
+              'Unwatched aired Episodes must keep the outlined watch action.',
+        );
+
+        expect(
+          find.descendant(
+            of: buttonFinder,
+            matching: find.byIcon(Icons.check_circle_rounded),
+          ),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets(
+      'renders a watched Upcoming Episode as completed and disables the action',
+      (WidgetTester tester) async {
+        final ShowsCubit cubit = ShowsCubit(
+          repository: _FakeShowsRepository(
+            shows: <LibraryShow>[_show],
+            upcoming: <UpcomingItem>[
+              _makeUpcomingItem(
+                id: 'watched-episode',
+                episodeNumber: 1,
+                airDate: DateTime(2026, 8, 14),
+                isWatched: true,
+              ),
+            ],
+          ),
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubit));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('shows-tab-upcoming')),
+        );
+
+        await tester.pumpAndSettle();
+
+        final Finder timelineFinder = find.byKey(
+          const ValueKey<String>('shows-upcoming-timeline'),
+        );
+
+        expect(timelineFinder, findsOneWidget);
+
+        final CustomScrollView scrollView = tester.widget<CustomScrollView>(
+          timelineFinder,
+        );
+
+        final ScrollController controller = scrollView.controller!;
+
+        /*
+     * The watched Episode aired before Today, so its section lives
+     * before the CustomScrollView center.
+     */
+        controller.jumpTo(controller.position.minScrollExtent);
+
+        await tester.pumpAndSettle();
+
+        final Finder buttonFinder = find.byKey(
+          const ValueKey<String>('shows-upcoming-mark-watched-watched-episode'),
+        );
+
+        expect(buttonFinder, findsOneWidget);
+
+        final IconButton button = tester.widget<IconButton>(buttonFinder);
+
+        expect(
+          button.onPressed,
+          isNull,
+          reason:
+              'An already watched Upcoming Episode must not create another '
+              'watch event from the timeline.',
+        );
+
+        expect(
+          find.descendant(
+            of: buttonFinder,
+            matching: find.byIcon(Icons.check_circle_rounded),
+          ),
+          findsOneWidget,
+          reason:
+              'Watched Upcoming Episodes must have a distinct completed icon.',
+        );
+
+        expect(
+          find.descendant(
+            of: buttonFinder,
+            matching: find.byIcon(Icons.circle_outlined),
+          ),
+          findsNothing,
+        );
       },
     );
 
@@ -3605,6 +3710,7 @@ UpcomingItem _makeUpcomingItem({
   required String id,
   required int episodeNumber,
   required DateTime airDate,
+  bool isWatched = false,
 }) {
   return UpcomingItem(
     libraryEntryId: 'library-$id',
@@ -3623,7 +3729,7 @@ UpcomingItem _makeUpcomingItem({
       airDate: airDate,
       runtime: 52,
       stillUrl: null,
-      isWatched: false,
+      isWatched: isWatched,
     ),
   );
 }

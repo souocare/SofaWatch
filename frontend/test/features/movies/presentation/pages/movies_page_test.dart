@@ -1178,7 +1178,7 @@ void main() {
         expect(find.text('Arrival'), findsNWidgets(2));
       },
     );
-    testWidgets('shows up to 18 watched events in six-item pages', (
+    testWidgets('shows up to 16 watched events across three preview pages', (
       WidgetTester tester,
     ) async {
       final List<HistoryMovieItem> historyItems =
@@ -1245,10 +1245,12 @@ void main() {
 
       expect(
         find.descendant(
-          of: indicator,
+          of: find.byKey(
+            const ValueKey<String>('movies-watched-page-indicator'),
+          ),
           matching: find.byType(AnimatedContainer),
         ),
-        findsNWidgets(4),
+        findsNWidgets(3),
       );
     });
     testWidgets('swipes through watched Movie History pages', (
@@ -1316,7 +1318,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const ValueKey<String>('movies-watched-page-2')),
+        find.byKey(const ValueKey<String>('movies-watched-final-page')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('movies-watched-see-all')),
         findsOneWidget,
       );
 
@@ -1326,78 +1333,118 @@ void main() {
       );
 
       expect(
-        find.byKey(const ValueKey<String>('movies-watched-event-event-18')),
+        find.byKey(const ValueKey<String>('movies-watched-event-event-14')),
         findsOneWidget,
       );
-    });
-    testWidgets('places See All after all 18 watched events', (
-      WidgetTester tester,
-    ) async {
-      final List<HistoryMovieItem> historyItems =
-          List<HistoryMovieItem>.generate(
-            18,
-            (int index) => _movieHistoryItem(index + 1),
-          );
-
-      final _MoviesPageTestDependencies historyDependencies =
-          _MoviesPageTestDependencies(historyItems: historyItems);
-
-      addTearDown(historyDependencies.dispose);
-
-      await historyDependencies.movieHistoryCubit.load();
-
-      final MoviesCubit cubit = MoviesCubit(
-        repository: _FakeMoviesRepository(
-          movies: <LibraryMovie>[_watchlistMovie],
-        ),
-      );
-
-      addTearDown(cubit.close);
-
-      await cubit.load();
-
-      await tester.pumpWidget(
-        _buildTestApp(
-          cubit: cubit,
-          movieHistoryCubit: historyDependencies.movieHistoryCubit,
-        ),
-      );
-
-      await tester.pump();
-
-      await tester.drag(
-        find.byKey(const ValueKey<String>('movies-scroll-view')),
-        const Offset(0, -700),
-      );
-
-      await tester.pump();
-
-      final Finder pager = find.byKey(
-        const ValueKey<String>('movies-watched-pager'),
-      );
-
-      for (int page = 0; page < 2; page++) {
-        await tester.drag(pager, const Offset(-500, 0));
-        await tester.pumpAndSettle();
-      }
-
-      // Event 18 still belongs to the third History page.
-      expect(
-        find.byKey(const ValueKey<String>('movies-watched-event-event-18')),
-        findsOneWidget,
-      );
-
-      await tester.drag(pager, const Offset(-500, 0));
-      await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const ValueKey<String>('movies-watched-see-all')),
+        find.byKey(const ValueKey<String>('movies-watched-event-event-15')),
         findsOneWidget,
       );
 
-      expect(find.text('See All'), findsOneWidget);
-      expect(find.text('Movie history'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('movies-watched-event-event-16')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('movies-watched-event-event-17')),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('movies-watched-event-event-18')),
+        findsNothing,
+      );
     });
+    testWidgets(
+      'places See All beside events 13 through 16 on the final preview page',
+      (WidgetTester tester) async {
+        final List<HistoryMovieItem> historyItems =
+            List<HistoryMovieItem>.generate(
+              18,
+              (int index) => _movieHistoryItem(index + 1),
+            );
+
+        final _MoviesPageTestDependencies historyDependencies =
+            _MoviesPageTestDependencies(historyItems: historyItems);
+
+        addTearDown(historyDependencies.dispose);
+
+        await historyDependencies.movieHistoryCubit.load();
+
+        final MoviesCubit cubit = MoviesCubit(
+          repository: _FakeMoviesRepository(
+            movies: <LibraryMovie>[_watchlistMovie],
+          ),
+        );
+
+        addTearDown(cubit.close);
+
+        await cubit.load();
+
+        await tester.pumpWidget(
+          _buildTestApp(
+            cubit: cubit,
+            movieHistoryCubit: historyDependencies.movieHistoryCubit,
+          ),
+        );
+
+        await tester.pump();
+
+        await tester.drag(
+          find.byKey(const ValueKey<String>('movies-scroll-view')),
+          const Offset(0, -700),
+        );
+
+        await tester.pump();
+
+        final Finder pager = find.byKey(
+          const ValueKey<String>('movies-watched-pager'),
+        );
+
+        for (int page = 0; page < 2; page++) {
+          await tester.drag(pager, const Offset(-500, 0));
+          await tester.pumpAndSettle();
+        }
+
+        // The final preview page contains events 13–16 beside See All.
+        expect(
+          find.byKey(const ValueKey<String>('movies-watched-event-event-13')),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('movies-watched-event-event-14')),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('movies-watched-event-event-15')),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('movies-watched-event-event-16')),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('movies-watched-see-all')),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('movies-watched-event-event-17')),
+          findsNothing,
+        );
+
+        expect(
+          find.byKey(const ValueKey<String>('movies-watched-event-event-18')),
+          findsNothing,
+        );
+      },
+    );
 
     testWidgets('renders Coming Soon between Watchlist and Watched', (
       WidgetTester tester,

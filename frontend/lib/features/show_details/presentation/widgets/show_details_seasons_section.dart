@@ -1140,7 +1140,10 @@ class _EpisodeStatusButton extends StatelessWidget {
                   );
                 },
                 tooltip: 'Mark as not watched',
-                icon: const Icon(Icons.check_circle_rounded),
+                icon: const Icon(
+                  Icons.check_circle_rounded,
+                  color: AppColors.primary,
+                ),
               ),
 
               IconButton(
@@ -1416,7 +1419,7 @@ class _EpisodeMarkWatchedOptions extends StatelessWidget {
                 'show-details-mark-only-this-episode',
               ),
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.check_circle_outline_rounded),
+              leading: const Icon(Icons.circle_outlined),
               title: const Text('Only this episode'),
               subtitle: const Text('Leave the previous episodes unchanged.'),
               onTap: () {

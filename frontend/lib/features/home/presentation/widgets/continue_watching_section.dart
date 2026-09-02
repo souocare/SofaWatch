@@ -270,7 +270,7 @@ class _ContinueWatchingCard extends StatelessWidget {
                     episodeId: item.nextEpisode.id,
                   );
                 },
-                icon: const Icon(Icons.check_circle_outline_rounded, size: 30),
+                icon: const Icon(Icons.circle_outlined, size: 30),
               ),
           ],
         ),
