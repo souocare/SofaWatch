@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 
 final class MovieDetails extends Equatable {
   const MovieDetails({
+    this.id,
     required this.tmdbId,
     required this.title,
     required this.originalTitle,
@@ -17,7 +18,7 @@ final class MovieDetails extends Equatable {
     this.backdropUrl,
     this.runtime,
   });
-
+  final String? id;
   final int tmdbId;
 
   final String title;
@@ -45,6 +46,7 @@ final class MovieDetails extends Equatable {
 
   @override
   List<Object?> get props => <Object?>[
+    id,
     tmdbId,
     title,
     originalTitle,

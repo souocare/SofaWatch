@@ -64,8 +64,8 @@ class _SearchMobileContent extends StatelessWidget {
     }
 
     context.pushNamed(
-      AppRoute.movieDetails.name,
-      pathParameters: <String, String>{'movieId': result.tmdbId.toString()},
+      AppRoute.tmdbMovieDetails.name,
+      pathParameters: <String, String>{'tmdbId': result.tmdbId.toString()},
     );
   }
 

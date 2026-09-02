@@ -131,12 +131,14 @@ void main() {
     );
   });
 
-  testWidgets('opens movie details from a deep-link location', (
+  testWidgets('opens local movie details from a deep-link location', (
     WidgetTester tester,
   ) async {
     router.goNamed(
       AppRoute.movieDetails.name,
-      pathParameters: <String, String>{'movieId': '438631'},
+      pathParameters: <String, String>{
+        'movieId': '11111111-1111-1111-1111-111111111111',
+      },
     );
 
     await tester.pumpWidget(buildTestApp());
@@ -147,6 +149,58 @@ void main() {
       find.byKey(const ValueKey<String>('movie-details-failure')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('opens TMDB movie details from a deep-link location', (
+    WidgetTester tester,
+  ) async {
+    router.goNamed(
+      AppRoute.tmdbMovieDetails.name,
+      pathParameters: <String, String>{'tmdbId': '438631'},
+    );
+
+    await tester.pumpWidget(buildTestApp());
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('movie-details-failure')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('shows not found for a non-numeric TMDB movie id', (
+    WidgetTester tester,
+  ) async {
+    router.go('/movies/tmdb/not-a-number');
+
+    await tester.pumpWidget(buildTestApp());
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('not-found-location')),
+      findsOneWidget,
+    );
+
+    expect(find.text('/movies/tmdb/not-a-number'), findsOneWidget);
+  });
+
+  testWidgets('shows not found for a non-positive TMDB movie id', (
+    WidgetTester tester,
+  ) async {
+    router.go('/movies/tmdb/0');
+
+    await tester.pumpWidget(buildTestApp());
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('not-found-location')),
+      findsOneWidget,
+    );
+
+    expect(find.text('/movies/tmdb/0'), findsOneWidget);
   });
 
   testWidgets('opens episode details from a deep-link location', (

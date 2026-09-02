@@ -2,6 +2,7 @@ import 'package:sofawatch/features/movie_details/domain/models/movie_details.dar
 
 final class MovieDetailsDto {
   const MovieDetailsDto({
+    this.id,
     required this.tmdbId,
     required this.title,
     required this.originalTitle,
@@ -17,9 +18,9 @@ final class MovieDetailsDto {
     this.backdropUrl,
     this.runtime,
   });
-
   factory MovieDetailsDto.fromJson(Map<String, dynamic> json) {
     return MovieDetailsDto(
+      id: _nullableString(json['id']),
       tmdbId: _requiredInt(json, 'tmdb_id'),
       title: _requiredString(json, 'title'),
       originalTitle: _requiredString(json, 'original_title'),
@@ -37,6 +38,7 @@ final class MovieDetailsDto {
     );
   }
 
+  final String? id;
   final int tmdbId;
 
   final String title;
@@ -62,6 +64,7 @@ final class MovieDetailsDto {
 
   MovieDetails toDomain() {
     return MovieDetails(
+      id: id,
       tmdbId: tmdbId,
       title: title,
       originalTitle: originalTitle,

@@ -460,7 +460,7 @@ class _LibraryMovieCard extends StatelessWidget {
       onTap: () {
         context.pushNamed(
           AppRoute.movieDetails.name,
-          pathParameters: <String, String>{'movieId': movie.tmdbId.toString()},
+          pathParameters: <String, String>{'movieId': movie.movieId},
         );
       },
       child: Column(

@@ -477,7 +477,7 @@ void main() {
         findsOneWidget,
       );
 
-      expect(find.text('Movie 438631'), findsOneWidget);
+      expect(find.text('Movie movie-1'), findsOneWidget);
 
       router.dispose();
       await cubit.close();
@@ -670,7 +670,7 @@ void main() {
           findsOneWidget,
         );
 
-        expect(find.text('Movie 438631'), findsOneWidget);
+        expect(find.text('Movie movie-1'), findsOneWidget);
 
         await tester.tap(
           find.byKey(const ValueKey<String>('movie-details-back')),

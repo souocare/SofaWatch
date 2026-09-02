@@ -1,8 +1,8 @@
 import 'package:equatable/equatable.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/features/history/domain/models/history_item.dart';
 import 'package:sofawatch/features/home/application/models/home_watch_source.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 
 final class HomeState extends Equatable {
@@ -16,7 +16,7 @@ final class HomeState extends Equatable {
     this.missedRecently = const <UpcomingItem>[],
     this.isLoadingMissedRecently = false,
     this.missedRecentlyError,
-    this.recentActivity = const <WatchHistoryItem>[],
+    this.recentActivity = const <HistoryItem>[],
     this.isLoadingRecentActivity = false,
     this.recentActivityError,
     this.updatingEpisodeId,
@@ -61,7 +61,7 @@ final class HomeState extends Equatable {
   // Recent Activity
   // ---------------------------------------------------------------------------
 
-  final List<WatchHistoryItem> recentActivity;
+  final List<HistoryItem> recentActivity;
 
   final bool isLoadingRecentActivity;
 
@@ -114,7 +114,7 @@ final class HomeState extends Equatable {
     AppException? missedRecentlyError,
     bool clearMissedRecentlyError = false,
 
-    List<WatchHistoryItem>? recentActivity,
+    List<HistoryItem>? recentActivity,
     bool? isLoadingRecentActivity,
     AppException? recentActivityError,
     bool clearRecentActivityError = false,

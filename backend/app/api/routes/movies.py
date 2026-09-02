@@ -1,10 +1,12 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Query, status
 
 from app.api.dependencies import (
     get_movie_details_service,
     get_movie_import_service,
+    MovieRepositoryDependency,
 )
 from app.core.exceptions import APIError
 from app.providers.tmdb.exceptions import (
@@ -22,6 +24,30 @@ router = APIRouter(
     prefix="/movies",
     tags=["Movies"],
 )
+
+
+@router.get(
+    "/{movie_id}",
+    response_model=MovieResponse,
+    summary="Get local movie details",
+    description="Retrieve a movie stored locally in SofaWatch.",
+)
+def get_local_movie_details(
+    repository: MovieRepositoryDependency,
+    movie_id: UUID,
+) -> MovieResponse:
+    """Return detailed information for a locally stored movie."""
+
+    movie = repository.get_by_id(movie_id)
+
+    if movie is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="movie_not_found",
+            message="The requested movie was not found.",
+        )
+
+    return movie
 
 
 @router.get(

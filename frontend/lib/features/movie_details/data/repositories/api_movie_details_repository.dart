@@ -11,15 +11,27 @@ final class ApiMovieDetailsRepository implements MovieDetailsRepository {
   final ApiClient _apiClient;
 
   @override
-  Future<MovieDetails> getByTmdbId(int tmdbId, {String? language}) async {
+  Future<MovieDetails> getById(String movieId) {
+    return _getDetails('/movies/$movieId');
+  }
+
+  @override
+  Future<MovieDetails> getByTmdbId(int tmdbId, {String? language}) {
+    return _getDetails(
+      '/movies/tmdb/$tmdbId',
+      queryParameters: language == null
+          ? null
+          : <String, dynamic>{'language': language},
+    );
+  }
+
+  Future<MovieDetails> _getDetails(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
     try {
       final Response<Map<String, dynamic>> response = await _apiClient
-          .get<Map<String, dynamic>>(
-            '/movies/tmdb/$tmdbId',
-            queryParameters: language == null
-                ? null
-                : <String, dynamic>{'language': language},
-          );
+          .get<Map<String, dynamic>>(path, queryParameters: queryParameters);
 
       final Map<String, dynamic>? data = response.data;
 

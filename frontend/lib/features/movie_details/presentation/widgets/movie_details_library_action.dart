@@ -14,11 +14,13 @@ import 'package:sofawatch/features/library/presentation/mappers/library_failure_
 class MovieDetailsLibraryAction extends StatefulWidget {
   const MovieDetailsLibraryAction({
     required this.tmdbId,
+    this.movieId,
     this.isUpcoming = false,
     super.key,
   });
 
   final int tmdbId;
+  final String? movieId;
   final bool isUpcoming;
 
   @override
@@ -35,6 +37,41 @@ class _MovieDetailsLibraryActionState extends State<MovieDetailsLibraryAction> {
       mediaType: LibraryMediaType.movie,
       tmdbId: widget.tmdbId,
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    final String? movieId = widget.movieId;
+
+    if (movieId != null) {
+      context.read<LibraryCubit>().loadLocalMovieState(
+        key: _key,
+        movieId: movieId,
+      );
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant MovieDetailsLibraryAction oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.movieId == widget.movieId &&
+        oldWidget.tmdbId == widget.tmdbId) {
+      return;
+    }
+
+    _failureNotified = false;
+
+    final String? movieId = widget.movieId;
+
+    if (movieId != null) {
+      context.read<LibraryCubit>().loadLocalMovieState(
+        key: _key,
+        movieId: movieId,
+      );
+    }
   }
 
   @override

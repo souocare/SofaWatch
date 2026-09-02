@@ -28,8 +28,8 @@ void _openExploreMedia(BuildContext context, ExploreMediaItem item) {
   }
 
   context.pushNamed(
-    AppRoute.movieDetails.name,
-    pathParameters: <String, String>{'movieId': item.tmdbId.toString()},
+    AppRoute.tmdbMovieDetails.name,
+    pathParameters: <String, String>{'tmdbId': item.tmdbId.toString()},
   );
 }
 

@@ -16,6 +16,7 @@ abstract final class RoutePaths {
 
   static const String movies = '/movies';
   static const String movieDetails = '/movies/:movieId';
+  static const String tmdbMovieDetails = '/movies/tmdb/:tmdbId';
 
   static const String explore = '/explore';
 
@@ -38,6 +39,10 @@ abstract final class RoutePaths {
 
   static String movieDetailsLocation(String movieId) {
     return '/movies/$movieId';
+  }
+
+  static String tmdbMovieDetailsLocation(int tmdbId) {
+    return '/movies/tmdb/$tmdbId';
   }
 
   static String episodeDetailsLocation(String episodeId) {

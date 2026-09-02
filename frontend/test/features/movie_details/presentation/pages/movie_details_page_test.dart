@@ -13,6 +13,7 @@ import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/library/domain/repositories/library_repository.dart';
 import 'package:sofawatch/features/movie_details/application/cubit/movie_details_cubit.dart';
 import 'package:sofawatch/features/movie_details/domain/models/movie_details.dart';
+import 'package:sofawatch/features/movie_details/domain/models/movie_details_reference.dart';
 import 'package:sofawatch/features/movie_details/domain/repositories/movie_details_repository.dart';
 import 'package:sofawatch/features/movie_details/presentation/pages/movie_details_page.dart';
 
@@ -26,7 +27,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await tester.pumpWidget(_buildTestApp(cubit: cubit));
@@ -90,7 +91,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -135,7 +136,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -169,7 +170,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -191,7 +192,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -234,7 +235,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -259,7 +260,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -286,7 +287,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -337,7 +338,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -376,7 +377,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -404,7 +405,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       expect(_movieDetails.releaseDate, DateTime(2021, 10, 22));
@@ -457,7 +458,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -482,7 +483,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -524,7 +525,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -561,7 +562,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -597,7 +598,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -629,7 +630,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -671,7 +672,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 129,
+        reference: const TmdbMovieDetailsReference(129),
       );
 
       await cubit.load();
@@ -702,7 +703,7 @@ void main() {
 
         final MovieDetailsCubit cubit = MovieDetailsCubit(
           repository: repository,
-          tmdbId: 438631,
+          reference: const TmdbMovieDetailsReference(438631),
         );
 
         await cubit.load();
@@ -726,7 +727,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -768,7 +769,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -793,7 +794,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 123456,
+        reference: const TmdbMovieDetailsReference(123456),
       );
 
       await cubit.load();
@@ -840,7 +841,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -877,7 +878,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -915,7 +916,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -958,7 +959,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 999999,
+        reference: const TmdbMovieDetailsReference(999999),
       );
 
       await cubit.load();
@@ -1034,7 +1035,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -1082,7 +1083,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -1133,7 +1134,7 @@ void main() {
 
         final MovieDetailsCubit cubit = MovieDetailsCubit(
           repository: repository,
-          tmdbId: 438631,
+          reference: const TmdbMovieDetailsReference(438631),
         );
 
         await cubit.load();
@@ -1218,6 +1219,17 @@ final class _FakeMovieDetailsRepository implements MovieDetailsRepository {
   final MovieDetails details;
 
   @override
+  Future<MovieDetails> getById(String movieId) async {
+    final AppException? repositoryError = error;
+
+    if (repositoryError != null) {
+      throw repositoryError;
+    }
+
+    return details;
+  }
+
+  @override
   Future<MovieDetails> getByTmdbId(int tmdbId, {String? language}) async {
     final AppException? repositoryError = error;
 
@@ -1232,8 +1244,7 @@ final class _FakeMovieDetailsRepository implements MovieDetailsRepository {
 final class _RetryMovieDetailsRepository implements MovieDetailsRepository {
   int requestCount = 0;
 
-  @override
-  Future<MovieDetails> getByTmdbId(int tmdbId, {String? language}) async {
+  Future<MovieDetails> _load() async {
     requestCount++;
 
     if (requestCount == 1) {
@@ -1241,6 +1252,16 @@ final class _RetryMovieDetailsRepository implements MovieDetailsRepository {
     }
 
     return _movieDetails;
+  }
+
+  @override
+  Future<MovieDetails> getById(String movieId) {
+    return _load();
+  }
+
+  @override
+  Future<MovieDetails> getByTmdbId(int tmdbId, {String? language}) {
+    return _load();
   }
 }
 
@@ -1250,6 +1271,11 @@ final class _ControlledMovieDetailsRepository
 
   void complete(MovieDetails result) {
     _completer.complete(result);
+  }
+
+  @override
+  Future<MovieDetails> getById(String movieId) {
+    return _completer.future;
   }
 
   @override

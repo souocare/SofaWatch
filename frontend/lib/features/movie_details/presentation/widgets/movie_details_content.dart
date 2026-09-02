@@ -50,6 +50,7 @@ class MovieDetailsContent extends StatelessWidget {
                       children: <Widget>[
                         MovieDetailsLibraryAction(
                           tmdbId: details.tmdbId,
+                          movieId: details.id,
                           isUpcoming: isUpcoming,
                         ),
 

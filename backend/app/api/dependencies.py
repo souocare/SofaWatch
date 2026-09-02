@@ -305,6 +305,20 @@ EpisodeDetailsServiceDependency = Annotated[
 ]
 
 
+def get_movie_repository(
+    session: DatabaseSession,
+) -> MovieRepository:
+    """Provide a Movie repository for a single request."""
+
+    return MovieRepository(session)
+
+
+MovieRepositoryDependency = Annotated[
+    MovieRepository,
+    Depends(get_movie_repository),
+]
+
+
 def get_movie_details_service(
     settings: Annotated[
         Settings,

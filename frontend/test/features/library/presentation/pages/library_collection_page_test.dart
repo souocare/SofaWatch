@@ -524,7 +524,7 @@ void main() {
         findsOneWidget,
       );
 
-      expect(find.text('Movie 100'), findsOneWidget);
+      expect(find.text('Movie movie-watchlist'), findsOneWidget);
     });
   });
 }

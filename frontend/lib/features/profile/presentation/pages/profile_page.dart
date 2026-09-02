@@ -1536,9 +1536,7 @@ class _ProfileMovieHistoryRow extends StatelessWidget {
       onTap: () {
         context.pushNamed(
           AppRoute.movieDetails.name,
-          pathParameters: <String, String>{
-            'movieId': item.movieTmdbId.toString(),
-          },
+          pathParameters: <String, String>{'movieId': item.movieId},
         );
       },
       child: Padding(

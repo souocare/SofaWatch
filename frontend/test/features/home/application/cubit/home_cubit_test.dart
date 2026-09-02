@@ -1,6 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
+import 'package:sofawatch/features/history/domain/models/history_episode.dart';
+import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
+import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_page.dart';
+import 'package:sofawatch/features/history/domain/models/history_preview.dart';
+import 'package:sofawatch/features/history/domain/repositories/history_repository.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/application/models/home_watch_source.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
@@ -8,7 +16,6 @@ import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_history_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
@@ -20,6 +27,20 @@ final DateTime _referenceToday = DateTime(2026, 8, 17);
 
 DateTime _relativeDay(int offset) {
   return _referenceToday.add(Duration(days: offset));
+}
+
+HomeCubit _createHomeCubit({
+  required ViewingStateChangeNotifier viewingStateChangeNotifier,
+  required ShowsRepository repository,
+  HistoryRepository? historyRepository,
+  DateTime Function()? now,
+}) {
+  return HomeCubit(
+    viewingStateChangeNotifier: viewingStateChangeNotifier,
+    repository: repository,
+    historyRepository: historyRepository ?? _FakeHistoryRepository(),
+    now: now,
+  );
 }
 
 void main() {
@@ -37,10 +58,13 @@ void main() {
       'refreshes only viewing-dependent sections after viewing state changes',
       () async {
         final _FakeShowsRepository repository = _FakeShowsRepository();
+        final _FakeHistoryRepository historyRepository =
+            _FakeHistoryRepository();
 
-        final HomeCubit cubit = HomeCubit(
+        final HomeCubit cubit = _createHomeCubit(
           viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
+          historyRepository: historyRepository,
           now: () => _referenceToday,
         );
 
@@ -57,7 +81,8 @@ void main() {
 
         expect(repository.watchNextCalls, 1);
         expect(repository.missedRecentlyCalls, 1);
-        expect(repository.watchHistoryCalls, 1);
+        expect(historyRepository.historyCalls, 1);
+        expect(repository.watchHistoryCalls, 0);
 
         /*
      * Upcoming powers both Premiering Today and Upcoming.
@@ -83,7 +108,7 @@ void main() {
         ),
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => DateTime(2026, 8, 17, 14, 30),
@@ -118,7 +143,7 @@ void main() {
           ],
         );
 
-        final HomeCubit cubit = HomeCubit(
+        final HomeCubit cubit = _createHomeCubit(
           viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
           now: () => DateTime(2026, 8, 18, 9, 15),
@@ -145,7 +170,7 @@ void main() {
         ],
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -179,7 +204,7 @@ void main() {
         ],
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -215,7 +240,7 @@ void main() {
         failMarkWatched: true,
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -245,7 +270,7 @@ void main() {
         ],
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -271,7 +296,7 @@ void main() {
         failUpcoming: true,
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -302,7 +327,7 @@ void main() {
         ],
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => DateTime(2026, 8, 17, 14, 30),
@@ -330,7 +355,7 @@ void main() {
         ],
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => simulatedToday,
@@ -356,7 +381,7 @@ void main() {
         ),
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -385,7 +410,7 @@ void main() {
         ],
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -403,7 +428,7 @@ void main() {
         failUpcoming: true,
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -428,7 +453,7 @@ void main() {
         failUpcoming: true,
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -462,7 +487,7 @@ void main() {
         missedRecently: missedRecently,
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -490,7 +515,7 @@ void main() {
         missedRecently: serverResult,
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -513,7 +538,7 @@ void main() {
         failMissedRecently: true,
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -538,7 +563,7 @@ void main() {
         ],
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -568,7 +593,7 @@ void main() {
         failMarkWatched: true,
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -588,79 +613,101 @@ void main() {
   });
 
   group('HomeCubit Recent Activity', () {
-    test('loads only a small Recent Activity page', () async {
-      final _FakeShowsRepository repository = _FakeShowsRepository(
-        watchHistory: WatchHistoryPage(
-          items: List<WatchHistoryItem>.generate(
+    test('loads only a small mixed Recent Activity page', () async {
+      final List<HistoryItem> items = List<HistoryItem>.generate(8, (
+        int index,
+      ) {
+        if (index.isEven) {
+          return _historyEpisodeItem(
+            eventId: 'event-$index',
+            episodeId: 'episode-$index',
+            watchedAt: DateTime.utc(
+              2026,
+              8,
+              17,
+              20,
+            ).subtract(Duration(minutes: index)),
+          );
+        }
+
+        return _historyMovieItem(
+          eventId: 'event-$index',
+          movieId: 'movie-$index',
+          watchedAt: DateTime.utc(
+            2026,
             8,
-            (int index) => _watchHistoryItem(
-              eventId: 'event-$index',
-              episodeId: 'episode-$index',
-              watchedAt: DateTime.utc(2026, 8, 17, 20, index),
-            ),
-          ),
-          hasMore: true,
-          nextCursor: 'next-cursor',
-        ),
+            17,
+            20,
+          ).subtract(Duration(minutes: index)),
+        );
+      });
+
+      final _FakeShowsRepository repository = _FakeShowsRepository();
+      final _FakeHistoryRepository historyRepository = _FakeHistoryRepository(
+        page: HistoryPage(items: items, hasMore: true, nextCursor: 'next'),
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
+        historyRepository: historyRepository,
         now: () => _referenceToday,
       );
 
       await cubit.loadRecentActivity();
 
-      expect(
-        repository.requestedWatchHistoryLimit,
-        HomeCubit.recentActivityLimit,
-      );
+      expect(historyRepository.historyCalls, 1);
+      expect(historyRepository.requestedLimit, HomeCubit.recentActivityLimit);
+      expect(historyRepository.requestedMediaType, HistoryMediaType.all);
+      expect(repository.watchHistoryCalls, 0);
 
       expect(
         cubit.state.recentActivity,
         hasLength(HomeCubit.recentActivityLimit),
       );
-
       expect(cubit.state.recentActivity.first.eventId, 'event-0');
+      expect(cubit.state.recentActivity, contains(isA<HistoryEpisodeItem>()));
+      expect(cubit.state.recentActivity, contains(isA<HistoryMovieItem>()));
 
       await cubit.close();
     });
 
-    test('keeps Watch History order unchanged', () async {
-      final _FakeShowsRepository repository = _FakeShowsRepository(
-        watchHistory: WatchHistoryPage(
-          items: <WatchHistoryItem>[
-            _watchHistoryItem(
+    test('keeps global History order unchanged', () async {
+      final _FakeShowsRepository repository = _FakeShowsRepository();
+      final _FakeHistoryRepository historyRepository = _FakeHistoryRepository(
+        page: HistoryPage(
+          items: <HistoryItem>[
+            _historyMovieItem(
               eventId: 'newest',
+              movieId: 'movie-1',
+              watchedAt: DateTime.utc(2026, 8, 17, 23),
+            ),
+            _historyEpisodeItem(
+              eventId: 'middle',
               episodeId: 'episode-1',
               watchedAt: DateTime.utc(2026, 8, 17, 22),
             ),
-            _watchHistoryItem(
-              eventId: 'middle',
-              episodeId: 'episode-2',
-              watchedAt: DateTime.utc(2026, 8, 17, 20),
-            ),
-            _watchHistoryItem(
+            _historyMovieItem(
               eventId: 'oldest',
-              episodeId: 'episode-3',
-              watchedAt: DateTime.utc(2026, 8, 16, 20),
+              movieId: 'movie-2',
+              watchedAt: DateTime.utc(2026, 8, 17, 21),
             ),
           ],
           hasMore: false,
         ),
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
+        historyRepository: historyRepository,
         now: () => _referenceToday,
       );
 
       await cubit.loadRecentActivity();
 
       expect(
-        cubit.state.recentActivity.map((WatchHistoryItem item) => item.eventId),
+        cubit.state.recentActivity.map((HistoryItem item) => item.eventId),
         <String>['newest', 'middle', 'oldest'],
       );
 
@@ -668,59 +715,63 @@ void main() {
     });
 
     test('stores Recent Activity errors independently', () async {
-      final _FakeShowsRepository repository = _FakeShowsRepository(
-        failWatchHistory: true,
+      final _FakeShowsRepository repository = _FakeShowsRepository();
+      final _FakeHistoryRepository historyRepository = _FakeHistoryRepository(
+        failHistory: true,
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
+        historyRepository: historyRepository,
         now: () => _referenceToday,
       );
 
       await cubit.loadRecentActivity();
 
       expect(cubit.state.recentActivity, isEmpty);
-
       expect(cubit.state.recentActivityError, isA<AppException>());
-
       expect(cubit.state.isLoadingRecentActivity, isFalse);
+      expect(historyRepository.historyCalls, 1);
+      expect(repository.watchHistoryCalls, 0);
 
       await cubit.close();
     });
+
     test('Retry reloads only Recent Activity after failure', () async {
-      final WatchHistoryItem item = _watchHistoryItem(
-        eventId: 'event-retry',
-        episodeId: 'episode-retry',
-        watchedAt: DateTime.utc(2026, 8, 16, 20),
+      final _FakeShowsRepository repository = _FakeShowsRepository();
+      final _FakeHistoryRepository historyRepository = _FakeHistoryRepository(
+        failHistory: true,
       );
 
-      final _FakeShowsRepository repository = _FakeShowsRepository(
-        watchHistory: WatchHistoryPage(
-          items: <WatchHistoryItem>[item],
-          hasMore: false,
-        ),
-        failWatchHistory: true,
-      );
-
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
+        historyRepository: historyRepository,
         now: () => _referenceToday,
       );
 
       await cubit.loadRecentActivity();
 
-      expect(repository.watchHistoryCalls, 1);
+      expect(historyRepository.historyCalls, 1);
       expect(cubit.state.recentActivityError, isA<AppException>());
 
-      repository.failWatchHistory = false;
+      final HistoryMovieItem item = _historyMovieItem(
+        eventId: 'event-retry',
+        movieId: 'movie-retry',
+        watchedAt: DateTime.utc(2026, 8, 16, 20),
+      );
+
+      historyRepository
+        ..failHistory = false
+        ..page = HistoryPage(items: <HistoryItem>[item], hasMore: false);
 
       await cubit.retryRecentActivity();
 
-      expect(repository.watchHistoryCalls, 2);
-      expect(cubit.state.recentActivity, <WatchHistoryItem>[item]);
+      expect(historyRepository.historyCalls, 2);
+      expect(cubit.state.recentActivity, <HistoryItem>[item]);
       expect(cubit.state.recentActivityError, isNull);
+      expect(repository.watchHistoryCalls, 0);
 
       await cubit.close();
     });
@@ -731,7 +782,7 @@ void main() {
         'Missed Recently', () async {
       final _FakeShowsRepository repository = _FakeShowsRepository();
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -770,7 +821,7 @@ void main() {
         'same Episode is present', () async {
       final _FakeShowsRepository repository = _FakeShowsRepository();
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -800,22 +851,21 @@ void main() {
     test(
       'refreshes Recent Activity after a successful watched mutation',
       () async {
-        final WatchHistoryItem newActivity = _watchHistoryItem(
+        final HistoryEpisodeItem newActivity = _historyEpisodeItem(
           eventId: 'new-event',
           episodeId: 'episode-1',
           watchedAt: DateTime.utc(2026, 8, 17, 21),
         );
 
-        final _FakeShowsRepository repository = _FakeShowsRepository(
-          watchHistory: WatchHistoryPage(
-            items: <WatchHistoryItem>[newActivity],
-            hasMore: false,
-          ),
+        final _FakeShowsRepository repository = _FakeShowsRepository();
+        final _FakeHistoryRepository historyRepository = _FakeHistoryRepository(
+          page: HistoryPage(items: <HistoryItem>[newActivity], hasMore: false),
         );
 
-        final HomeCubit cubit = HomeCubit(
+        final HomeCubit cubit = _createHomeCubit(
           viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
+          historyRepository: historyRepository,
           now: () => _referenceToday,
         );
 
@@ -832,12 +882,10 @@ void main() {
 
         expect(repository.markWatchedCalls, 1);
 
-        expect(repository.watchHistoryCalls, 1);
+        expect(historyRepository.historyCalls, 1);
+        expect(repository.watchHistoryCalls, 0);
 
-        expect(
-          repository.requestedWatchHistoryLimit,
-          HomeCubit.recentActivityLimit,
-        );
+        expect(historyRepository.requestedLimit, HomeCubit.recentActivityLimit);
 
         expect(cubit.state.recentActivity.single.eventId, 'new-event');
 
@@ -850,10 +898,12 @@ void main() {
       final _FakeShowsRepository repository = _FakeShowsRepository(
         failMarkWatched: true,
       );
+      final _FakeHistoryRepository historyRepository = _FakeHistoryRepository();
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
+        historyRepository: historyRepository,
         now: () => _referenceToday,
       );
 
@@ -880,9 +930,10 @@ void main() {
       expect(cubit.state.watchOperationError, isA<AppException>());
 
       /*
-         * Failed writes must not fabricate/refresh server-owned
-         * Watch History.
-         */
+       * Failed writes must not fabricate or refresh server-owned
+       * global History.
+       */
+      expect(historyRepository.historyCalls, 0);
       expect(repository.watchHistoryCalls, 0);
 
       await cubit.close();
@@ -892,10 +943,13 @@ void main() {
       'does not reload unrelated Upcoming data after watched mutation',
       () async {
         final _FakeShowsRepository repository = _FakeShowsRepository();
+        final _FakeHistoryRepository historyRepository =
+            _FakeHistoryRepository();
 
-        final HomeCubit cubit = HomeCubit(
+        final HomeCubit cubit = _createHomeCubit(
           viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
+          historyRepository: historyRepository,
           now: () => _referenceToday,
         );
 
@@ -918,7 +972,8 @@ void main() {
        */
         expect(repository.upcomingCalls, 0);
         expect(repository.markWatchedCalls, 1);
-        expect(repository.watchHistoryCalls, 1);
+        expect(historyRepository.historyCalls, 1);
+        expect(repository.watchHistoryCalls, 0);
 
         await cubit.close();
       },
@@ -936,9 +991,11 @@ void main() {
               isWatched: false,
             ),
           ],
-          watchHistory: WatchHistoryPage(
-            items: <WatchHistoryItem>[
-              _watchHistoryItem(
+        );
+        final _FakeHistoryRepository historyRepository = _FakeHistoryRepository(
+          page: HistoryPage(
+            items: <HistoryItem>[
+              _historyEpisodeItem(
                 eventId: 'event-1',
                 episodeId: 'episode-1',
                 watchedAt: DateTime.utc(2026, 8, 17, 20),
@@ -948,9 +1005,10 @@ void main() {
           ),
         );
 
-        final HomeCubit cubit = HomeCubit(
+        final HomeCubit cubit = _createHomeCubit(
           viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
+          historyRepository: historyRepository,
           now: () => _referenceToday,
         );
 
@@ -964,9 +1022,12 @@ void main() {
 
         expect(cubit.state.premieringToday, isEmpty);
 
-        expect(repository.watchHistoryCalls, 1);
+        expect(historyRepository.historyCalls, 1);
+        expect(repository.watchHistoryCalls, 0);
 
-        expect(cubit.state.recentActivity.single.episode.id, 'episode-1');
+        final HistoryItem activity = cubit.state.recentActivity.single;
+        expect(activity, isA<HistoryEpisodeItem>());
+        expect((activity as HistoryEpisodeItem).episode.id, 'episode-1');
 
         expect(cubit.state.updatingEpisodeId, isNull);
         expect(cubit.state.updatingEpisodeSource, isNull);
@@ -992,9 +1053,11 @@ void main() {
               isWatched: false,
             ),
           ],
-          watchHistory: WatchHistoryPage(
-            items: <WatchHistoryItem>[
-              _watchHistoryItem(
+        );
+        final _FakeHistoryRepository historyRepository = _FakeHistoryRepository(
+          page: HistoryPage(
+            items: <HistoryItem>[
+              _historyEpisodeItem(
                 eventId: 'event-1',
                 episodeId: 'episode-1',
                 watchedAt: DateTime.utc(2026, 8, 17, 20),
@@ -1004,9 +1067,10 @@ void main() {
           ),
         );
 
-        final HomeCubit cubit = HomeCubit(
+        final HomeCubit cubit = _createHomeCubit(
           viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
+          historyRepository: historyRepository,
           now: () => _referenceToday,
         );
 
@@ -1025,9 +1089,12 @@ void main() {
           <String>['episode-2'],
         );
 
-        expect(repository.watchHistoryCalls, 1);
+        expect(historyRepository.historyCalls, 1);
+        expect(repository.watchHistoryCalls, 0);
 
-        expect(cubit.state.recentActivity.single.episode.id, 'episode-1');
+        final HistoryItem activity = cubit.state.recentActivity.single;
+        expect(activity, isA<HistoryEpisodeItem>());
+        expect((activity as HistoryEpisodeItem).episode.id, 'episode-1');
 
         await cubit.close();
       },
@@ -1049,9 +1116,11 @@ void main() {
             <WatchNextShow>[firstWatchNext],
             <WatchNextShow>[nextWatchNext],
           ],
-          watchHistory: WatchHistoryPage(
-            items: <WatchHistoryItem>[
-              _watchHistoryItem(
+        );
+        final _FakeHistoryRepository historyRepository = _FakeHistoryRepository(
+          page: HistoryPage(
+            items: <HistoryItem>[
+              _historyEpisodeItem(
                 eventId: 'event-1',
                 episodeId: 'episode-1',
                 watchedAt: DateTime.utc(2026, 8, 17, 20),
@@ -1061,9 +1130,10 @@ void main() {
           ),
         );
 
-        final HomeCubit cubit = HomeCubit(
+        final HomeCubit cubit = _createHomeCubit(
           viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
+          historyRepository: historyRepository,
           now: () => _referenceToday,
         );
 
@@ -1083,7 +1153,8 @@ void main() {
 
         expect(cubit.state.continueWatching.single.nextEpisode.id, 'episode-2');
 
-        expect(repository.watchHistoryCalls, 1);
+        expect(historyRepository.historyCalls, 1);
+        expect(repository.watchHistoryCalls, 0);
 
         await cubit.close();
       },
@@ -1104,14 +1175,9 @@ void main() {
           isWatched: false,
         );
 
-        final _FakeShowsRepository repository = _FakeShowsRepository(
-          watchHistory: const WatchHistoryPage(
-            items: <WatchHistoryItem>[],
-            hasMore: false,
-          ),
-        );
+        final _FakeShowsRepository repository = _FakeShowsRepository();
 
-        final HomeCubit cubit = HomeCubit(
+        final HomeCubit cubit = _createHomeCubit(
           viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
           now: () => _referenceToday,
@@ -1148,10 +1214,13 @@ void main() {
           upcoming: <UpcomingItem>[todayItem],
           failMarkWatched: true,
         );
+        final _FakeHistoryRepository historyRepository =
+            _FakeHistoryRepository();
 
-        final HomeCubit cubit = HomeCubit(
+        final HomeCubit cubit = _createHomeCubit(
           viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
+          historyRepository: historyRepository,
           now: () => _referenceToday,
         );
 
@@ -1165,6 +1234,7 @@ void main() {
         expect(cubit.state.updatingEpisodeSource, isNull);
         expect(cubit.state.watchOperationError, isA<AppException>());
 
+        expect(historyRepository.historyCalls, 0);
         expect(repository.watchHistoryCalls, 0);
 
         await cubit.close();
@@ -1182,15 +1252,14 @@ void main() {
               isWatched: false,
             ),
           ],
-          watchHistory: const WatchHistoryPage(
-            items: <WatchHistoryItem>[],
-            hasMore: false,
-          ),
         );
+        final _FakeHistoryRepository historyRepository =
+            _FakeHistoryRepository();
 
-        final HomeCubit cubit = HomeCubit(
+        final HomeCubit cubit = _createHomeCubit(
           viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
+          historyRepository: historyRepository,
           now: () => _referenceToday,
         );
 
@@ -1198,7 +1267,7 @@ void main() {
 
         final int upcomingCallsBefore = repository.upcomingCalls;
         final int watchNextCallsBefore = repository.watchNextCalls;
-        final int watchHistoryCallsBefore = repository.watchHistoryCalls;
+        final int historyCallsBefore = historyRepository.historyCalls;
 
         await cubit.markPremieringTodayEpisodeWatched(episodeId: 'episode-1');
 
@@ -1218,10 +1287,11 @@ void main() {
         expect(repository.watchNextCalls, watchNextCallsBefore + 1);
 
         /*
-     * Recent Activity is also server-derived because its event ID,
-     * watched timestamp, watch count and ordering come from the backend.
-     */
-        expect(repository.watchHistoryCalls, watchHistoryCallsBefore + 1);
+         * Recent Activity is backed by global History. The backend owns
+         * event IDs, watched timestamps and newest-first ordering.
+         */
+        expect(historyRepository.historyCalls, historyCallsBefore + 1);
+        expect(repository.watchHistoryCalls, 0);
 
         expect(repository.markWatchedCalls, 1);
 
@@ -1241,7 +1311,7 @@ void main() {
             episodeId: 'continue-episode',
           );
 
-          final WatchHistoryItem recentItem = _watchHistoryItem(
+          final HistoryEpisodeItem recentItem = _historyEpisodeItem(
             eventId: 'recent-event',
             episodeId: 'recent-episode',
             watchedAt: DateTime.utc(2026, 8, 16, 20),
@@ -1252,16 +1322,20 @@ void main() {
             watchNextResponses: <List<WatchNextShow>>[
               <WatchNextShow>[continueWatchingItem],
             ],
-            watchHistory: WatchHistoryPage(
-              items: <WatchHistoryItem>[recentItem],
-              hasMore: false,
-            ),
             failMissedRecently: true,
           );
+          final _FakeHistoryRepository historyRepository =
+              _FakeHistoryRepository(
+                page: HistoryPage(
+                  items: <HistoryItem>[recentItem],
+                  hasMore: false,
+                ),
+              );
 
-          final HomeCubit cubit = HomeCubit(
+          final HomeCubit cubit = _createHomeCubit(
             viewingStateChangeNotifier: viewingStateChangeNotifier,
             repository: repository,
+            historyRepository: historyRepository,
             now: () => _referenceToday,
           );
 
@@ -1290,7 +1364,7 @@ void main() {
         failMissedRecently: true,
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -1321,7 +1395,7 @@ void main() {
         upcoming: <UpcomingItem>[existingItem],
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -1346,10 +1420,13 @@ void main() {
     group('HomeCubit refresh', () {
       test('refreshes every server-owned Home section', () async {
         final _FakeShowsRepository repository = _FakeShowsRepository();
+        final _FakeHistoryRepository historyRepository =
+            _FakeHistoryRepository();
 
-        final HomeCubit cubit = HomeCubit(
+        final HomeCubit cubit = _createHomeCubit(
           viewingStateChangeNotifier: viewingStateChangeNotifier,
           repository: repository,
+          historyRepository: historyRepository,
           now: () => _referenceToday,
         );
 
@@ -1369,7 +1446,8 @@ void main() {
 
         expect(repository.missedRecentlyCalls, 1);
 
-        expect(repository.watchHistoryCalls, 1);
+        expect(historyRepository.historyCalls, 1);
+        expect(repository.watchHistoryCalls, 0);
 
         await cubit.close();
       });
@@ -1380,10 +1458,13 @@ void main() {
           final _FakeShowsRepository repository = _FakeShowsRepository(
             failMissedRecently: true,
           );
+          final _FakeHistoryRepository historyRepository =
+              _FakeHistoryRepository();
 
-          final HomeCubit cubit = HomeCubit(
+          final HomeCubit cubit = _createHomeCubit(
             viewingStateChangeNotifier: viewingStateChangeNotifier,
             repository: repository,
+            historyRepository: historyRepository,
             now: () => _referenceToday,
           );
 
@@ -1394,7 +1475,8 @@ void main() {
           expect(repository.watchNextCalls, 1);
           expect(repository.upcomingCalls, 2);
           expect(repository.missedRecentlyCalls, 1);
-          expect(repository.watchHistoryCalls, 1);
+          expect(historyRepository.historyCalls, 1);
+          expect(repository.watchHistoryCalls, 0);
 
           expect(cubit.state.missedRecentlyError, isA<AppException>());
 
@@ -1412,7 +1494,7 @@ void main() {
         failWatchNext: true,
       );
 
-      final HomeCubit cubit = HomeCubit(
+      final HomeCubit cubit = _createHomeCubit(
         viewingStateChangeNotifier: viewingStateChangeNotifier,
         repository: repository,
         now: () => _referenceToday,
@@ -1464,20 +1546,20 @@ UpcomingItem _upcomingItem({
   );
 }
 
-WatchHistoryItem _watchHistoryItem({
+HistoryEpisodeItem _historyEpisodeItem({
   required String eventId,
   required String episodeId,
   required DateTime watchedAt,
-  int watchCount = 1,
 }) {
-  return WatchHistoryItem(
+  return HistoryEpisodeItem(
     eventId: eventId,
+    watchedAt: watchedAt,
     showId: 'show-$episodeId',
     showTmdbId: 95396,
     showTitle: 'Severance',
     posterUrl: null,
     backdropUrl: null,
-    episode: WatchHistoryEpisode(
+    episode: HistoryEpisode(
       id: episodeId,
       tmdbId: 1000,
       seasonNumber: 2,
@@ -1486,9 +1568,25 @@ WatchHistoryItem _watchHistoryItem({
       airDate: DateTime(2025, 1, 17),
       runtime: 52,
       stillUrl: null,
-      watchedAt: watchedAt,
-      watchCount: watchCount,
     ),
+  );
+}
+
+HistoryMovieItem _historyMovieItem({
+  required String eventId,
+  required String movieId,
+  required DateTime watchedAt,
+  int tmdbId = 157336,
+  String title = 'Interstellar',
+}) {
+  return HistoryMovieItem(
+    eventId: eventId,
+    watchedAt: watchedAt,
+    movieId: movieId,
+    movieTmdbId: tmdbId,
+    movieTitle: title,
+    posterUrl: null,
+    backdropUrl: null,
   );
 }
 
@@ -1497,11 +1595,6 @@ final class _FakeShowsRepository implements ShowsRepository {
     this.upcoming = const <UpcomingItem>[],
     this.failMarkWatched = false,
     this.failUpcoming = false,
-    this.watchHistory = const WatchHistoryPage(
-      items: <WatchHistoryItem>[],
-      hasMore: false,
-    ),
-    this.failWatchHistory = false,
     this.watchNextResponses = const <List<WatchNextShow>>[],
     this.missedRecently = const <UpcomingItem>[],
     this.failMissedRecently = false,
@@ -1513,8 +1606,6 @@ final class _FakeShowsRepository implements ShowsRepository {
   final bool failMarkWatched;
   bool failUpcoming;
 
-  final WatchHistoryPage watchHistory;
-  bool failWatchHistory;
   bool failWatchNext;
 
   DateTime? requestedFromDate;
@@ -1604,11 +1695,7 @@ final class _FakeShowsRepository implements ShowsRepository {
     watchHistoryCalls++;
     requestedWatchHistoryLimit = limit;
 
-    if (failWatchHistory) {
-      throw const AppException.connection();
-    }
-
-    return watchHistory;
+    return const WatchHistoryPage(items: <WatchHistoryItem>[], hasMore: false);
   }
 
   @override
@@ -1694,4 +1781,42 @@ WatchNextShow _watchNextShow({
       percentage: 30,
     ),
   );
+}
+
+final class _FakeHistoryRepository implements HistoryRepository {
+  _FakeHistoryRepository({
+    this.page = const HistoryPage(items: <HistoryItem>[], hasMore: false),
+    this.failHistory = false,
+  });
+
+  HistoryPage page;
+  bool failHistory;
+
+  int historyCalls = 0;
+  int? requestedLimit;
+  String? requestedCursor;
+  HistoryMediaType? requestedMediaType;
+
+  @override
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) async {
+    historyCalls++;
+    requestedLimit = limit;
+    requestedCursor = cursor;
+    requestedMediaType = mediaType;
+
+    if (failHistory) {
+      throw const AppException.connection();
+    }
+
+    return page;
+  }
+
+  @override
+  Future<HistoryPreview> getPreview() {
+    throw UnimplementedError();
+  }
 }

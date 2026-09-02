@@ -3,6 +3,7 @@ import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/movie_details/application/cubit/movie_details_cubit.dart';
 import 'package:sofawatch/features/movie_details/application/cubit/movie_details_state.dart';
 import 'package:sofawatch/features/movie_details/domain/models/movie_details.dart';
+import 'package:sofawatch/features/movie_details/domain/models/movie_details_reference.dart';
 import 'package:sofawatch/features/movie_details/domain/repositories/movie_details_repository.dart';
 
 void main() {
@@ -13,7 +14,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       final Future<List<MovieDetailsState>> statesFuture = cubit.stream
@@ -40,7 +41,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       final Future<List<MovieDetailsState>> statesFuture = cubit.stream
@@ -63,7 +64,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       await cubit.load();
@@ -81,7 +82,7 @@ void main() {
 
       final MovieDetailsCubit cubit = MovieDetailsCubit(
         repository: repository,
-        tmdbId: 438631,
+        reference: const TmdbMovieDetailsReference(438631),
       );
 
       final Future<List<MovieDetailsState>> statesFuture = cubit.stream
@@ -97,6 +98,28 @@ void main() {
       final MovieDetailsFailure failure = states.last as MovieDetailsFailure;
 
       expect(failure.error.type, AppExceptionType.unknown);
+
+      await cubit.close();
+    });
+    test('loads movie details by internal movie id', () async {
+      final _FakeMovieDetailsRepository repository =
+          _FakeMovieDetailsRepository();
+
+      final MovieDetailsCubit cubit = MovieDetailsCubit(
+        repository: repository,
+        reference: const LocalMovieDetailsReference(
+          '11111111-1111-1111-1111-111111111111',
+        ),
+      );
+
+      await cubit.load();
+
+      expect(
+        repository.requestedMovieId,
+        '11111111-1111-1111-1111-111111111111',
+      );
+      expect(repository.requestedTmdbId, isNull);
+      expect(cubit.state, const MovieDetailsSuccess(_movieDetails));
 
       await cubit.close();
     });
@@ -122,8 +145,23 @@ final class _FakeMovieDetailsRepository implements MovieDetailsRepository {
 
   final AppException? error;
 
+  String? requestedMovieId;
   int? requestedTmdbId;
   int requestCount = 0;
+
+  @override
+  Future<MovieDetails> getById(String movieId) async {
+    requestedMovieId = movieId;
+    requestCount++;
+
+    final AppException? repositoryError = error;
+
+    if (repositoryError != null) {
+      throw repositoryError;
+    }
+
+    return _movieDetails;
+  }
 
   @override
   Future<MovieDetails> getByTmdbId(int tmdbId, {String? language}) async {
@@ -142,6 +180,11 @@ final class _FakeMovieDetailsRepository implements MovieDetailsRepository {
 
 final class _UnexpectedMovieDetailsRepository
     implements MovieDetailsRepository {
+  @override
+  Future<MovieDetails> getById(String movieId) async {
+    throw StateError('Unexpected repository failure.');
+  }
+
   @override
   Future<MovieDetails> getByTmdbId(int tmdbId, {String? language}) async {
     throw StateError('Unexpected repository failure.');

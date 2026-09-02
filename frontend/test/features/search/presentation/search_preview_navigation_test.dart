@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/features/search/domain/entities/search_media_type.dart';
 import 'package:sofawatch/features/search/domain/entities/search_result.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_result_row.dart';
@@ -63,17 +64,23 @@ void main() {
               body: SearchResultRow(
                 result: _movieResult,
                 onPressed: () {
-                  context.push('/movies/${_movieResult.tmdbId}');
+                  context.pushNamed(
+                    AppRoute.tmdbMovieDetails.name,
+                    pathParameters: <String, String>{
+                      'tmdbId': _movieResult.tmdbId.toString(),
+                    },
+                  );
                 },
               ),
             );
           },
         ),
         GoRoute(
-          path: '/movies/:movieId',
+          name: AppRoute.tmdbMovieDetails.name,
+          path: '/movies/tmdb/:tmdbId',
           builder: (BuildContext context, GoRouterState state) {
             return Text(
-              'Movie preview ${state.pathParameters['movieId']}',
+              'Movie preview ${state.pathParameters['tmdbId']}',
               key: const ValueKey<String>('movie-preview'),
             );
           },

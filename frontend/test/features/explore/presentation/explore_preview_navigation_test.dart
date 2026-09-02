@@ -236,10 +236,10 @@ GoRouter _createRouter({
         },
       ),
       GoRoute(
-        name: AppRoute.movieDetails.name,
-        path: '/movies/:movieId',
+        name: AppRoute.tmdbMovieDetails.name,
+        path: '/movies/tmdb/:tmdbId',
         builder: (BuildContext context, GoRouterState state) {
-          final String movieId = state.pathParameters['movieId']!;
+          final String tmdbId = state.pathParameters['tmdbId']!;
 
           return Scaffold(
             key: const ValueKey<String>('test-movie-preview'),
@@ -252,7 +252,7 @@ GoRouter _createRouter({
                 icon: const Icon(Icons.close_rounded),
               ),
             ),
-            body: Center(child: Text('Movie $movieId')),
+            body: Center(child: Text('Movie $tmdbId')),
           );
         },
       ),

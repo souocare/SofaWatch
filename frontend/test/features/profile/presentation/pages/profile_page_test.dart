@@ -612,48 +612,49 @@ void main() {
       expect(find.text('episode-1'), findsOneWidget);
     });
 
-    testWidgets('navigates from Movie History to Movie details using TMDB id', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(
-        _buildNavigationTestApp(
-          historyRepository: _FakeHistoryRepository(preview: _historyPreview),
-          destinationRoutes: <GoRoute>[
-            GoRoute(
-              name: AppRoute.movieDetails.name,
-              path: '/movies/:movieId',
-              builder: (BuildContext context, GoRouterState state) {
-                return Scaffold(
-                  body: Text(
-                    state.pathParameters['movieId'] ?? 'missing',
-                    key: const ValueKey<String>(
-                      'test-movie-details-destination',
+    testWidgets(
+      'navigates from Movie History to Movie details using internal id',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          _buildNavigationTestApp(
+            historyRepository: _FakeHistoryRepository(preview: _historyPreview),
+            destinationRoutes: <GoRoute>[
+              GoRoute(
+                name: AppRoute.movieDetails.name,
+                path: '/movies/:movieId',
+                builder: (BuildContext context, GoRouterState state) {
+                  return Scaffold(
+                    body: Text(
+                      state.pathParameters['movieId'] ?? 'missing',
+                      key: const ValueKey<String>(
+                        'test-movie-details-destination',
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      );
+                  );
+                },
+              ),
+            ],
+          ),
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      final Finder row = find.byKey(
-        const ValueKey<String>('profile-history-movie-movie-event-1'),
-      );
+        final Finder row = find.byKey(
+          const ValueKey<String>('profile-history-movie-movie-event-1'),
+        );
 
-      await tester.ensureVisible(row);
-      await tester.tap(row);
-      await tester.pumpAndSettle();
+        await tester.ensureVisible(row);
+        await tester.tap(row);
+        await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey<String>('test-movie-details-destination')),
-        findsOneWidget,
-      );
+        expect(
+          find.byKey(const ValueKey<String>('test-movie-details-destination')),
+          findsOneWidget,
+        );
 
-      expect(find.text('438631'), findsOneWidget);
-    });
+        expect(find.text('movie-1'), findsOneWidget);
+      },
+    );
     testWidgets('shows totals and View All posters for Shows and Movies', (
       WidgetTester tester,
     ) async {
@@ -966,48 +967,49 @@ void main() {
       expect(find.text('episode-1'), findsOneWidget);
     });
 
-    testWidgets('navigates from Movie History to Movie details using TMDB id', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(
-        _buildNavigationTestApp(
-          historyRepository: _FakeHistoryRepository(preview: _historyPreview),
-          destinationRoutes: <GoRoute>[
-            GoRoute(
-              name: AppRoute.movieDetails.name,
-              path: '/movies/:movieId',
-              builder: (BuildContext context, GoRouterState state) {
-                return Scaffold(
-                  body: Text(
-                    state.pathParameters['movieId'] ?? 'missing',
-                    key: const ValueKey<String>(
-                      'test-movie-details-destination',
+    testWidgets(
+      'navigates from Movie History to Movie details using internal id',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          _buildNavigationTestApp(
+            historyRepository: _FakeHistoryRepository(preview: _historyPreview),
+            destinationRoutes: <GoRoute>[
+              GoRoute(
+                name: AppRoute.movieDetails.name,
+                path: '/movies/:movieId',
+                builder: (BuildContext context, GoRouterState state) {
+                  return Scaffold(
+                    body: Text(
+                      state.pathParameters['movieId'] ?? 'missing',
+                      key: const ValueKey<String>(
+                        'test-movie-details-destination',
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      );
+                  );
+                },
+              ),
+            ],
+          ),
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      final Finder row = find.byKey(
-        const ValueKey<String>('profile-history-movie-movie-event-1'),
-      );
+        final Finder row = find.byKey(
+          const ValueKey<String>('profile-history-movie-movie-event-1'),
+        );
 
-      await tester.ensureVisible(row);
-      await tester.tap(row);
-      await tester.pumpAndSettle();
+        await tester.ensureVisible(row);
+        await tester.tap(row);
+        await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey<String>('test-movie-details-destination')),
-        findsOneWidget,
-      );
+        expect(
+          find.byKey(const ValueKey<String>('test-movie-details-destination')),
+          findsOneWidget,
+        );
 
-      expect(find.text('438631'), findsOneWidget);
-    });
+        expect(find.text('movie-1'), findsOneWidget);
+      },
+    );
 
     testWidgets('shows empty History state', (WidgetTester tester) async {
       await tester.pumpWidget(

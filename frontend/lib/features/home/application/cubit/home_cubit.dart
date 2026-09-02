@@ -3,16 +3,19 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
+import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
+import 'package:sofawatch/features/history/domain/models/history_page.dart';
+import 'package:sofawatch/features/history/domain/repositories/history_repository.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
 import 'package:sofawatch/features/home/application/models/home_watch_source.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
 
 final class HomeCubit extends Cubit<HomeState> {
   HomeCubit({
     required this.repository,
+    required this.historyRepository,
     required ViewingStateChangeNotifier viewingStateChangeNotifier,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now,
@@ -31,6 +34,7 @@ final class HomeCubit extends Cubit<HomeState> {
   static const int continueWatchingLimit = 6;
 
   final ShowsRepository repository;
+  final HistoryRepository historyRepository;
   final DateTime Function() _now;
   late final StreamSubscription<void> _viewingStateChangeSubscription;
 
@@ -277,13 +281,20 @@ final class HomeCubit extends Cubit<HomeState> {
 
     try {
       /*
-       * Watch History is already ordered newest first by the backend.
-       *
-       * Home deliberately requests only a small fixed amount. Cursor
-       * pagination remains owned by the full Watch History experience.
-       */
-      final WatchHistoryPage page = await repository.getWatchHistory(
+     * Recent Activity is a preview of the global viewing history.
+     *
+     * The backend owns:
+     *
+     * - Episodes and Movies;
+     * - viewing-event timestamps;
+     * - newest-first ordering;
+     * - cursor pagination.
+     *
+     * Home only requests the five most recent viewing events.
+     */
+      final HistoryPage page = await historyRepository.getHistory(
         limit: recentActivityLimit,
+        mediaType: HistoryMediaType.all,
       );
 
       if (isClosed) {
@@ -581,15 +592,17 @@ final class HomeCubit extends Cubit<HomeState> {
       }
 
       /*
-       * Recent Activity contains server-owned viewing-event data:
-       *
-       * - event_id;
-       * - watched_at;
-       * - watch_count;
-       * - final ordering.
-       *
-       * Refresh this small section after a successful mutation.
-       */
+      * Recent Activity is backed by the global viewing history.
+      *
+      * The server owns:
+      *
+      * - Episode and Movie viewing events;
+      * - event IDs;
+      * - watched timestamps;
+      * - final newest-first ordering.
+      *
+      * Refresh this small section after a successful viewing mutation.
+      */
       await loadRecentActivity();
 
       if (isClosed) {

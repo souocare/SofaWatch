@@ -261,10 +261,9 @@ void main() {
       );
 
       /*
-       * Movie Details routes use the TMDB identifier, matching the rest
-       * of SofaWatch's Movie navigation.
-       */
-      expect(find.text('Movie 438631'), findsOneWidget);
+      * Persisted Movie navigation uses SofaWatch's internal Movie identifier.
+      */
+      expect(find.text('Movie movie-1'), findsOneWidget);
     });
   });
 }

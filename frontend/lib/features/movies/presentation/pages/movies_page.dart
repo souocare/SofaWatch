@@ -588,7 +588,7 @@ class _MovieCard extends StatelessWidget {
       onTap: () {
         context.pushNamed(
           AppRoute.movieDetails.name,
-          pathParameters: <String, String>{'movieId': movie.tmdbId.toString()},
+          pathParameters: <String, String>{'movieId': movie.movieId},
         );
       },
       child: Column(
@@ -1216,9 +1216,7 @@ class _MovieHistoryCard extends StatelessWidget {
       onTap: () {
         context.pushNamed(
           AppRoute.movieDetails.name,
-          pathParameters: <String, String>{
-            'movieId': item.movieTmdbId.toString(),
-          },
+          pathParameters: <String, String>{'movieId': item.movieId},
         );
       },
       child: Column(

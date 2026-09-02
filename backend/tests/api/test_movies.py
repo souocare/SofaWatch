@@ -5,7 +5,11 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.dependencies import get_movie_import_service
+from app.api.dependencies import (
+    get_movie_import_service,
+    get_movie_repository,
+)
+from app.repositories.movie import MovieRepository
 from app.main import app
 from app.models.movie import Movie
 from app.providers.tmdb.exceptions import (
@@ -42,6 +46,29 @@ def override_movie_import_service(
     )
 
 
+@pytest.fixture
+def movie_repository() -> Mock:
+    """Provide a mocked Movie repository."""
+
+    return Mock(spec=MovieRepository)
+
+
+@pytest.fixture(autouse=True)
+def override_movie_repository(
+    movie_repository: Mock,
+) -> None:
+    """Override the Movie repository dependency for API tests."""
+
+    app.dependency_overrides[get_movie_repository] = lambda: movie_repository
+
+    yield
+
+    app.dependency_overrides.pop(
+        get_movie_repository,
+        None,
+    )
+
+
 def make_movie() -> Movie:
     """Create a representative locally stored Movie."""
 
@@ -70,6 +97,76 @@ def make_movie() -> Movie:
     movie.updated_at = now
 
     return movie
+
+
+def test_get_local_movie_returns_stored_movie(
+    client: TestClient,
+    movie_repository: Mock,
+) -> None:
+    """Return Movie details using the internal SofaWatch identifier."""
+
+    movie = make_movie()
+    movie_repository.get_by_id.return_value = movie
+
+    response = client.get(
+        f"/api/v1/movies/{movie.id}",
+    )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+
+    assert payload["id"] == str(movie.id)
+    assert payload["tmdb_id"] == 438631
+    assert payload["title"] == "Dune"
+    assert payload["original_title"] == "Dune"
+    assert payload["overview"] == "Paul Atreides travels to Arrakis."
+    assert payload["runtime"] == 155
+    assert payload["status"] == "Released"
+    assert payload["vote_average"] == 7.8
+
+    movie_repository.get_by_id.assert_called_once_with(movie.id)
+
+
+def test_get_local_movie_returns_not_found(
+    client: TestClient,
+    movie_repository: Mock,
+) -> None:
+    """Return the public not-found contract for an unknown local Movie."""
+
+    movie_id = uuid4()
+    movie_repository.get_by_id.return_value = None
+
+    response = client.get(
+        f"/api/v1/movies/{movie_id}",
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "error": {
+            "code": "movie_not_found",
+            "message": "The requested movie was not found.",
+        }
+    }
+
+    movie_repository.get_by_id.assert_called_once_with(movie_id)
+
+
+def test_get_local_movie_rejects_invalid_uuid(
+    client: TestClient,
+    movie_repository: Mock,
+) -> None:
+    """Reject malformed local Movie identifiers."""
+
+    response = client.get(
+        "/api/v1/movies/not-a-uuid",
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"
+
+    movie_repository.get_by_id.assert_not_called()
 
 
 def test_import_movie_returns_local_movie(

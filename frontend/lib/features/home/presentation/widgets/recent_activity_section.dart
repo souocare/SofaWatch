@@ -5,10 +5,12 @@ import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/widgets/section_failure_card.dart';
 import 'package:sofawatch/core/widgets/server_network_image.dart';
+import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/application/cubit/home_state.dart';
 import 'package:sofawatch/features/home/presentation/widgets/home_empty_state.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 
 class RecentActivitySection extends StatelessWidget {
   const RecentActivitySection({super.key});
@@ -89,11 +91,30 @@ class RecentActivitySection extends StatelessWidget {
 class _RecentActivityCard extends StatelessWidget {
   const _RecentActivityCard({required this.item});
 
-  final WatchHistoryItem item;
+  final HistoryItem item;
 
   @override
   Widget build(BuildContext context) {
-    final String watchedAt = _formatWatchedAt(context, item.episode.watchedAt);
+    return switch (item) {
+      final HistoryEpisodeItem episodeItem => _RecentEpisodeActivityCard(
+        item: episodeItem,
+      ),
+      final HistoryMovieItem movieItem => _RecentMovieActivityCard(
+        item: movieItem,
+      ),
+      _ => const SizedBox.shrink(),
+    };
+  }
+}
+
+class _RecentEpisodeActivityCard extends StatelessWidget {
+  const _RecentEpisodeActivityCard({required this.item});
+
+  final HistoryEpisodeItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final String watchedAt = _formatWatchedAt(context, item.watchedAt);
 
     return Material(
       color: AppColors.surfaceSubtle,
@@ -117,28 +138,20 @@ class _RecentActivityCard extends StatelessWidget {
               _RecentActivityArtwork(
                 imageUrl:
                     item.episode.stillUrl ?? item.backdropUrl ?? item.posterUrl,
+                fallbackIcon: Icons.tv_outlined,
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            item.showTitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                        if (item.episode.watchCount > 1) ...<Widget>[
-                          const SizedBox(width: AppSpacing.sm),
-                          const _RewatchBadge(),
-                        ],
-                      ],
+                    Text(
+                      item.showTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
@@ -176,9 +189,13 @@ class _RecentActivityCard extends StatelessWidget {
 }
 
 class _RecentActivityArtwork extends StatelessWidget {
-  const _RecentActivityArtwork({required this.imageUrl});
+  const _RecentActivityArtwork({
+    required this.imageUrl,
+    required this.fallbackIcon,
+  });
 
   final String? imageUrl;
+  final IconData fallbackIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -190,9 +207,7 @@ class _RecentActivityArtwork extends StatelessWidget {
         child: DecoratedBox(
           decoration: const BoxDecoration(color: AppColors.surface),
           child: imageUrl == null
-              ? const Center(
-                  child: Icon(Icons.tv_outlined, color: AppColors.textMuted),
-                )
+              ? Center(child: Icon(fallbackIcon, color: AppColors.textMuted))
               : ServerNetworkImage(
                   imageUrl: imageUrl!,
                   fit: BoxFit.cover,
@@ -202,11 +217,8 @@ class _RecentActivityArtwork extends StatelessWidget {
                         Object error,
                         StackTrace? stackTrace,
                       ) {
-                        return const Center(
-                          child: Icon(
-                            Icons.tv_outlined,
-                            color: AppColors.textMuted,
-                          ),
+                        return Center(
+                          child: Icon(fallbackIcon, color: AppColors.textMuted),
                         );
                       },
                 ),
@@ -216,27 +228,82 @@ class _RecentActivityArtwork extends StatelessWidget {
   }
 }
 
-class _RewatchBadge extends StatelessWidget {
-  const _RewatchBadge();
+class _RecentMovieActivityCard extends StatelessWidget {
+  const _RecentMovieActivityCard({required this.item});
+
+  final HistoryMovieItem item;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('home-recent-activity-rewatch'),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: AppRadius.borderFull,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Text(
-        'Rewatch',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColors.textSecondary,
-          fontWeight: FontWeight.w600,
+    final String watchedAt = _formatWatchedAt(context, item.watchedAt);
+
+    return Material(
+      color: AppColors.surfaceSubtle,
+      borderRadius: AppRadius.borderLarge,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: ValueKey<String>('home-recent-activity-${item.eventId}'),
+        onTap: () {
+          context.pushNamed(
+            AppRoute.movieDetails.name,
+            pathParameters: <String, String>{'movieId': item.movieId},
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
+          child: Row(
+            children: <Widget>[
+              _RecentActivityArtwork(
+                imageUrl: item.backdropUrl ?? item.posterUrl,
+                fallbackIcon: Icons.movie_outlined,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      item.movieTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Movie',
+                      key: ValueKey<String>(
+                        'home-recent-activity-movie-${item.eventId}',
+                      ),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      watchedAt,
+                      key: ValueKey<String>(
+                        'home-recent-activity-watched-at-${item.eventId}',
+                      ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: AppColors.textMuted,
+              ),
+            ],
+          ),
         ),
       ),
     );

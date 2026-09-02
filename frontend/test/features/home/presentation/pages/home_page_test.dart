@@ -4,6 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
+import 'package:sofawatch/features/history/domain/models/history_episode.dart';
+import 'package:sofawatch/features/history/domain/models/history_episode_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_media_type.dart';
+import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
+import 'package:sofawatch/features/history/domain/models/history_page.dart';
+import 'package:sofawatch/features/history/domain/models/history_preview.dart';
+import 'package:sofawatch/features/history/domain/repositories/history_repository.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
 import 'package:sofawatch/features/home/presentation/pages/home_page.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
@@ -11,7 +19,6 @@ import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
-import 'package:sofawatch/features/shows/domain/models/watch_history_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_history_page.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
@@ -589,39 +596,68 @@ void main() {
 
       expect(find.text('Not started'), findsOneWidget);
     });
-    testWidgets('shows Rewatch for repeated Recent Activity watches', (
+    testWidgets('shows Episode and Movie events in Recent Activity', (
       WidgetTester tester,
     ) async {
-      final _FakeShowsRepository repository = _FakeShowsRepository(
-        watchHistory: WatchHistoryPage(
-          items: <WatchHistoryItem>[
-            _createWatchHistoryItem(
-              eventId: 'event-rewatch',
-              episodeId: 'episode-rewatch',
-              watchedAt: DateTime.utc(2026, 8, 16, 20),
-              watchCount: 2,
+      final _FakeHistoryRepository historyRepository = _FakeHistoryRepository(
+        page: HistoryPage(
+          items: <HistoryItem>[
+            HistoryMovieItem(
+              eventId: 'movie-event',
+              watchedAt: DateTime.utc(2026, 8, 17, 21),
+              movieId: 'internal-movie-id',
+              movieTmdbId: 157336,
+              movieTitle: 'Interstellar',
+            ),
+            HistoryEpisodeItem(
+              eventId: 'episode-event',
+              watchedAt: DateTime.utc(2026, 8, 17, 20),
+              showId: 'show-1',
+              showTmdbId: 95396,
+              showTitle: 'Severance',
+              episode: const HistoryEpisode(
+                id: 'episode-1',
+                tmdbId: 1000,
+                seasonNumber: 2,
+                episodeNumber: 1,
+                title: 'Hello, Ms. Cobel',
+              ),
             ),
           ],
           hasMore: false,
         ),
       );
 
-      await tester.pumpWidget(_buildTestApp(repository: repository));
+      await tester.pumpWidget(
+        _buildTestApp(historyRepository: historyRepository),
+      );
 
       await tester.pumpAndSettle();
 
+      expect(find.text('Interstellar'), findsOneWidget);
+      expect(find.text('Movie'), findsOneWidget);
+
+      expect(find.text('Severance'), findsOneWidget);
+      expect(find.text('S02 E01 • Hello, Ms. Cobel'), findsOneWidget);
+
       expect(
-        find.byKey(const ValueKey<String>('home-recent-activity-rewatch')),
+        find.byKey(const ValueKey<String>('home-recent-activity-movie-event')),
         findsOneWidget,
       );
 
-      expect(find.text('Rewatch'), findsOneWidget);
+      expect(
+        find.byKey(
+          const ValueKey<String>('home-recent-activity-episode-event'),
+        ),
+        findsOneWidget,
+      );
     });
   });
 }
 
 Widget _buildTestApp({
   ShowsRepository? repository,
+  HistoryRepository? historyRepository,
   StatisticsRepository? statisticsRepository,
 }) {
   final ViewingStateChangeNotifier viewingStateChangeNotifier =
@@ -629,6 +665,7 @@ Widget _buildTestApp({
 
   final HomeCubit homeCubit = HomeCubit(
     repository: repository ?? _FakeShowsRepository(),
+    historyRepository: historyRepository ?? _FakeHistoryRepository(),
     viewingStateChangeNotifier: viewingStateChangeNotifier,
     now: () => DateTime(2026, 8, 17),
   )..load();
@@ -676,34 +713,6 @@ UpcomingItem _createUpcomingItem({
       runtime: 52,
       stillUrl: null,
       isWatched: isWatched,
-    ),
-  );
-}
-
-WatchHistoryItem _createWatchHistoryItem({
-  required String eventId,
-  required String episodeId,
-  required DateTime watchedAt,
-  int watchCount = 1,
-}) {
-  return WatchHistoryItem(
-    eventId: eventId,
-    showId: 'show-$episodeId',
-    showTmdbId: 95396,
-    showTitle: 'Severance',
-    posterUrl: null,
-    backdropUrl: null,
-    episode: WatchHistoryEpisode(
-      id: episodeId,
-      tmdbId: 1000,
-      seasonNumber: 2,
-      episodeNumber: 1,
-      title: 'Hello, Ms. Cobel',
-      airDate: DateTime(2025, 1, 17),
-      runtime: 52,
-      stillUrl: null,
-      watchedAt: watchedAt,
-      watchCount: watchCount,
     ),
   );
 }
@@ -904,6 +913,32 @@ final class _ZeroActivityStatisticsRepository implements StatisticsRepository {
 
   @override
   Future<StatisticsBacklog> getBacklogStatistics() {
+    throw UnimplementedError();
+  }
+}
+
+final class _FakeHistoryRepository implements HistoryRepository {
+  _FakeHistoryRepository({
+    this.page = const HistoryPage(items: <HistoryItem>[], hasMore: false),
+  });
+
+  final HistoryPage page;
+
+  @override
+  Future<HistoryPage> getHistory({
+    int limit = 30,
+    String? cursor,
+    HistoryMediaType mediaType = HistoryMediaType.all,
+  }) async {
+    return HistoryPage(
+      items: page.items.take(limit).toList(growable: false),
+      nextCursor: page.nextCursor,
+      hasMore: page.hasMore,
+    );
+  }
+
+  @override
+  Future<HistoryPreview> getPreview() {
     throw UnimplementedError();
   }
 }

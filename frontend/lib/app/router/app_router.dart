@@ -50,6 +50,7 @@ import 'package:sofawatch/features/library/domain/models/library_media_type.dart
 import 'package:sofawatch/features/library/presentation/pages/library_collection_page.dart';
 import 'package:sofawatch/features/movie_details/application/cubit/movie_details_cubit.dart';
 import 'package:sofawatch/features/movie_details/data/repositories/api_movie_details_repository.dart';
+import 'package:sofawatch/features/movie_details/domain/models/movie_details_reference.dart';
 import 'package:sofawatch/features/movie_details/presentation/pages/movie_details_page.dart';
 import 'package:sofawatch/features/movies/application/cubit/movie_history_cubit.dart';
 import 'package:sofawatch/features/movies/application/cubit/movies_cubit.dart';
@@ -432,6 +433,9 @@ GoRouter createAppRouter({
                         create: (BuildContext context) {
                           return HomeCubit(
                             repository: ApiShowsRepository(
+                              context.read<ApiClient>(),
+                            ),
+                            historyRepository: ApiHistoryRepository(
                               context.read<ApiClient>(),
                             ),
                             viewingStateChangeNotifier: context
@@ -825,8 +829,37 @@ GoRouter createAppRouter({
         name: AppRoute.movieDetails.name,
         path: RoutePaths.movieDetails,
         pageBuilder: (BuildContext context, GoRouterState state) {
-          final String rawTmdbId = state.pathParameters['movieId']!;
+          final String movieId = state.pathParameters['movieId']!;
 
+          return buildDetailsModalPage(
+            state: state,
+            child: MultiBlocProvider(
+              providers: <BlocProvider<dynamic>>[
+                BlocProvider<MovieDetailsCubit>(
+                  create: (BuildContext context) {
+                    return MovieDetailsCubit(
+                      repository: ApiMovieDetailsRepository(apiClient),
+                      reference: LocalMovieDetailsReference(movieId),
+                    )..load();
+                  },
+                ),
+                BlocProvider<LibraryCubit>(
+                  create: (BuildContext context) {
+                    return LibraryCubit(ApiLibraryRepository(apiClient));
+                  },
+                ),
+              ],
+              child: const MovieDetailsPage(),
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        name: AppRoute.tmdbMovieDetails.name,
+        path: RoutePaths.tmdbMovieDetails,
+        pageBuilder: (BuildContext context, GoRouterState state) {
+          final String rawTmdbId = state.pathParameters['tmdbId']!;
           final int? tmdbId = int.tryParse(rawTmdbId);
 
           if (tmdbId == null || tmdbId <= 0) {
@@ -844,7 +877,7 @@ GoRouter createAppRouter({
                   create: (BuildContext context) {
                     return MovieDetailsCubit(
                       repository: ApiMovieDetailsRepository(apiClient),
-                      tmdbId: tmdbId,
+                      reference: TmdbMovieDetailsReference(tmdbId),
                     )..load();
                   },
                 ),

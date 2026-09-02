@@ -9,6 +9,7 @@ enum AppRoute {
   showDetails,
   movies,
   movieDetails,
+  tmdbMovieDetails,
   explore,
   profile,
   detailedStatistics,

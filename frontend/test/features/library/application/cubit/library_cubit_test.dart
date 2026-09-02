@@ -337,6 +337,89 @@ void main() {
     await cubit.close();
   });
 
+  test(
+    'loads existing local Movie state without importing from TMDB',
+    () async {
+      final DateTime now = DateTime.utc(2026, 8, 10);
+
+      final LibraryEntry existingEntry = LibraryEntry(
+        id: 'entry-uuid',
+        mediaId: 'movie-uuid',
+        mediaType: LibraryMediaType.movie,
+        status: LibraryStatus.planning,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      final _FakeLibraryRepository repository = _FakeLibraryRepository(
+        movieEntry: existingEntry,
+      );
+
+      final LibraryCubit cubit = LibraryCubit(repository);
+
+      const LibraryMediaKey key = LibraryMediaKey(
+        mediaType: LibraryMediaType.movie,
+        tmdbId: 438631,
+      );
+
+      await cubit.loadLocalMovieState(key: key, movieId: 'movie-uuid');
+
+      final LibraryItemOperation operation = cubit.state.operationFor(key);
+
+      expect(operation.isAdded, isTrue);
+      expect(operation.entry, existingEntry);
+
+      expect(repository.requestedMovieEntryIds, <String>['movie-uuid']);
+      expect(repository.importedMovieTmdbIds, isEmpty);
+
+      await cubit.close();
+    },
+  );
+
+  test('keeps local Movie idle when it is not in the library', () async {
+    final _FakeLibraryRepository repository = _FakeLibraryRepository();
+
+    final LibraryCubit cubit = LibraryCubit(repository);
+
+    const LibraryMediaKey key = LibraryMediaKey(
+      mediaType: LibraryMediaType.movie,
+      tmdbId: 438631,
+    );
+
+    await cubit.loadLocalMovieState(key: key, movieId: 'movie-uuid');
+
+    final LibraryItemOperation operation = cubit.state.operationFor(key);
+
+    expect(operation.status, LibraryItemOperationStatus.idle);
+
+    expect(repository.requestedMovieEntryIds, <String>['movie-uuid']);
+    expect(repository.importedMovieTmdbIds, isEmpty);
+
+    await cubit.close();
+  });
+
+  test('does not reload an already resolved local Movie state', () async {
+    final _FakeLibraryRepository repository = _FakeLibraryRepository();
+
+    final LibraryCubit cubit = LibraryCubit(repository);
+
+    const LibraryMediaKey key = LibraryMediaKey(
+      mediaType: LibraryMediaType.movie,
+      tmdbId: 438631,
+    );
+
+    cubit.markAdded(key);
+
+    await cubit.loadLocalMovieState(key: key, movieId: 'movie-uuid');
+
+    expect(cubit.state.operationFor(key).isAdded, isTrue);
+
+    expect(repository.requestedMovieEntryIds, isEmpty);
+    expect(repository.importedMovieTmdbIds, isEmpty);
+
+    await cubit.close();
+  });
+
   test('keeps Movie idle when it is not in the library', () async {
     final _FakeLibraryRepository repository = _FakeLibraryRepository();
 

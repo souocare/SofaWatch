@@ -373,4 +373,43 @@ final class LibraryCubit extends Cubit<LibraryState> {
       LibraryMediaType.movie => _repository.removeMovie(entry.mediaId),
     };
   }
+
+  Future<void> loadLocalMovieState({
+    required LibraryMediaKey key,
+    required String movieId,
+  }) async {
+    if (key.mediaType != LibraryMediaType.movie) {
+      return;
+    }
+
+    final LibraryItemOperation currentOperation = state.operationFor(key);
+
+    if (_protectsResolvedState(currentOperation)) {
+      return;
+    }
+
+    try {
+      final LibraryEntry? entry = await _repository.getMovieEntry(movieId);
+
+      if (isClosed) {
+        return;
+      }
+
+      final LibraryItemOperation latestOperation = state.operationFor(key);
+
+      if (_protectsResolvedState(latestOperation)) {
+        return;
+      }
+
+      if (entry == null) {
+        return;
+      }
+
+      emit(state.withOperation(key, LibraryItemOperation.added(entry: entry)));
+    } on AppException {
+      // Initial Library state is supplementary.
+    } on Object {
+      // Details must remain usable if Library state resolution fails.
+    }
+  }
 }
