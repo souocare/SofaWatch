@@ -19,6 +19,7 @@ from app.api.dependencies import (
 )
 from app.core.exceptions import APIError
 from app.models.enums import LibraryStatus
+from app.services.library import InvalidManualShowStatusError
 from app.schemas.havent_started import HaventStartedShowResponse
 from app.schemas.history import (
     HistoryPageResponse,
@@ -37,6 +38,7 @@ from app.schemas.start_show import StartShowResponse
 from app.schemas.upcoming import UpcomingItemResponse
 from app.schemas.watch_history import WatchHistoryPageResponse
 from app.schemas.watch_next import WatchNextShowResponse
+
 
 router = APIRouter(
     prefix="/library",
@@ -488,11 +490,18 @@ def update_library_status(
 ) -> LibraryEntryResponse:
     """Update the tracking status of a TV series in the library."""
 
-    entry = service.update_status(
-        user_id=current_user.id,
-        show_id=show_id,
-        status=payload.status,
-    )
+    try:
+        entry = service.update_status(
+            user_id=current_user.id,
+            show_id=show_id,
+            status=payload.status,
+        )
+    except InvalidManualShowStatusError as error:
+        raise APIError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="invalid_show_library_status",
+            message=str(error),
+        ) from error
 
     if entry is None:
         raise APIError(

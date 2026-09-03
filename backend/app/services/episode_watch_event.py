@@ -3,8 +3,11 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.models.episode_watch_event import EpisodeWatchEvent
+from app.repositories.episode import EpisodeRepository
 from app.repositories.episode_progress import EpisodeProgressRepository
 from app.repositories.episode_watch_event import EpisodeWatchEventRepository
+from app.repositories.season import SeasonRepository
+from app.services.show_library_status import ShowLibraryStatusSynchronizer
 
 
 class EpisodeWatchEventService:
@@ -16,10 +19,16 @@ class EpisodeWatchEventService:
         session: Session,
         watch_event_repository: EpisodeWatchEventRepository,
         progress_repository: EpisodeProgressRepository,
+        episode_repository: EpisodeRepository,
+        season_repository: SeasonRepository,
+        show_status_synchronizer: ShowLibraryStatusSynchronizer,
     ) -> None:
         self._session = session
         self._watch_event_repository = watch_event_repository
         self._progress_repository = progress_repository
+        self._episode_repository = episode_repository
+        self._season_repository = season_repository
+        self._show_status_synchronizer = show_status_synchronizer
 
     def list_for_episode(
         self,
@@ -60,6 +69,20 @@ class EpisodeWatchEventService:
             event,
         )
 
+        episode = self._episode_repository.get_by_id(
+            episode_id,
+        )
+
+        if episode is None:
+            return False
+
+        season = self._season_repository.get_by_id(
+            episode.season_id,
+        )
+
+        if season is None:
+            return False
+
         # The deleted event must disappear from the current transaction before
         # selecting the latest remaining event.
         self._session.flush()
@@ -82,6 +105,12 @@ class EpisodeWatchEventService:
                 progress.is_watched = True
                 progress.watched_at = latest_event.watched_at
 
+        if latest_event is None:
+            self._show_status_synchronizer.after_unwatch(
+                user_id=user_id,
+                show_id=season.show_id,
+            )
+
         self._session.commit()
 
         return True
@@ -100,6 +129,18 @@ class EpisodeWatchEventService:
         Returns the number of deleted watch events.
         """
 
+        episode = self._episode_repository.get_by_id(
+            episode_id,
+        )
+
+        season = (
+            self._season_repository.get_by_id(
+                episode.season_id,
+            )
+            if episode is not None
+            else None
+        )
+
         deleted_count = self._watch_event_repository.delete_all_for_user_and_episode(
             user_id=user_id,
             episode_id=episode_id,
@@ -113,6 +154,12 @@ class EpisodeWatchEventService:
         if progress is not None:
             progress.is_watched = False
             progress.watched_at = None
+
+        if season is not None:
+            self._show_status_synchronizer.after_unwatch(
+                user_id=user_id,
+                show_id=season.show_id,
+            )
 
         self._session.commit()
 

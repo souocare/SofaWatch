@@ -20,6 +20,10 @@ from app.schemas.library import (
 )
 
 
+class InvalidManualShowStatusError(ValueError):
+    """Raised when a derived Show status is requested manually."""
+
+
 class LibraryService:
     """Business logic for a user's personal media library."""
 
@@ -316,13 +320,18 @@ class LibraryService:
         if entry is None:
             return None
 
-        if status == LibraryStatus.COMPLETED:
-            if entry.completed_at is None:
-                entry.completed_at = datetime.now(UTC)
-        else:
-            entry.completed_at = None
+        manual_statuses = {
+            LibraryStatus.PAUSED,
+            LibraryStatus.DROPPED,
+        }
+
+        if status not in manual_statuses:
+            raise InvalidManualShowStatusError(
+                "TV series status can only be manually changed to paused or dropped."
+            )
 
         entry.status = status
+        entry.completed_at = None
 
         self._session.commit()
         self._session.refresh(entry)

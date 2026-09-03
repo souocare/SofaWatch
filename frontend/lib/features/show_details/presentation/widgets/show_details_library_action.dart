@@ -192,6 +192,11 @@ class _ShowStatusSelector extends StatelessWidget {
   final LibraryStatus status;
   final ValueChanged<LibraryStatus> onSelected;
 
+  static const List<LibraryStatus> _manualStatuses = <LibraryStatus>[
+    LibraryStatus.paused,
+    LibraryStatus.dropped,
+  ];
+
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<LibraryStatus>(
@@ -200,7 +205,7 @@ class _ShowStatusSelector extends StatelessWidget {
       tooltip: 'Change status',
       onSelected: onSelected,
       itemBuilder: (BuildContext context) {
-        return LibraryStatus.values
+        return _manualStatuses
             .map(
               (LibraryStatus status) => PopupMenuItem<LibraryStatus>(
                 key: ValueKey<String>(

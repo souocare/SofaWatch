@@ -7,21 +7,25 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.enums import LibraryStatus
 from app.models.episode import Episode
 from app.models.episode_progress import EpisodeProgress
 from app.models.episode_watch_event import EpisodeWatchEvent
+from app.models.library import LibraryEntry
 from app.models.season import Season
 from app.models.show import Show
 from app.models.user import User
 from app.repositories.episode import EpisodeRepository
 from app.repositories.episode_progress import EpisodeProgressRepository
 from app.repositories.episode_watch_event import EpisodeWatchEventRepository
+from app.repositories.library import LibraryRepository
 from app.repositories.season import SeasonRepository
 from app.repositories.show import ShowRepository
 from app.services.episode_progress import (
     EpisodeNotWatchableError,
     EpisodeProgressService,
 )
+from app.services.show_library_status import ShowLibraryStatusSynchronizer
 
 FIXED_TODAY = date(2026, 8, 15)
 
@@ -106,6 +110,45 @@ def persist_episode(
     return episode
 
 
+def make_real_show_status_synchronizer(
+    db_session: Session,
+) -> ShowLibraryStatusSynchronizer:
+    """Build a Show Library status synchronizer using real repositories."""
+
+    return ShowLibraryStatusSynchronizer(
+        session=db_session,
+        library_repository=LibraryRepository(db_session),
+        show_repository=ShowRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        progress_repository=EpisodeProgressRepository(db_session),
+    )
+
+
+def persist_library_entry(
+    db_session: Session,
+    *,
+    user: User,
+    show: Show,
+    status: LibraryStatus = LibraryStatus.PLANNING,
+    started_at: datetime | None = None,
+    completed_at: datetime | None = None,
+) -> LibraryEntry:
+    """Persist a Library entry for Show status synchronization tests."""
+
+    entry = LibraryEntry(
+        user_id=user.id,
+        show_id=show.id,
+        status=status,
+        started_at=started_at,
+        completed_at=completed_at,
+    )
+
+    db_session.add(entry)
+    db_session.flush()
+
+    return entry
+
+
 @pytest.fixture
 def progress_repository() -> Mock:
     """Provide a mocked episode progress repository."""
@@ -135,6 +178,16 @@ def show_repository() -> Mock:
 
 
 @pytest.fixture
+def library_repository() -> Mock:
+    """Provide a mocked Library repository."""
+
+    repository = Mock(spec=LibraryRepository)
+    repository.get_by_user_and_show.return_value = None
+
+    return repository
+
+
+@pytest.fixture
 def progress_service(
     db_session: Session,
     progress_repository: Mock,
@@ -142,6 +195,7 @@ def progress_service(
     season_repository: Mock,
     show_repository: Mock,
     watch_event_repository: Mock,
+    show_status_synchronizer: Mock,
 ) -> EpisodeProgressService:
     """Provide an episode progress service using mocked repositories."""
 
@@ -152,6 +206,7 @@ def progress_service(
         season_repository=season_repository,
         show_repository=show_repository,
         watch_event_repository=watch_event_repository,
+        show_status_synchronizer=show_status_synchronizer,
         today=lambda: date(2026, 8, 15),
     )
 
@@ -167,6 +222,13 @@ def watch_event_repository() -> Mock:
     repository.count_by_user_and_episode.return_value = 0
 
     return repository
+
+
+@pytest.fixture
+def show_status_synchronizer() -> Mock:
+    """Provide a mocked Show Library status synchronizer."""
+
+    return Mock(spec=ShowLibraryStatusSynchronizer)
 
 
 def test_mark_watched_returns_none_when_episode_does_not_exist(
@@ -1163,6 +1225,7 @@ def make_service(
     season_repository: Mock,
     show_repository: Mock,
     watch_event_repository: Mock | None = None,
+    show_status_synchronizer: Mock | None = None,
 ) -> EpisodeProgressService:
     """Build an EpisodeProgressService with mocked repositories."""
 
@@ -1173,6 +1236,9 @@ def make_service(
         season_repository=season_repository,
         show_repository=show_repository,
         watch_event_repository=(watch_event_repository or Mock(spec=EpisodeWatchEventRepository)),
+        show_status_synchronizer=(
+            show_status_synchronizer or Mock(spec=ShowLibraryStatusSynchronizer)
+        ),
     )
 
 
@@ -1349,6 +1415,7 @@ def test_get_episode_progress_for_season_returns_entries(
     season_repository: Mock,
     show_repository: Mock,
     watch_event_repository: Mock,
+    show_status_synchronizer: Mock,
 ) -> None:
     """Return progress enriched with historical watch counts."""
 
@@ -1405,6 +1472,7 @@ def test_get_episode_progress_for_season_returns_entries(
         season_repository=season_repository,
         show_repository=show_repository,
         watch_event_repository=watch_event_repository,
+        show_status_synchronizer=show_status_synchronizer,
     )
 
     result = service.get_episode_progress_for_season(
@@ -1443,6 +1511,7 @@ def test_get_episode_progress_for_season_skips_watch_count_query_when_empty(
     season_repository: Mock,
     show_repository: Mock,
     watch_event_repository: Mock,
+    show_status_synchronizer: Mock,
 ) -> None:
     """Do not query historical counts when the Season has no progress."""
 
@@ -1462,6 +1531,7 @@ def test_get_episode_progress_for_season_skips_watch_count_query_when_empty(
         season_repository=season_repository,
         show_repository=show_repository,
         watch_event_repository=watch_event_repository,
+        show_status_synchronizer=show_status_synchronizer,
     )
 
     result = service.get_episode_progress_for_season(
@@ -1480,6 +1550,7 @@ def test_get_episode_progress_for_season_returns_none_when_season_missing(
     episode_repository: Mock,
     season_repository: Mock,
     show_repository: Mock,
+    show_status_synchronizer: Mock,
 ) -> None:
     """Return None when the requested season does not exist."""
 
@@ -1496,6 +1567,7 @@ def test_get_episode_progress_for_season_returns_none_when_season_missing(
         season_repository=season_repository,
         show_repository=show_repository,
         watch_event_repository=watch_event_repository,
+        show_status_synchronizer=show_status_synchronizer,
     )
 
     result = service.get_episode_progress_for_season(
@@ -1821,9 +1893,11 @@ def test_mark_season_watched_marks_only_aired_unwatched_episodes(
 
     user_id = uuid4()
     season_id = uuid4()
+    show_id = uuid4()
 
     season_repository.get_by_id.return_value = SimpleNamespace(
         id=season_id,
+        show_id=show_id,
     )
 
     already_watched_episode = SimpleNamespace(
@@ -1928,10 +2002,12 @@ def test_mark_season_watched_reuses_existing_unwatched_progress(
 
     user_id = uuid4()
     season_id = uuid4()
+    show_id = uuid4()
     episode_id = uuid4()
 
     season_repository.get_by_id.return_value = SimpleNamespace(
         id=season_id,
+        show_id=show_id,
     )
 
     episode_repository.list_by_season_id.return_value = [
@@ -1996,7 +2072,13 @@ def test_mark_season_watched_does_not_create_rewatch_for_watched_episode(
 
     user_id = uuid4()
     season_id = uuid4()
+    show_id = uuid4()
     episode_id = uuid4()
+
+    season_repository.get_by_id.return_value = SimpleNamespace(
+        id=season_id,
+        show_id=show_id,
+    )
 
     original_watched_at = datetime(
         2026,
@@ -2004,10 +2086,6 @@ def test_mark_season_watched_does_not_create_rewatch_for_watched_episode(
         10,
         21,
         tzinfo=UTC,
-    )
-
-    season_repository.get_by_id.return_value = SimpleNamespace(
-        id=season_id,
     )
 
     episode_repository.list_by_season_id.return_value = [
@@ -2612,3 +2690,561 @@ def test_mark_watched_with_previous_does_not_rewatch_watched_target(
 
     progress_repository.add.assert_not_called()
     watch_event_repository.add.assert_not_called()
+
+
+def test_mark_watched_moves_planning_show_to_watching(
+    db_session: Session,
+) -> None:
+    """Start a Planning Show when its first Episode is watched."""
+
+    user = persist_user(db_session)
+    show = persist_show(db_session)
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+    episode.air_date = FIXED_TODAY
+
+    entry = persist_library_entry(
+        db_session,
+        user=user,
+        show=show,
+        status=LibraryStatus.PLANNING,
+    )
+
+    service = EpisodeProgressService(
+        session=db_session,
+        progress_repository=EpisodeProgressRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        season_repository=SeasonRepository(db_session),
+        show_repository=ShowRepository(db_session),
+        watch_event_repository=EpisodeWatchEventRepository(db_session),
+        show_status_synchronizer=make_real_show_status_synchronizer(
+            db_session,
+        ),
+        today=lambda: FIXED_TODAY,
+    )
+
+    watched_at = datetime(
+        2026,
+        8,
+        15,
+        20,
+        30,
+        tzinfo=UTC,
+    )
+
+    result = service.mark_watched(
+        user_id=user.id,
+        episode_id=episode.id,
+        watched_at=watched_at,
+    )
+
+    assert result is not None
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.WATCHING
+    assert as_utc(entry.started_at) == watched_at
+    assert entry.completed_at is None
+
+
+@pytest.mark.parametrize(
+    "initial_status",
+    [
+        LibraryStatus.PAUSED,
+        LibraryStatus.DROPPED,
+    ],
+)
+def test_mark_watched_resumes_manually_inactive_show(
+    db_session: Session,
+    initial_status: LibraryStatus,
+) -> None:
+    """Resume a Paused or Dropped Show when viewing activity returns."""
+
+    user = persist_user(db_session)
+    show = persist_show(db_session)
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+    episode.air_date = FIXED_TODAY
+
+    original_started_at = datetime(
+        2026,
+        8,
+        1,
+        20,
+        tzinfo=UTC,
+    )
+
+    entry = persist_library_entry(
+        db_session,
+        user=user,
+        show=show,
+        status=initial_status,
+        started_at=original_started_at,
+    )
+
+    service = EpisodeProgressService(
+        session=db_session,
+        progress_repository=EpisodeProgressRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        season_repository=SeasonRepository(db_session),
+        show_repository=ShowRepository(db_session),
+        watch_event_repository=EpisodeWatchEventRepository(db_session),
+        show_status_synchronizer=make_real_show_status_synchronizer(
+            db_session,
+        ),
+        today=lambda: FIXED_TODAY,
+    )
+
+    service.mark_watched(
+        user_id=user.id,
+        episode_id=episode.id,
+    )
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.WATCHING
+    assert as_utc(entry.started_at) == original_started_at
+    assert entry.completed_at is None
+
+
+def test_mark_watched_keeps_caught_up_ongoing_show_watching(
+    db_session: Session,
+) -> None:
+    """Keep an ongoing Show Watching even when every known Episode is watched."""
+
+    user = persist_user(db_session)
+
+    show = persist_show(db_session)
+    show.status = "Returning Series"
+    show.in_production = True
+
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+    episode.air_date = FIXED_TODAY
+
+    entry = persist_library_entry(
+        db_session,
+        user=user,
+        show=show,
+        status=LibraryStatus.PLANNING,
+    )
+
+    service = EpisodeProgressService(
+        session=db_session,
+        progress_repository=EpisodeProgressRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        season_repository=SeasonRepository(db_session),
+        show_repository=ShowRepository(db_session),
+        watch_event_repository=EpisodeWatchEventRepository(db_session),
+        show_status_synchronizer=make_real_show_status_synchronizer(
+            db_session,
+        ),
+        today=lambda: FIXED_TODAY,
+    )
+
+    service.mark_watched(
+        user_id=user.id,
+        episode_id=episode.id,
+    )
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.WATCHING
+    assert entry.completed_at is None
+
+    progress = service.get_show_progress(
+        user_id=user.id,
+        show_id=show.id,
+    )
+
+    assert progress is not None
+    assert progress.caught_up is True
+
+
+def test_mark_watched_completes_ended_show_when_all_regular_episodes_are_watched(
+    db_session: Session,
+) -> None:
+    """Complete a terminal Show only after every regular Episode is watched."""
+
+    user = persist_user(db_session)
+
+    show = persist_show(db_session)
+    show.status = "Ended"
+    show.in_production = False
+
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+    episode.air_date = FIXED_TODAY
+
+    entry = persist_library_entry(
+        db_session,
+        user=user,
+        show=show,
+        status=LibraryStatus.PLANNING,
+    )
+
+    service = EpisodeProgressService(
+        session=db_session,
+        progress_repository=EpisodeProgressRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        season_repository=SeasonRepository(db_session),
+        show_repository=ShowRepository(db_session),
+        watch_event_repository=EpisodeWatchEventRepository(db_session),
+        show_status_synchronizer=make_real_show_status_synchronizer(
+            db_session,
+        ),
+        today=lambda: FIXED_TODAY,
+    )
+
+    watched_at = datetime(
+        2026,
+        8,
+        15,
+        21,
+        tzinfo=UTC,
+    )
+
+    service.mark_watched(
+        user_id=user.id,
+        episode_id=episode.id,
+        watched_at=watched_at,
+    )
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.COMPLETED
+    assert as_utc(entry.started_at) == watched_at
+    assert as_utc(entry.completed_at) == watched_at
+
+
+def test_mark_watched_keeps_partially_watched_ended_show_watching(
+    db_session: Session,
+) -> None:
+    """Do not complete an ended Show while regular Episodes remain unwatched."""
+
+    user = persist_user(db_session)
+
+    show = persist_show(db_session)
+    show.status = "Ended"
+    show.in_production = False
+
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+
+    first_episode = persist_episode(
+        db_session,
+        season=season,
+    )
+    first_episode.air_date = FIXED_TODAY
+
+    second_episode = Episode(
+        season_id=season.id,
+        tmdb_id=999004,
+        episode_number=2,
+        title="Episode 2",
+        air_date=FIXED_TODAY,
+    )
+    db_session.add(second_episode)
+    db_session.flush()
+
+    entry = persist_library_entry(
+        db_session,
+        user=user,
+        show=show,
+        status=LibraryStatus.PLANNING,
+    )
+
+    service = EpisodeProgressService(
+        session=db_session,
+        progress_repository=EpisodeProgressRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        season_repository=SeasonRepository(db_session),
+        show_repository=ShowRepository(db_session),
+        watch_event_repository=EpisodeWatchEventRepository(db_session),
+        show_status_synchronizer=make_real_show_status_synchronizer(
+            db_session,
+        ),
+        today=lambda: FIXED_TODAY,
+    )
+
+    service.mark_watched(
+        user_id=user.id,
+        episode_id=first_episode.id,
+    )
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.WATCHING
+    assert entry.completed_at is None
+
+
+def test_mark_watched_rewatch_preserves_completed_show_completion_date(
+    db_session: Session,
+) -> None:
+    """Preserve the original completion date when rewatching a Completed Show."""
+
+    user = persist_user(db_session)
+
+    show = persist_show(db_session)
+    show.status = "Ended"
+    show.in_production = False
+
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+    episode.air_date = FIXED_TODAY
+
+    original_started_at = datetime(
+        2026,
+        7,
+        1,
+        20,
+        tzinfo=UTC,
+    )
+    original_completed_at = datetime(
+        2026,
+        7,
+        10,
+        22,
+        tzinfo=UTC,
+    )
+
+    entry = persist_library_entry(
+        db_session,
+        user=user,
+        show=show,
+        status=LibraryStatus.COMPLETED,
+        started_at=original_started_at,
+        completed_at=original_completed_at,
+    )
+
+    progress = EpisodeProgress(
+        user_id=user.id,
+        episode_id=episode.id,
+        is_watched=True,
+        watched_at=original_completed_at,
+    )
+    db_session.add(progress)
+    db_session.flush()
+
+    service = EpisodeProgressService(
+        session=db_session,
+        progress_repository=EpisodeProgressRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        season_repository=SeasonRepository(db_session),
+        show_repository=ShowRepository(db_session),
+        watch_event_repository=EpisodeWatchEventRepository(db_session),
+        show_status_synchronizer=make_real_show_status_synchronizer(
+            db_session,
+        ),
+        today=lambda: FIXED_TODAY,
+    )
+
+    service.mark_watched(
+        user_id=user.id,
+        episode_id=episode.id,
+        watched_at=datetime(
+            2026,
+            8,
+            15,
+            22,
+            tzinfo=UTC,
+        ),
+    )
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.COMPLETED
+    assert as_utc(entry.started_at) == original_started_at
+    assert as_utc(entry.completed_at) == original_completed_at
+
+
+def test_mark_unwatched_moves_completed_show_back_to_watching(
+    db_session: Session,
+) -> None:
+    """Move a Completed Show back to Watching when progress is removed."""
+
+    user = persist_user(db_session)
+
+    show = persist_show(db_session)
+    show.status = "Ended"
+    show.in_production = False
+
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+    episode.air_date = FIXED_TODAY
+
+    started_at = datetime(
+        2026,
+        7,
+        1,
+        20,
+        tzinfo=UTC,
+    )
+
+    entry = persist_library_entry(
+        db_session,
+        user=user,
+        show=show,
+        status=LibraryStatus.COMPLETED,
+        started_at=started_at,
+        completed_at=datetime(
+            2026,
+            7,
+            10,
+            22,
+            tzinfo=UTC,
+        ),
+    )
+
+    db_session.add(
+        EpisodeProgress(
+            user_id=user.id,
+            episode_id=episode.id,
+            is_watched=True,
+            watched_at=datetime(
+                2026,
+                7,
+                10,
+                22,
+                tzinfo=UTC,
+            ),
+        )
+    )
+    db_session.flush()
+
+    service = EpisodeProgressService(
+        session=db_session,
+        progress_repository=EpisodeProgressRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        season_repository=SeasonRepository(db_session),
+        show_repository=ShowRepository(db_session),
+        watch_event_repository=EpisodeWatchEventRepository(db_session),
+        show_status_synchronizer=make_real_show_status_synchronizer(
+            db_session,
+        ),
+        today=lambda: FIXED_TODAY,
+    )
+
+    service.mark_unwatched(
+        user_id=user.id,
+        episode_id=episode.id,
+    )
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.WATCHING
+    assert as_utc(entry.started_at) == started_at
+    assert entry.completed_at is None
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        LibraryStatus.PAUSED,
+        LibraryStatus.DROPPED,
+    ],
+)
+def test_mark_unwatched_preserves_manual_show_status(
+    db_session: Session,
+    status: LibraryStatus,
+) -> None:
+    """Preserve Paused and Dropped when current Episode progress is removed."""
+
+    user = persist_user(db_session)
+    show = persist_show(db_session)
+    season = persist_season(
+        db_session,
+        show=show,
+    )
+    episode = persist_episode(
+        db_session,
+        season=season,
+    )
+    episode.air_date = FIXED_TODAY
+
+    started_at = datetime(
+        2026,
+        8,
+        1,
+        20,
+        tzinfo=UTC,
+    )
+
+    entry = persist_library_entry(
+        db_session,
+        user=user,
+        show=show,
+        status=status,
+        started_at=started_at,
+    )
+
+    db_session.add(
+        EpisodeProgress(
+            user_id=user.id,
+            episode_id=episode.id,
+            is_watched=True,
+            watched_at=started_at,
+        )
+    )
+    db_session.flush()
+
+    service = EpisodeProgressService(
+        session=db_session,
+        progress_repository=EpisodeProgressRepository(db_session),
+        episode_repository=EpisodeRepository(db_session),
+        season_repository=SeasonRepository(db_session),
+        show_repository=ShowRepository(db_session),
+        watch_event_repository=EpisodeWatchEventRepository(db_session),
+        show_status_synchronizer=make_real_show_status_synchronizer(
+            db_session,
+        ),
+        today=lambda: FIXED_TODAY,
+    )
+
+    service.mark_unwatched(
+        user_id=user.id,
+        episode_id=episode.id,
+    )
+
+    db_session.refresh(entry)
+
+    assert entry.status == status
+    assert as_utc(entry.started_at) == started_at

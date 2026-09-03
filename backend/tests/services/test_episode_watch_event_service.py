@@ -6,9 +6,12 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.orm import Session
 
+from app.repositories.episode import EpisodeRepository
 from app.repositories.episode_progress import EpisodeProgressRepository
 from app.repositories.episode_watch_event import EpisodeWatchEventRepository
+from app.repositories.season import SeasonRepository
 from app.services.episode_watch_event import EpisodeWatchEventService
+from app.services.show_library_status import ShowLibraryStatusSynchronizer
 
 
 @pytest.fixture
@@ -41,6 +44,9 @@ def service(
     session: Mock,
     watch_event_repository: Mock,
     progress_repository: Mock,
+    episode_repository: Mock,
+    season_repository: Mock,
+    show_status_synchronizer: Mock,
 ) -> EpisodeWatchEventService:
     """Provide the Episode watch event service."""
 
@@ -48,7 +54,39 @@ def service(
         session=session,
         watch_event_repository=watch_event_repository,
         progress_repository=progress_repository,
+        episode_repository=episode_repository,
+        season_repository=season_repository,
+        show_status_synchronizer=show_status_synchronizer,
     )
+
+
+@pytest.fixture
+def show_status_synchronizer() -> Mock:
+    """Provide a mocked Show Library status synchronizer."""
+
+    return Mock(spec=ShowLibraryStatusSynchronizer)
+
+
+@pytest.fixture
+def episode_repository() -> Mock:
+    """Provide a mocked Episode repository."""
+
+    repository = Mock(spec=EpisodeRepository)
+    repository.get_by_id.return_value = SimpleNamespace(
+        season_id=uuid4(),
+    )
+    return repository
+
+
+@pytest.fixture
+def season_repository() -> Mock:
+    """Provide a mocked Season repository."""
+
+    repository = Mock(spec=SeasonRepository)
+    repository.get_by_id.return_value = SimpleNamespace(
+        show_id=uuid4(),
+    )
+    return repository
 
 
 def test_list_for_episode_returns_all_watch_events(
@@ -567,3 +605,254 @@ def test_delete_all_succeeds_when_progress_entry_is_missing(
     )
 
     session.commit.assert_called_once_with()
+
+
+def test_delete_last_watch_event_synchronizes_show_status(
+    service: EpisodeWatchEventService,
+    watch_event_repository: Mock,
+    progress_repository: Mock,
+    episode_repository: Mock,
+    season_repository: Mock,
+    show_status_synchronizer: Mock,
+) -> None:
+    """Deleting the last viewing must synchronize the Show Library status."""
+
+    user_id = uuid4()
+    episode_id = uuid4()
+    season_id = uuid4()
+    show_id = uuid4()
+
+    event = SimpleNamespace(
+        id=uuid4(),
+        user_id=user_id,
+        episode_id=episode_id,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    progress = SimpleNamespace(
+        user_id=user_id,
+        episode_id=episode_id,
+        is_watched=True,
+        watched_at=event.watched_at,
+    )
+
+    episode_repository.get_by_id.return_value = SimpleNamespace(
+        id=episode_id,
+        season_id=season_id,
+    )
+    season_repository.get_by_id.return_value = SimpleNamespace(
+        id=season_id,
+        show_id=show_id,
+    )
+
+    watch_event_repository.get_by_id_for_user_and_episode.return_value = event
+    watch_event_repository.get_latest_for_user_and_episode.return_value = None
+    progress_repository.get_by_user_and_episode.return_value = progress
+
+    result = service.delete(
+        user_id=user_id,
+        episode_id=episode_id,
+        event_id=event.id,
+    )
+
+    assert result is True
+
+    show_status_synchronizer.after_unwatch.assert_called_once_with(
+        user_id=user_id,
+        show_id=show_id,
+    )
+
+
+def test_delete_watch_event_does_not_synchronize_show_when_history_remains(
+    service: EpisodeWatchEventService,
+    watch_event_repository: Mock,
+    progress_repository: Mock,
+    episode_repository: Mock,
+    season_repository: Mock,
+    show_status_synchronizer: Mock,
+) -> None:
+    """Deleting one viewing must not unwatch the Show when history remains."""
+
+    user_id = uuid4()
+    episode_id = uuid4()
+    season_id = uuid4()
+    show_id = uuid4()
+
+    deleted_event = SimpleNamespace(
+        id=uuid4(),
+        user_id=user_id,
+        episode_id=episode_id,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    remaining_event = SimpleNamespace(
+        id=uuid4(),
+        user_id=user_id,
+        episode_id=episode_id,
+        watched_at=datetime(
+            2026,
+            7,
+            20,
+            20,
+            0,
+            tzinfo=UTC,
+        ),
+    )
+
+    progress = SimpleNamespace(
+        user_id=user_id,
+        episode_id=episode_id,
+        is_watched=True,
+        watched_at=deleted_event.watched_at,
+    )
+
+    episode_repository.get_by_id.return_value = SimpleNamespace(
+        id=episode_id,
+        season_id=season_id,
+    )
+    season_repository.get_by_id.return_value = SimpleNamespace(
+        id=season_id,
+        show_id=show_id,
+    )
+
+    watch_event_repository.get_by_id_for_user_and_episode.return_value = deleted_event
+    watch_event_repository.get_latest_for_user_and_episode.return_value = remaining_event
+    progress_repository.get_by_user_and_episode.return_value = progress
+
+    result = service.delete(
+        user_id=user_id,
+        episode_id=episode_id,
+        event_id=deleted_event.id,
+    )
+
+    assert result is True
+    assert progress.is_watched is True
+    assert progress.watched_at == remaining_event.watched_at
+
+    show_status_synchronizer.after_unwatch.assert_not_called()
+
+
+def test_delete_all_synchronizes_show_status(
+    service: EpisodeWatchEventService,
+    watch_event_repository: Mock,
+    progress_repository: Mock,
+    episode_repository: Mock,
+    season_repository: Mock,
+    show_status_synchronizer: Mock,
+) -> None:
+    """Deleting all viewings must synchronize the Show Library status."""
+
+    user_id = uuid4()
+    episode_id = uuid4()
+    season_id = uuid4()
+    show_id = uuid4()
+
+    progress = SimpleNamespace(
+        user_id=user_id,
+        episode_id=episode_id,
+        is_watched=True,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    episode_repository.get_by_id.return_value = SimpleNamespace(
+        id=episode_id,
+        season_id=season_id,
+    )
+    season_repository.get_by_id.return_value = SimpleNamespace(
+        id=season_id,
+        show_id=show_id,
+    )
+
+    watch_event_repository.delete_all_for_user_and_episode.return_value = 2
+    progress_repository.get_by_user_and_episode.return_value = progress
+
+    result = service.delete_all(
+        user_id=user_id,
+        episode_id=episode_id,
+    )
+
+    assert result == 2
+    assert progress.is_watched is False
+    assert progress.watched_at is None
+
+    show_status_synchronizer.after_unwatch.assert_called_once_with(
+        user_id=user_id,
+        show_id=show_id,
+    )
+
+
+def test_delete_last_watch_event_synchronizes_show_when_progress_is_missing(
+    service: EpisodeWatchEventService,
+    watch_event_repository: Mock,
+    progress_repository: Mock,
+    episode_repository: Mock,
+    season_repository: Mock,
+    show_status_synchronizer: Mock,
+) -> None:
+    """Deleting the last viewing must synchronize even without progress."""
+
+    user_id = uuid4()
+    episode_id = uuid4()
+    season_id = uuid4()
+    show_id = uuid4()
+
+    event = SimpleNamespace(
+        id=uuid4(),
+        user_id=user_id,
+        episode_id=episode_id,
+        watched_at=datetime(
+            2026,
+            8,
+            14,
+            21,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    episode_repository.get_by_id.return_value = SimpleNamespace(
+        id=episode_id,
+        season_id=season_id,
+    )
+    season_repository.get_by_id.return_value = SimpleNamespace(
+        id=season_id,
+        show_id=show_id,
+    )
+
+    watch_event_repository.get_by_id_for_user_and_episode.return_value = event
+    watch_event_repository.get_latest_for_user_and_episode.return_value = None
+    progress_repository.get_by_user_and_episode.return_value = None
+
+    result = service.delete(
+        user_id=user_id,
+        episode_id=episode_id,
+        event_id=event.id,
+    )
+
+    assert result is True
+
+    show_status_synchronizer.after_unwatch.assert_called_once_with(
+        user_id=user_id,
+        show_id=show_id,
+    )

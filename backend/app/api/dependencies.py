@@ -67,6 +67,7 @@ from app.services.season_episode_sync import SeasonEpisodeSyncService
 from app.services.server_health import ServerHealthService
 from app.services.server_logs import ServerLogsService
 from app.services.show_import import ShowImportService
+from app.services.show_library_status import ShowLibraryStatusSynchronizer
 from app.services.stale_watching import StaleWatchingService
 from app.services.start_show import StartShowService
 from app.services.statistics import StatisticsService
@@ -760,12 +761,25 @@ def get_start_show_service(
 ) -> StartShowService:
     """Provide the service used to start a Library TV series."""
 
+    library_repository = LibraryRepository(session)
+    episode_repository = EpisodeRepository(session)
+    progress_repository = EpisodeProgressRepository(session)
+
+    show_status_synchronizer = ShowLibraryStatusSynchronizer(
+        session=session,
+        library_repository=library_repository,
+        show_repository=ShowRepository(session),
+        episode_repository=episode_repository,
+        progress_repository=progress_repository,
+    )
+
     return StartShowService(
         session=session,
-        library_repository=LibraryRepository(session),
-        episode_repository=EpisodeRepository(session),
-        progress_repository=EpisodeProgressRepository(session),
+        library_repository=library_repository,
+        episode_repository=episode_repository,
+        progress_repository=progress_repository,
         watch_event_repository=EpisodeWatchEventRepository(session),
+        show_status_synchronizer=show_status_synchronizer,
     )
 
 
@@ -780,13 +794,27 @@ def get_episode_progress_service(
 ) -> EpisodeProgressService:
     """Provide an episode progress service for a single request."""
 
+    progress_repository = EpisodeProgressRepository(session)
+    episode_repository = EpisodeRepository(session)
+    show_repository = ShowRepository(session)
+    library_repository = LibraryRepository(session)
+
+    show_status_synchronizer = ShowLibraryStatusSynchronizer(
+        session=session,
+        library_repository=library_repository,
+        show_repository=show_repository,
+        episode_repository=episode_repository,
+        progress_repository=progress_repository,
+    )
+
     return EpisodeProgressService(
         session=session,
-        progress_repository=EpisodeProgressRepository(session),
-        episode_repository=EpisodeRepository(session),
+        progress_repository=progress_repository,
+        episode_repository=episode_repository,
         season_repository=SeasonRepository(session),
-        show_repository=ShowRepository(session),
+        show_repository=show_repository,
         watch_event_repository=EpisodeWatchEventRepository(session),
+        show_status_synchronizer=show_status_synchronizer,
     )
 
 
@@ -801,10 +829,25 @@ def get_episode_watch_event_service(
 ) -> EpisodeWatchEventService:
     """Provide historical Episode watch event operations."""
 
+    progress_repository = EpisodeProgressRepository(session)
+    episode_repository = EpisodeRepository(session)
+    show_repository = ShowRepository(session)
+
+    show_status_synchronizer = ShowLibraryStatusSynchronizer(
+        session=session,
+        library_repository=LibraryRepository(session),
+        show_repository=show_repository,
+        episode_repository=episode_repository,
+        progress_repository=progress_repository,
+    )
+
     return EpisodeWatchEventService(
         session=session,
         watch_event_repository=EpisodeWatchEventRepository(session),
-        progress_repository=EpisodeProgressRepository(session),
+        progress_repository=progress_repository,
+        episode_repository=episode_repository,
+        season_repository=SeasonRepository(session),
+        show_status_synchronizer=show_status_synchronizer,
     )
 
 

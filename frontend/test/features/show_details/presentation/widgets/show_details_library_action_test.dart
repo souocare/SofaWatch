@@ -355,6 +355,174 @@ void main() {
         await cubit.close();
       },
     );
+    testWidgets('only exposes manual Show statuses as selectable actions', (
+      WidgetTester tester,
+    ) async {
+      final _FakeLibraryRepository repository = _FakeLibraryRepository(
+        showEntry: _libraryEntry,
+      );
+
+      final LibraryCubit cubit = LibraryCubit(repository);
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+
+      await cubit.loadShowState(
+        const LibraryMediaKey(mediaType: LibraryMediaType.show, tmdbId: 95396),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Watching'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('show-details-library-status')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('show-details-library-status-planning'),
+        ),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('show-details-library-status-watching'),
+        ),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('show-details-library-status-completed'),
+        ),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('show-details-library-status-paused'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('show-details-library-status-dropped'),
+        ),
+        findsOneWidget,
+      );
+
+      await cubit.close();
+    });
+    testWidgets('allows manually changing Show status to Dropped', (
+      WidgetTester tester,
+    ) async {
+      final _FakeLibraryRepository repository = _FakeLibraryRepository(
+        showEntry: _libraryEntry,
+      );
+
+      final LibraryCubit cubit = LibraryCubit(repository);
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+
+      await cubit.loadShowState(
+        const LibraryMediaKey(mediaType: LibraryMediaType.show, tmdbId: 95396),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('show-details-library-status')),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>('show-details-library-status-dropped'),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(repository.updateShowStatusCalls, 1);
+      expect(repository.requestedStatuses, <LibraryStatus>[
+        LibraryStatus.dropped,
+      ]);
+
+      expect(
+        find.byKey(const ValueKey<String>('show-details-library-status-label')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Dropped'), findsOneWidget);
+
+      await cubit.close();
+    });
+    testWidgets(
+      'displays automatic Completed status without exposing it as action',
+      (WidgetTester tester) async {
+        final LibraryEntry completedEntry = LibraryEntry(
+          id: 'library-entry-uuid',
+          mediaId: 'show-local-uuid',
+          mediaType: LibraryMediaType.show,
+          status: LibraryStatus.completed,
+          createdAt: DateTime(2026, 8, 11),
+          updatedAt: DateTime(2026, 8, 15),
+        );
+
+        final _FakeLibraryRepository repository = _FakeLibraryRepository(
+          showEntry: completedEntry,
+        );
+
+        final LibraryCubit cubit = LibraryCubit(repository);
+
+        await tester.pumpWidget(_buildTestApp(cubit: cubit));
+
+        await cubit.loadShowState(
+          const LibraryMediaKey(
+            mediaType: LibraryMediaType.show,
+            tmdbId: 95396,
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(find.text('Completed'), findsOneWidget);
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('show-details-library-status')),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(
+            const ValueKey<String>('show-details-library-status-completed'),
+          ),
+          findsNothing,
+        );
+
+        expect(
+          find.byKey(
+            const ValueKey<String>('show-details-library-status-paused'),
+          ),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(
+            const ValueKey<String>('show-details-library-status-dropped'),
+          ),
+          findsOneWidget,
+        );
+
+        await cubit.close();
+      },
+    );
   });
 }
 

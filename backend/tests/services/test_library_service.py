@@ -16,7 +16,7 @@ from app.repositories.episode_progress import EpisodeProgressRepository
 from app.repositories.library import LibraryRepository
 from app.repositories.movie import MovieRepository
 from app.repositories.show import ShowRepository
-from app.services.library import LibraryService
+from app.services.library import LibraryService, InvalidManualShowStatusError
 
 
 @pytest.fixture
@@ -470,12 +470,12 @@ def test_update_status_returns_none_when_entry_does_not_exist(
     assert result is None
 
 
-def test_update_status_updates_existing_entry(
+def test_update_status_pauses_existing_entry(
     db_session: Session,
     library_service: LibraryService,
     library_repository: Mock,
 ) -> None:
-    """Update the tracking status of an existing library entry."""
+    """Manually pause an existing Show Library entry."""
 
     user = persist_user(
         db_session,
@@ -488,7 +488,7 @@ def test_update_status_updates_existing_entry(
     entry = make_entry(
         user_id=user.id,
         show_id=show.id,
-        status=LibraryStatus.PLANNING,
+        status=LibraryStatus.WATCHING,
     )
 
     db_session.add(entry)
@@ -499,11 +499,49 @@ def test_update_status_updates_existing_entry(
     result = library_service.update_status(
         user_id=user.id,
         show_id=show.id,
-        status=LibraryStatus.WATCHING,
+        status=LibraryStatus.PAUSED,
     )
 
     assert result is entry
-    assert result.status == LibraryStatus.WATCHING
+    assert result.status == LibraryStatus.PAUSED
+    assert result.completed_at is None
+
+
+def test_update_status_drops_existing_entry(
+    db_session: Session,
+    library_service: LibraryService,
+    library_repository: Mock,
+) -> None:
+    """Manually drop an existing Show Library entry."""
+
+    user = persist_user(
+        db_session,
+    )
+
+    show = persist_show(
+        db_session,
+    )
+
+    entry = make_entry(
+        user_id=user.id,
+        show_id=show.id,
+        status=LibraryStatus.WATCHING,
+    )
+
+    db_session.add(entry)
+    db_session.flush()
+
+    library_repository.get_by_user_and_show.return_value = entry
+
+    result = library_service.update_status(
+        user_id=user.id,
+        show_id=show.id,
+        status=LibraryStatus.DROPPED,
+    )
+
+    assert result is entry
+    assert result.status == LibraryStatus.DROPPED
+    assert result.completed_at is None
 
 
 def test_get_movie_entry_returns_library_entry(
@@ -1292,3 +1330,49 @@ def test_get_preview_for_user_supports_empty_library(
         show_ids=[],
         as_of=ANY,
     )
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        LibraryStatus.PLANNING,
+        LibraryStatus.WATCHING,
+        LibraryStatus.COMPLETED,
+    ],
+)
+def test_update_status_rejects_derived_show_status(
+    db_session: Session,
+    library_service: LibraryService,
+    library_repository: Mock,
+    status: LibraryStatus,
+) -> None:
+    """Reject manually assigning a Show status derived from viewing progress."""
+
+    user = persist_user(
+        db_session,
+    )
+
+    show = persist_show(
+        db_session,
+    )
+
+    entry = make_entry(
+        user_id=user.id,
+        show_id=show.id,
+        status=LibraryStatus.WATCHING,
+    )
+
+    db_session.add(entry)
+    db_session.flush()
+
+    library_repository.get_by_user_and_show.return_value = entry
+
+    with pytest.raises(
+        InvalidManualShowStatusError,
+        match="TV series status can only be manually changed to paused or dropped.",
+    ):
+        library_service.update_status(
+            user_id=user.id,
+            show_id=show.id,
+            status=status,
+        )

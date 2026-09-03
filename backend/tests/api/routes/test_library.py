@@ -476,7 +476,7 @@ def test_remove_show_from_library_returns_404_when_missing(
     }
 
 
-def test_update_library_status(
+def test_update_library_status_pauses_show(
     client: TestClient,
     db_session: Session,
 ) -> None:
@@ -494,13 +494,13 @@ def test_update_library_status(
         db_session,
         user=local_user,
         show=show,
-        status=LibraryStatus.PLANNING,
+        status=LibraryStatus.WATCHING,
     )
 
     response = client.patch(
         f"/api/v1/library/shows/{show.id}/status",
         json={
-            "status": "watching",
+            "status": "paused",
         },
     )
 
@@ -510,7 +510,57 @@ def test_update_library_status(
 
     assert body["id"] == str(entry.id)
     assert body["show_id"] == str(show.id)
-    assert body["status"] == "watching"
+    assert body["status"] == "paused"
+
+    db_session.refresh(entry)
+
+    assert entry.status == LibraryStatus.PAUSED
+
+
+@pytest.mark.parametrize(
+    "requested_status",
+    [
+        "planning",
+        "watching",
+        "completed",
+    ],
+)
+def test_update_library_status_rejects_derived_show_status(
+    client: TestClient,
+    db_session: Session,
+    requested_status: str,
+) -> None:
+    """Reject manually assigning a Show status derived from viewing progress."""
+
+    local_user = create_local_user(db_session)
+
+    show = create_show(
+        db_session,
+        tmdb_id=95396,
+        title="Severance",
+    )
+
+    entry = create_library_entry(
+        db_session,
+        user=local_user,
+        show=show,
+        status=LibraryStatus.WATCHING,
+    )
+
+    response = client.patch(
+        f"/api/v1/library/shows/{show.id}/status",
+        json={
+            "status": requested_status,
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "error": {
+            "code": "invalid_show_library_status",
+            "message": ("TV series status can only be manually changed to paused or dropped."),
+        }
+    }
 
     db_session.refresh(entry)
 
@@ -5101,6 +5151,7 @@ def test_list_history_rejects_invalid_limit(
 
     assert response.status_code == 422
 
+
 def test_list_history_can_filter_episode_history(
     client: TestClient,
     db_session: Session,
@@ -5185,6 +5236,7 @@ def test_list_history_can_filter_episode_history(
         "episode",
     ]
 
+
 def test_list_history_rejects_invalid_media_type(
     client: TestClient,
     db_session: Session,
@@ -5201,4 +5253,3 @@ def test_list_history_rejects_invalid_media_type(
     )
 
     assert response.status_code == 422
-

@@ -3,7 +3,6 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.models.enums import LibraryStatus
 from app.models.episode_progress import EpisodeProgress
 from app.models.episode_watch_event import EpisodeWatchEvent
 from app.repositories.episode import EpisodeRepository
@@ -11,6 +10,7 @@ from app.repositories.episode_progress import EpisodeProgressRepository
 from app.repositories.episode_watch_event import EpisodeWatchEventRepository
 from app.repositories.library import LibraryRepository
 from app.schemas.start_show import StartShowResponse
+from app.services.show_library_status import ShowLibraryStatusSynchronizer
 
 
 class StartShowService:
@@ -24,12 +24,14 @@ class StartShowService:
         episode_repository: EpisodeRepository,
         progress_repository: EpisodeProgressRepository,
         watch_event_repository: EpisodeWatchEventRepository,
+        show_status_synchronizer: ShowLibraryStatusSynchronizer,
     ) -> None:
         self._session = session
         self._library_repository = library_repository
         self._episode_repository = episode_repository
         self._progress_repository = progress_repository
         self._watch_event_repository = watch_event_repository
+        self._show_status_synchronizer = show_status_synchronizer
 
     def start(
         self,
@@ -91,16 +93,17 @@ class StartShowService:
             watch_event,
         )
 
-        entry.status = LibraryStatus.WATCHING
-
-        if entry.started_at is None:
-            entry.started_at = watched_at
+        self._show_status_synchronizer.after_watch(
+            user_id=user_id,
+            show_id=show_id,
+            watched_at=watched_at,
+        )
 
         # One transaction deliberately covers all related changes:
         #
         # - the first Episode becomes watched;
         # - a historical watch event is recorded;
-        # - the Library entry becomes Watching.
+        # - the derived Show Library status is synchronized.
         #
         # These changes must remain consistent with each other.
         self._session.commit()

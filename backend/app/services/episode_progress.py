@@ -23,6 +23,7 @@ from app.schemas.progress import (
     SeasonProgressResponse,
     ShowProgressResponse,
 )
+from app.services.show_library_status import ShowLibraryStatusSynchronizer
 
 
 class EpisodeNotWatchableError(Exception):
@@ -41,6 +42,7 @@ class EpisodeProgressService:
         season_repository: SeasonRepository,
         show_repository: ShowRepository,
         watch_event_repository: EpisodeWatchEventRepository,
+        show_status_synchronizer: ShowLibraryStatusSynchronizer,
         today: Callable[[], date] | None = None,
     ) -> None:
         self._session = session
@@ -49,6 +51,7 @@ class EpisodeProgressService:
         self._season_repository = season_repository
         self._show_repository = show_repository
         self._watch_event_repository = watch_event_repository
+        self._show_status_synchronizer = show_status_synchronizer
         self._today = today or date.today
 
     def mark_watched(
@@ -76,6 +79,13 @@ class EpisodeProgressService:
         )
 
         if episode is None:
+            return None
+
+        season = self._season_repository.get_by_id(
+            episode.season_id,
+        )
+
+        if season is None:
             return None
 
         air_date = episode.air_date
@@ -118,6 +128,12 @@ class EpisodeProgressService:
                 episode_id=episode_id,
                 watched_at=viewed_at,
             )
+        )
+
+        self._show_status_synchronizer.after_watch(
+            user_id=user_id,
+            show_id=season.show_id,
+            watched_at=viewed_at,
         )
 
         # One transaction deliberately persists both:
@@ -350,6 +366,12 @@ class EpisodeProgressService:
                 )
             )
 
+        self._show_status_synchronizer.after_watch(
+            user_id=user_id,
+            show_id=season.show_id,
+            watched_at=viewed_at,
+        )
+
         # Previous Episodes and the target Episode form one logical catch-up
         # operation and must therefore either all persist or none persist.
         self._session.commit()
@@ -380,6 +402,13 @@ class EpisodeProgressService:
         if episode is None:
             return None
 
+        season = self._season_repository.get_by_id(
+            episode.season_id,
+        )
+
+        if season is None:
+            return None
+
         progress = self._progress_repository.get_by_user_and_episode(
             user_id=user_id,
             episode_id=episode_id,
@@ -399,6 +428,11 @@ class EpisodeProgressService:
         else:
             progress.is_watched = False
             progress.watched_at = None
+
+        self._show_status_synchronizer.after_unwatch(
+            user_id=user_id,
+            show_id=season.show_id,
+        )
 
         self._session.commit()
         self._session.refresh(progress)
@@ -506,6 +540,12 @@ class EpisodeProgressService:
                 )
             )
 
+        self._show_status_synchronizer.after_watch(
+            user_id=user_id,
+            show_id=season.show_id,
+            watched_at=viewed_at,
+        )
+
         # The whole Season update is one logical operation.
         #
         # Progress and historical watch events must therefore either all be
@@ -605,6 +645,12 @@ class EpisodeProgressService:
                     watched_at=viewed_at,
                 )
             )
+
+        self._show_status_synchronizer.after_watch(
+            user_id=user_id,
+            show_id=show_id,
+            watched_at=viewed_at,
+        )
 
         # The whole Show update is one logical operation.
         #
