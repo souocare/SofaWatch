@@ -135,11 +135,6 @@ class _ShowPrimaryDetails extends StatelessWidget {
 
         ShowDetailsLibraryAction(tmdbId: details.tmdbId),
 
-        if (details.genres.isNotEmpty) ...<Widget>[
-          const SizedBox(height: AppSpacing.xxl),
-          _Genres(genres: details.genres),
-        ],
-
         const SizedBox(height: AppSpacing.xxxl),
 
         _Overview(overview: details.overview),
@@ -161,7 +156,7 @@ class _ShowHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double topSafeArea = MediaQuery.paddingOf(context).top;
-    final double heroHeight = isDesktop ? 440 : 380 + topSafeArea;
+    final double heroHeight = isDesktop ? 480 : 430 + topSafeArea;
 
     return SizedBox(
       key: const ValueKey<String>('show-details-hero'),
@@ -266,53 +261,58 @@ class _HeroContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final double posterWidth = isDesktop ? 154 : 108;
 
-    return Row(
+    return Column(
       key: const ValueKey<String>('show-details-hero-content'),
-      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        _PosterImage(url: details.posterUrl, width: posterWidth),
-
-        SizedBox(width: isDesktop ? AppSpacing.xxxl : AppSpacing.lg),
-
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  details.title,
-                  key: const ValueKey<String>('show-details-title'),
-                  maxLines: isDesktop ? 2 : 3,
-                  overflow: TextOverflow.ellipsis,
-                  style:
-                      (isDesktop
-                              ? Theme.of(context).textTheme.headlineLarge
-                              : Theme.of(context).textTheme.headlineMedium)
-                          ?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            height: 1.02,
-                            letterSpacing: -0.4,
-                          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: <Widget>[
+            _PosterImage(url: details.posterUrl, width: posterWidth),
+            SizedBox(width: isDesktop ? AppSpacing.xxxl : AppSpacing.lg),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      details.title,
+                      key: const ValueKey<String>('show-details-title'),
+                      maxLines: isDesktop ? 2 : 3,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          (isDesktop
+                                  ? Theme.of(context).textTheme.headlineLarge
+                                  : Theme.of(context).textTheme.headlineMedium)
+                              ?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                height: 1.02,
+                                letterSpacing: -0.4,
+                              ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _HeroSubtitle(details: details),
+                    if (details.voteAverage > 0) ...<Widget>[
+                      const SizedBox(height: AppSpacing.md),
+                      _RatingBadge(
+                        rating: details.voteAverage,
+                        voteCount: details.voteCount,
+                        showVoteCount: isDesktop,
+                      ),
+                    ],
+                  ],
                 ),
-
-                const SizedBox(height: AppSpacing.sm),
-
-                _HeroSubtitle(details: details),
-
-                if (details.voteAverage > 0) ...<Widget>[
-                  const SizedBox(height: AppSpacing.md),
-                  _RatingBadge(
-                    rating: details.voteAverage,
-                    voteCount: details.voteCount,
-                    showVoteCount: isDesktop,
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
+          ],
         ),
+        if (details.genres.isNotEmpty) ...<Widget>[
+          const SizedBox(height: AppSpacing.lg),
+          _Genres(genres: details.genres),
+        ],
       ],
     );
   }
