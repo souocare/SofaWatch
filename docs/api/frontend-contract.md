@@ -1088,7 +1088,26 @@ Never rely only on disabled UI.
 
 ## 60. Movie Details
 
-Movie Details uses a local SofaWatch Movie ID after import.
+Movie Details has two explicit lookup modes.
+
+For an already persisted SofaWatch Movie:
+
+```text
+GET /api/v1/movies/{movie_id}
+```
+where movie_id is the internal SofaWatch UUID.
+
+For a provider-backed Movie result:
+```text
+GET /api/v1/movies/tmdb/{tmdb_id}
+```
+where tmdb_id belongs explicitly to TMDB.
+
+The frontend must not treat these identifiers as interchangeable.
+
+Persisted contexts should use the local Movie identity. Provider discovery
+contexts may use the TMDB identity until the Movie is resolved/imported
+locally.
 
 The domain should keep distinct:
 
@@ -1778,7 +1797,33 @@ When a list/history/search result navigates to Details, use local SofaWatch IDs 
 
 Provider preview flows may still operate on provider identity until import occurs.
 
-Keep these two navigation cases distinct.
+When a persisted entity navigates to Details, use its SofaWatch internal ID.
+
+For Movies:
+
+
+```text
+Movies               -> internal Movie ID
+Library              -> internal Movie ID
+History              -> internal Movie ID
+Profile History      -> internal Movie ID
+Home Recent Activity -> internal Movie ID
+```
+
+Provider-backed discovery remains explicit:
+```text
+Search  -> TMDB Movie ID
+Explore -> TMDB Movie ID
+```
+
+Corresponding Movie routes are:
+```text
+/movies/:movieId
+/movies/tmdb/:tmdbId
+```
+
+These two identities must not be inferred from the value itself or treated as
+interchangeable.
 
 ---
 

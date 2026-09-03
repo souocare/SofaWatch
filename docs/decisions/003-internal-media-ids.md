@@ -523,9 +523,39 @@ Show Details
 -> local show ID
 ```
 
+The Movie Details implementation makes this distinction explicit:
+
+```text
+Persisted Movie
+-> /movies/:movieId
+-> internal SofaWatch Movie UUID
+
+Provider-backed Movie
+-> /movies/tmdb/:tmdbId
+-> TMDB Movie ID
+```
+
+Current navigation contexts follow:
+
+```text
+Movies          ─┐
+Library          │
+History          ├──> internal Movie ID
+Profile History  │
+Home Activity   ─┘
+
+Search          ─┐
+Explore         ─┴──> TMDB Movie ID
+```
+This avoids relying on identifier shape or numeric coincidence to determine
+which namespace a route expects.
+
+
 A provider-specific preview route may use provider identity when the media has not yet been imported.
 
 The route should make the distinction explicit rather than treating both identifiers as interchangeable integers.
+
+
 
 ---
 

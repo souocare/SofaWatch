@@ -535,22 +535,74 @@ It can bring together:
 
 ---
 
-# Local Movie Details
+# Movie Details Identity
 
-Full Movie Details should operate on a local SofaWatch Movie.
+Movie Details supports two explicit entry contexts.
 
-Provider previews can remain lightweight before import.
+For Movies that already exist locally in SofaWatch, navigation uses the
+internal SofaWatch Movie ID:
+
+```text
+Movies
+Library
+History
+Home Recent Activity
+Profile History
+    |
+    v
+internal Movie ID
+    |
+    v
+/movies/:movieId
+    |
+    v
+GET /api/v1/movies/{movie_id}
+```
+
+For provider-backed discovery results that may not yet exist locally,
+navigation uses the provider identity explicitly:
+
+
+```text
+Search
+Explore
+    |
+    v
+TMDB Movie ID
+    |
+    v
+/movies/tmdb/:tmdbId
+    |
+    v
+GET /api/v1/movies/tmdb/{tmdb_id}
+```
+
+The two identifiers must not be treated as interchangeable.
+
+Persisted SofaWatch relationships continue to use the internal Movie ID.
+Provider IDs are used only where the workflow is explicitly provider-backed.
+
+This follows the internal-ID strategy defined in [ADR-003: Internal Media IDs](../decisions/003-internal-media-ids.md)⁠.
+
+## Movie Details Reference
+
+The frontend represents this distinction explicitly rather than overloading a
+
+single integer/string identifier.
 
 Conceptually:
 
 ```text
-provider preview
--> import
--> local Movie
--> Movie Details
+MovieDetailsReference
+├── LocalMovieDetailsReference(movieId)
+└── TmdbMovieDetailsReference(tmdbId)
 ```
 
-This mirrors the internal-ID strategy used throughout SofaWatch.
+The repository exposes corresponding read operations:
+- getById(movieId)
+- getByTmdbId(tmdbId)
+
+This keeps routing, repository behavior, and domain intent aligned.
 
 ---
 
@@ -1224,6 +1276,10 @@ protected Movie backdrop endpoint
 missing Movie artwork
 Movie artwork cache/download failure
 authentication protection for Movie artwork
+local Movie Details by internal UUID
+local Movie not found
+invalid local Movie UUID
+TMDB Movie Details
 ```
 
 Frontend tests should cover:
@@ -1260,6 +1316,10 @@ preservation of all 18 preview events
 See All as an additional page
 Watched Again from History preview
 individual History event deletion
+local Movie Details reference
+TMDB Movie Details reference
+persisted contexts navigate with internal Movie ID
+Search/Explore navigate with TMDB ID
 ```
 
 ---

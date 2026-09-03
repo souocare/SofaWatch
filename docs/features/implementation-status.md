@@ -917,7 +917,15 @@ Planned work:
 - [x] Watch history
 - [x] Rewatch support
 - [x] Personal-rating concept
+- [x] Local Movie Details lookup by internal SofaWatch UUID
+- [x] TMDB-backed Movie Details lookup for discovery contexts
+- [x] Explicit local vs TMDB Movie Details references
+- [x] Separate `/movies/:movieId` and `/movies/tmdb/:tmdbId` frontend routes
+- [x] Persisted Movie navigation uses internal Movie ID
+- [x] Search/Explore Movie navigation uses TMDB ID
+- [x] Local Movie Details loads Library state without unnecessary TMDB import
 - [>] External ratings kept separately when implemented
+
 
 ## 19.7 Tests
 
@@ -1035,9 +1043,16 @@ Uses Statistics rather than duplicating statistics business logic.
 
 ## 21.7 Recent Activity
 
-- [x] Reuses Watch History
+- [x] Reuses canonical global History
+- [x] Combines Episode and Movie viewing events
+- [x] Global `watched_at DESC` ordering
 - [x] Small dashboard-oriented result set
+- [x] Limited to the newest five viewing events
+- [x] Rewatches remain individual activity entries
+- [x] Episode activity navigates using local Episode identity
+- [x] Movie activity navigates using local Movie identity
 - [x] Does not duplicate the complete History timeline
+- [x] Refreshes after shared viewing-state changes
 
 ## 21.8 Deferred Home Features
 

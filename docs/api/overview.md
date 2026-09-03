@@ -208,6 +208,17 @@ SofaWatch Show ID
 
 Once media exists locally, frontend clients should use the SofaWatch internal ID for application operations.
 
+Movies follow the same explicit distinction:
+
+```text
+GET /api/v1/movies/{movie_id}
+```
+uses the internal SofaWatch Movie UUID, while:
+```text
+GET /api/v1/movies/tmdb/{tmdb_id}
+```
+uses the TMDB identifier.
+
 Provider IDs should only be used on provider-specific routes or explicit provider-mapping/import operations.
 
 ---
