@@ -13,24 +13,23 @@ class MovieDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      body: SafeArea(
-        child: BlocBuilder<MovieDetailsCubit, MovieDetailsState>(
-          builder: (BuildContext context, MovieDetailsState state) {
-            return switch (state) {
-              MovieDetailsInitial() ||
-              MovieDetailsLoading() => const MovieDetailsLoadingView(),
+      body: BlocBuilder<MovieDetailsCubit, MovieDetailsState>(
+        builder: (BuildContext context, MovieDetailsState state) {
+          return switch (state) {
+            MovieDetailsInitial() ||
+            MovieDetailsLoading() => const MovieDetailsLoadingView(),
+            MovieDetailsSuccess(:final details) => MovieDetailsContent(
+              details: details,
+            ),
 
-              MovieDetailsSuccess(:final details) => MovieDetailsContent(
-                details: details,
-              ),
-
-              MovieDetailsFailure(:final error) => MovieDetailsFailureView(
+            MovieDetailsFailure(:final error) => SafeArea(
+              child: MovieDetailsFailureView(
                 isTimeout: error.isTimeout,
                 onRetry: context.read<MovieDetailsCubit>().retry,
               ),
-            };
-          },
-        ),
+            ),
+          };
+        },
       ),
     );
   }

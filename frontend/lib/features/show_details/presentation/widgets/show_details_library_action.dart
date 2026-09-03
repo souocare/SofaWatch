@@ -80,6 +80,7 @@ class _ShowDetailsLibraryActionState extends State<ShowDetailsLibraryAction> {
           onPressed: () {
             context.read<LibraryCubit>().addToLibrary(_key);
           },
+          style: FilledButton.styleFrom(shape: const StadiumBorder()),
           icon: const Icon(Icons.add_rounded),
           label: const Text('Add to Watchlist'),
         );
@@ -168,6 +169,7 @@ class _ShowLibraryActions extends StatelessWidget {
         FilledButton.tonalIcon(
           key: const ValueKey<String>('show-details-library-added'),
           onPressed: isUpdating ? null : onRemove,
+          style: FilledButton.styleFrom(shape: const StadiumBorder()),
           icon: const Icon(Icons.check_rounded),
           label: const Text('In Watchlist'),
         ),
@@ -258,6 +260,7 @@ class _StatusUpdatingAction extends StatelessWidget {
     return FilledButton.tonalIcon(
       key: const ValueKey<String>('show-details-library-status-updating'),
       onPressed: null,
+      style: FilledButton.styleFrom(shape: const StadiumBorder()),
       icon: const SizedBox(
         width: 18,
         height: 18,
@@ -279,6 +282,7 @@ class _LoadingAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return FilledButton.tonalIcon(
       onPressed: null,
+      style: FilledButton.styleFrom(shape: const StadiumBorder()),
       icon: const SizedBox(
         width: 18,
         height: 18,

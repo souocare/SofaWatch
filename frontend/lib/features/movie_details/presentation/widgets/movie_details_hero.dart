@@ -16,7 +16,8 @@ class MovieDetailsHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double heroHeight = isDesktop ? 420 : 360;
+    final double topSafeArea = MediaQuery.paddingOf(context).top;
+    final double heroHeight = isDesktop ? 480 : 430 + topSafeArea;
 
     return SizedBox(
       key: const ValueKey<String>('movie-details-hero'),
@@ -31,10 +32,12 @@ class MovieDetailsHero extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                stops: <double>[0, 0.45, 1],
+                stops: <double>[0, 0.38, 0.62, 0.82, 1],
                 colors: <Color>[
-                  Colors.transparent,
+                  Color(0x10000000),
+                  Color(0x26000000),
                   Color(0x66000000),
+                  Color(0xCC000000),
                   AppColors.surface,
                 ],
               ),
@@ -42,7 +45,7 @@ class MovieDetailsHero extends StatelessWidget {
           ),
 
           Positioned(
-            top: AppSpacing.lg,
+            top: topSafeArea + AppSpacing.lg,
             right: AppSpacing.lg,
             child: IconButton.filledTonal(
               key: const ValueKey<String>('movie-details-close-button'),
@@ -72,48 +75,100 @@ class _HeroContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+    return Column(
+      key: const ValueKey<String>('movie-details-hero-content'),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        _PosterImage(url: details.posterUrl, width: isDesktop ? 150 : 112),
-
-        SizedBox(width: isDesktop ? AppSpacing.xxxl : AppSpacing.lg),
-
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  details.title,
-                  key: const ValueKey<String>('movie-details-title'),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style:
-                      (isDesktop
-                              ? Theme.of(context).textTheme.headlineLarge
-                              : Theme.of(context).textTheme.headlineMedium)
-                          ?.copyWith(fontWeight: FontWeight.w700),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: <Widget>[
+            _PosterImage(url: details.posterUrl, width: isDesktop ? 150 : 112),
+            SizedBox(width: isDesktop ? AppSpacing.xxxl : AppSpacing.lg),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      details.title,
+                      key: const ValueKey<String>('movie-details-title'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          (isDesktop
+                                  ? Theme.of(context).textTheme.headlineLarge
+                                  : Theme.of(context).textTheme.headlineMedium)
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _HeroSubtitle(details: details),
+                    if (details.voteAverage > 0) ...<Widget>[
+                      const SizedBox(height: AppSpacing.md),
+                      _RatingBadge(
+                        rating: details.voteAverage,
+                        voteCount: details.voteCount,
+                      ),
+                    ],
+                  ],
                 ),
-
-                const SizedBox(height: AppSpacing.sm),
-
-                _HeroSubtitle(details: details),
-
-                if (details.voteAverage > 0) ...<Widget>[
-                  const SizedBox(height: AppSpacing.md),
-                  _RatingBadge(
-                    rating: details.voteAverage,
-                    voteCount: details.voteCount,
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
+          ],
         ),
+        if (details.genres.isNotEmpty) ...<Widget>[
+          const SizedBox(height: AppSpacing.lg),
+          _Genres(genres: details.genres),
+        ],
       ],
+    );
+  }
+}
+
+class _Genres extends StatelessWidget {
+  const _Genres({required this.genres});
+
+  final List<String> genres;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      key: const ValueKey<String>('movie-details-genres'),
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
+      children: genres
+          .map(
+            (String genre) => _GenreChip(
+              key: ValueKey<String>('movie-details-genre-$genre'),
+              genre: genre,
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+}
+
+class _GenreChip extends StatelessWidget {
+  const _GenreChip({required this.genre, super.key});
+
+  final String genre;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderFull,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Text(genre, style: Theme.of(context).textTheme.bodySmall),
+      ),
     );
   }
 }

@@ -63,12 +63,6 @@ class MovieDetailsContent extends StatelessWidget {
                           const SizedBox(height: AppSpacing.xxl),
                         ],
 
-                        if (details.genres.isNotEmpty) ...<Widget>[
-                          _Genres(genres: details.genres),
-
-                          const SizedBox(height: AppSpacing.xxxl),
-                        ],
-
                         _Overview(overview: details.overview),
 
                         const SizedBox(height: AppSpacing.section),
@@ -83,52 +77,6 @@ class MovieDetailsContent extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _Genres extends StatelessWidget {
-  const _Genres({required this.genres});
-
-  final List<String> genres;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      key: const ValueKey<String>('movie-details-genres'),
-      spacing: AppSpacing.sm,
-      runSpacing: AppSpacing.sm,
-      children: genres
-          .map(
-            (String genre) => _GenreChip(
-              key: ValueKey<String>('movie-details-genre-$genre'),
-              genre: genre,
-            ),
-          )
-          .toList(growable: false),
-    );
-  }
-}
-
-class _GenreChip extends StatelessWidget {
-  const _GenreChip({required this.genre, super.key});
-
-  final String genre;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderFull,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        child: Text(genre, style: Theme.of(context).textTheme.bodySmall),
-      ),
     );
   }
 }

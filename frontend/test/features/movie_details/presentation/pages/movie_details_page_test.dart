@@ -1050,7 +1050,7 @@ void main() {
 
       expect(hero, findsOneWidget);
 
-      expect(tester.getSize(hero).height, 360);
+      expect(tester.getSize(hero).height, 430);
 
       final Finder poster = find.byKey(
         const ValueKey<String>('movie-details-poster-container'),
@@ -1098,7 +1098,7 @@ void main() {
 
       expect(hero, findsOneWidget);
 
-      expect(tester.getSize(hero).height, 420);
+      expect(tester.getSize(hero).height, 480);
 
       final Finder poster = find.byKey(
         const ValueKey<String>('movie-details-poster-container'),
@@ -1147,7 +1147,7 @@ void main() {
           tester
               .getSize(find.byKey(const ValueKey<String>('movie-details-hero')))
               .height,
-          420,
+          480,
         );
 
         expect(

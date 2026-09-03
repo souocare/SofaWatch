@@ -128,6 +128,7 @@ class _MovieDetailsLibraryActionState extends State<MovieDetailsLibraryAction> {
           onPressed: () {
             context.read<LibraryCubit>().addToLibrary(_key);
           },
+          style: FilledButton.styleFrom(shape: const StadiumBorder()),
           icon: const Icon(Icons.add_rounded),
           label: const Text('Add to Watchlist'),
         );
@@ -224,6 +225,7 @@ class _MovieLibraryActions extends StatelessWidget {
             FilledButton.tonalIcon(
               key: const ValueKey<String>('movie-details-library-added'),
               onPressed: isUpdating ? null : onRemove,
+              style: FilledButton.styleFrom(shape: const StadiumBorder()),
               icon: const Icon(Icons.check_rounded),
               label: const Text('In Watchlist'),
             ),
@@ -232,6 +234,7 @@ class _MovieLibraryActions extends StatelessWidget {
               FilledButton.tonalIcon(
                 key: const ValueKey<String>('movie-details-library-updating'),
                 onPressed: null,
+                style: FilledButton.styleFrom(shape: const StadiumBorder()),
                 icon: const SizedBox(
                   width: 18,
                   height: 18,
@@ -247,6 +250,7 @@ class _MovieLibraryActions extends StatelessWidget {
               FilledButton.tonalIcon(
                 key: const ValueKey<String>('movie-details-mark-unwatched'),
                 onPressed: onMarkUnwatched,
+                style: FilledButton.styleFrom(shape: const StadiumBorder()),
                 icon: const Icon(Icons.visibility_off_outlined),
                 label: const Text('Mark as unwatched'),
               )
@@ -254,6 +258,7 @@ class _MovieLibraryActions extends StatelessWidget {
               FilledButton.icon(
                 key: const ValueKey<String>('movie-details-mark-watched'),
                 onPressed: onMarkWatched,
+                style: FilledButton.styleFrom(shape: const StadiumBorder()),
                 icon: const Icon(Icons.visibility_rounded),
                 label: const Text('Mark as watched'),
               ),
@@ -278,6 +283,7 @@ class _LoadingAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return FilledButton.tonalIcon(
       onPressed: null,
+      style: FilledButton.styleFrom(shape: const StadiumBorder()),
       icon: const SizedBox(
         width: 18,
         height: 18,
