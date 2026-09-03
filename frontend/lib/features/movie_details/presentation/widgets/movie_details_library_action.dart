@@ -120,6 +120,9 @@ class _MovieDetailsLibraryActionState extends State<MovieDetailsLibraryAction> {
             onMarkUnwatched: () {
               context.read<LibraryCubit>().markMovieUnwatched(_key);
             },
+            onRewatch: () {
+              context.read<LibraryCubit>().rewatchMovie(_key);
+            },
           );
         }
 
@@ -199,6 +202,7 @@ class _MovieLibraryActions extends StatelessWidget {
     required this.onMarkWatched,
     required this.onMarkUnwatched,
     required this.isUpcoming,
+    required this.onRewatch,
   });
 
   final LibraryEntry entry;
@@ -209,6 +213,7 @@ class _MovieLibraryActions extends StatelessWidget {
   final VoidCallback onRemove;
   final VoidCallback onMarkWatched;
   final VoidCallback onMarkUnwatched;
+  final VoidCallback onRewatch;
 
   @override
   Widget build(BuildContext context) {
@@ -218,50 +223,70 @@ class _MovieLibraryActions extends StatelessWidget {
       key: const ValueKey<String>('movie-details-library-actions'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            FilledButton.tonalIcon(
-              key: const ValueKey<String>('movie-details-library-added'),
-              onPressed: isUpdating ? null : onRemove,
-              style: FilledButton.styleFrom(shape: const StadiumBorder()),
-              icon: const Icon(Icons.check_rounded),
-              label: const Text('In Watchlist'),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: <Widget>[
+                if (isUpdating)
+                  FilledButton.tonalIcon(
+                    key: const ValueKey<String>(
+                      'movie-details-library-updating',
+                    ),
+                    onPressed: null,
+                    style: FilledButton.styleFrom(shape: const StadiumBorder()),
+                    icon: const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    label: Text(
+                      targetStatus == LibraryStatus.completed
+                          ? isWatched
+                                ? 'Recording rewatch…'
+                                : 'Marking as watched…'
+                          : 'Marking as unwatched…',
+                    ),
+                  )
+                else if (isWatched) ...<Widget>[
+                  FilledButton.icon(
+                    key: const ValueKey<String>('movie-details-rewatch'),
+                    onPressed: onRewatch,
+                    style: FilledButton.styleFrom(shape: const StadiumBorder()),
+                    icon: const Icon(Icons.replay_rounded),
+                    label: const Text('Rewatch'),
+                  ),
+                  OutlinedButton.icon(
+                    key: const ValueKey<String>('movie-details-mark-unwatched'),
+                    onPressed: onMarkUnwatched,
+                    style: OutlinedButton.styleFrom(
+                      shape: const StadiumBorder(),
+                    ),
+                    icon: const Icon(Icons.visibility_off_outlined),
+                    label: const Text('Mark as unwatched'),
+                  ),
+                ] else if (!isUpcoming)
+                  FilledButton.icon(
+                    key: const ValueKey<String>('movie-details-mark-watched'),
+                    onPressed: onMarkWatched,
+                    style: FilledButton.styleFrom(shape: const StadiumBorder()),
+                    icon: const Icon(Icons.visibility_rounded),
+                    label: const Text('Mark as watched'),
+                  ),
+              ],
             ),
 
-            if (isUpdating)
-              FilledButton.tonalIcon(
-                key: const ValueKey<String>('movie-details-library-updating'),
-                onPressed: null,
-                style: FilledButton.styleFrom(shape: const StadiumBorder()),
-                icon: const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                label: Text(
-                  targetStatus == LibraryStatus.completed
-                      ? 'Marking as watched…'
-                      : 'Marking as unwatched…',
-                ),
-              )
-            else if (isWatched)
-              FilledButton.tonalIcon(
-                key: const ValueKey<String>('movie-details-mark-unwatched'),
-                onPressed: onMarkUnwatched,
-                style: FilledButton.styleFrom(shape: const StadiumBorder()),
-                icon: const Icon(Icons.visibility_off_outlined),
-                label: const Text('Mark as unwatched'),
-              )
-            else if (!isUpcoming)
-              FilledButton.icon(
-                key: const ValueKey<String>('movie-details-mark-watched'),
-                onPressed: onMarkWatched,
-                style: FilledButton.styleFrom(shape: const StadiumBorder()),
-                icon: const Icon(Icons.visibility_rounded),
-                label: const Text('Mark as watched'),
-              ),
+            const SizedBox(height: 12),
+
+            OutlinedButton.icon(
+              key: const ValueKey<String>('movie-details-library-added'),
+              onPressed: isUpdating ? null : onRemove,
+              style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
+              icon: const Icon(Icons.bookmark_added_outlined),
+              label: const Text('In Watchlist'),
+            ),
           ],
         ),
 

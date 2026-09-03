@@ -481,6 +481,16 @@ final class _FakeLibraryRepository implements LibraryRepository {
   }
 
   @override
+  Future<LibraryEntry> recordMovieWatch(String movieId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<LibraryEntry> clearMovieWatchHistory(String movieId) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<void> removeShow(String showId) async {
     removedShowIds.add(showId);
   }

@@ -537,14 +537,10 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(repository.updateMovieStatusCalls, 1);
+      expect(repository.recordMovieWatchCalls, 1);
+      expect(repository.requestedWatchedMovieIds, <String>['movie-local-uuid']);
 
-      expect(
-        repository.updatedMovieStatuses,
-        <({String movieId, LibraryStatus status})>[
-          (movieId: 'movie-local-uuid', status: LibraryStatus.completed),
-        ],
-      );
+      expect(repository.updateMovieStatusCalls, 0);
 
       expect(
         find.byKey(const ValueKey<String>('movie-details-mark-unwatched')),
@@ -585,17 +581,111 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(repository.updateMovieStatusCalls, 1);
+      expect(repository.clearMovieWatchHistoryCalls, 1);
+      expect(repository.requestedClearedMovieIds, <String>['movie-local-uuid']);
 
-      expect(
-        repository.updatedMovieStatuses,
-        <({String movieId, LibraryStatus status})>[
-          (movieId: 'movie-local-uuid', status: LibraryStatus.planning),
-        ],
-      );
+      expect(repository.updateMovieStatusCalls, 0);
 
       expect(
         find.byKey(const ValueKey<String>('movie-details-mark-watched')),
+        findsOneWidget,
+      );
+
+      await cubit.close();
+    });
+
+    testWidgets('records a Rewatch for an already watched Movie', (
+      WidgetTester tester,
+    ) async {
+      final _FakeLibraryRepository repository = _FakeLibraryRepository(
+        movieEntry: _completedLibraryEntry,
+      );
+
+      final LibraryCubit cubit = LibraryCubit(repository);
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+
+      await cubit.loadMovieState(
+        const LibraryMediaKey(
+          mediaType: LibraryMediaType.movie,
+          tmdbId: 438631,
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('movie-details-rewatch')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Rewatch'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('movie-details-rewatch')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(repository.recordMovieWatchCalls, 1);
+
+      expect(repository.requestedWatchedMovieIds, <String>['movie-local-uuid']);
+
+      expect(repository.updateMovieStatusCalls, 0);
+
+      await cubit.close();
+    });
+
+    testWidgets('shows updating state while recording a Rewatch', (
+      WidgetTester tester,
+    ) async {
+      final _ControlledUpdateLibraryRepository repository =
+          _ControlledUpdateLibraryRepository(
+            movieEntry: _completedLibraryEntry,
+          );
+
+      final LibraryCubit cubit = LibraryCubit(repository);
+
+      await tester.pumpWidget(_buildTestApp(cubit: cubit));
+
+      await cubit.loadMovieState(
+        const LibraryMediaKey(
+          mediaType: LibraryMediaType.movie,
+          tmdbId: 438631,
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('movie-details-rewatch')),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('movie-details-rewatch')),
+      );
+
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey<String>('movie-details-library-updating')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Recording rewatch…'), findsOneWidget);
+
+      expect(
+        find.byKey(const ValueKey<String>('movie-details-rewatch')),
+        findsNothing,
+      );
+
+      repository.completeUpdate(status: LibraryStatus.completed);
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('movie-details-rewatch')),
         findsOneWidget,
       );
 
@@ -661,7 +751,7 @@ void main() {
     ) async {
       final _FakeLibraryRepository repository = _FakeLibraryRepository(
         movieEntry: _libraryEntry,
-        updateStatusError: const AppException.connection(),
+        recordMovieWatchError: const AppException.connection(),
       );
 
       final LibraryCubit cubit = LibraryCubit(repository);
@@ -728,7 +818,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(repository.updateMovieStatusCalls, 1);
+      expect(repository.recordMovieWatchCalls, 1);
 
       expect(
         find.byKey(const ValueKey<String>('movie-details-library-failure')),
@@ -739,7 +829,14 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(repository.updateMovieStatusCalls, 2);
+      expect(repository.recordMovieWatchCalls, 2);
+
+      expect(repository.requestedWatchedMovieIds, <String>[
+        'movie-local-uuid',
+        'movie-local-uuid',
+      ]);
+
+      expect(repository.updateMovieStatusCalls, 0);
 
       expect(
         find.byKey(const ValueKey<String>('movie-details-mark-unwatched')),
@@ -900,28 +997,29 @@ class _FakeLibraryRepository implements LibraryRepository {
   _FakeLibraryRepository({
     this.importError,
     this.removeError,
-    this.updateStatusError,
+    this.recordMovieWatchError,
     this.movieEntry,
   }) : addError = null;
 
   final AppException? removeError;
-
-  int removeMovieCalls = 0;
-  final LibraryEntry? movieEntry;
-
-  final List<String> requestedRemovedMovieIds = <String>[];
-
   final AppException? importError;
   final AppException? addError;
+  final AppException? recordMovieWatchError;
 
+  final LibraryEntry? movieEntry;
+
+  int removeMovieCalls = 0;
   int importMovieCalls = 0;
   int addMovieCalls = 0;
+  int updateMovieStatusCalls = 0;
+  int recordMovieWatchCalls = 0;
+  int clearMovieWatchHistoryCalls = 0;
 
+  final List<String> requestedRemovedMovieIds = <String>[];
   final List<int> requestedTmdbIds = <int>[];
   final List<String> requestedMovieIds = <String>[];
-  final AppException? updateStatusError;
-
-  int updateMovieStatusCalls = 0;
+  final List<String> requestedWatchedMovieIds = <String>[];
+  final List<String> requestedClearedMovieIds = <String>[];
 
   final List<({String movieId, LibraryStatus status})> updatedMovieStatuses =
       <({String movieId, LibraryStatus status})>[];
@@ -929,7 +1027,6 @@ class _FakeLibraryRepository implements LibraryRepository {
   @override
   Future<ImportedLibraryMedia> importMovieByTmdbId(int tmdbId) async {
     importMovieCalls++;
-
     requestedTmdbIds.add(tmdbId);
 
     final AppException? error = importError;
@@ -960,12 +1057,6 @@ class _FakeLibraryRepository implements LibraryRepository {
 
     updatedMovieStatuses.add((movieId: movieId, status: status));
 
-    final AppException? error = updateStatusError;
-
-    if (error != null) {
-      throw error;
-    }
-
     final DateTime now = DateTime.utc(2026, 8, 11);
 
     return LibraryEntry(
@@ -980,9 +1071,49 @@ class _FakeLibraryRepository implements LibraryRepository {
   }
 
   @override
+  Future<LibraryEntry> recordMovieWatch(String movieId) async {
+    recordMovieWatchCalls++;
+    requestedWatchedMovieIds.add(movieId);
+
+    final AppException? error = recordMovieWatchError;
+
+    if (error != null) {
+      throw error;
+    }
+
+    final DateTime now = DateTime.utc(2026, 8, 11);
+
+    return LibraryEntry(
+      id: movieEntry?.id ?? 'library-entry-uuid',
+      mediaId: movieId,
+      mediaType: LibraryMediaType.movie,
+      status: LibraryStatus.completed,
+      completedAt: movieEntry?.completedAt ?? now,
+      createdAt: movieEntry?.createdAt ?? DateTime.utc(2026, 8, 10),
+      updatedAt: now,
+    );
+  }
+
+  @override
+  Future<LibraryEntry> clearMovieWatchHistory(String movieId) async {
+    clearMovieWatchHistoryCalls++;
+    requestedClearedMovieIds.add(movieId);
+
+    final DateTime now = DateTime.utc(2026, 8, 11);
+
+    return LibraryEntry(
+      id: movieEntry?.id ?? 'library-entry-uuid',
+      mediaId: movieId,
+      mediaType: LibraryMediaType.movie,
+      status: LibraryStatus.planning,
+      createdAt: movieEntry?.createdAt ?? DateTime.utc(2026, 8, 10),
+      updatedAt: now,
+    );
+  }
+
+  @override
   Future<LibraryEntry> addMovie(String movieId) async {
     addMovieCalls++;
-
     requestedMovieIds.add(movieId);
 
     final AppException? error = addError;
@@ -992,6 +1123,18 @@ class _FakeLibraryRepository implements LibraryRepository {
     }
 
     return _libraryEntry;
+  }
+
+  @override
+  Future<void> removeMovie(String movieId) async {
+    removeMovieCalls++;
+    requestedRemovedMovieIds.add(movieId);
+
+    final AppException? error = removeError;
+
+    if (error != null) {
+      throw error;
+    }
   }
 
   @override
@@ -1007,19 +1150,6 @@ class _FakeLibraryRepository implements LibraryRepository {
   @override
   Future<void> removeShow(String showId) {
     throw UnimplementedError();
-  }
-
-  @override
-  Future<void> removeMovie(String movieId) async {
-    removeMovieCalls++;
-
-    requestedRemovedMovieIds.add(movieId);
-
-    final AppException? error = removeError;
-
-    if (error != null) {
-      throw error;
-    }
   }
 
   @override
@@ -1126,6 +1256,16 @@ final class _ControlledLibraryRepository implements LibraryRepository {
   Future<LibraryPreview> getPreview() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<LibraryEntry> recordMovieWatch(String movieId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<LibraryEntry> clearMovieWatchHistory(String movieId) {
+    throw UnimplementedError();
+  }
 }
 
 final class _ControlledRemoveLibraryRepository extends _FakeLibraryRepository {
@@ -1149,27 +1289,23 @@ final class _RetryUpdateLibraryRepository extends _FakeLibraryRepository {
   _RetryUpdateLibraryRepository({super.movieEntry});
 
   @override
-  Future<LibraryEntry> updateMovieStatus(
-    String movieId,
-    LibraryStatus status,
-  ) async {
-    updateMovieStatusCalls++;
+  Future<LibraryEntry> recordMovieWatch(String movieId) async {
+    recordMovieWatchCalls++;
+    requestedWatchedMovieIds.add(movieId);
 
-    updatedMovieStatuses.add((movieId: movieId, status: status));
-
-    if (updateMovieStatusCalls == 1) {
+    if (recordMovieWatchCalls == 1) {
       throw const AppException.connection();
     }
 
     final DateTime now = DateTime.utc(2026, 8, 11);
 
     return LibraryEntry(
-      id: 'library-entry-uuid',
+      id: movieEntry?.id ?? 'library-entry-uuid',
       mediaId: movieId,
       mediaType: LibraryMediaType.movie,
-      status: status,
-      completedAt: status == LibraryStatus.completed ? now : null,
-      createdAt: DateTime.utc(2026, 8, 10),
+      status: LibraryStatus.completed,
+      completedAt: movieEntry?.completedAt ?? now,
+      createdAt: movieEntry?.createdAt ?? DateTime.utc(2026, 8, 10),
       updatedAt: now,
     );
   }
@@ -1185,22 +1321,23 @@ final class _ControlledUpdateLibraryRepository extends _FakeLibraryRepository {
 
     _updateCompleter.complete(
       LibraryEntry(
-        id: 'library-entry-uuid',
+        id: movieEntry?.id ?? 'library-entry-uuid',
         mediaId: 'movie-local-uuid',
         mediaType: LibraryMediaType.movie,
         status: status,
-        completedAt: status == LibraryStatus.completed ? now : null,
-        createdAt: DateTime.utc(2026, 8, 10),
+        completedAt: status == LibraryStatus.completed
+            ? movieEntry?.completedAt ?? now
+            : null,
+        createdAt: movieEntry?.createdAt ?? DateTime.utc(2026, 8, 10),
         updatedAt: now,
       ),
     );
   }
 
   @override
-  Future<LibraryEntry> updateMovieStatus(String movieId, LibraryStatus status) {
-    updateMovieStatusCalls++;
-
-    updatedMovieStatuses.add((movieId: movieId, status: status));
+  Future<LibraryEntry> recordMovieWatch(String movieId) {
+    recordMovieWatchCalls++;
+    requestedWatchedMovieIds.add(movieId);
 
     return _updateCompleter.future;
   }

@@ -414,6 +414,16 @@ final class _FakeLibraryRepository implements LibraryRepository {
   Future<LibraryPreview> getPreview() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<LibraryEntry> recordMovieWatch(String movieId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<LibraryEntry> clearMovieWatchHistory(String movieId) {
+    throw UnimplementedError();
+  }
 }
 
 const ExploreMediaItem _trendingMovie = ExploreMediaItem(

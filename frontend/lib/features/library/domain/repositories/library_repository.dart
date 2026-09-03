@@ -22,6 +22,10 @@ abstract interface class LibraryRepository {
 
   Future<void> removeMovie(String movieId);
 
+  Future<LibraryEntry> recordMovieWatch(String movieId);
+
+  Future<LibraryEntry> clearMovieWatchHistory(String movieId);
+
   Future<LibraryEntry> updateShowStatus(String showId, LibraryStatus status);
 
   Future<LibraryEntry> updateMovieStatus(String movieId, LibraryStatus status);

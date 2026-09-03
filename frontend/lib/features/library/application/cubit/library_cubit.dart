@@ -162,11 +162,15 @@ final class LibraryCubit extends Cubit<LibraryState> {
   }
 
   Future<void> markMovieWatched(LibraryMediaKey key) {
-    return updateStatus(key: key, status: LibraryStatus.completed);
+    return _recordMovieWatch(key);
+  }
+
+  Future<void> rewatchMovie(LibraryMediaKey key) {
+    return _recordMovieWatch(key);
   }
 
   Future<void> markMovieUnwatched(LibraryMediaKey key) {
-    return updateStatus(key: key, status: LibraryStatus.planning);
+    return _clearMovieWatchHistory(key);
   }
 
   Future<void> updateShowStatus(LibraryMediaKey key, LibraryStatus status) {
@@ -182,7 +186,17 @@ final class LibraryCubit extends Cubit<LibraryState> {
       return Future<void>.value();
     }
 
-    return retryStatus(key);
+    final LibraryItemOperation operation = state.operationFor(key);
+
+    if (!operation.isStatusUpdateFailure || operation.targetStatus == null) {
+      return Future<void>.value();
+    }
+
+    return switch (operation.targetStatus!) {
+      LibraryStatus.completed => _recordMovieWatch(key),
+      LibraryStatus.planning => _clearMovieWatchHistory(key),
+      _ => retryStatus(key),
+    };
   }
 
   Future<void> retryShowStatus(LibraryMediaKey key) {
@@ -206,6 +220,151 @@ final class LibraryCubit extends Cubit<LibraryState> {
     }
 
     await updateStatus(key: key, status: targetStatus);
+  }
+
+  Future<void> _recordMovieWatch(LibraryMediaKey key) async {
+    if (key.mediaType != LibraryMediaType.movie) {
+      return;
+    }
+
+    final LibraryItemOperation currentOperation = state.operationFor(key);
+    final LibraryEntry? entry = currentOperation.entry;
+
+    if (entry == null ||
+        currentOperation.isAdding ||
+        currentOperation.isRemoving ||
+        currentOperation.isUpdating) {
+      return;
+    }
+
+    emit(
+      state.withOperation(
+        key,
+        LibraryItemOperation.updating(
+          entry: entry,
+          targetStatus: LibraryStatus.completed,
+        ),
+      ),
+    );
+
+    try {
+      final LibraryEntry updatedEntry = await _repository.recordMovieWatch(
+        entry.mediaId,
+      );
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.withOperation(
+          key,
+          LibraryItemOperation.added(entry: updatedEntry),
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.withOperation(
+          key,
+          LibraryItemOperation.failure(
+            error,
+            entry: entry,
+            targetStatus: LibraryStatus.completed,
+          ),
+        ),
+      );
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.withOperation(
+          key,
+          LibraryItemOperation.failure(
+            AppException.unknown(originalError: error),
+            entry: entry,
+            targetStatus: LibraryStatus.completed,
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _clearMovieWatchHistory(LibraryMediaKey key) async {
+    if (key.mediaType != LibraryMediaType.movie) {
+      return;
+    }
+
+    final LibraryItemOperation currentOperation = state.operationFor(key);
+    final LibraryEntry? entry = currentOperation.entry;
+
+    if (entry == null ||
+        currentOperation.isAdding ||
+        currentOperation.isRemoving ||
+        currentOperation.isUpdating) {
+      return;
+    }
+
+    emit(
+      state.withOperation(
+        key,
+        LibraryItemOperation.updating(
+          entry: entry,
+          targetStatus: LibraryStatus.planning,
+        ),
+      ),
+    );
+
+    try {
+      final LibraryEntry updatedEntry = await _repository
+          .clearMovieWatchHistory(entry.mediaId);
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.withOperation(
+          key,
+          LibraryItemOperation.added(entry: updatedEntry),
+        ),
+      );
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.withOperation(
+          key,
+          LibraryItemOperation.failure(
+            error,
+            entry: entry,
+            targetStatus: LibraryStatus.planning,
+          ),
+        ),
+      );
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.withOperation(
+          key,
+          LibraryItemOperation.failure(
+            AppException.unknown(originalError: error),
+            entry: entry,
+            targetStatus: LibraryStatus.planning,
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> updateStatus({

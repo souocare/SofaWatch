@@ -53,6 +53,22 @@ final class ApiLibraryRepository implements LibraryRepository {
   }
 
   @override
+  Future<LibraryEntry> recordMovieWatch(String movieId) async {
+    await _apiClient.post<Map<String, dynamic>>(
+      '/library/movies/$movieId/watch-events',
+    );
+
+    return _requireMovieEntry(movieId);
+  }
+
+  @override
+  Future<LibraryEntry> clearMovieWatchHistory(String movieId) async {
+    await _apiClient.delete<void>('/library/movies/$movieId/watch-events');
+
+    return _requireMovieEntry(movieId);
+  }
+
+  @override
   Future<LibraryEntry> updateShowStatus(String showId, LibraryStatus status) {
     return _updateStatus(path: '/library/shows/$showId/status', status: status);
   }
@@ -98,6 +114,20 @@ final class ApiLibraryRepository implements LibraryRepository {
     } on TypeError catch (error) {
       throw AppException.invalidData(originalError: error);
     }
+  }
+
+  Future<LibraryEntry> _requireMovieEntry(String movieId) async {
+    final LibraryEntry? entry = await getMovieEntry(movieId);
+
+    if (entry == null) {
+      throw AppException.invalidData(
+        originalError: const FormatException(
+          'The Movie Library entry is missing after the watch operation.',
+        ),
+      );
+    }
+
+    return entry;
   }
 
   Future<ImportedLibraryMedia> _importMedia({

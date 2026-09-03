@@ -379,6 +379,143 @@ void main() {
     expect(entry.status, LibraryStatus.planning);
     expect(entry.completedAt, isNull);
   });
+
+  test('records a Movie watch and returns the updated Library entry', () async {
+    final Dio dio = Dio();
+
+    int requestCount = 0;
+
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          requestCount++;
+
+          if (requestCount == 1) {
+            expect(options.method, 'POST');
+            expect(options.path, '/library/movies/movie-uuid/watch-events');
+
+            handler.resolve(
+              Response<Map<String, dynamic>>(
+                requestOptions: options,
+                statusCode: 201,
+                data: <String, dynamic>{
+                  'id': 'watch-event-uuid',
+                  'movie_id': 'movie-uuid',
+                  'watched_at': '2026-08-11T20:00:00Z',
+                },
+              ),
+            );
+
+            return;
+          }
+
+          expect(requestCount, 2);
+          expect(options.method, 'GET');
+          expect(options.path, '/library/movies/movie-uuid');
+
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: <String, dynamic>{
+                'id': 'entry-uuid',
+                'show_id': null,
+                'movie_id': 'movie-uuid',
+                'status': 'completed',
+                'rating': null,
+                'started_at': null,
+                'completed_at': '2026-08-11T20:00:00Z',
+                'created_at': '2026-08-08T14:00:00Z',
+                'updated_at': '2026-08-11T20:00:00Z',
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final ApiLibraryRepository repository = ApiLibraryRepository(
+      ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+    );
+
+    final entry = await repository.recordMovieWatch('movie-uuid');
+
+    expect(requestCount, 2);
+
+    expect(entry.id, 'entry-uuid');
+    expect(entry.mediaId, 'movie-uuid');
+    expect(entry.mediaType, LibraryMediaType.movie);
+    expect(entry.status, LibraryStatus.completed);
+    expect(entry.completedAt, DateTime.parse('2026-08-11T20:00:00Z'));
+  });
+
+  test(
+    'clears Movie watch history and returns the updated Library entry',
+    () async {
+      final Dio dio = Dio();
+
+      int requestCount = 0;
+
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                requestCount++;
+
+                if (requestCount == 1) {
+                  expect(options.method, 'DELETE');
+                  expect(
+                    options.path,
+                    '/library/movies/movie-uuid/watch-events',
+                  );
+
+                  handler.resolve(
+                    Response<void>(requestOptions: options, statusCode: 204),
+                  );
+
+                  return;
+                }
+
+                expect(requestCount, 2);
+                expect(options.method, 'GET');
+                expect(options.path, '/library/movies/movie-uuid');
+
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <String, dynamic>{
+                      'id': 'entry-uuid',
+                      'show_id': null,
+                      'movie_id': 'movie-uuid',
+                      'status': 'planning',
+                      'rating': null,
+                      'started_at': null,
+                      'completed_at': null,
+                      'created_at': '2026-08-08T14:00:00Z',
+                      'updated_at': '2026-08-11T20:00:00Z',
+                    },
+                  ),
+                );
+              },
+        ),
+      );
+
+      final ApiLibraryRepository repository = ApiLibraryRepository(
+        ApiClient(baseUrl: Uri.parse('http://localhost:8000'), dio: dio),
+      );
+
+      final entry = await repository.clearMovieWatchHistory('movie-uuid');
+
+      expect(requestCount, 2);
+
+      expect(entry.id, 'entry-uuid');
+      expect(entry.mediaId, 'movie-uuid');
+      expect(entry.mediaType, LibraryMediaType.movie);
+      expect(entry.status, LibraryStatus.planning);
+      expect(entry.completedAt, isNull);
+    },
+  );
   test('gets Library preview with recent Shows and Movies', () async {
     final Dio dio = Dio();
 

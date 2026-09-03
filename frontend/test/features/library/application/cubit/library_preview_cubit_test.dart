@@ -208,6 +208,16 @@ final class _LibraryPreviewRepository implements LibraryRepository {
   Future<LibraryEntry> updateMovieStatus(String movieId, LibraryStatus status) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<LibraryEntry> recordMovieWatch(String movieId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<LibraryEntry> clearMovieWatchHistory(String movieId) {
+    throw UnimplementedError();
+  }
 }
 
 final class _FailingLibraryPreviewRepository implements LibraryRepository {
@@ -255,6 +265,16 @@ final class _FailingLibraryPreviewRepository implements LibraryRepository {
     String movieId,
     LibraryStatus status,
   ) => throw UnimplementedError();
+
+  @override
+  Future<LibraryEntry> recordMovieWatch(String movieId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<LibraryEntry> clearMovieWatchHistory(String movieId) {
+    throw UnimplementedError();
+  }
 }
 
 final class _UnexpectedLibraryPreviewRepository implements LibraryRepository {
@@ -302,6 +322,16 @@ final class _UnexpectedLibraryPreviewRepository implements LibraryRepository {
     String movieId,
     LibraryStatus status,
   ) => throw UnimplementedError();
+
+  @override
+  Future<LibraryEntry> recordMovieWatch(String movieId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<LibraryEntry> clearMovieWatchHistory(String movieId) {
+    throw UnimplementedError();
+  }
 }
 
 final class _ControlledLibraryPreviewRepository implements LibraryRepository {
@@ -357,6 +387,16 @@ final class _ControlledLibraryPreviewRepository implements LibraryRepository {
     String movieId,
     LibraryStatus status,
   ) => throw UnimplementedError();
+
+  @override
+  Future<LibraryEntry> recordMovieWatch(String movieId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<LibraryEntry> clearMovieWatchHistory(String movieId) {
+    throw UnimplementedError();
+  }
 }
 
 final class _RetryLibraryPreviewRepository implements LibraryRepository {
@@ -410,4 +450,14 @@ final class _RetryLibraryPreviewRepository implements LibraryRepository {
     String movieId,
     LibraryStatus status,
   ) => throw UnimplementedError();
+
+  @override
+  Future<LibraryEntry> recordMovieWatch(String movieId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<LibraryEntry> clearMovieWatchHistory(String movieId) {
+    throw UnimplementedError();
+  }
 }

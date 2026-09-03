@@ -1360,4 +1360,14 @@ final class _FakeMovieDetailsLibraryRepository implements LibraryRepository {
   Future<LibraryPreview> getPreview() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<LibraryEntry> recordMovieWatch(String movieId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<LibraryEntry> clearMovieWatchHistory(String movieId) {
+    throw UnimplementedError();
+  }
 }

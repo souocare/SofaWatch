@@ -5289,6 +5289,16 @@ class _FakeLibraryRepository implements LibraryRepository {
   Future<LibraryEntry> updateMovieStatus(String movieId, LibraryStatus status) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<LibraryEntry> recordMovieWatch(String movieId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<LibraryEntry> clearMovieWatchHistory(String movieId) {
+    throw UnimplementedError();
+  }
 }
 
 class _FakeServerRepository implements ServerRepository {
@@ -5502,6 +5512,16 @@ final class _ControlledLibraryRepository implements LibraryRepository {
   Future<LibraryEntry> updateMovieStatus(String movieId, LibraryStatus status) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<LibraryEntry> recordMovieWatch(String movieId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<LibraryEntry> clearMovieWatchHistory(String movieId) {
+    throw UnimplementedError();
+  }
 }
 
 final class _RetryLibraryRepository implements LibraryRepository {
@@ -5565,6 +5585,16 @@ final class _RetryLibraryRepository implements LibraryRepository {
 
   @override
   Future<LibraryEntry> updateMovieStatus(String movieId, LibraryStatus status) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<LibraryEntry> recordMovieWatch(String movieId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<LibraryEntry> clearMovieWatchHistory(String movieId) {
     throw UnimplementedError();
   }
 }
