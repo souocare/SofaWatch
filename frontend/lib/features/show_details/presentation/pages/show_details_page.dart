@@ -18,22 +18,22 @@ class ShowDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      body: SafeArea(
-        child: BlocBuilder<ShowDetailsCubit, ShowDetailsState>(
-          builder: (BuildContext context, ShowDetailsState state) {
-            return switch (state) {
-              ShowDetailsInitial() ||
-              ShowDetailsLoading() => const _ShowDetailsLoading(),
-              ShowDetailsSuccess(:final details) => _ShowDetailsContent(
-                details: details,
-              ),
-              ShowDetailsFailure(:final error) => _ShowDetailsFailure(
+      body: BlocBuilder<ShowDetailsCubit, ShowDetailsState>(
+        builder: (BuildContext context, ShowDetailsState state) {
+          return switch (state) {
+            ShowDetailsInitial() ||
+            ShowDetailsLoading() => const _ShowDetailsLoading(),
+            ShowDetailsSuccess(:final details) => _ShowDetailsContent(
+              details: details,
+            ),
+            ShowDetailsFailure(:final error) => SafeArea(
+              child: _ShowDetailsFailure(
                 isTimeout: error.isTimeout,
                 onRetry: context.read<ShowDetailsCubit>().retry,
               ),
-            };
-          },
-        ),
+            ),
+          };
+        },
       ),
     );
   }
@@ -160,7 +160,8 @@ class _ShowHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double heroHeight = isDesktop ? 440 : 380;
+    final double topSafeArea = MediaQuery.paddingOf(context).top;
+    final double heroHeight = isDesktop ? 440 : 380 + topSafeArea;
 
     return SizedBox(
       key: const ValueKey<String>('show-details-hero'),
@@ -173,7 +174,7 @@ class _ShowHero extends StatelessWidget {
           _HeroBackdropOverlay(isDesktop: isDesktop),
 
           Positioned(
-            top: AppSpacing.lg,
+            top: topSafeArea + AppSpacing.lg,
             right: AppSpacing.lg,
             child: IconButton.filledTonal(
               key: const ValueKey<String>('show-details-close-button'),
@@ -222,11 +223,12 @@ class _HeroBackdropOverlay extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              stops: <double>[0, 0.45, 0.78, 1],
+              stops: <double>[0, 0.38, 0.62, 0.82, 1],
               colors: <Color>[
-                Color(0x14000000),
-                Color(0x33000000),
-                Color(0xA6000000),
+                Color(0x10000000),
+                Color(0x26000000),
+                Color(0x66000000),
+                Color(0xCC000000),
                 AppColors.surface,
               ],
             ),
