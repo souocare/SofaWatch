@@ -7,6 +7,199 @@ import 'package:sofawatch/features/auth/data/storage/in_memory_access_token_stor
 import 'package:sofawatch/features/auth/domain/repositories/mobile_refresh_token_store.dart';
 
 void main() {
+  group('ApiAuthRepository clearLocalAuthentication', () {
+    test('Web clears the access token locally', () async {
+      final ApiClient apiClient = _createApiClient(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          fail('clearLocalAuthentication must not make an HTTP request.');
+        },
+      );
+
+      final InMemoryAccessTokenStore accessTokenStore =
+          InMemoryAccessTokenStore()..save('access-token');
+
+      final ApiAuthRepository repository = ApiAuthRepository(
+        apiClient: apiClient,
+        accessTokenStore: accessTokenStore,
+        isWeb: true,
+      );
+
+      await repository.clearLocalAuthentication();
+
+      expect(accessTokenStore.token, isNull);
+    });
+
+    test('Mobile clears access and refresh credentials locally', () async {
+      final ApiClient apiClient = _createApiClient(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          fail('clearLocalAuthentication must not make an HTTP request.');
+        },
+      );
+
+      final InMemoryAccessTokenStore accessTokenStore =
+          InMemoryAccessTokenStore()..save('access-token');
+
+      final _FakeMobileRefreshTokenStore refreshTokenStore =
+          _FakeMobileRefreshTokenStore(initialValue: 'refresh-token');
+
+      final ApiAuthRepository repository = ApiAuthRepository(
+        apiClient: apiClient,
+        accessTokenStore: accessTokenStore,
+        mobileRefreshTokenStore: refreshTokenStore,
+        isWeb: false,
+      );
+
+      await repository.clearLocalAuthentication();
+
+      expect(accessTokenStore.token, isNull);
+      expect(refreshTokenStore.value, isNull);
+      expect(refreshTokenStore.clearCalls, 1);
+    });
+  });
+
+  group('ApiAuthRepository restore authentication loss', () {
+    test('Mobile clears credentials when refresh token is invalid', () async {
+      final ApiClient apiClient = _createApiClient(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          handler.reject(
+            DioException(
+              requestOptions: options,
+              response: Response<Map<String, dynamic>>(
+                requestOptions: options,
+                statusCode: 401,
+                data: const <String, dynamic>{
+                  'error': <String, dynamic>{
+                    'code': 'invalid_refresh_token',
+                    'message': 'The refresh token is invalid or expired.',
+                  },
+                },
+              ),
+              type: DioExceptionType.badResponse,
+            ),
+          );
+        },
+      );
+
+      final InMemoryAccessTokenStore accessTokenStore =
+          InMemoryAccessTokenStore()..save('expired-access-token');
+
+      final _FakeMobileRefreshTokenStore refreshTokenStore =
+          _FakeMobileRefreshTokenStore(initialValue: 'invalid-refresh-token');
+
+      final ApiAuthRepository repository = ApiAuthRepository(
+        apiClient: apiClient,
+        accessTokenStore: accessTokenStore,
+        mobileRefreshTokenStore: refreshTokenStore,
+        isWeb: false,
+      );
+
+      await expectLater(
+        repository.restore(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.code,
+            'code',
+            'invalid_refresh_token',
+          ),
+        ),
+      );
+
+      expect(accessTokenStore.token, isNull);
+      expect(refreshTokenStore.value, isNull);
+      expect(refreshTokenStore.clearCalls, 1);
+    });
+
+    test(
+      'Mobile preserves credentials when refresh fails transiently',
+      () async {
+        final ApiClient apiClient = _createApiClient(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                handler.reject(
+                  DioException(
+                    requestOptions: options,
+                    type: DioExceptionType.connectionError,
+                  ),
+                );
+              },
+        );
+
+        final InMemoryAccessTokenStore accessTokenStore =
+            InMemoryAccessTokenStore()..save('existing-access-token');
+
+        final _FakeMobileRefreshTokenStore refreshTokenStore =
+            _FakeMobileRefreshTokenStore(initialValue: 'refresh-token');
+
+        final ApiAuthRepository repository = ApiAuthRepository(
+          apiClient: apiClient,
+          accessTokenStore: accessTokenStore,
+          mobileRefreshTokenStore: refreshTokenStore,
+          isWeb: false,
+        );
+
+        await expectLater(
+          repository.restore(),
+          throwsA(
+            isA<AppException>().having(
+              (AppException error) => error.type,
+              'type',
+              AppExceptionType.connection,
+            ),
+          ),
+        );
+
+        expect(accessTokenStore.token, 'existing-access-token');
+        expect(refreshTokenStore.value, 'refresh-token');
+        expect(refreshTokenStore.clearCalls, 0);
+      },
+    );
+
+    test('Web clears access token when persistent session is invalid', () async {
+      final ApiClient apiClient = _createApiClient(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          handler.reject(
+            DioException(
+              requestOptions: options,
+              response: Response<Map<String, dynamic>>(
+                requestOptions: options,
+                statusCode: 401,
+                data: const <String, dynamic>{
+                  'error': <String, dynamic>{
+                    'code': 'invalid_session',
+                    'message':
+                        'The authentication session is invalid or expired.',
+                  },
+                },
+              ),
+              type: DioExceptionType.badResponse,
+            ),
+          );
+        },
+      );
+
+      final InMemoryAccessTokenStore accessTokenStore =
+          InMemoryAccessTokenStore()..save('expired-access-token');
+
+      final ApiAuthRepository repository = ApiAuthRepository(
+        apiClient: apiClient,
+        accessTokenStore: accessTokenStore,
+        isWeb: true,
+      );
+
+      await expectLater(
+        repository.restore(),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.code,
+            'code',
+            'invalid_session',
+          ),
+        ),
+      );
+
+      expect(accessTokenStore.token, isNull);
+    });
+  });
   group('ApiAuthRepository logout', () {
     test(
       'Web logout revokes the session and clears the access token',

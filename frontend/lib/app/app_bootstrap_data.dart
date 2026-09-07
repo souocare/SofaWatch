@@ -1,6 +1,7 @@
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/server/models/server_configuration.dart';
 import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
+import 'package:sofawatch/features/auth/data/services/authenticated_request_recovery_service.dart';
 import 'package:sofawatch/features/auth/domain/repositories/access_token_store.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_handoff_repository.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
@@ -17,6 +18,7 @@ class AppBootstrapData {
     required this.searchRepository,
     required this.accessTokenStore,
     required this.authRepository,
+    required this.authenticatedRequestRecovery,
     required this.setupStatusRepository,
     required this.authHandoffRepository,
   });
@@ -30,4 +32,5 @@ class AppBootstrapData {
   final AuthRepository authRepository;
   final SetupStatusRepository setupStatusRepository;
   final AuthHandoffRepository authHandoffRepository;
+  final AuthenticatedRequestRecoveryService authenticatedRequestRecovery;
 }

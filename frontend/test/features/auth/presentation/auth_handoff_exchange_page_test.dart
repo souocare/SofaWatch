@@ -287,6 +287,9 @@ final class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> logoutEverywhere() async {}
+
+  @override
+  Future<void> clearLocalAuthentication() async {}
 }
 
 final class _ControlledAuthRepository implements AuthRepository {
@@ -314,6 +317,9 @@ final class _ControlledAuthRepository implements AuthRepository {
 
   @override
   Future<void> logoutEverywhere() async {}
+
+  @override
+  Future<void> clearLocalAuthentication() async {}
 }
 
 final class _FakeAuthHandoffRepository implements AuthHandoffRepository {

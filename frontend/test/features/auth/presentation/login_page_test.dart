@@ -386,4 +386,7 @@ final class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> logoutEverywhere() async {}
+
+  @override
+  Future<void> clearLocalAuthentication() async {}
 }

@@ -6062,6 +6062,9 @@ final class _FakeAuthRepository implements AuthRepository {
   Future<void> logoutEverywhere() async {
     logoutEverywhereCalls += 1;
   }
+
+  @override
+  Future<void> clearLocalAuthentication() async {}
 }
 
 final class _FakeSecuritySettingsRepository

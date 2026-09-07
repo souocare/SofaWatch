@@ -9,9 +9,13 @@ final class AuthRouterRefreshNotifier extends ChangeNotifier {
     required Stream<AuthState> authStates,
     required Stream<AuthEntryState> authEntryStates,
   }) {
-    _authSubscription = authStates.listen((_) => notifyListeners());
+    _authSubscription = authStates.listen((AuthState state) {
+      notifyListeners();
+    });
 
-    _authEntrySubscription = authEntryStates.listen((_) => notifyListeners());
+    _authEntrySubscription = authEntryStates.listen((AuthEntryState state) {
+      notifyListeners();
+    });
   }
 
   late final StreamSubscription<AuthState> _authSubscription;

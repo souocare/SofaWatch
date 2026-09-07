@@ -2,7 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:sofawatch/core/api/api_config.dart';
 import 'package:sofawatch/core/api/api_exception_mapper.dart';
 import 'package:sofawatch/core/api/api_logging_interceptor.dart';
+import 'package:sofawatch/core/api/authenticated_request_recovery.dart';
 import 'package:sofawatch/core/api/configure_web_http_client_adapter.dart';
+import 'package:sofawatch/core/errors/app_exception.dart';
 
 typedef AccessTokenProvider = String? Function();
 
@@ -42,6 +44,14 @@ class ApiClient {
 
   final Dio _dio;
   final AccessTokenProvider? _accessTokenProvider;
+
+  AuthenticatedRequestRecovery? _authenticatedRequestRecovery;
+
+  void configureAuthenticatedRequestRecovery(
+    AuthenticatedRequestRecovery recovery,
+  ) {
+    _authenticatedRequestRecovery = recovery;
+  }
 
   Dio get dio {
     return _dio;
@@ -221,8 +231,36 @@ class ApiClient {
     try {
       return await request();
     } on DioException catch (exception) {
-      throw ApiExceptionMapper.map(exception);
+      final AppException error = ApiExceptionMapper.map(exception);
+
+      if (!_shouldAttemptAuthenticationRecovery(error)) {
+        throw error;
+      }
+
+      final AuthenticatedRequestRecovery? recovery =
+          _authenticatedRequestRecovery;
+
+      if (recovery == null) {
+        throw error;
+      }
+
+      final bool recovered = await recovery.recover();
+
+      if (!recovered) {
+        throw error;
+      }
+
+      try {
+        return await request();
+      } on DioException catch (retryException) {
+        throw ApiExceptionMapper.map(retryException);
+      }
     }
+  }
+
+  bool _shouldAttemptAuthenticationRecovery(AppException error) {
+    return error.type == AppExceptionType.unauthorized &&
+        error.code == 'invalid_access_token';
   }
 
   void _ensureConfigured() {

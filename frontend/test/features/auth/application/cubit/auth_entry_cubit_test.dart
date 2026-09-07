@@ -63,6 +63,49 @@ void main() {
       await cubit.close();
     });
 
+    test('authenticationRequired transitions directly to login required '
+        'without resolving setup status', () async {
+      final _FakeSetupStatusRepository repository =
+          _FakeSetupStatusRepository();
+
+      final AuthEntryCubit cubit = AuthEntryCubit(repository: repository);
+
+      final Future<void> expectation = expectLater(
+        cubit.stream,
+        emits(const AuthEntryLoginRequired()),
+      );
+
+      cubit.authenticationRequired();
+
+      await expectation;
+
+      expect(cubit.state, const AuthEntryLoginRequired());
+      expect(repository.callCount, 0);
+
+      await cubit.close();
+    });
+
+    test(
+      'authenticationRequired is idempotent when login is already required',
+      () async {
+        final _FakeSetupStatusRepository repository =
+            _FakeSetupStatusRepository();
+
+        final AuthEntryCubit cubit = AuthEntryCubit(repository: repository);
+
+        cubit.authenticationRequired();
+
+        expect(cubit.state, const AuthEntryLoginRequired());
+
+        cubit.authenticationRequired();
+
+        expect(cubit.state, const AuthEntryLoginRequired());
+        expect(repository.callCount, 0);
+
+        await cubit.close();
+      },
+    );
+
     test('emits failure when setup status request fails', () async {
       const AppException error = AppException.connection();
 

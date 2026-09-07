@@ -13,6 +13,7 @@ import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_entry_cubit.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_entry_state.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_state.dart';
 import 'package:sofawatch/features/auth/data/repositories/api_auth_handoff_repository.dart';
 import 'package:sofawatch/features/auth/data/repositories/api_auth_repository.dart';
@@ -34,6 +35,7 @@ import '../../fakes/fake_server_connection_tester.dart';
 void main() {
   late GoRouter router;
   late ApiClient apiClient;
+  late AuthCubit authCubit;
 
   setUp(() {
     final Dio dio = Dio();
@@ -62,11 +64,21 @@ void main() {
       dio: dio,
     );
 
+    authCubit = AuthCubit(repository: _FakeAuthRepository());
+
+    authCubit.authenticated(
+      const AuthSession(
+        accessToken: 'router-test-access-token',
+        expiresIn: Duration(minutes: 15),
+      ),
+    );
+
     router = createAppRouter(apiClient: apiClient);
   });
 
-  tearDown(() {
+  tearDown(() async {
     router.dispose();
+    await authCubit.close();
   });
 
   Widget buildTestApp() {
@@ -87,21 +99,24 @@ void main() {
           accessTokenStore: accessTokenStore,
         );
 
-    return AppDependencies(
-      serverConfigurationRepository: FakeServerConfigurationRepository(),
-      apiClient: apiClient,
-      searchRepository: FakeSearchRepository(),
-      serverConnectionTester: FakeServerConnectionTester(),
-      accessTokenStore: accessTokenStore,
-      authRepository: authRepository,
-      authHandoffRepository: authHandoffRepository,
-      setupStatusRepository: setupStatusRepository,
-      viewingStateChangeNotifier: ViewingStateChangeNotifier(),
-      child: MaterialApp.router(
-        routerConfig: router,
-        theme: AppTheme.dark,
-        darkTheme: AppTheme.dark,
-        themeMode: ThemeMode.dark,
+    return BlocProvider<AuthCubit>.value(
+      value: authCubit,
+      child: AppDependencies(
+        serverConfigurationRepository: FakeServerConfigurationRepository(),
+        apiClient: apiClient,
+        searchRepository: FakeSearchRepository(),
+        serverConnectionTester: FakeServerConnectionTester(),
+        accessTokenStore: accessTokenStore,
+        authRepository: authRepository,
+        authHandoffRepository: authHandoffRepository,
+        setupStatusRepository: setupStatusRepository,
+        viewingStateChangeNotifier: ViewingStateChangeNotifier(),
+        child: MaterialApp.router(
+          routerConfig: router,
+          theme: AppTheme.dark,
+          darkTheme: AppTheme.dark,
+          themeMode: ThemeMode.dark,
+        ),
       ),
     );
   }
@@ -819,6 +834,42 @@ void main() {
         findsOneWidget,
       );
     });
+    testWidgets(
+      'redirects directly to Login when an authenticated session is lost',
+      (WidgetTester tester) async {
+        final _AuthRoutingHarness harness = _AuthRoutingHarness(
+          apiClient: apiClient,
+          setupRequired: false,
+          restoreSession: _authenticatedSession,
+        );
+
+        addTearDown(harness.dispose);
+
+        await harness.authCubit.restore();
+
+        harness.router.go(RoutePaths.search);
+
+        await tester.pumpWidget(harness.buildApp());
+
+        await tester.pump();
+        await tester.pump();
+
+        expect(harness.authCubit.state, isA<AuthAuthenticated>());
+        expect(harness.currentUri.path, RoutePaths.search);
+
+        harness.authEntryCubit.authenticationRequired();
+        harness.authCubit.authenticationLost();
+
+        await tester.pump();
+        await tester.pump();
+
+        expect(harness.authEntryCubit.state, const AuthEntryLoginRequired());
+        expect(harness.authCubit.state, isA<AuthUnauthenticated>());
+
+        expect(harness.currentUri.path, RoutePaths.login);
+        expect(harness.currentUri.queryParameters['from'], RoutePaths.search);
+      },
+    );
   });
 }
 
@@ -943,6 +994,9 @@ final class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> logoutEverywhere() async {}
+
+  @override
+  Future<void> clearLocalAuthentication() async {}
 }
 
 final class _FakeSetupStatusRepository implements SetupStatusRepository {

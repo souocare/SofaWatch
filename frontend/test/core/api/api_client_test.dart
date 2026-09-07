@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -6,6 +7,7 @@ import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/api/api_config.dart';
 import 'package:sofawatch/core/api/api_logging_interceptor.dart';
+import 'package:sofawatch/core/api/authenticated_request_recovery.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 
 void main() {
@@ -466,6 +468,308 @@ void main() {
         },
       );
     });
+    test(
+      'recovers authentication and retries request after invalid access token',
+      () async {
+        String? accessToken = 'expired-access-token';
+
+        final Dio dio = Dio();
+        final List<RequestOptions> requests = <RequestOptions>[];
+
+        dio.httpClientAdapter = _SequentialHttpClientAdapter(
+          onRequest: (RequestOptions options, int requestNumber) {
+            requests.add(options);
+
+            if (requestNumber == 1) {
+              return _jsonResponse(
+                statusCode: 401,
+                body: <String, dynamic>{
+                  'error': <String, dynamic>{
+                    'code': 'invalid_access_token',
+                    'message': 'The access token is invalid or expired.',
+                  },
+                },
+              );
+            }
+
+            return _jsonResponse(
+              statusCode: 200,
+              body: <String, dynamic>{'id': 'user-1'},
+            );
+          },
+        );
+
+        final ApiClient client = ApiClient(
+          baseUrl: Uri.parse('http://localhost:8000'),
+          dio: dio,
+          accessTokenProvider: () => accessToken,
+        );
+
+        final _FakeAuthenticatedRequestRecovery recovery =
+            _FakeAuthenticatedRequestRecovery(
+              onRecover: () async {
+                accessToken = 'refreshed-access-token';
+
+                return true;
+              },
+            );
+
+        client.configureAuthenticatedRequestRecovery(recovery);
+
+        final Response<Map<String, dynamic>> response = await client
+            .get<Map<String, dynamic>>('/users/me');
+
+        expect(response.statusCode, 200);
+        expect(response.data?['id'], 'user-1');
+        expect(recovery.recoverCalls, 1);
+        expect(requests, hasLength(2));
+        expect(
+          requests.first.headers['Authorization'],
+          'Bearer expired-access-token',
+        );
+        expect(
+          requests.last.headers['Authorization'],
+          'Bearer refreshed-access-token',
+        );
+      },
+    );
+
+    test(
+      'does not retry request when authentication recovery returns false',
+      () async {
+        final Dio dio = Dio();
+
+        dio.httpClientAdapter = _SequentialHttpClientAdapter(
+          onRequest: (RequestOptions options, int requestNumber) {
+            return _jsonResponse(
+              statusCode: 401,
+              body: <String, dynamic>{
+                'error': <String, dynamic>{
+                  'code': 'invalid_access_token',
+                  'message': 'The access token is invalid or expired.',
+                },
+              },
+            );
+          },
+        );
+
+        final ApiClient client = ApiClient(
+          baseUrl: Uri.parse('http://localhost:8000'),
+          dio: dio,
+          accessTokenProvider: () => 'expired-access-token',
+        );
+
+        final _FakeAuthenticatedRequestRecovery recovery =
+            _FakeAuthenticatedRequestRecovery(onRecover: () async => false);
+
+        client.configureAuthenticatedRequestRecovery(recovery);
+
+        await expectLater(
+          client.get<void>('/users/me'),
+          throwsA(
+            isA<AppException>()
+                .having(
+                  (AppException error) => error.type,
+                  'type',
+                  AppExceptionType.unauthorized,
+                )
+                .having(
+                  (AppException error) => error.code,
+                  'code',
+                  'invalid_access_token',
+                ),
+          ),
+        );
+
+        expect(recovery.recoverCalls, 1);
+        expect(
+          (dio.httpClientAdapter as _SequentialHttpClientAdapter).requestCount,
+          1,
+        );
+      },
+    );
+
+    test('does not attempt recovery for unauthorized errors other than '
+        'invalid_access_token', () async {
+      final Dio dio = Dio();
+
+      dio.httpClientAdapter = _SequentialHttpClientAdapter(
+        onRequest: (RequestOptions options, int requestNumber) {
+          return _jsonResponse(
+            statusCode: 401,
+            body: <String, dynamic>{
+              'error': <String, dynamic>{
+                'code': 'session_required',
+                'message': 'Authentication is required.',
+              },
+            },
+          );
+        },
+      );
+
+      final ApiClient client = ApiClient(
+        baseUrl: Uri.parse('http://localhost:8000'),
+        dio: dio,
+        accessTokenProvider: () => 'access-token',
+      );
+
+      final _FakeAuthenticatedRequestRecovery recovery =
+          _FakeAuthenticatedRequestRecovery(onRecover: () async => true);
+
+      client.configureAuthenticatedRequestRecovery(recovery);
+
+      await expectLater(
+        client.get<void>('/users/me'),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.code,
+            'code',
+            'session_required',
+          ),
+        ),
+      );
+
+      expect(recovery.recoverCalls, 0);
+      expect(
+        (dio.httpClientAdapter as _SequentialHttpClientAdapter).requestCount,
+        1,
+      );
+    });
+
+    test(
+      'propagates transient recovery error without retrying original request',
+      () async {
+        final Dio dio = Dio();
+
+        dio.httpClientAdapter = _SequentialHttpClientAdapter(
+          onRequest: (RequestOptions options, int requestNumber) {
+            return _jsonResponse(
+              statusCode: 401,
+              body: <String, dynamic>{
+                'error': <String, dynamic>{
+                  'code': 'invalid_access_token',
+                  'message': 'The access token is invalid or expired.',
+                },
+              },
+            );
+          },
+        );
+
+        final ApiClient client = ApiClient(
+          baseUrl: Uri.parse('http://localhost:8000'),
+          dio: dio,
+          accessTokenProvider: () => 'expired-access-token',
+        );
+
+        const AppException recoveryError = AppException(
+          type: AppExceptionType.connection,
+          code: 'connection_error',
+          message: 'Unable to reach the server.',
+        );
+
+        final _FakeAuthenticatedRequestRecovery recovery =
+            _FakeAuthenticatedRequestRecovery(
+              onRecover: () async => throw recoveryError,
+            );
+
+        client.configureAuthenticatedRequestRecovery(recovery);
+
+        await expectLater(
+          client.get<void>('/users/me'),
+          throwsA(same(recoveryError)),
+        );
+
+        expect(recovery.recoverCalls, 1);
+        expect(
+          (dio.httpClientAdapter as _SequentialHttpClientAdapter).requestCount,
+          1,
+        );
+      },
+    );
+
+    test(
+      'does not attempt a second recovery when retried request is unauthorized',
+      () async {
+        final Dio dio = Dio();
+
+        dio.httpClientAdapter = _SequentialHttpClientAdapter(
+          onRequest: (RequestOptions options, int requestNumber) {
+            return _jsonResponse(
+              statusCode: 401,
+              body: <String, dynamic>{
+                'error': <String, dynamic>{
+                  'code': 'invalid_access_token',
+                  'message': 'The access token is invalid or expired.',
+                },
+              },
+            );
+          },
+        );
+
+        final ApiClient client = ApiClient(
+          baseUrl: Uri.parse('http://localhost:8000'),
+          dio: dio,
+          accessTokenProvider: () => 'access-token',
+        );
+
+        final _FakeAuthenticatedRequestRecovery recovery =
+            _FakeAuthenticatedRequestRecovery(onRecover: () async => true);
+
+        client.configureAuthenticatedRequestRecovery(recovery);
+
+        await expectLater(
+          client.get<void>('/users/me'),
+          throwsA(
+            isA<AppException>().having(
+              (AppException error) => error.code,
+              'code',
+              'invalid_access_token',
+            ),
+          ),
+        );
+
+        expect(recovery.recoverCalls, 1);
+        expect(
+          (dio.httpClientAdapter as _SequentialHttpClientAdapter).requestCount,
+          2,
+        );
+      },
+    );
+
+    test(
+      'does not attempt authentication recovery for successful requests',
+      () async {
+        final Dio dio = Dio();
+
+        dio.httpClientAdapter = _SequentialHttpClientAdapter(
+          onRequest: (RequestOptions options, int requestNumber) {
+            return _jsonResponse(
+              statusCode: 200,
+              body: <String, dynamic>{'id': 'user-1'},
+            );
+          },
+        );
+
+        final ApiClient client = ApiClient(
+          baseUrl: Uri.parse('http://localhost:8000'),
+          dio: dio,
+          accessTokenProvider: () => 'access-token',
+        );
+
+        final _FakeAuthenticatedRequestRecovery recovery =
+            _FakeAuthenticatedRequestRecovery(onRecover: () async => true);
+
+        client.configureAuthenticatedRequestRecovery(recovery);
+
+        await client.get<Map<String, dynamic>>('/users/me');
+
+        expect(recovery.recoverCalls, 0);
+        expect(
+          (dio.httpClientAdapter as _SequentialHttpClientAdapter).requestCount,
+          1,
+        );
+      },
+    );
   });
 }
 
@@ -510,4 +814,58 @@ final class _CapturingHttpClientAdapter implements HttpClientAdapter {
 
   @override
   void close({bool force = false}) {}
+}
+
+typedef _SequentialRequestHandler =
+    ResponseBody Function(RequestOptions options, int requestNumber);
+
+final class _SequentialHttpClientAdapter implements HttpClientAdapter {
+  _SequentialHttpClientAdapter({required this.onRequest});
+
+  final _SequentialRequestHandler onRequest;
+
+  int requestCount = 0;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    requestCount++;
+
+    return onRequest(options, requestCount);
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+ResponseBody _jsonResponse({
+  required int statusCode,
+  required Map<String, dynamic> body,
+}) {
+  return ResponseBody.fromString(
+    jsonEncode(body),
+    statusCode,
+    headers: <String, List<String>>{
+      Headers.contentTypeHeader: <String>['application/json'],
+    },
+  );
+}
+
+final class _FakeAuthenticatedRequestRecovery
+    implements AuthenticatedRequestRecovery {
+  _FakeAuthenticatedRequestRecovery({required this.onRecover});
+
+  final Future<bool> Function() onRecover;
+
+  int recoverCalls = 0;
+
+  @override
+  Future<bool> recover() {
+    recoverCalls++;
+
+    return onRecover();
+  }
 }

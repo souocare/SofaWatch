@@ -44,6 +44,14 @@ final class AuthEntryCubit extends Cubit<AuthEntryState> {
     }
   }
 
+  void authenticationRequired() {
+    if (isClosed || state is AuthEntryLoginRequired) {
+      return;
+    }
+
+    emit(const AuthEntryLoginRequired());
+  }
+
   Future<void> retry() {
     return load();
   }

@@ -57,6 +57,14 @@ final class AuthCubit extends Cubit<AuthState> {
     emit(AuthAuthenticated(session));
   }
 
+  void authenticationLost() {
+    if (isClosed || state is AuthUnauthenticated) {
+      return;
+    }
+
+    emit(const AuthUnauthenticated());
+  }
+
   Future<void> retryRestore() {
     return restore();
   }

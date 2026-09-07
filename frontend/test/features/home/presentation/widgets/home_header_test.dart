@@ -230,4 +230,7 @@ final class _FakeAuthRepository implements AuthRepository {
   Future<void> logoutEverywhere() async {
     logoutEverywhereCallCount += 1;
   }
+
+  @override
+  Future<void> clearLocalAuthentication() async {}
 }

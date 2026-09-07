@@ -5,6 +5,7 @@ import 'package:sofawatch/core/server/models/server_configuration.dart';
 import 'package:sofawatch/features/auth/data/repositories/api_auth_handoff_repository.dart';
 import 'package:sofawatch/features/auth/data/repositories/api_auth_repository.dart';
 import 'package:sofawatch/features/auth/data/repositories/api_setup_status_repository.dart';
+import 'package:sofawatch/features/auth/data/services/authenticated_request_recovery_service.dart';
 import 'package:sofawatch/features/auth/data/storage/in_memory_access_token_store.dart';
 import 'package:sofawatch/features/auth/domain/repositories/access_token_store.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_handoff_repository.dart';
@@ -51,6 +52,12 @@ AppBootstrapData createTestBootstrapData({
     accessTokenStore: accessTokenStore,
     isWeb: true,
   );
+  final AuthenticatedRequestRecoveryService authenticatedRequestRecovery =
+      AuthenticatedRequestRecoveryService(repository: authRepository);
+
+  resolvedApiClient.configureAuthenticatedRequestRecovery(
+    authenticatedRequestRecovery,
+  );
   final AuthHandoffRepository authHandoffRepository = ApiAuthHandoffRepository(
     apiClient: resolvedApiClient,
     accessTokenStore: accessTokenStore,
@@ -70,6 +77,7 @@ AppBootstrapData createTestBootstrapData({
     setupStatusRepository: setupStatusRepository,
     authRepository: authRepository,
     authHandoffRepository: authHandoffRepository,
+    authenticatedRequestRecovery: authenticatedRequestRecovery,
   );
 }
 

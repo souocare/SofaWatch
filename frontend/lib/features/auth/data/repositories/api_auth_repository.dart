@@ -57,31 +57,52 @@ final class ApiAuthRepository implements AuthRepository {
 
   @override
   Future<AuthSession?> restore() async {
-    if (_isWeb) {
+    try {
+      if (_isWeb) {
+        final AuthenticationResponseDto response = await _authenticate(
+          path: '/auth/session',
+        );
+
+        return _persistAuthentication(response, requireRefreshToken: false);
+      }
+
+      final MobileRefreshTokenStore refreshTokenStore =
+          _requireMobileRefreshTokenStore();
+
+      final String? refreshToken = await refreshTokenStore.read();
+
+      if (refreshToken == null) {
+        await clearLocalAuthentication();
+
+        return null;
+      }
+
       final AuthenticationResponseDto response = await _authenticate(
-        path: '/auth/session',
+        path: '/auth/refresh',
+        data: <String, dynamic>{'refresh_token': refreshToken},
       );
 
-      return _persistAuthentication(response, requireRefreshToken: false);
+      return _persistAuthentication(response, requireRefreshToken: true);
+    } on AppException catch (error) {
+      if (_representsInvalidAuthentication(error)) {
+        await clearLocalAuthentication();
+      }
+
+      rethrow;
+    }
+  }
+
+  bool _representsInvalidAuthentication(AppException error) {
+    if (error.type != AppExceptionType.unauthorized) {
+      return false;
     }
 
-    final MobileRefreshTokenStore refreshTokenStore =
-        _requireMobileRefreshTokenStore();
-
-    final String? refreshToken = await refreshTokenStore.read();
-
-    if (refreshToken == null) {
-      _accessTokenStore.clear();
-
-      return null;
-    }
-
-    final AuthenticationResponseDto response = await _authenticate(
-      path: '/auth/refresh',
-      data: <String, dynamic>{'refresh_token': refreshToken},
-    );
-
-    return _persistAuthentication(response, requireRefreshToken: true);
+    return switch (error.code) {
+      'session_required' ||
+      'invalid_session' ||
+      'invalid_refresh_token' => true,
+      _ => false,
+    };
   }
 
   Future<AuthenticationResponseDto> _authenticate({
@@ -142,6 +163,15 @@ final class ApiAuthRepository implements AuthRepository {
     }
 
     return store;
+  }
+
+  @override
+  Future<void> clearLocalAuthentication() async {
+    _accessTokenStore.clear();
+
+    if (!_isWeb) {
+      await _requireMobileRefreshTokenStore().clear();
+    }
   }
 
   @override

@@ -296,6 +296,50 @@ void main() {
         await cubit.close();
       },
     );
+    test('emits unauthenticated when authentication is lost', () async {
+      const AuthSession session = AuthSession(
+        accessToken: 'access-token',
+        expiresIn: Duration(minutes: 15),
+      );
+
+      final AuthCubit cubit = AuthCubit(repository: _FakeAuthRepository());
+
+      cubit.authenticated(session);
+
+      final Future<void> expectation = expectLater(
+        cubit.stream,
+        emits(const AuthUnauthenticated()),
+      );
+
+      cubit.authenticationLost();
+
+      await expectation;
+
+      expect(cubit.state, const AuthUnauthenticated());
+
+      await cubit.close();
+    });
+
+    test('does not emit duplicate unauthenticated state when authentication '
+        'is already lost', () async {
+      final AuthCubit cubit = AuthCubit(repository: _FakeAuthRepository());
+
+      cubit.authenticationLost();
+
+      expect(cubit.state, const AuthUnauthenticated());
+
+      final List<AuthState> emittedStates = <AuthState>[];
+      final subscription = cubit.stream.listen(emittedStates.add);
+
+      cubit.authenticationLost();
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(emittedStates, isEmpty);
+
+      await subscription.cancel();
+      await cubit.close();
+    });
   });
 }
 
@@ -355,4 +399,7 @@ final class _FakeAuthRepository implements AuthRepository {
       throw error;
     }
   }
+
+  @override
+  Future<void> clearLocalAuthentication() async {}
 }

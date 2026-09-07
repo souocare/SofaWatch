@@ -11,4 +11,6 @@ abstract interface class AuthRepository {
   Future<void> logout();
 
   Future<void> logoutEverywhere();
+
+  Future<void> clearLocalAuthentication();
 }

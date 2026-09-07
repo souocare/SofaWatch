@@ -29,6 +29,7 @@ import 'package:sofawatch/features/auth/presentation/pages/auth_handoff_exchange
 import 'package:sofawatch/features/auth/presentation/pages/initial_setup_page.dart';
 import 'package:sofawatch/features/auth/presentation/pages/login_page.dart';
 import 'package:sofawatch/features/auth/presentation/pages/password_recovery_page.dart';
+import 'package:sofawatch/features/auth/presentation/widgets/authentication_transition_guard.dart';
 import 'package:sofawatch/features/episode_details/application/cubit/episode_details_cubit.dart';
 import 'package:sofawatch/features/episode_details/data/repositories/api_episode_details_repository.dart';
 import 'package:sofawatch/features/episode_details/presentation/pages/episode_details_page.dart';
@@ -361,7 +362,7 @@ GoRouter createAppRouter({
             create: (BuildContext context) {
               return SearchBloc(context.read<SearchRepository>());
             },
-            child: const SearchPage(),
+            child: const AuthenticationTransitionGuard(child: SearchPage()),
           );
 
           final double screenWidth = MediaQuery.sizeOf(context).width;
@@ -415,7 +416,9 @@ GoRouter createAppRouter({
               GoRouterState state,
               StatefulNavigationShell navigationShell,
             ) {
-              return AppShell(navigationShell: navigationShell);
+              return AuthenticationTransitionGuard(
+                child: AppShell(navigationShell: navigationShell),
+              );
             },
         branches: <StatefulShellBranch>[
           StatefulShellBranch(

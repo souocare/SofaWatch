@@ -12,6 +12,7 @@ import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_entry_cubit.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_entry_state.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_state.dart';
 
 class SofaWatchApp extends StatefulWidget {
@@ -31,6 +32,7 @@ class _SofaWatchAppState extends State<SofaWatchApp> {
   late final ViewingStateChangeNotifier _viewingStateChangeNotifier;
 
   StreamSubscription<AuthState>? _authStateSubscription;
+  StreamSubscription<void>? _authenticationLostSubscription;
 
   AuthCubit? _authCubit;
   AuthEntryCubit? _authEntryCubit;
@@ -69,8 +71,18 @@ class _SofaWatchAppState extends State<SofaWatchApp> {
     _authEntryCubit = authEntryCubit;
     _authRouterRefreshNotifier = authRouterRefreshNotifier;
 
+    _authenticationLostSubscription = bootstrapData
+        .authenticatedRequestRecovery
+        .authenticationLost
+        .listen((_) {
+          authEntryCubit.authenticationRequired();
+
+          authCubit.authenticationLost();
+        });
+
     _authStateSubscription = authCubit.stream.listen((AuthState state) {
-      if (state is AuthUnauthenticated) {
+      if (state is AuthUnauthenticated &&
+          authEntryCubit.state is! AuthEntryLoginRequired) {
         unawaited(authEntryCubit.load());
       }
     });
@@ -94,9 +106,15 @@ class _SofaWatchAppState extends State<SofaWatchApp> {
     final AuthCubit? authCubit = _authCubit;
     final StreamSubscription<AuthState>? authStateSubscription =
         _authStateSubscription;
+    final StreamSubscription<void>? authenticationLostSubscription =
+        _authenticationLostSubscription;
 
     if (authStateSubscription != null) {
       unawaited(authStateSubscription.cancel());
+    }
+
+    if (authenticationLostSubscription != null) {
+      unawaited(authenticationLostSubscription.cancel());
     }
 
     final AuthEntryCubit? authEntryCubit = _authEntryCubit;
@@ -108,7 +126,9 @@ class _SofaWatchAppState extends State<SofaWatchApp> {
     if (authCubit != null) {
       unawaited(authCubit.close());
     }
+
     unawaited(_viewingStateChangeNotifier.dispose());
+
     super.dispose();
   }
 
