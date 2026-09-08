@@ -870,6 +870,81 @@ void main() {
         expect(harness.currentUri.queryParameters['from'], RoutePaths.search);
       },
     );
+    testWidgets(
+      'successful initial setup returns to requested authenticated route',
+      (WidgetTester tester) async {
+        final ApiClient apiClient = ApiClient(
+          baseUrl: Uri.parse('https://server.example.com'),
+        );
+
+        final _AuthRoutingHarness harness = _AuthRoutingHarness(
+          apiClient: apiClient,
+          setupRequired: true,
+        );
+
+        addTearDown(harness.dispose);
+
+        await tester.pumpWidget(harness.buildApp());
+
+        harness.router.go(RoutePaths.search);
+
+        await harness.resolveUnauthenticatedEntry();
+
+        await tester.pump();
+        await tester.pump();
+
+        expect(harness.currentUri.path, RoutePaths.initialSetup);
+        expect(harness.currentUri.queryParameters['from'], RoutePaths.search);
+
+        await tester.enterText(
+          find.byKey(
+            const ValueKey<String>('auth-initial-setup-display-name-field'),
+          ),
+          'Gonçalo',
+        );
+
+        await tester.enterText(
+          find.byKey(
+            const ValueKey<String>('auth-initial-setup-username-field'),
+          ),
+          'souocare',
+        );
+
+        await tester.enterText(
+          find.byKey(
+            const ValueKey<String>('auth-initial-setup-password-field'),
+          ),
+          'correct-password',
+        );
+
+        await tester.enterText(
+          find.byKey(
+            const ValueKey<String>('auth-initial-setup-confirm-password-field'),
+          ),
+          'correct-password',
+        );
+
+        final Finder submitButton = find.byKey(
+          const ValueKey<String>('auth-initial-setup-submit-button'),
+        );
+
+        await tester.ensureVisible(submitButton);
+        await tester.pumpAndSettle();
+
+        await tester.tap(submitButton);
+        await tester.pump();
+        await tester.pump();
+
+        expect(
+          harness.authCubit.state,
+          const AuthAuthenticated(_authenticatedSession),
+        );
+
+        expect(harness.authEntryCubit.state, const AuthEntryLoginRequired());
+
+        expect(harness.currentUri.path, RoutePaths.search);
+      },
+    );
   });
 }
 
@@ -997,6 +1072,18 @@ final class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> clearLocalAuthentication() async {}
+
+  @override
+  Future<AuthSession> initialSetup({
+    required String username,
+    required String displayName,
+    required String password,
+    String? email,
+  }) async {
+    restoreSession = _authenticatedSession;
+
+    return _authenticatedSession;
+  }
 }
 
 final class _FakeSetupStatusRepository implements SetupStatusRepository {

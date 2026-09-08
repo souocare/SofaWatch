@@ -22,6 +22,55 @@ final class ApiAuthRepository implements AuthRepository {
   final bool _isWeb;
 
   @override
+  Future<AuthSession> initialSetup({
+    required String username,
+    required String displayName,
+    required String password,
+    String? email,
+  }) async {
+    final String normalizedUsername = username.trim();
+    final String normalizedDisplayName = displayName.trim();
+    final String? normalizedEmail = email?.trim();
+
+    if (normalizedUsername.isEmpty) {
+      throw ArgumentError.value(
+        username,
+        'username',
+        'Username cannot be empty.',
+      );
+    }
+
+    if (normalizedDisplayName.isEmpty) {
+      throw ArgumentError.value(
+        displayName,
+        'displayName',
+        'Display name cannot be empty.',
+      );
+    }
+
+    if (password.isEmpty) {
+      throw ArgumentError.value(
+        password,
+        'password',
+        'Password cannot be empty.',
+      );
+    }
+
+    final AuthenticationResponseDto response = await _authenticate(
+      path: '/auth/setup',
+      data: <String, dynamic>{
+        'username': normalizedUsername,
+        'display_name': normalizedDisplayName,
+        'password': password,
+        if (normalizedEmail != null && normalizedEmail.isNotEmpty)
+          'email': normalizedEmail,
+      },
+    );
+
+    return _persistAuthentication(response, requireRefreshToken: false);
+  }
+
+  @override
   Future<AuthSession> login({
     required String username,
     required String password,

@@ -55,6 +55,7 @@ import 'package:sofawatch/features/server/domain/repositories/server_repository.
 import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_state.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
+import 'package:sofawatch/core/files/file_downloader.dart';
 
 const double _profileServerMetricCardExtent = 136;
 
@@ -1812,7 +1813,18 @@ class _ProfileDataExportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<DataTransferCubit, DataTransferState>(
+    return BlocConsumer<DataTransferCubit, DataTransferState>(
+      listenWhen: (DataTransferState previous, DataTransferState current) {
+        return current is DataTransferExportReady && previous != current;
+      },
+      listener: (BuildContext context, DataTransferState state) {
+        if (state case DataTransferExportReady(:final json)) {
+          const WebFileDownloader().downloadJson(
+            json: json,
+            filename: _buildExportFilename(),
+          );
+        }
+      },
       builder: (BuildContext context, DataTransferState state) {
         final bool isExporting = state is DataTransferExporting;
 
@@ -1884,6 +1896,19 @@ class _ProfileDataExportCard extends StatelessWidget {
         );
       },
     );
+  }
+
+  static String _buildExportFilename() {
+    final DateTime now = DateTime.now();
+
+    final String year = now.year.toString().padLeft(4, '0');
+    final String month = now.month.toString().padLeft(2, '0');
+    final String day = now.day.toString().padLeft(2, '0');
+    final String hour = now.hour.toString().padLeft(2, '0');
+    final String minute = now.minute.toString().padLeft(2, '0');
+    final String second = now.second.toString().padLeft(2, '0');
+
+    return 'sofawatch-export-$year$month$day-$hour$minute$second.json';
   }
 }
 

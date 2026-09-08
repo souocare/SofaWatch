@@ -566,6 +566,156 @@ void main() {
       },
     );
   });
+  group('ApiAuthRepository initialSetup', () {
+    test(
+      'creates initial account and persists returned access token',
+      () async {
+        String? requestedPath;
+        Object? requestedData;
+
+        final ApiClient apiClient = _createApiClient(
+          onRequest:
+              (RequestOptions options, RequestInterceptorHandler handler) {
+                requestedPath = options.path;
+                requestedData = options.data;
+
+                handler.resolve(
+                  Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 201,
+                    data: const <String, dynamic>{
+                      'access_token': 'setup-access-token',
+                      'token_type': 'bearer',
+                      'expires_in': 900,
+                    },
+                  ),
+                );
+              },
+        );
+
+        final InMemoryAccessTokenStore accessTokenStore =
+            InMemoryAccessTokenStore();
+
+        final ApiAuthRepository repository = ApiAuthRepository(
+          apiClient: apiClient,
+          accessTokenStore: accessTokenStore,
+          isWeb: true,
+        );
+
+        final session = await repository.initialSetup(
+          username: '  SouOCare  ',
+          displayName: '  Gonçalo  ',
+          password: 'correct-password',
+          email: '  goncalo@example.com  ',
+        );
+
+        expect(requestedPath, endsWith('/auth/setup'));
+
+        expect(requestedData, <String, dynamic>{
+          'username': 'SouOCare',
+          'display_name': 'Gonçalo',
+          'password': 'correct-password',
+          'email': 'goncalo@example.com',
+        });
+
+        expect(session.accessToken, 'setup-access-token');
+        expect(session.expiresIn, const Duration(seconds: 900));
+        expect(accessTokenStore.token, 'setup-access-token');
+      },
+    );
+
+    test('omits blank optional email', () async {
+      Object? requestedData;
+
+      final ApiClient apiClient = _createApiClient(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          requestedData = options.data;
+
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 201,
+              data: const <String, dynamic>{
+                'access_token': 'setup-access-token',
+                'token_type': 'bearer',
+                'expires_in': 900,
+              },
+            ),
+          );
+        },
+      );
+
+      final ApiAuthRepository repository = ApiAuthRepository(
+        apiClient: apiClient,
+        accessTokenStore: InMemoryAccessTokenStore(),
+        isWeb: true,
+      );
+
+      await repository.initialSetup(
+        username: 'souocare',
+        displayName: 'Gonçalo',
+        password: 'correct-password',
+        email: '   ',
+      );
+
+      expect(requestedData, <String, dynamic>{
+        'username': 'souocare',
+        'display_name': 'Gonçalo',
+        'password': 'correct-password',
+      });
+    });
+
+    test('preserves backend setup-completed failure', () async {
+      final ApiClient apiClient = _createApiClient(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          handler.reject(
+            DioException(
+              requestOptions: options,
+              response: Response<Map<String, dynamic>>(
+                requestOptions: options,
+                statusCode: 409,
+                data: const <String, dynamic>{
+                  'error': <String, dynamic>{
+                    'code': 'initial_setup_completed',
+                    'message':
+                        'Initial SofaWatch setup has already been completed.',
+                  },
+                },
+              ),
+              type: DioExceptionType.badResponse,
+            ),
+          );
+        },
+      );
+
+      final ApiAuthRepository repository = ApiAuthRepository(
+        apiClient: apiClient,
+        accessTokenStore: InMemoryAccessTokenStore(),
+        isWeb: true,
+      );
+
+      await expectLater(
+        repository.initialSetup(
+          username: 'souocare',
+          displayName: 'Gonçalo',
+          password: 'correct-password',
+        ),
+        throwsA(
+          isA<AppException>()
+              .having(
+                (AppException error) => error.type,
+                'type',
+                AppExceptionType.conflict,
+              )
+              .having(
+                (AppException error) => error.code,
+                'code',
+                'initial_setup_completed',
+              ),
+        ),
+      );
+    });
+  });
 }
 
 ApiClient _createApiClient({

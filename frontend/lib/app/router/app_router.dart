@@ -92,6 +92,7 @@ import 'package:sofawatch/features/statistics/application/cubit/statistics_libra
 import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
 import 'package:sofawatch/features/statistics/data/repositories/api_statistics_repository.dart';
 import 'package:sofawatch/features/statistics/presentation/pages/detailed_statistics_page.dart';
+import 'package:sofawatch/features/auth/application/cubit/initial_setup_cubit.dart';
 
 GoRouter createAppRouter({
   required ApiClient apiClient,
@@ -315,7 +316,14 @@ GoRouter createAppRouter({
         name: AppRoute.initialSetup.name,
         path: RoutePaths.initialSetup,
         builder: (BuildContext context, GoRouterState state) {
-          return const InitialSetupPage();
+          return BlocProvider<InitialSetupCubit>(
+            create: (BuildContext context) {
+              return InitialSetupCubit(
+                repository: context.read<AuthRepository>(),
+              );
+            },
+            child: const InitialSetupPage(),
+          );
         },
       ),
       GoRoute(

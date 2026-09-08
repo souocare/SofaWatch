@@ -290,6 +290,16 @@ final class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> clearLocalAuthentication() async {}
+
+  @override
+  Future<AuthSession> initialSetup({
+    required String username,
+    required String displayName,
+    required String password,
+    String? email,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 final class _ControlledAuthRepository implements AuthRepository {
@@ -320,6 +330,16 @@ final class _ControlledAuthRepository implements AuthRepository {
 
   @override
   Future<void> clearLocalAuthentication() async {}
+
+  @override
+  Future<AuthSession> initialSetup({
+    required String username,
+    required String displayName,
+    required String password,
+    String? email,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 final class _FakeAuthHandoffRepository implements AuthHandoffRepository {

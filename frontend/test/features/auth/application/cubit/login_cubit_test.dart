@@ -332,4 +332,14 @@ final class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> clearLocalAuthentication() async {}
+
+  @override
+  Future<AuthSession> initialSetup({
+    required String username,
+    required String displayName,
+    required String password,
+    String? email,
+  }) {
+    throw UnimplementedError();
+  }
 }
