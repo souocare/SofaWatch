@@ -283,6 +283,7 @@ class DataImportService:
         episode_failed = 0
 
         episode_total = len(export.history.episodes)
+        refreshed_episode_season_ids: set[UUID] = set()
 
         self._report_progress(
             progress_callback=progress_callback,
@@ -299,6 +300,7 @@ class DataImportService:
                 created = self._import_episode_watch_event(
                     user_id=user_id,
                     exported_event=exported_event,
+                    refreshed_season_ids=refreshed_episode_season_ids,
                 )
             except Exception:
                 self._session.rollback()
@@ -384,6 +386,7 @@ class DataImportService:
         *,
         user_id: UUID,
         exported_event: ExportEpisodeWatchEventResponse,
+        refreshed_season_ids: set[UUID],
     ) -> bool:
         """Restore one historical Episode viewing."""
 
@@ -408,9 +411,12 @@ class DataImportService:
             exported_event.episode_tmdb_id,
         )
 
-        if episode is None:
+        if episode is None and season.id not in refreshed_season_ids:
+            refreshed_season_ids.add(season.id)
+
             self._season_episode_sync_service.sync(
                 season_id=season.id,
+                force_refresh=True,
             )
 
             episode = self._episode_repository.get_by_tmdb_id(

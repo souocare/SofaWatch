@@ -1292,6 +1292,7 @@ def test_import_history_syncs_missing_episode_metadata() -> None:
 
     season_episode_sync_service.sync.assert_called_once_with(
         season_id=season_id,
+        force_refresh=True,
     )
 
     assert episode_repository.get_by_tmdb_id.call_count == 2
@@ -1388,6 +1389,7 @@ def test_import_history_skips_episode_missing_after_season_sync() -> None:
 
     season_episode_sync_service.sync.assert_called_once_with(
         season_id=season_id,
+        force_refresh=True,
     )
 
     assert episode_repository.get_by_tmdb_id.call_count == 2
@@ -1396,6 +1398,350 @@ def test_import_history_skips_episode_missing_after_season_sync() -> None:
     episode_watch_event_repository.add.assert_not_called()
 
     session.commit.assert_not_called()
+
+
+def test_import_history_force_refreshes_season_when_episode_is_missing() -> None:
+    """Force-refresh an incomplete Season before restoring a missing Episode."""
+
+    user_id = uuid4()
+    show_id = uuid4()
+    season_id = uuid4()
+    episode_id = uuid4()
+
+    watched_at = datetime(
+        2026,
+        8,
+        1,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+    show_repository = Mock()
+    show_repository.get_by_tmdb_id.return_value = SimpleNamespace(
+        id=show_id,
+        tmdb_id=95396,
+    )
+
+    season_repository = Mock()
+    season_repository.get_by_number.return_value = SimpleNamespace(
+        id=season_id,
+        show_id=show_id,
+        season_number=1,
+    )
+
+    episode = SimpleNamespace(
+        id=episode_id,
+        season_id=season_id,
+        tmdb_id=2108,
+        episode_number=8,
+    )
+
+    episode_repository = Mock()
+    episode_repository.get_by_tmdb_id.side_effect = [
+        None,
+        episode,
+    ]
+
+    episode_watch_event_repository = Mock()
+    episode_watch_event_repository.exists_at.return_value = False
+
+    episode_progress_repository = Mock()
+    episode_progress_repository.get_by_user_and_episode.return_value = None
+
+    season_episode_sync_service = Mock()
+
+    service, session, *_ = create_service(
+        show_repository=show_repository,
+        season_repository=season_repository,
+        episode_repository=episode_repository,
+        episode_watch_event_repository=episode_watch_event_repository,
+        episode_progress_repository=episode_progress_repository,
+        season_episode_sync_service=season_episode_sync_service,
+    )
+
+    export = SofaWatchExportResponse(
+        exported_at=datetime(
+            2026,
+            8,
+            20,
+            15,
+            30,
+            tzinfo=UTC,
+        ),
+        user=ExportUserResponse(
+            display_name="Gonçalo",
+        ),
+        library=ExportLibraryResponse(
+            shows=[],
+            movies=[],
+        ),
+        history=ExportWatchHistoryResponse(
+            episodes=[
+                ExportEpisodeWatchEventResponse(
+                    show_tmdb_id=95396,
+                    season_number=1,
+                    episode_number=8,
+                    episode_tmdb_id=2108,
+                    watched_at=watched_at,
+                ),
+            ],
+            movies=[],
+        ),
+    )
+
+    result = service.import_history(
+        user_id=user_id,
+        export=export,
+    )
+
+    assert result.episodes.created == 1
+    assert result.episodes.skipped == 0
+    assert result.episodes.failed == 0
+
+    season_episode_sync_service.sync.assert_called_once_with(
+        season_id=season_id,
+        force_refresh=True,
+    )
+
+    assert episode_repository.get_by_tmdb_id.call_count == 2
+
+    episode_watch_event_repository.add.assert_called_once()
+
+    event = episode_watch_event_repository.add.call_args.args[0]
+
+    assert event.user_id == user_id
+    assert event.episode_id == episode_id
+    assert event.watched_at == watched_at
+
+    session.commit.assert_called_once()
+
+
+def test_import_history_force_refreshes_same_season_only_once() -> None:
+    """Avoid repeated provider refreshes for missing Episodes in one Season."""
+
+    user_id = uuid4()
+    show_id = uuid4()
+    season_id = uuid4()
+
+    show_repository = Mock()
+    show_repository.get_by_tmdb_id.return_value = SimpleNamespace(
+        id=show_id,
+        tmdb_id=95396,
+    )
+
+    season_repository = Mock()
+    season_repository.get_by_number.return_value = SimpleNamespace(
+        id=season_id,
+        show_id=show_id,
+        season_number=1,
+    )
+
+    episode_repository = Mock()
+    episode_repository.get_by_tmdb_id.return_value = None
+
+    season_episode_sync_service = Mock()
+    episode_watch_event_repository = Mock()
+
+    service, session, *_ = create_service(
+        show_repository=show_repository,
+        season_repository=season_repository,
+        episode_repository=episode_repository,
+        episode_watch_event_repository=episode_watch_event_repository,
+        season_episode_sync_service=season_episode_sync_service,
+    )
+
+    first_watched_at = datetime(
+        2026,
+        8,
+        1,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+    second_watched_at = datetime(
+        2026,
+        8,
+        2,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+    export = SofaWatchExportResponse(
+        exported_at=datetime(
+            2026,
+            8,
+            20,
+            15,
+            30,
+            tzinfo=UTC,
+        ),
+        user=ExportUserResponse(
+            display_name="Gonçalo",
+        ),
+        library=ExportLibraryResponse(
+            shows=[],
+            movies=[],
+        ),
+        history=ExportWatchHistoryResponse(
+            episodes=[
+                ExportEpisodeWatchEventResponse(
+                    show_tmdb_id=95396,
+                    season_number=1,
+                    episode_number=8,
+                    episode_tmdb_id=2108,
+                    watched_at=first_watched_at,
+                ),
+                ExportEpisodeWatchEventResponse(
+                    show_tmdb_id=95396,
+                    season_number=1,
+                    episode_number=9,
+                    episode_tmdb_id=2109,
+                    watched_at=second_watched_at,
+                ),
+            ],
+            movies=[],
+        ),
+    )
+
+    result = service.import_history(
+        user_id=user_id,
+        export=export,
+    )
+
+    assert result.episodes.created == 0
+    assert result.episodes.skipped == 2
+    assert result.episodes.failed == 0
+
+    season_episode_sync_service.sync.assert_called_once_with(
+        season_id=season_id,
+        force_refresh=True,
+    )
+
+    assert episode_repository.get_by_tmdb_id.call_count == 3
+
+    episode_watch_event_repository.exists_at.assert_not_called()
+    episode_watch_event_repository.add.assert_not_called()
+
+    session.commit.assert_not_called()
+
+
+def test_import_history_force_refreshes_each_missing_season_once() -> None:
+    """Allow one forced metadata refresh for each distinct Season."""
+
+    user_id = uuid4()
+    show_id = uuid4()
+    first_season_id = uuid4()
+    second_season_id = uuid4()
+
+    show_repository = Mock()
+    show_repository.get_by_tmdb_id.return_value = SimpleNamespace(
+        id=show_id,
+        tmdb_id=95396,
+    )
+
+    first_season = SimpleNamespace(
+        id=first_season_id,
+        show_id=show_id,
+        season_number=1,
+    )
+
+    second_season = SimpleNamespace(
+        id=second_season_id,
+        show_id=show_id,
+        season_number=2,
+    )
+
+    season_repository = Mock()
+    season_repository.get_by_number.side_effect = [
+        first_season,
+        second_season,
+    ]
+
+    episode_repository = Mock()
+    episode_repository.get_by_tmdb_id.return_value = None
+
+    season_episode_sync_service = Mock()
+
+    service, *_ = create_service(
+        show_repository=show_repository,
+        season_repository=season_repository,
+        episode_repository=episode_repository,
+        season_episode_sync_service=season_episode_sync_service,
+    )
+
+    export = SofaWatchExportResponse(
+        exported_at=datetime(
+            2026,
+            8,
+            20,
+            15,
+            30,
+            tzinfo=UTC,
+        ),
+        user=ExportUserResponse(
+            display_name="Gonçalo",
+        ),
+        library=ExportLibraryResponse(
+            shows=[],
+            movies=[],
+        ),
+        history=ExportWatchHistoryResponse(
+            episodes=[
+                ExportEpisodeWatchEventResponse(
+                    show_tmdb_id=95396,
+                    season_number=1,
+                    episode_number=8,
+                    episode_tmdb_id=2108,
+                    watched_at=datetime(
+                        2026,
+                        8,
+                        1,
+                        20,
+                        0,
+                        tzinfo=UTC,
+                    ),
+                ),
+                ExportEpisodeWatchEventResponse(
+                    show_tmdb_id=95396,
+                    season_number=2,
+                    episode_number=5,
+                    episode_tmdb_id=2205,
+                    watched_at=datetime(
+                        2026,
+                        8,
+                        2,
+                        20,
+                        0,
+                        tzinfo=UTC,
+                    ),
+                ),
+            ],
+            movies=[],
+        ),
+    )
+
+    result = service.import_history(
+        user_id=user_id,
+        export=export,
+    )
+
+    assert result.episodes.created == 0
+    assert result.episodes.skipped == 2
+    assert result.episodes.failed == 0
+
+    assert season_episode_sync_service.sync.call_args_list == [
+        call(
+            season_id=first_season_id,
+            force_refresh=True,
+        ),
+        call(
+            season_id=second_season_id,
+            force_refresh=True,
+        ),
+    ]
 
 
 def test_import_history_creates_episode_progress() -> None:
@@ -2271,6 +2617,7 @@ def test_import_history_continues_after_movie_failure() -> None:
     session.rollback.assert_called_once()
     session.commit.assert_called_once()
 
+
 def test_import_library_reports_show_and_movie_progress() -> None:
     user_id = uuid4()
 
@@ -2401,6 +2748,7 @@ def test_import_library_progress_counts_failed_items_as_processed() -> None:
         ),
     ]
 
+
 def test_import_user_data_reports_finalizing_phase() -> None:
     service, *_ = create_service()
 
@@ -2417,5 +2765,3 @@ def test_import_user_data_reports_finalizing_phase() -> None:
         current=0,
         total=0,
     )
-
-
