@@ -54,6 +54,7 @@ import 'package:sofawatch/features/statistics/domain/models/statistics_library.d
 import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
+import 'package:sofawatch/features/profile/domain/models/data_import_run.dart';
 
 void main() {
   group('ProfilePage Statistics', () {
@@ -3274,6 +3275,295 @@ void main() {
         expect(authRepository.logoutEverywhereCalls, 1);
       });
     });
+    testWidgets('shows queued Import waiting for worker', (
+      WidgetTester tester,
+    ) async {
+      final DataImportRun run = DataImportRun(
+        id: '11111111-1111-1111-1111-111111111111',
+        status: DataImportRunStatus.queued,
+        phase: DataImportPhase.queued,
+        progressCurrent: 0,
+        progressTotal: 0,
+        result: null,
+        errorCode: null,
+        errorMessage: null,
+        createdAt: DateTime.utc(2026, 9, 8, 5),
+        startedAt: null,
+        finishedAt: null,
+      );
+
+      final _FakeDataTransferRepository repository =
+          _FakeDataTransferRepository(importRun: run);
+
+      await tester.pumpWidget(
+        _buildTestApp(isWeb: true, dataTransferRepository: repository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final DataTransferCubit cubit = tester
+          .element(
+            find.byKey(
+              const ValueKey<String>('profile-data-transfer-import-card'),
+            ),
+          )
+          .read<DataTransferCubit>();
+
+      await cubit.importData('{"format":"sofawatch-export","version":1}');
+
+      await tester.pump();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-data-transfer-import-progress'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(find.text('Waiting for the import worker…'), findsOneWidget);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-data-transfer-import-progress-count'),
+        ),
+        findsNothing,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-data-transfer-import-progress-bar'),
+        ),
+        findsNothing,
+      );
+      await cubit.close();
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('shows determinate progress for active Import phase', (
+      WidgetTester tester,
+    ) async {
+      final DataImportRun run = DataImportRun(
+        id: '22222222-2222-2222-2222-222222222222',
+        status: DataImportRunStatus.running,
+        phase: DataImportPhase.historyEpisodes,
+        progressCurrent: 2120,
+        progressTotal: 5503,
+        result: null,
+        errorCode: null,
+        errorMessage: null,
+        createdAt: DateTime.utc(2026, 9, 8, 5),
+        startedAt: DateTime.utc(2026, 9, 8, 5, 0, 2),
+        finishedAt: null,
+      );
+
+      final _FakeDataTransferRepository repository =
+          _FakeDataTransferRepository(importRun: run);
+
+      await tester.pumpWidget(
+        _buildTestApp(isWeb: true, dataTransferRepository: repository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final DataTransferCubit cubit = tester
+          .element(
+            find.byKey(
+              const ValueKey<String>('profile-data-transfer-import-card'),
+            ),
+          )
+          .read<DataTransferCubit>();
+
+      await cubit.importData('{"format":"sofawatch-export","version":1}');
+
+      await tester.pump();
+
+      expect(find.text('Importing episode history'), findsOneWidget);
+
+      expect(find.text('2120 / 5503'), findsOneWidget);
+
+      final LinearProgressIndicator progress = tester
+          .widget<LinearProgressIndicator>(
+            find.byKey(
+              const ValueKey<String>(
+                'profile-data-transfer-import-progress-bar',
+              ),
+            ),
+          );
+
+      expect(progress.value, closeTo(2120 / 5503, 0.0001));
+      await cubit.close();
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('shows correct label for library shows Import phase', (
+      WidgetTester tester,
+    ) async {
+      final DataImportRun run = DataImportRun(
+        id: '33333333-3333-3333-3333-333333333333',
+        status: DataImportRunStatus.running,
+        phase: DataImportPhase.libraryShows,
+        progressCurrent: 37,
+        progressTotal: 176,
+        result: null,
+        errorCode: null,
+        errorMessage: null,
+        createdAt: DateTime.utc(2026, 9, 8, 5),
+        startedAt: DateTime.utc(2026, 9, 8, 5, 0, 2),
+        finishedAt: null,
+      );
+
+      final _FakeDataTransferRepository repository =
+          _FakeDataTransferRepository(importRun: run);
+
+      await tester.pumpWidget(
+        _buildTestApp(isWeb: true, dataTransferRepository: repository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final DataTransferCubit cubit = tester
+          .element(
+            find.byKey(
+              const ValueKey<String>('profile-data-transfer-import-card'),
+            ),
+          )
+          .read<DataTransferCubit>();
+
+      await cubit.importData('{"format":"sofawatch-export","version":1}');
+
+      await tester.pump();
+
+      expect(find.text('Importing library shows'), findsOneWidget);
+
+      expect(find.text('37 / 176'), findsOneWidget);
+      await cubit.close();
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('shows finalizing Import without fake percentage', (
+      WidgetTester tester,
+    ) async {
+      final DataImportRun run = DataImportRun(
+        id: '44444444-4444-4444-4444-444444444444',
+        status: DataImportRunStatus.running,
+        phase: DataImportPhase.finalizing,
+        progressCurrent: 0,
+        progressTotal: 0,
+        result: null,
+        errorCode: null,
+        errorMessage: null,
+        createdAt: DateTime.utc(2026, 9, 8, 5),
+        startedAt: DateTime.utc(2026, 9, 8, 5, 0, 2),
+        finishedAt: null,
+      );
+
+      final _FakeDataTransferRepository repository =
+          _FakeDataTransferRepository(importRun: run);
+
+      await tester.pumpWidget(
+        _buildTestApp(isWeb: true, dataTransferRepository: repository),
+      );
+
+      await tester.pumpAndSettle();
+
+      final DataTransferCubit cubit = tester
+          .element(
+            find.byKey(
+              const ValueKey<String>('profile-data-transfer-import-card'),
+            ),
+          )
+          .read<DataTransferCubit>();
+
+      await cubit.importData('{"format":"sofawatch-export","version":1}');
+
+      await tester.pump();
+
+      expect(find.text('Finalizing import…'), findsOneWidget);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('profile-data-transfer-import-progress-bar'),
+        ),
+        findsNothing,
+      );
+      await cubit.close();
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+    testWidgets(
+      'keeps Import progress visible when latest status refresh fails',
+      (WidgetTester tester) async {
+        final _ControlledImportStatusRepository repository =
+            _ControlledImportStatusRepository();
+
+        await tester.pumpWidget(
+          _buildTestApp(isWeb: true, dataTransferRepository: repository),
+        );
+
+        await tester.pumpAndSettle();
+
+        final DataTransferCubit cubit = tester
+            .element(
+              find.byKey(
+                const ValueKey<String>('profile-data-transfer-import-card'),
+              ),
+            )
+            .read<DataTransferCubit>();
+
+        await cubit.importData('{"format":"sofawatch-export","version":1}');
+
+        await tester.pump();
+
+        expect(find.text('Importing episode history'), findsOneWidget);
+
+        expect(find.text('25 / 100'), findsOneWidget);
+
+        expect(
+          find.byKey(
+            const ValueKey<String>(
+              'profile-data-transfer-import-status-warning',
+            ),
+          ),
+          findsNothing,
+        );
+
+        await cubit.refreshActiveImport();
+        await tester.pump();
+
+        expect(
+          find.byKey(
+            const ValueKey<String>(
+              'profile-data-transfer-import-status-warning',
+            ),
+          ),
+          findsOneWidget,
+        );
+
+        expect(
+          find.byKey(
+            const ValueKey<String>(
+              'profile-data-transfer-import-status-warning-message',
+            ),
+          ),
+          findsOneWidget,
+        );
+
+        // Losing the latest status request must not hide the last known
+        // server-side progress.
+        expect(find.text('Importing episode history'), findsOneWidget);
+
+        expect(find.text('25 / 100'), findsOneWidget);
+
+        expect(
+          find.byKey(
+            const ValueKey<String>('profile-data-transfer-import-progress-bar'),
+          ),
+          findsOneWidget,
+        );
+
+        await cubit.close();
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
   });
   group('ProfilePage Security', () {
     testWidgets('shows compact Security settings on mobile', (
@@ -5962,6 +6252,7 @@ class _FakeDataTransferRepository implements DataTransferRepository {
       ),
     ),
     this.importError,
+    this.importRun,
   }) : exportJson = '{"format":"sofawatch-export","version":1}';
 
   final String exportJson;
@@ -5969,6 +6260,7 @@ class _FakeDataTransferRepository implements DataTransferRepository {
   final DataImportResult importResult;
 
   final AppException? importError;
+  final DataImportRun? importRun;
 
   @override
   Future<String> exportData() async {
@@ -5981,14 +6273,42 @@ class _FakeDataTransferRepository implements DataTransferRepository {
   }
 
   @override
-  Future<DataImportResult> importData(String json) async {
+  Future<DataImportRun> importData(String json) async {
     final AppException? error = importError;
 
     if (error != null) {
       throw error;
     }
 
-    return importResult;
+    final DataImportRun? configuredRun = importRun;
+
+    if (configuredRun != null) {
+      return configuredRun;
+    }
+
+    return DataImportRun(
+      id: '11111111-1111-1111-1111-111111111111',
+      status: DataImportRunStatus.completed,
+      phase: DataImportPhase.finalizing,
+      progressCurrent: 0,
+      progressTotal: 0,
+      result: importResult,
+      errorCode: null,
+      errorMessage: null,
+      createdAt: DateTime.utc(2026, 9, 8, 5),
+      startedAt: DateTime.utc(2026, 9, 8, 5),
+      finishedAt: DateTime.utc(2026, 9, 8, 5, 1),
+    );
+  }
+
+  @override
+  Future<DataImportRun?> getActiveImport() async {
+    return null;
+  }
+
+  @override
+  Future<DataImportRun> getImportRun(String id) {
+    throw UnimplementedError();
   }
 }
 
@@ -6026,7 +6346,17 @@ class _ControlledDataTransferRepository implements DataTransferRepository {
   }
 
   @override
-  Future<DataImportResult> importData(String json) {
+  Future<DataImportRun> importData(String json) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<DataImportRun?> getActiveImport() async {
+    return null;
+  }
+
+  @override
+  Future<DataImportRun> getImportRun(String id) {
     throw UnimplementedError();
   }
 }
@@ -6289,5 +6619,47 @@ final class _CountingAdminUsersRepository implements AdminUsersRepository {
   @override
   Future<PasswordRecoveryLink> startPasswordRecovery({required String userId}) {
     throw UnimplementedError();
+  }
+}
+
+final class _ControlledImportStatusRepository
+    implements DataTransferRepository {
+  final DataImportRun _run = DataImportRun(
+    id: '55555555-5555-5555-5555-555555555555',
+    status: DataImportRunStatus.running,
+    phase: DataImportPhase.historyEpisodes,
+    progressCurrent: 25,
+    progressTotal: 100,
+    result: null,
+    errorCode: null,
+    errorMessage: null,
+    createdAt: DateTime.utc(2026, 9, 8, 5),
+    startedAt: DateTime.utc(2026, 9, 8, 5, 0, 2),
+    finishedAt: null,
+  );
+
+  @override
+  Future<String> exportData() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<DataImportPreview> previewImport(String json) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<DataImportRun> importData(String json) async {
+    return _run;
+  }
+
+  @override
+  Future<DataImportRun?> getActiveImport() async {
+    return _run;
+  }
+
+  @override
+  Future<DataImportRun> getImportRun(String id) {
+    throw const AppException.connection();
   }
 }

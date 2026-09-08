@@ -3,6 +3,7 @@ from app.models.auth_session import AuthSession, AuthSessionType
 from app.models.authentication_settings import AuthenticationSettings
 from app.models.background_job import BackgroundJob
 from app.models.background_job_run import BackgroundJobRun
+from app.models.data_import_run import DataImportRun
 from app.models.episode import Episode
 from app.models.episode_progress import EpisodeProgress
 from app.models.episode_watch_event import EpisodeWatchEvent
@@ -39,4 +40,5 @@ __all__ = [
     "AuthHandoff",
     "AuthenticationSettings",
     "PasswordResetToken",
+    "DataImportRun",
 ]

@@ -6,7 +6,7 @@ import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/profile/data/repositories/api_data_transfer_repository.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_preview.dart';
-import 'package:sofawatch/features/profile/domain/models/data_import_result.dart';
+import 'package:sofawatch/features/profile/domain/models/data_import_run.dart';
 
 void main() {
   group('ApiDataTransferRepository', () {
@@ -287,139 +287,6 @@ void main() {
       );
     });
 
-    test('imports data and parses complete import result', () async {
-      const String json = '''
-{
-  "format": "sofawatch-export",
-  "version": 1,
-  "exported_at": "2026-08-21T12:00:00Z",
-  "user": {
-    "display_name": "Backup User"
-  },
-  "library": {
-    "shows": [],
-    "movies": []
-  },
-  "history": {
-    "episodes": [],
-    "movies": []
-  }
-}
-''';
-
-      final ApiDataTransferRepository repository = _createRepository(
-        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
-          expect(options.method, 'POST');
-          expect(options.path, endsWith('/users/me/import'));
-          expect(options.data, jsonDecode(json));
-
-          handler.resolve(
-            Response<Map<String, dynamic>>(
-              requestOptions: options,
-              statusCode: 200,
-              data: const <String, dynamic>{
-                'library': <String, dynamic>{
-                  'shows': <String, dynamic>{
-                    'created': 4,
-                    'updated': 2,
-                    'unchanged': 6,
-                    'failed': 1,
-                  },
-                  'movies': <String, dynamic>{
-                    'created': 3,
-                    'updated': 1,
-                    'unchanged': 3,
-                    'failed': 0,
-                  },
-                },
-                'history': <String, dynamic>{
-                  'episodes': <String, dynamic>{
-                    'created': 130,
-                    'skipped': 10,
-                    'failed': 5,
-                  },
-                  'movies': <String, dynamic>{
-                    'created': 15,
-                    'skipped': 4,
-                    'failed': 0,
-                  },
-                },
-              },
-            ),
-          );
-        },
-      );
-
-      final DataImportResult result = await repository.importData(json);
-
-      expect(result.library.shows.created, 4);
-      expect(result.library.shows.updated, 2);
-      expect(result.library.shows.unchanged, 6);
-      expect(result.library.shows.failed, 1);
-
-      expect(result.library.movies.created, 3);
-      expect(result.library.movies.updated, 1);
-      expect(result.library.movies.unchanged, 3);
-      expect(result.library.movies.failed, 0);
-
-      expect(result.history.episodes.created, 130);
-      expect(result.history.episodes.skipped, 10);
-      expect(result.history.episodes.failed, 5);
-
-      expect(result.history.movies.created, 15);
-      expect(result.history.movies.skipped, 4);
-      expect(result.history.movies.failed, 0);
-
-      expect(result.hasFailures, isTrue);
-    });
-
-    test('parses a successful import without failures', () async {
-      final ApiDataTransferRepository repository = _createRepository(
-        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
-          handler.resolve(
-            Response<Map<String, dynamic>>(
-              requestOptions: options,
-              statusCode: 200,
-              data: const <String, dynamic>{
-                'library': <String, dynamic>{
-                  'shows': <String, dynamic>{
-                    'created': 1,
-                    'updated': 0,
-                    'unchanged': 0,
-                    'failed': 0,
-                  },
-                  'movies': <String, dynamic>{
-                    'created': 1,
-                    'updated': 0,
-                    'unchanged': 0,
-                    'failed': 0,
-                  },
-                },
-                'history': <String, dynamic>{
-                  'episodes': <String, dynamic>{
-                    'created': 2,
-                    'skipped': 0,
-                    'failed': 0,
-                  },
-                  'movies': <String, dynamic>{
-                    'created': 1,
-                    'skipped': 0,
-                    'failed': 0,
-                  },
-                },
-              },
-            ),
-          );
-        },
-      );
-
-      final DataImportResult result = await repository.importData(
-        '{"format":"sofawatch-export","version":1}',
-      );
-
-      expect(result.hasFailures, isFalse);
-    });
-
     test('rejects malformed JSON before import request', () async {
       final ApiDataTransferRepository repository = _createRepository(
         onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
@@ -448,58 +315,6 @@ void main() {
 
       await expectLater(
         repository.importData('[]'),
-        throwsA(
-          isA<AppException>().having(
-            (AppException error) => error.type,
-            'type',
-            AppExceptionType.invalidData,
-          ),
-        ),
-      );
-    });
-
-    test('rejects malformed import result response', () async {
-      final ApiDataTransferRepository repository = _createRepository(
-        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
-          handler.resolve(
-            Response<Map<String, dynamic>>(
-              requestOptions: options,
-              statusCode: 200,
-              data: const <String, dynamic>{
-                'library': <String, dynamic>{
-                  'shows': <String, dynamic>{
-                    'created': 'invalid',
-                    'updated': 0,
-                    'unchanged': 0,
-                    'failed': 0,
-                  },
-                  'movies': <String, dynamic>{
-                    'created': 0,
-                    'updated': 0,
-                    'unchanged': 0,
-                    'failed': 0,
-                  },
-                },
-                'history': <String, dynamic>{
-                  'episodes': <String, dynamic>{
-                    'created': 0,
-                    'skipped': 0,
-                    'failed': 0,
-                  },
-                  'movies': <String, dynamic>{
-                    'created': 0,
-                    'skipped': 0,
-                    'failed': 0,
-                  },
-                },
-              },
-            ),
-          );
-        },
-      );
-
-      await expectLater(
-        repository.importData('{"format":"sofawatch-export","version":1}'),
         throwsA(
           isA<AppException>().having(
             (AppException error) => error.type,
@@ -547,6 +362,181 @@ void main() {
                 'code',
                 'provider_unavailable',
               ),
+        ),
+      );
+    });
+    test('submits import and parses queued persistent run', () async {
+      const String json = '''
+{
+  "format": "sofawatch-export",
+  "version": 1
+}
+''';
+
+      final ApiDataTransferRepository repository = _createRepository(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          expect(options.method, 'POST');
+          expect(options.path, endsWith('/users/me/import'));
+          expect(options.data, jsonDecode(json));
+
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 202,
+              data: const <String, dynamic>{
+                'id': '11111111-1111-1111-1111-111111111111',
+                'status': 'queued',
+                'phase': 'queued',
+                'progress_current': 0,
+                'progress_total': 0,
+                'result': null,
+                'error_code': null,
+                'error_message': null,
+                'created_at': '2026-09-08T05:00:00Z',
+                'started_at': null,
+                'finished_at': null,
+              },
+            ),
+          );
+        },
+      );
+
+      final DataImportRun result = await repository.importData(json);
+
+      expect(result.id, '11111111-1111-1111-1111-111111111111');
+      expect(result.status, DataImportRunStatus.queued);
+      expect(result.phase, DataImportPhase.queued);
+      expect(result.result, isNull);
+    });
+
+    test('returns active import run', () async {
+      final ApiDataTransferRepository repository = _createRepository(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          expect(options.method, 'GET');
+          expect(options.path, endsWith('/users/me/imports/active'));
+
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: const <String, dynamic>{
+                'id': '22222222-2222-2222-2222-222222222222',
+                'status': 'running',
+                'phase': 'library_movies',
+                'progress_current': 7,
+                'progress_total': 20,
+                'result': null,
+                'error_code': null,
+                'error_message': null,
+                'created_at': '2026-09-08T05:00:00Z',
+                'started_at': '2026-09-08T05:00:02Z',
+                'finished_at': null,
+              },
+            ),
+          );
+        },
+      );
+
+      final DataImportRun? result = await repository.getActiveImport();
+
+      expect(result, isNotNull);
+      expect(result!.status, DataImportRunStatus.running);
+      expect(result.phase, DataImportPhase.libraryMovies);
+      expect(result.progressCurrent, 7);
+      expect(result.progressTotal, 20);
+    });
+
+    test('returns null when there is no active import', () async {
+      final ApiDataTransferRepository repository = _createRepository(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          expect(options.method, 'GET');
+          expect(options.path, endsWith('/users/me/imports/active'));
+
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: null,
+            ),
+          );
+        },
+      );
+
+      final DataImportRun? result = await repository.getActiveImport();
+
+      expect(result, isNull);
+    });
+
+    test('gets import run by id', () async {
+      const String runId = '33333333-3333-3333-3333-333333333333';
+
+      final ApiDataTransferRepository repository = _createRepository(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          expect(options.method, 'GET');
+          expect(options.path, endsWith('/users/me/imports/$runId'));
+
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: const <String, dynamic>{
+                'id': runId,
+                'status': 'running',
+                'phase': 'history_episodes',
+                'progress_current': 125,
+                'progress_total': 500,
+                'result': null,
+                'error_code': null,
+                'error_message': null,
+                'created_at': '2026-09-08T05:00:00Z',
+                'started_at': '2026-09-08T05:00:02Z',
+                'finished_at': null,
+              },
+            ),
+          );
+        },
+      );
+
+      final DataImportRun result = await repository.getImportRun(runId);
+
+      expect(result.id, runId);
+      expect(result.phase, DataImportPhase.historyEpisodes);
+      expect(result.progressCurrent, 125);
+    });
+
+    test('rejects malformed persistent import response', () async {
+      final ApiDataTransferRepository repository = _createRepository(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 202,
+              data: const <String, dynamic>{
+                'id': '11111111-1111-1111-1111-111111111111',
+                'status': 'not-a-real-status',
+                'phase': 'queued',
+                'progress_current': 0,
+                'progress_total': 0,
+                'result': null,
+                'error_code': null,
+                'error_message': null,
+                'created_at': '2026-09-08T05:00:00Z',
+                'started_at': null,
+                'finished_at': null,
+              },
+            ),
+          );
+        },
+      );
+
+      await expectLater(
+        repository.importData('{"format":"sofawatch-export","version":1}'),
+        throwsA(
+          isA<AppException>().having(
+            (AppException error) => error.type,
+            'type',
+            AppExceptionType.invalidData,
+          ),
         ),
       );
     });

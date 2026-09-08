@@ -454,11 +454,11 @@ def test_preview_current_user_data_import_rejects_unsupported_version(
     assert response.json()["error"]["code"] == "validation_error"
 
 
-def test_import_current_user_data_returns_import_summary(
+def test_import_current_user_data_returns_accepted_queued_run(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    """Import portable SofaWatch data for the current user."""
+    """Queue portable SofaWatch data without processing it in the request."""
 
     user = User(
         display_name="Local User",
@@ -467,6 +467,53 @@ def test_import_current_user_data_returns_import_summary(
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
+
+    response = client.post(
+        "/api/v1/users/me/import",
+        json={
+            "format": "sofawatch-export",
+            "version": 1,
+            "exported_at": "2026-08-20T15:30:00Z",
+            "user": {
+                "display_name": "Local User",
+            },
+            "library": {
+                "shows": [],
+                "movies": [],
+            },
+            "history": {
+                "episodes": [],
+                "movies": [],
+            },
+        },
+    )
+
+    assert response.status_code == 202
+
+    payload = response.json()
+
+    assert payload["status"] == "queued"
+    assert payload["phase"] == "queued"
+    assert payload["progress_current"] == 0
+    assert payload["progress_total"] == 0
+    assert payload["result"] is None
+    assert payload["error_code"] is None
+    assert payload["error_message"] is None
+    assert payload["started_at"] is None
+    assert payload["finished_at"] is None
+    assert payload["id"]
+
+
+def test_import_current_user_data_rejects_second_active_import(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    user = User(
+        display_name="Local User",
+    )
+
+    db_session.add(user)
+    db_session.commit()
 
     payload = {
         "format": "sofawatch-export",
@@ -485,41 +532,126 @@ def test_import_current_user_data_returns_import_summary(
         },
     }
 
-    response = client.post(
+    first = client.post(
         "/api/v1/users/me/import",
         json=payload,
     )
 
-    assert response.status_code == 200
+    second = client.post(
+        "/api/v1/users/me/import",
+        json=payload,
+    )
 
-    assert response.json() == {
-        "library": {
-            "shows": {
-                "created": 0,
-                "updated": 0,
-                "unchanged": 0,
-                "failed": 0,
-            },
-            "movies": {
-                "created": 0,
-                "updated": 0,
-                "unchanged": 0,
-                "failed": 0,
-            },
-        },
-        "history": {
-            "episodes": {
-                "created": 0,
-                "skipped": 0,
-                "failed": 0,
-            },
-            "movies": {
-                "created": 0,
-                "skipped": 0,
-                "failed": 0,
-            },
-        },
+    assert first.status_code == 202
+    assert second.status_code == 409
+
+    assert second.json() == {
+        "error": {
+            "code": "data_import_already_active",
+            "message": "A data import is already in progress.",
+        }
     }
+
+
+def test_get_active_current_user_data_import_returns_active_run(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    user = User(
+        display_name="Local User",
+    )
+
+    db_session.add(user)
+    db_session.commit()
+
+    created = client.post(
+        "/api/v1/users/me/import",
+        json={
+            "format": "sofawatch-export",
+            "version": 1,
+            "exported_at": "2026-08-20T15:30:00Z",
+            "user": {
+                "display_name": "Local User",
+            },
+            "library": {
+                "shows": [],
+                "movies": [],
+            },
+            "history": {
+                "episodes": [],
+                "movies": [],
+            },
+        },
+    )
+
+    response = client.get(
+        "/api/v1/users/me/imports/active",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == created.json()["id"]
+    assert response.json()["status"] == "queued"
+
+
+def test_get_active_current_user_data_import_returns_null_without_active_run(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    db_session.add(
+        User(
+            display_name="Local User",
+        )
+    )
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/users/me/imports/active",
+    )
+
+    assert response.status_code == 200
+    assert response.json() is None
+
+
+def test_get_current_user_data_import_returns_owned_run(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    user = User(
+        display_name="Local User",
+    )
+
+    db_session.add(user)
+    db_session.commit()
+
+    created = client.post(
+        "/api/v1/users/me/import",
+        json={
+            "format": "sofawatch-export",
+            "version": 1,
+            "exported_at": "2026-08-20T15:30:00Z",
+            "user": {
+                "display_name": "Local User",
+            },
+            "library": {
+                "shows": [],
+                "movies": [],
+            },
+            "history": {
+                "episodes": [],
+                "movies": [],
+            },
+        },
+    )
+
+    run_id = created.json()["id"]
+
+    response = client.get(
+        f"/api/v1/users/me/imports/{run_id}",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == run_id
+    assert response.json()["status"] == "queued"
 
 
 def test_import_current_user_data_rejects_invalid_export_version(

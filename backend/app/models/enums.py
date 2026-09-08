@@ -18,3 +18,22 @@ class BackgroundJobStatus(StrEnum):
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
+
+class DataImportRunStatus(StrEnum):
+    """Execution status of a user data import."""
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class DataImportPhase(StrEnum):
+    """Current processing phase of a user data import."""
+
+    QUEUED = "queued"
+    LIBRARY_SHOWS = "library_shows"
+    LIBRARY_MOVIES = "library_movies"
+    HISTORY_EPISODES = "history_episodes"
+    HISTORY_MOVIES = "history_movies"
+    FINALIZING = "finalizing"

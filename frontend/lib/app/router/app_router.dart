@@ -19,6 +19,7 @@ import 'package:sofawatch/features/auth/application/cubit/auth_entry_cubit.dart'
 import 'package:sofawatch/features/auth/application/cubit/auth_entry_state.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_handoff_exchange_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_state.dart';
+import 'package:sofawatch/features/auth/application/cubit/initial_setup_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/login_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/password_recovery_cubit.dart';
 import 'package:sofawatch/features/auth/data/repositories/api_password_recovery_repository.dart';
@@ -92,7 +93,6 @@ import 'package:sofawatch/features/statistics/application/cubit/statistics_libra
 import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
 import 'package:sofawatch/features/statistics/data/repositories/api_statistics_repository.dart';
 import 'package:sofawatch/features/statistics/presentation/pages/detailed_statistics_page.dart';
-import 'package:sofawatch/features/auth/application/cubit/initial_setup_cubit.dart';
 
 GoRouter createAppRouter({
   required ApiClient apiClient,
@@ -610,7 +610,7 @@ GoRouter createAppRouter({
                                 repository: ApiDataTransferRepository(
                                   context.read<ApiClient>(),
                                 ),
-                              );
+                              )..resumeActiveImport();
                             },
                           ),
                         BlocProvider<StatisticsSummaryCubit>(

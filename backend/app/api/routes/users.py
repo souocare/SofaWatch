@@ -9,13 +9,15 @@ from app.api.dependencies import (
     DataImportServiceDependency,
     PasswordResetTokenServiceDependency,
     UserServiceDependency,
+    DataImportRunServiceDependency,
 )
 from app.core.exceptions import APIError
 from app.schemas.data_export import SofaWatchExportResponse
 from app.schemas.data_import import (
     DataImportPreviewResponse,
-    DataImportResultResponse,
+    DataImportRunResponse,
 )
+
 from app.schemas.user import (
     AdminUserResponse,
     AdminUsersSummaryResponse,
@@ -27,6 +29,10 @@ from app.schemas.user import (
 from app.services.user import (
     CurrentPasswordInvalidError,
     PasswordUnavailableError,
+)
+from app.services.data_import_run import (
+    ActiveDataImportExistsError,
+    DataImportRunNotFoundError,
 )
 
 router = APIRouter(
@@ -249,23 +255,94 @@ def preview_current_user_data_import(
 
 @router.post(
     "/me/import",
-    response_model=DataImportResultResponse,
-    summary="Import current user data",
+    response_model=DataImportRunResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Start current user data import",
     description=(
-        "Import a validated versioned SofaWatch export into the current "
-        "user's Library and viewing History."
+        "Validate and queue a versioned SofaWatch export for asynchronous "
+        "import into the current user's Library and viewing History."
     ),
 )
 def import_current_user_data(
     current_user: CurrentUserDependency,
-    service: DataImportServiceDependency,
+    service: DataImportRunServiceDependency,
     export: SofaWatchExportResponse,
-) -> DataImportResultResponse:
-    """Import portable SofaWatch data for the current user."""
+) -> DataImportRunResponse:
+    """Queue a portable SofaWatch data import for asynchronous processing."""
 
-    return service.import_user_data(
+    try:
+        run = service.submit(
+            user_id=current_user.id,
+            export=export,
+        )
+    except ActiveDataImportExistsError as error:
+        raise APIError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="data_import_already_active",
+            message="A data import is already in progress.",
+        ) from error
+
+    return DataImportRunResponse.model_validate(
+        run,
+    )
+
+@router.get(
+    "/me/imports/active",
+    response_model=DataImportRunResponse | None,
+    summary="Get active current user data import",
+    description=(
+        "Return the current user's queued or running data import, "
+        "if one exists."
+    ),
+)
+def get_active_current_user_data_import(
+    current_user: CurrentUserDependency,
+    service: DataImportRunServiceDependency,
+) -> DataImportRunResponse | None:
+    """Return the current user's active data import."""
+
+    run = service.get_active(
         user_id=current_user.id,
-        export=export,
+    )
+
+    if run is None:
+        return None
+
+    return DataImportRunResponse.model_validate(
+        run,
+    )
+
+
+@router.get(
+    "/me/imports/{run_id}",
+    response_model=DataImportRunResponse,
+    summary="Get current user data import",
+    description=(
+        "Return a specific data import execution owned by "
+        "the current SofaWatch user."
+    ),
+)
+def get_current_user_data_import(
+    run_id: UUID,
+    current_user: CurrentUserDependency,
+    service: DataImportRunServiceDependency,
+) -> DataImportRunResponse:
+    """Return a specific user-owned data import execution."""
+
+    try:
+        run = service.get(
+            run_id=run_id,
+            user_id=current_user.id,
+        )
+    except DataImportRunNotFoundError as error:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="data_import_not_found",
+            message="The requested data import could not be found.",
+        ) from error
+
+    return DataImportRunResponse.model_validate(
+        run,
     )
 
 @router.get(

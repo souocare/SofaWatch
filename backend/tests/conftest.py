@@ -160,3 +160,11 @@ def unauthenticated_client(
         yield test_client
 
     app.dependency_overrides.clear()
+
+@pytest.fixture
+def db_session_factory(
+    db_session: Session,
+) -> sessionmaker[Session]:
+    """Provide new sessions against the isolated test database."""
+
+    return TestSessionLocal

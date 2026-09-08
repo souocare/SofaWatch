@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 from uuid import uuid4
 
 from app.models.enums import LibraryStatus
@@ -19,6 +19,7 @@ from app.schemas.data_export import (
     SofaWatchExportResponse,
 )
 from app.services.data_import import DataImportService
+from app.models.enums import DataImportPhase, LibraryStatus
 
 
 def create_service(
@@ -2269,3 +2270,152 @@ def test_import_history_continues_after_movie_failure() -> None:
 
     session.rollback.assert_called_once()
     session.commit.assert_called_once()
+
+def test_import_library_reports_show_and_movie_progress() -> None:
+    user_id = uuid4()
+
+    show_repository = Mock()
+    show_repository.get_by_tmdb_id.return_value = SimpleNamespace(
+        id=uuid4(),
+    )
+
+    movie_repository = Mock()
+    movie_repository.get_by_tmdb_id.return_value = SimpleNamespace(
+        id=uuid4(),
+    )
+
+    library_repository = Mock()
+    library_repository.get_by_user_and_show.return_value = LibraryEntry(
+        user_id=user_id,
+        show_id=uuid4(),
+        status=LibraryStatus.WATCHING,
+    )
+    library_repository.get_by_user_and_movie.return_value = LibraryEntry(
+        user_id=user_id,
+        movie_id=uuid4(),
+        status=LibraryStatus.PLANNING,
+    )
+
+    progress = Mock()
+
+    service, *_ = create_service(
+        library_repository=library_repository,
+        show_repository=show_repository,
+        movie_repository=movie_repository,
+    )
+
+    service.import_library(
+        user_id=user_id,
+        export=_create_export(
+            shows=[
+                ExportLibraryShowResponse(
+                    tmdb_id=1,
+                    status=LibraryStatus.WATCHING,
+                ),
+                ExportLibraryShowResponse(
+                    tmdb_id=2,
+                    status=LibraryStatus.WATCHING,
+                ),
+            ],
+            movies=[
+                ExportLibraryMovieResponse(
+                    tmdb_id=3,
+                    status=LibraryStatus.PLANNING,
+                ),
+            ],
+        ),
+        progress_callback=progress,
+    )
+
+    assert progress.call_args_list == [
+        call(
+            phase=DataImportPhase.LIBRARY_SHOWS,
+            current=0,
+            total=2,
+        ),
+        call(
+            phase=DataImportPhase.LIBRARY_SHOWS,
+            current=1,
+            total=2,
+        ),
+        call(
+            phase=DataImportPhase.LIBRARY_SHOWS,
+            current=2,
+            total=2,
+        ),
+        call(
+            phase=DataImportPhase.LIBRARY_MOVIES,
+            current=0,
+            total=1,
+        ),
+        call(
+            phase=DataImportPhase.LIBRARY_MOVIES,
+            current=1,
+            total=1,
+        ),
+    ]
+
+
+def test_import_library_progress_counts_failed_items_as_processed() -> None:
+    progress = Mock()
+
+    show_repository = Mock()
+    show_repository.get_by_tmdb_id.side_effect = RuntimeError(
+        "TMDB failure",
+    )
+
+    service, *_ = create_service(
+        show_repository=show_repository,
+    )
+
+    result = service.import_library(
+        user_id=uuid4(),
+        export=_create_export(
+            shows=[
+                ExportLibraryShowResponse(
+                    tmdb_id=95396,
+                    status=LibraryStatus.WATCHING,
+                ),
+            ],
+        ),
+        progress_callback=progress,
+    )
+
+    assert result.shows.failed == 1
+
+    assert progress.call_args_list == [
+        call(
+            phase=DataImportPhase.LIBRARY_SHOWS,
+            current=0,
+            total=1,
+        ),
+        call(
+            phase=DataImportPhase.LIBRARY_SHOWS,
+            current=1,
+            total=1,
+        ),
+        call(
+            phase=DataImportPhase.LIBRARY_MOVIES,
+            current=0,
+            total=0,
+        ),
+    ]
+
+def test_import_user_data_reports_finalizing_phase() -> None:
+    service, *_ = create_service()
+
+    progress = Mock()
+
+    service.import_user_data(
+        user_id=uuid4(),
+        export=_create_export(),
+        progress_callback=progress,
+    )
+
+    assert progress.call_args_list[-1] == call(
+        phase=DataImportPhase.FINALIZING,
+        current=0,
+        total=0,
+    )
+
+

@@ -7,6 +7,7 @@ import 'package:sofawatch/features/profile/application/cubit/data_transfer_cubit
 import 'package:sofawatch/features/profile/application/cubit/data_transfer_state.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_preview.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_result.dart';
+import 'package:sofawatch/features/profile/domain/models/data_import_run.dart';
 import 'package:sofawatch/features/profile/domain/repositories/data_transfer_repository.dart';
 
 void main() {
@@ -50,7 +51,6 @@ void main() {
 
         await Future<void>.delayed(Duration.zero);
 
-        expect(cubit.state, const DataTransferExporting());
         expect(repository.exportCalls, 1);
 
         final Future<void> second = cubit.exportData();
@@ -110,57 +110,28 @@ void main() {
           ),
         ],
       );
-
-      test('does not start another preview while validating', () async {
-        final _ControlledDataTransferRepository repository =
-            _ControlledDataTransferRepository();
-
-        final DataTransferCubit cubit = DataTransferCubit(
-          repository: repository,
-        );
-
-        final Future<void> first = cubit.previewImport(
-          filename: 'first.json',
-          json: _exportJson,
-        );
-
-        await Future<void>.delayed(Duration.zero);
-
-        expect(repository.previewCalls, 1);
-
-        final Future<void> second = cubit.previewImport(
-          filename: 'second.json',
-          json: _exportJson,
-        );
-
-        await Future<void>.delayed(Duration.zero);
-
-        expect(repository.previewCalls, 1);
-
-        repository.completePreview(_preview);
-
-        await first;
-        await second;
-
-        expect(
-          cubit.state,
-          const DataTransferImportPreviewReady(
-            filename: 'first.json',
-            json: _exportJson,
-            preview: _preview,
-          ),
-        );
-
-        await cubit.close();
-      });
     });
 
     group('importData', () {
       blocTest<DataTransferCubit, DataTransferState>(
-        'emits importing then success when import succeeds',
+        'emits queued persistent run after submission',
         build: () => DataTransferCubit(
-          repository: const _FakeDataTransferRepository(
-            importResult: _successfulImportResult,
+          repository: _FakeDataTransferRepository(importRun: _queuedImportRun),
+        ),
+        act: (DataTransferCubit cubit) {
+          return cubit.importData(_exportJson);
+        },
+        expect: () => <DataTransferState>[
+          const DataTransferImporting(),
+          DataTransferImportInProgress(_queuedImportRun),
+        ],
+      );
+
+      blocTest<DataTransferCubit, DataTransferState>(
+        'maps immediately completed run to existing success state',
+        build: () => DataTransferCubit(
+          repository: _FakeDataTransferRepository(
+            importRun: _completedImportRun,
           ),
         ),
         act: (DataTransferCubit cubit) {
@@ -173,10 +144,10 @@ void main() {
       );
 
       blocTest<DataTransferCubit, DataTransferState>(
-        'keeps partial import result as success',
+        'keeps partial completed import as success',
         build: () => DataTransferCubit(
-          repository: const _FakeDataTransferRepository(
-            importResult: _partialImportResult,
+          repository: _FakeDataTransferRepository(
+            importRun: _completedPartialImportRun,
           ),
         ),
         act: (DataTransferCubit cubit) {
@@ -189,7 +160,21 @@ void main() {
       );
 
       blocTest<DataTransferCubit, DataTransferState>(
-        'emits importing then failure when request fails',
+        'maps terminal failed run separately from request failure',
+        build: () => DataTransferCubit(
+          repository: _FakeDataTransferRepository(importRun: _failedImportRun),
+        ),
+        act: (DataTransferCubit cubit) {
+          return cubit.importData(_exportJson);
+        },
+        expect: () => <DataTransferState>[
+          const DataTransferImporting(),
+          DataTransferImportRunFailure(_failedImportRun),
+        ],
+      );
+
+      blocTest<DataTransferCubit, DataTransferState>(
+        'emits request failure when creating run fails',
         build: () => DataTransferCubit(
           repository: const _FakeDataTransferRepository(
             importError: AppException.connection(),
@@ -204,7 +189,7 @@ void main() {
         ],
       );
 
-      test('does not start another import while importing', () async {
+      test('does not submit a second import while POST is pending', () async {
         final _ControlledDataTransferRepository repository =
             _ControlledDataTransferRepository();
 
@@ -224,10 +209,99 @@ void main() {
 
         expect(repository.importCalls, 1);
 
-        repository.completeImport(_successfulImportResult);
+        repository.completeImport(_queuedImportRun);
 
         await first;
         await second;
+
+        expect(cubit.state, DataTransferImportInProgress(_queuedImportRun));
+
+        await cubit.close();
+      });
+    });
+
+    group('resumeActiveImport', () {
+      blocTest<DataTransferCubit, DataTransferState>(
+        'restores queued import after page recreation',
+        build: () => DataTransferCubit(
+          repository: _FakeDataTransferRepository(
+            activeImport: _queuedImportRun,
+          ),
+        ),
+        act: (DataTransferCubit cubit) {
+          return cubit.resumeActiveImport();
+        },
+        expect: () => <DataTransferState>[
+          DataTransferImportInProgress(_queuedImportRun),
+        ],
+      );
+
+      blocTest<DataTransferCubit, DataTransferState>(
+        'does nothing when no import is active',
+        build: () =>
+            DataTransferCubit(repository: const _FakeDataTransferRepository()),
+        act: (DataTransferCubit cubit) {
+          return cubit.resumeActiveImport();
+        },
+        expect: () => const <DataTransferState>[],
+      );
+
+      blocTest<DataTransferCubit, DataTransferState>(
+        'emits separate recovery failure when active lookup fails',
+        build: () => DataTransferCubit(
+          repository: const _FakeDataTransferRepository(
+            activeImportError: AppException.connection(),
+          ),
+        ),
+        act: (DataTransferCubit cubit) {
+          return cubit.resumeActiveImport();
+        },
+        expect: () => <DataTransferState>[
+          const DataTransferImportRecoveryFailure(AppException.connection()),
+        ],
+      );
+    });
+
+    group('refreshActiveImport', () {
+      test('refreshes active run and emits progress update', () async {
+        final _ControlledDataTransferRepository repository =
+            _ControlledDataTransferRepository();
+
+        final DataTransferCubit cubit = DataTransferCubit(
+          repository: repository,
+          importPollInterval: const Duration(days: 1),
+        );
+
+        repository.completeActiveImport(_queuedImportRun);
+
+        await cubit.resumeActiveImport();
+
+        repository.completeStatus(_runningImportRun);
+
+        await cubit.refreshActiveImport();
+
+        expect(repository.statusCalls, 1);
+        expect(cubit.state, DataTransferImportInProgress(_runningImportRun));
+
+        await cubit.close();
+      });
+
+      test('completed status stops tracking and exposes result', () async {
+        final _ControlledDataTransferRepository repository =
+            _ControlledDataTransferRepository();
+
+        final DataTransferCubit cubit = DataTransferCubit(
+          repository: repository,
+          importPollInterval: const Duration(days: 1),
+        );
+
+        repository.completeActiveImport(_runningImportRun);
+
+        await cubit.resumeActiveImport();
+
+        repository.completeStatus(_completedImportRun);
+
+        await cubit.refreshActiveImport();
 
         expect(
           cubit.state,
@@ -236,21 +310,56 @@ void main() {
 
         await cubit.close();
       });
+
+      test(
+        'temporary status error does not convert active import into failure',
+        () async {
+          final _ControlledDataTransferRepository repository =
+              _ControlledDataTransferRepository();
+
+          final DataTransferCubit cubit = DataTransferCubit(
+            repository: repository,
+            importPollInterval: const Duration(days: 1),
+          );
+
+          repository.completeActiveImport(_runningImportRun);
+
+          await cubit.resumeActiveImport();
+
+          repository.failStatus(const AppException.connection());
+
+          await cubit.refreshActiveImport();
+
+          expect(
+            cubit.state,
+            DataTransferImportStatusFailure(
+              run: _runningImportRun,
+              error: const AppException.connection(),
+            ),
+          );
+
+          await cubit.close();
+        },
+      );
     });
 
     group('reset', () {
       blocTest<DataTransferCubit, DataTransferState>(
-        'returns to idle',
-        build: () => DataTransferCubit(
-          repository: const _FakeDataTransferRepository(preview: _preview),
-        ),
-        seed: () => const DataTransferImportPreviewReady(
-          filename: 'backup.json',
-          json: _exportJson,
-          preview: _preview,
-        ),
+        'returns terminal state to idle',
+        build: () =>
+            DataTransferCubit(repository: const _FakeDataTransferRepository()),
+        seed: () => const DataTransferImportSuccess(_successfulImportResult),
         act: (DataTransferCubit cubit) => cubit.reset(),
         expect: () => const <DataTransferState>[DataTransferIdle()],
+      );
+
+      blocTest<DataTransferCubit, DataTransferState>(
+        'does not forget an active import',
+        build: () =>
+            DataTransferCubit(repository: const _FakeDataTransferRepository()),
+        seed: () => DataTransferImportInProgress(_runningImportRun),
+        act: (DataTransferCubit cubit) => cubit.reset(),
+        expect: () => const <DataTransferState>[],
       );
 
       blocTest<DataTransferCubit, DataTransferState>(
@@ -323,14 +432,86 @@ const DataImportResult _partialImportResult = DataImportResult(
   ),
 );
 
+final DataImportRun _queuedImportRun = DataImportRun(
+  id: '11111111-1111-1111-1111-111111111111',
+  status: DataImportRunStatus.queued,
+  phase: DataImportPhase.queued,
+  progressCurrent: 0,
+  progressTotal: 0,
+  result: null,
+  errorCode: null,
+  errorMessage: null,
+  createdAt: DateTime.utc(2026, 9, 8, 5),
+  startedAt: null,
+  finishedAt: null,
+);
+
+final DataImportRun _runningImportRun = DataImportRun(
+  id: _queuedImportRun.id,
+  status: DataImportRunStatus.running,
+  phase: DataImportPhase.historyEpisodes,
+  progressCurrent: 25,
+  progressTotal: 100,
+  result: null,
+  errorCode: null,
+  errorMessage: null,
+  createdAt: _queuedImportRun.createdAt,
+  startedAt: DateTime.utc(2026, 9, 8, 5, 0, 2),
+  finishedAt: null,
+);
+
+final DataImportRun _completedImportRun = DataImportRun(
+  id: _queuedImportRun.id,
+  status: DataImportRunStatus.completed,
+  phase: DataImportPhase.finalizing,
+  progressCurrent: 0,
+  progressTotal: 0,
+  result: _successfulImportResult,
+  errorCode: null,
+  errorMessage: null,
+  createdAt: _queuedImportRun.createdAt,
+  startedAt: DateTime.utc(2026, 9, 8, 5, 0, 2),
+  finishedAt: DateTime.utc(2026, 9, 8, 5, 1),
+);
+
+final DataImportRun _completedPartialImportRun = DataImportRun(
+  id: _queuedImportRun.id,
+  status: DataImportRunStatus.completed,
+  phase: DataImportPhase.finalizing,
+  progressCurrent: 0,
+  progressTotal: 0,
+  result: _partialImportResult,
+  errorCode: null,
+  errorMessage: null,
+  createdAt: _queuedImportRun.createdAt,
+  startedAt: DateTime.utc(2026, 9, 8, 5, 0, 2),
+  finishedAt: DateTime.utc(2026, 9, 8, 5, 1),
+);
+
+final DataImportRun _failedImportRun = DataImportRun(
+  id: _queuedImportRun.id,
+  status: DataImportRunStatus.failed,
+  phase: DataImportPhase.historyEpisodes,
+  progressCurrent: 25,
+  progressTotal: 100,
+  result: null,
+  errorCode: 'data_import_interrupted',
+  errorMessage: 'The import was interrupted before it could complete.',
+  createdAt: _queuedImportRun.createdAt,
+  startedAt: DateTime.utc(2026, 9, 8, 5, 0, 2),
+  finishedAt: DateTime.utc(2026, 9, 8, 5, 45),
+);
+
 final class _FakeDataTransferRepository implements DataTransferRepository {
   const _FakeDataTransferRepository({
     this.exportJson,
     this.exportError,
     this.preview,
     this.previewError,
-    this.importResult,
+    this.importRun,
     this.importError,
+    this.activeImport,
+    this.activeImportError,
   });
 
   final String? exportJson;
@@ -339,8 +520,11 @@ final class _FakeDataTransferRepository implements DataTransferRepository {
   final DataImportPreview? preview;
   final AppException? previewError;
 
-  final DataImportResult? importResult;
+  final DataImportRun? importRun;
   final AppException? importError;
+
+  final DataImportRun? activeImport;
+  final AppException? activeImportError;
 
   @override
   Future<String> exportData() async {
@@ -365,61 +549,100 @@ final class _FakeDataTransferRepository implements DataTransferRepository {
   }
 
   @override
-  Future<DataImportResult> importData(String json) async {
+  Future<DataImportRun> importData(String json) async {
     final AppException? error = importError;
 
     if (error != null) {
       throw error;
     }
 
-    return importResult ?? _successfulImportResult;
+    return importRun ?? _completedImportRun;
+  }
+
+  @override
+  Future<DataImportRun?> getActiveImport() async {
+    final AppException? error = activeImportError;
+
+    if (error != null) {
+      throw error;
+    }
+
+    return activeImport;
+  }
+
+  @override
+  Future<DataImportRun> getImportRun(String id) {
+    throw UnimplementedError();
   }
 }
 
 final class _ControlledDataTransferRepository
     implements DataTransferRepository {
   final Completer<String> _exportCompleter = Completer<String>();
+  final Completer<DataImportRun> _importCompleter = Completer<DataImportRun>();
+  final Completer<DataImportRun?> _activeImportCompleter =
+      Completer<DataImportRun?>();
 
-  final Completer<DataImportPreview> _previewCompleter =
-      Completer<DataImportPreview>();
-
-  final Completer<DataImportResult> _importCompleter =
-      Completer<DataImportResult>();
+  Completer<DataImportRun> _statusCompleter = Completer<DataImportRun>();
 
   int exportCalls = 0;
-  int previewCalls = 0;
   int importCalls = 0;
+  int statusCalls = 0;
 
   void completeExport(String json) {
     _exportCompleter.complete(json);
   }
 
-  void completePreview(DataImportPreview preview) {
-    _previewCompleter.complete(preview);
+  void completeImport(DataImportRun run) {
+    _importCompleter.complete(run);
   }
 
-  void completeImport(DataImportResult result) {
-    _importCompleter.complete(result);
+  void completeActiveImport(DataImportRun? run) {
+    _activeImportCompleter.complete(run);
+  }
+
+  void completeStatus(DataImportRun run) {
+    _statusCompleter.complete(run);
+  }
+
+  void failStatus(AppException error) {
+    _statusCompleter.completeError(error);
   }
 
   @override
   Future<String> exportData() {
     exportCalls += 1;
-
     return _exportCompleter.future;
   }
 
   @override
   Future<DataImportPreview> previewImport(String json) {
-    previewCalls += 1;
-
-    return _previewCompleter.future;
+    throw UnimplementedError();
   }
 
   @override
-  Future<DataImportResult> importData(String json) {
+  Future<DataImportRun> importData(String json) {
     importCalls += 1;
-
     return _importCompleter.future;
+  }
+
+  @override
+  Future<DataImportRun?> getActiveImport() {
+    return _activeImportCompleter.future;
+  }
+
+  @override
+  Future<DataImportRun> getImportRun(String id) async {
+    statusCalls += 1;
+
+    final Completer<DataImportRun> completer = _statusCompleter;
+
+    try {
+      return await completer.future;
+    } finally {
+      if (identical(completer, _statusCompleter)) {
+        _statusCompleter = Completer<DataImportRun>();
+      }
+    }
   }
 }

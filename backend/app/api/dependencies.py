@@ -78,6 +78,9 @@ from app.services.tmdb_show_search import ShowSearchService
 from app.services.upcoming import UpcomingService
 from app.services.watch_history import WatchHistoryService
 from app.services.watch_next import WatchNextService
+from app.repositories.data_import_run import DataImportRunRepository
+from app.services.data_import_run import DataImportRunService
+from app.services.data_import_builder import build_data_import_service
 
 
 def get_genre_service(
@@ -1215,45 +1218,43 @@ DataExportServiceDependency = Annotated[
 
 def get_data_import_service(
     session: DatabaseSession,
-    show_import_service: ShowImportServiceDependency,
-    movie_import_service: MovieImportServiceDependency,
-    season_episode_sync_service: SeasonEpisodeSyncServiceDependency,
+    settings: Annotated[
+        Settings,
+        Depends(get_settings),
+    ],
+    tmdb_client: Annotated[
+        TMDBClient,
+        Depends(get_tmdb_client),
+    ],
 ) -> DataImportService:
     """Provide portable SofaWatch data import operations."""
 
-    return DataImportService(
+    return build_data_import_service(
         session=session,
-        library_repository=LibraryRepository(
-            session,
-        ),
-        show_repository=ShowRepository(
-            session,
-        ),
-        movie_repository=MovieRepository(
-            session,
-        ),
-        show_import_service=show_import_service,
-        movie_import_service=movie_import_service,
-        movie_watch_event_repository=MovieWatchEventRepository(
-            session,
-        ),
-        season_repository=SeasonRepository(
-            session,
-        ),
-        episode_repository=EpisodeRepository(
-            session,
-        ),
-        episode_watch_event_repository=EpisodeWatchEventRepository(
-            session,
-        ),
-        episode_progress_repository=EpisodeProgressRepository(
-            session,
-        ),
-        season_episode_sync_service=season_episode_sync_service,
+        settings=settings,
+        tmdb_client=tmdb_client,
     )
 
 
 DataImportServiceDependency = Annotated[
     DataImportService,
     Depends(get_data_import_service),
+]
+
+
+def get_data_import_run_service(
+    session: DatabaseSession,
+) -> DataImportRunService:
+    """Provide persistent asynchronous data import operations."""
+
+    return DataImportRunService(
+        repository=DataImportRunRepository(
+            session,
+        ),
+    )
+
+
+DataImportRunServiceDependency = Annotated[
+    DataImportRunService,
+    Depends(get_data_import_run_service),
 ]

@@ -4,9 +4,9 @@ import 'package:dio/dio.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/profile/data/models/data_import_preview_dto.dart';
-import 'package:sofawatch/features/profile/data/models/data_import_result_dto.dart';
+import 'package:sofawatch/features/profile/data/models/data_import_run_dto.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_preview.dart';
-import 'package:sofawatch/features/profile/domain/models/data_import_result.dart';
+import 'package:sofawatch/features/profile/domain/models/data_import_run.dart';
 import 'package:sofawatch/features/profile/domain/repositories/data_transfer_repository.dart';
 
 final class ApiDataTransferRepository implements DataTransferRepository {
@@ -76,7 +76,7 @@ final class ApiDataTransferRepository implements DataTransferRepository {
   }
 
   @override
-  Future<DataImportResult> importData(String json) async {
+  Future<DataImportRun> importData(String json) async {
     try {
       final Object? decoded = jsonDecode(json);
 
@@ -95,7 +95,57 @@ final class ApiDataTransferRepository implements DataTransferRepository {
         throw const FormatException('The import response body is missing.');
       }
 
-      return DataImportResultDto.fromJson(data).toDomain();
+      return DataImportRunDto.fromJson(data).toDomain();
+    } on AppException {
+      rethrow;
+    } on FormatException catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } on TypeError catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } on Object catch (error) {
+      throw AppException.unknown(originalError: error);
+    }
+  }
+
+  @override
+  Future<DataImportRun?> getActiveImport() async {
+    try {
+      final Response<Map<String, dynamic>> response = await _apiClient
+          .get<Map<String, dynamic>>('/users/me/imports/active');
+
+      final Map<String, dynamic>? data = response.data;
+
+      if (data == null) {
+        return null;
+      }
+
+      return DataImportRunDto.fromJson(data).toDomain();
+    } on AppException {
+      rethrow;
+    } on FormatException catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } on TypeError catch (error) {
+      throw AppException.invalidData(originalError: error);
+    } on Object catch (error) {
+      throw AppException.unknown(originalError: error);
+    }
+  }
+
+  @override
+  Future<DataImportRun> getImportRun(String id) async {
+    try {
+      final Response<Map<String, dynamic>> response = await _apiClient
+          .get<Map<String, dynamic>>('/users/me/imports/$id');
+
+      final Map<String, dynamic>? data = response.data;
+
+      if (data == null) {
+        throw const FormatException(
+          'The data import status response body is missing.',
+        );
+      }
+
+      return DataImportRunDto.fromJson(data).toDomain();
     } on AppException {
       rethrow;
     } on FormatException catch (error) {

@@ -36,6 +36,8 @@ from app.schemas.data_import import (
 from app.services.movie_import import MovieImportService
 from app.services.season_episode_sync import SeasonEpisodeSyncService
 from app.services.show_import import ShowImportService
+from app.models.enums import DataImportPhase, LibraryStatus
+from app.services.data_import_progress import DataImportProgressCallback
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +106,7 @@ class DataImportService:
         *,
         user_id: UUID,
         export: SofaWatchExportResponse,
+        progress_callback: DataImportProgressCallback | None = None,
     ) -> DataImportResultResponse:
         """Import all supported portable data for the current user.
 
@@ -119,11 +122,20 @@ class DataImportService:
         library_result = self.import_library(
             user_id=user_id,
             export=export,
+            progress_callback=progress_callback,
         )
 
         history_result = self.import_history(
             user_id=user_id,
             export=export,
+            progress_callback=progress_callback,
+        )
+
+        self._report_progress(
+            progress_callback=progress_callback,
+            phase=DataImportPhase.FINALIZING,
+            current=0,
+            total=0,
         )
 
         return DataImportResultResponse(
@@ -136,6 +148,7 @@ class DataImportService:
         *,
         user_id: UUID,
         export: SofaWatchExportResponse,
+        progress_callback: DataImportProgressCallback | None = None,
     ) -> DataImportLibraryResultResponse:
         """Merge portable Library data into the current user's Library.
 
@@ -148,7 +161,19 @@ class DataImportService:
         show_unchanged = 0
         show_failed = 0
 
-        for exported_show in export.library.shows:
+        show_total = len(export.library.shows)
+
+        self._report_progress(
+            progress_callback=progress_callback,
+            phase=DataImportPhase.LIBRARY_SHOWS,
+            current=0,
+            total=show_total,
+        )
+
+        for index, exported_show in enumerate(
+            export.library.shows,
+            start=1,
+        ):
             try:
                 outcome = self._import_library_show(
                     user_id=user_id,
@@ -163,22 +188,39 @@ class DataImportService:
                     "Failed to import Library Show with TMDB ID %s.",
                     exported_show.tmdb_id,
                 )
-
-                continue
-
-            if outcome == "created":
-                show_created += 1
-            elif outcome == "updated":
-                show_updated += 1
             else:
-                show_unchanged += 1
+                if outcome == "created":
+                    show_created += 1
+                elif outcome == "updated":
+                    show_updated += 1
+                else:
+                    show_unchanged += 1
+
+            self._report_progress(
+                progress_callback=progress_callback,
+                phase=DataImportPhase.LIBRARY_SHOWS,
+                current=index,
+                total=show_total,
+            )
 
         movie_created = 0
         movie_updated = 0
         movie_unchanged = 0
         movie_failed = 0
 
-        for exported_movie in export.library.movies:
+        movie_total = len(export.library.movies)
+
+        self._report_progress(
+            progress_callback=progress_callback,
+            phase=DataImportPhase.LIBRARY_MOVIES,
+            current=0,
+            total=movie_total,
+        )
+
+        for index, exported_movie in enumerate(
+            export.library.movies,
+            start=1,
+        ):
             try:
                 outcome = self._import_library_movie(
                     user_id=user_id,
@@ -193,15 +235,20 @@ class DataImportService:
                     "Failed to import Library Movie with TMDB ID %s.",
                     exported_movie.tmdb_id,
                 )
-
-                continue
-
-            if outcome == "created":
-                movie_created += 1
-            elif outcome == "updated":
-                movie_updated += 1
             else:
-                movie_unchanged += 1
+                if outcome == "created":
+                    movie_created += 1
+                elif outcome == "updated":
+                    movie_updated += 1
+                else:
+                    movie_unchanged += 1
+
+            self._report_progress(
+                progress_callback=progress_callback,
+                phase=DataImportPhase.LIBRARY_MOVIES,
+                current=index,
+                total=movie_total,
+            )
 
         return DataImportLibraryResultResponse(
             shows=DataImportMediaSummaryResponse(
@@ -223,6 +270,7 @@ class DataImportService:
         *,
         user_id: UUID,
         export: SofaWatchExportResponse,
+        progress_callback: DataImportProgressCallback | None = None,
     ) -> DataImportHistoryResultResponse:
         """Merge portable viewing History into the current user's History.
 
@@ -234,7 +282,19 @@ class DataImportService:
         episode_skipped = 0
         episode_failed = 0
 
-        for exported_event in export.history.episodes:
+        episode_total = len(export.history.episodes)
+
+        self._report_progress(
+            progress_callback=progress_callback,
+            phase=DataImportPhase.HISTORY_EPISODES,
+            current=0,
+            total=episode_total,
+        )
+
+        for index, exported_event in enumerate(
+            export.history.episodes,
+            start=1,
+        ):
             try:
                 created = self._import_episode_watch_event(
                     user_id=user_id,
@@ -246,22 +306,39 @@ class DataImportService:
                 episode_failed += 1
 
                 logger.exception(
-                    ("Failed to import Episode watch event for TMDB Episode ID %s."),
+                    "Failed to import Episode watch event for TMDB Episode ID %s.",
                     exported_event.episode_tmdb_id,
                 )
-
-                continue
-
-            if created:
-                episode_created += 1
             else:
-                episode_skipped += 1
+                if created:
+                    episode_created += 1
+                else:
+                    episode_skipped += 1
+
+            self._report_progress(
+                progress_callback=progress_callback,
+                phase=DataImportPhase.HISTORY_EPISODES,
+                current=index,
+                total=episode_total,
+            )
 
         movie_created = 0
         movie_skipped = 0
         movie_failed = 0
 
-        for exported_event in export.history.movies:
+        movie_total = len(export.history.movies)
+
+        self._report_progress(
+            progress_callback=progress_callback,
+            phase=DataImportPhase.HISTORY_MOVIES,
+            current=0,
+            total=movie_total,
+        )
+
+        for index, exported_event in enumerate(
+            export.history.movies,
+            start=1,
+        ):
             try:
                 created = self._import_movie_watch_event(
                     user_id=user_id,
@@ -276,13 +353,18 @@ class DataImportService:
                     "Failed to import Movie watch event for TMDB ID %s.",
                     exported_event.movie_tmdb_id,
                 )
-
-                continue
-
-            if created:
-                movie_created += 1
             else:
-                movie_skipped += 1
+                if created:
+                    movie_created += 1
+                else:
+                    movie_skipped += 1
+
+            self._report_progress(
+                progress_callback=progress_callback,
+                phase=DataImportPhase.HISTORY_MOVIES,
+                current=index,
+                total=movie_total,
+            )
 
         return DataImportHistoryResultResponse(
             episodes=DataImportHistoryMediaSummaryResponse(
@@ -526,6 +608,25 @@ class DataImportService:
         self._session.commit()
 
         return "updated"
+
+    @staticmethod
+    def _report_progress(
+        *,
+        progress_callback: DataImportProgressCallback | None,
+        phase: DataImportPhase,
+        current: int,
+        total: int,
+    ) -> None:
+        """Report import progress when asynchronous tracking is enabled."""
+
+        if progress_callback is None:
+            return
+
+        progress_callback(
+            phase=phase,
+            current=current,
+            total=total,
+        )
 
     @staticmethod
     def _merge_library_entry(

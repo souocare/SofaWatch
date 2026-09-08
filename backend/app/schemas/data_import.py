@@ -1,4 +1,9 @@
-from pydantic import BaseModel, Field
+from datetime import datetime
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.models.enums import DataImportPhase, DataImportRunStatus
 
 
 class DataImportPreviewSummaryResponse(BaseModel):
@@ -68,3 +73,31 @@ class DataImportResultResponse(BaseModel):
 
     library: DataImportLibraryResultResponse
     history: DataImportHistoryResultResponse
+
+
+class DataImportRunResponse(BaseModel):
+    """Persistent status of an asynchronous SofaWatch data import."""
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
+    id: UUID
+    status: DataImportRunStatus
+    phase: DataImportPhase
+
+    progress_current: int = Field(
+        ge=0,
+    )
+    progress_total: int = Field(
+        ge=0,
+    )
+
+    result: DataImportResultResponse | None = None
+
+    error_code: str | None = None
+    error_message: str | None = None
+
+    created_at: datetime
+    started_at: datetime | None = None
+    finished_at: datetime | None = None

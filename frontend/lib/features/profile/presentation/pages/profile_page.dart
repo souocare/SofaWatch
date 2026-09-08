@@ -56,6 +56,7 @@ import 'package:sofawatch/features/statistics/application/cubit/statistics_summa
 import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_state.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
 import 'package:sofawatch/core/files/file_downloader.dart';
+import 'package:sofawatch/features/profile/domain/models/data_import_run.dart';
 
 const double _profileServerMetricCardExtent = 136;
 
@@ -1921,7 +1922,10 @@ class _ProfileDataImportCard extends StatelessWidget {
       builder: (BuildContext context, DataTransferState state) {
         final bool isPreviewLoading = state is DataTransferImportPreviewLoading;
 
-        final bool isImporting = state is DataTransferImporting;
+        final bool isImporting =
+            state is DataTransferImporting ||
+            state is DataTransferImportInProgress ||
+            state is DataTransferImportStatusFailure;
 
         return Container(
           key: const ValueKey<String>('profile-data-transfer-import-card'),
@@ -1976,8 +1980,20 @@ class _ProfileDataImportCard extends StatelessWidget {
 
                 DataTransferImporting() => const _ProfileDataImportProgress(),
 
+                DataTransferImportInProgress(:final run) =>
+                  _ProfileDataImportProgress(run: run),
+
+                DataTransferImportStatusFailure(:final run, :final error) =>
+                  _ProfileDataImportProgress(run: run, statusError: error),
+
                 DataTransferImportSuccess(:final result) =>
                   _ProfileDataImportSuccess(result: result),
+
+                DataTransferImportRunFailure(:final run) =>
+                  _ProfileDataImportRunFailure(run: run),
+
+                DataTransferImportRecoveryFailure(:final error) =>
+                  _ProfileDataImportFailure(error: error),
 
                 DataTransferImportPreviewFailure(
                   :final filename,
@@ -2533,10 +2549,17 @@ class _ProfileDataImportSummaryRow extends StatelessWidget {
 }
 
 class _ProfileDataImportProgress extends StatelessWidget {
-  const _ProfileDataImportProgress();
+  const _ProfileDataImportProgress({this.run, this.statusError});
+
+  final DataImportRun? run;
+  final AppException? statusError;
 
   @override
   Widget build(BuildContext context) {
+    final DataImportRun? currentRun = run;
+    final bool hasDeterminateProgress =
+        currentRun?.hasDeterminateProgress ?? false;
+
     return Container(
       key: const ValueKey<String>('profile-data-transfer-import-progress'),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -2545,21 +2568,129 @@ class _ProfileDataImportProgress extends StatelessWidget {
         borderRadius: AppRadius.borderMedium,
         border: Border.all(color: AppColors.outlineVariant),
       ),
-      child: const Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              if (!hasDeterminateProgress)
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                const Icon(Icons.sync_rounded, size: 20),
+
+              const SizedBox(width: AppSpacing.md),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      _dataImportProgressTitle(currentRun),
+                      key: const ValueKey<String>(
+                        'profile-data-transfer-import-progress-title',
+                      ),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+
+                    if (currentRun != null &&
+                        currentRun.hasDeterminateProgress) ...<Widget>[
+                      const SizedBox(height: AppSpacing.xs),
+
+                      Text(
+                        '${currentRun.progressCurrent} / '
+                        '${currentRun.progressTotal}',
+                        key: const ValueKey<String>(
+                          'profile-data-transfer-import-progress-count',
+                        ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
 
-          SizedBox(width: AppSpacing.md),
+          if (currentRun != null &&
+              currentRun.hasDeterminateProgress) ...<Widget>[
+            const SizedBox(height: AppSpacing.md),
 
-          Expanded(child: Text('Importing your SofaWatch data…')),
+            LinearProgressIndicator(
+              key: const ValueKey<String>(
+                'profile-data-transfer-import-progress-bar',
+              ),
+              value: currentRun.progressFraction,
+            ),
+          ],
+
+          if (statusError != null) ...<Widget>[
+            const SizedBox(height: AppSpacing.md),
+
+            Container(
+              key: const ValueKey<String>(
+                'profile-data-transfer-import-status-warning',
+              ),
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                borderRadius: AppRadius.borderMedium,
+                border: Border.all(color: AppColors.outlineVariant),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Icon(Icons.cloud_off_outlined, size: 18),
+
+                  const SizedBox(width: AppSpacing.sm),
+
+                  Expanded(
+                    child: Text(
+                      'The import is still running on the server, but its '
+                      'latest status could not be refreshed. '
+                      '${AppErrorMessageMapper.map(statusError!)}',
+                      key: const ValueKey<String>(
+                        'profile-data-transfer-import-status-warning-message',
+                      ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
+}
+
+String _dataImportProgressTitle(DataImportRun? run) {
+  if (run == null) {
+    return 'Starting import…';
+  }
+
+  if (run.status == DataImportRunStatus.queued) {
+    return 'Waiting for the import worker…';
+  }
+
+  return switch (run.phase) {
+    DataImportPhase.queued => 'Preparing import…',
+    DataImportPhase.libraryShows => 'Importing library shows',
+    DataImportPhase.libraryMovies => 'Importing library movies',
+    DataImportPhase.historyEpisodes => 'Importing episode history',
+    DataImportPhase.historyMovies => 'Importing movie history',
+    DataImportPhase.finalizing => 'Finalizing import…',
+  };
 }
 
 class _ProfileDataImportSelectionFailure extends StatelessWidget {
@@ -2626,6 +2757,44 @@ class _ProfileDataImportSelectionFailure extends StatelessWidget {
             },
             icon: const Icon(Icons.upload_file_rounded),
             label: const Text('Choose another file'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileDataImportRunFailure extends StatelessWidget {
+  const _ProfileDataImportRunFailure({required this.run});
+
+  final DataImportRun run;
+
+  @override
+  Widget build(BuildContext context) {
+    final String message =
+        run.errorMessage ?? 'The import could not be completed.';
+
+    return Column(
+      key: const ValueKey<String>('profile-data-transfer-import-run-failure'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          message,
+          key: const ValueKey<String>('profile-data-transfer-import-run-error'),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            key: const ValueKey<String>('profile-data-transfer-import-again'),
+            onPressed: context.read<DataTransferCubit>().reset,
+            icon: const Icon(Icons.upload_file_rounded),
+            label: const Text('Import again'),
           ),
         ),
       ],

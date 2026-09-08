@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_preview.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_result.dart';
+import 'package:sofawatch/features/profile/domain/models/data_import_run.dart';
 
 sealed class DataTransferState extends Equatable {
   const DataTransferState();
@@ -76,8 +77,46 @@ final class DataTransferImportPreviewFailure extends DataTransferState {
   List<Object?> get props => <Object?>[filename, error];
 }
 
+/// The POST request that creates the persistent import run is in progress.
 final class DataTransferImporting extends DataTransferState {
   const DataTransferImporting();
+}
+
+/// A persistent import run is queued or running on the backend worker.
+final class DataTransferImportInProgress extends DataTransferState {
+  const DataTransferImportInProgress(this.run);
+
+  final DataImportRun run;
+
+  @override
+  List<Object?> get props => <Object?>[run];
+}
+
+/// The import itself is still active, but its latest status could not be read.
+///
+/// Polling continues so a temporary connection failure does not make the
+/// frontend forget an import that is still executing on the server.
+final class DataTransferImportStatusFailure extends DataTransferState {
+  const DataTransferImportStatusFailure({
+    required this.run,
+    required this.error,
+  });
+
+  final DataImportRun run;
+  final AppException error;
+
+  @override
+  List<Object?> get props => <Object?>[run, error];
+}
+
+/// Looking for a pre-existing active import failed while opening the page.
+final class DataTransferImportRecoveryFailure extends DataTransferState {
+  const DataTransferImportRecoveryFailure(this.error);
+
+  final AppException error;
+
+  @override
+  List<Object?> get props => <Object?>[error];
 }
 
 final class DataTransferImportSuccess extends DataTransferState {
@@ -89,6 +128,17 @@ final class DataTransferImportSuccess extends DataTransferState {
   List<Object?> get props => <Object?>[result];
 }
 
+/// The persistent backend run itself ended in `failed`.
+final class DataTransferImportRunFailure extends DataTransferState {
+  const DataTransferImportRunFailure(this.run);
+
+  final DataImportRun run;
+
+  @override
+  List<Object?> get props => <Object?>[run];
+}
+
+/// Creating the import run failed before the worker could own it.
 final class DataTransferImportFailure extends DataTransferState {
   const DataTransferImportFailure(this.error);
 
