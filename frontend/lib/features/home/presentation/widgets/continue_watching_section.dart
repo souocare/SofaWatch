@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -120,6 +121,33 @@ class _ContinueWatchingCarouselState extends State<_ContinueWatchingCarousel> {
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) {
+      return SizedBox(
+        height: 285,
+        child: ListView.separated(
+          key: const ValueKey<String>('home-continue-watching-carousel'),
+          scrollDirection: Axis.horizontal,
+          physics: const ClampingScrollPhysics(),
+          itemCount: widget.items.length,
+          separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+          itemBuilder: (BuildContext context, int index) {
+            final WatchNextShow item = widget.items[index];
+
+            return SizedBox(
+              width: 360,
+              child: _ContinueWatchingCard(
+                item: item,
+                isUpdating:
+                    widget.updatingEpisodeSource ==
+                        HomeWatchSource.continueWatching &&
+                    widget.updatingEpisodeId == item.nextEpisode.id,
+              ),
+            );
+          },
+        ),
+      );
+    }
+
     return SizedBox(
       height: 240,
       child: PageView.builder(

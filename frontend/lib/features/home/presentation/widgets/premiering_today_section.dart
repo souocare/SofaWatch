@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -281,6 +282,7 @@ class _PremieringTodayCarousel extends StatefulWidget {
 class _PremieringTodayCarouselState extends State<_PremieringTodayCarousel> {
   static const double _mobileViewportFraction = 0.86;
   static const double _artworkAspectRatio = 16 / 9;
+  static const double _webCardWidth = 360;
 
   /*
    * Planning cards contain an additional badge below the Episode metadata,
@@ -306,10 +308,48 @@ class _PremieringTodayCarouselState extends State<_PremieringTodayCarousel> {
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) {
+      final bool hasPlanningItem = widget.items.any(
+        (UpcomingItem item) => item.libraryStatus == LibraryStatus.planning,
+      );
+
+      final double metadataHeight = hasPlanningItem
+          ? _planningMetadataHeight
+          : _standardMetadataHeight;
+
+      final double artworkHeight = _webCardWidth / _artworkAspectRatio;
+      final double carouselHeight =
+          artworkHeight + AppSpacing.sm + metadataHeight;
+
+      return SizedBox(
+        height: carouselHeight,
+        child: ListView.separated(
+          key: const ValueKey<String>('home-premiering-today-carousel'),
+          scrollDirection: Axis.horizontal,
+          physics: const ClampingScrollPhysics(),
+          itemCount: widget.items.length,
+          separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+          itemBuilder: (BuildContext context, int index) {
+            final UpcomingItem item = widget.items[index];
+
+            return SizedBox(
+              width: _webCardWidth,
+              child: _PremieringTodayCard(
+                item: item,
+                isUpdating:
+                    widget.updatingEpisodeSource ==
+                        HomeWatchSource.premieringToday &&
+                    widget.updatingEpisodeId == item.episode.id,
+              ),
+            );
+          },
+        ),
+      );
+    }
+
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final double cardWidth = constraints.maxWidth * _mobileViewportFraction;
-
         final double artworkHeight = cardWidth / _artworkAspectRatio;
 
         final bool hasPlanningItem = widget.items.any(

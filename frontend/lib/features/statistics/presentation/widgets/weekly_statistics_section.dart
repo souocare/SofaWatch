@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
@@ -154,8 +155,63 @@ class _WeeklyStatisticCard extends StatelessWidget {
     final double width = MediaQuery.sizeOf(context).width;
 
     final bool compact = width < AppBreakpoints.mobile;
-
     final bool veryCompact = width < 340;
+
+    if (kIsWeb) {
+      return Container(
+        key: ValueKey<String>(cardKey),
+        constraints: const BoxConstraints(minHeight: 96),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceHigh,
+          borderRadius: AppRadius.borderLarge,
+          border: Border.all(color: AppColors.outlineVariant),
+        ),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceHighest,
+                borderRadius: AppRadius.borderMedium,
+              ),
+              child: Icon(icon, size: 21, color: AppColors.primary),
+            ),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       key: ValueKey<String>(cardKey),
@@ -238,7 +294,7 @@ class _WeeklyStatisticSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 104,
+      height: kIsWeb ? 96 : 104,
       decoration: BoxDecoration(
         color: AppColors.surfaceHigh,
         borderRadius: AppRadius.borderLarge,
