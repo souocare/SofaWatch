@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/scroll/app_drag_scroll_behavior.dart';
+import 'package:sofawatch/core/scroll/app_page_scroll_physics.dart';
 import 'package:sofawatch/core/widgets/server_network_image.dart';
 import 'package:sofawatch/features/history/domain/models/history_movie_item.dart';
 import 'package:sofawatch/features/movies/application/cubit/movie_history_cubit.dart';
@@ -152,13 +155,15 @@ class _MoviesContent extends StatelessWidget {
                     title: 'Watchlist',
                     movies: state.watchlist,
                     sectionKey: 'movies-watchlist',
-                    mobileColumns: 3,
                     showWatchAction: true,
                   ),
                 ),
               ),
 
-            if (state.comingSoon.isNotEmpty)
+            if (state.comingSoon.isNotEmpty) ...<Widget>[
+              const SliverToBoxAdapter(
+                child: _MoviesContentBounds(child: _MovieSectionDivider()),
+              ),
               SliverToBoxAdapter(
                 child: _MoviesContentBounds(
                   child: _MovieSection(
@@ -170,6 +175,7 @@ class _MoviesContent extends StatelessWidget {
                   ),
                 ),
               ),
+            ],
 
             const SliverToBoxAdapter(
               child: _MoviesContentBounds(child: _MovieHistorySection()),
@@ -464,6 +470,30 @@ class _MoviesControlButton extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MovieSectionDivider extends StatelessWidget {
+  const _MovieSectionDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDesktop =
+        MediaQuery.sizeOf(context).width >= AppBreakpoints.desktop;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        isDesktop
+            ? AppSpacing.desktopHorizontalPadding
+            : AppSpacing.mobileHorizontalPadding,
+        AppSpacing.sm,
+        isDesktop
+            ? AppSpacing.desktopHorizontalPadding
+            : AppSpacing.mobileHorizontalPadding,
+        AppSpacing.xl,
+      ),
+      child: const Divider(height: 1, thickness: 1, color: AppColors.divider),
     );
   }
 }
@@ -792,15 +822,17 @@ class _MovieHistorySectionState extends State<_MovieHistorySection> {
             .take(_previewItemLimit)
             .toList(growable: false);
 
-        final int contentPageCount = previewItems.length <= 6
-            ? 1
-            : previewItems.length <= 12
-            ? 2
-            : _previewPageCount;
+        final int columns = kIsWeb ? 6 : 3;
+        final int itemsPerPage = columns * 2;
 
         final bool showViewAll = state.items.length > _previewItemLimit;
 
-        final int totalPageCount = contentPageCount;
+        final int slotCount = previewItems.length + (showViewAll ? 1 : 0);
+
+        final int totalPageCount = (slotCount / itemsPerPage).ceil().clamp(
+          1,
+          999,
+        );
 
         final int lastPage = totalPageCount - 1;
 
@@ -876,8 +908,8 @@ class _MovieHistoryPager extends StatelessWidget {
     required this.onPageChanged,
   });
 
-  static const int _itemsPerFullPage = 6;
-  static const int _columns = 3;
+  static const int _mobileColumns = 3;
+  static const int _webColumns = 6;
   static const int _rows = 2;
 
   final List<HistoryMovieItem> items;
@@ -890,9 +922,12 @@ class _MovieHistoryPager extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        final int columns = kIsWeb ? _webColumns : _mobileColumns;
+
+        final int itemsPerPage = columns * _rows;
+
         final double cardWidth =
-            (constraints.maxWidth - (AppSpacing.md * (_columns - 1))) /
-            _columns;
+            (constraints.maxWidth - (AppSpacing.md * (columns - 1))) / columns;
 
         final double posterHeight = cardWidth * 1.5;
 
@@ -913,136 +948,63 @@ class _MovieHistoryPager extends StatelessWidget {
 
         return SizedBox(
           height: pageHeight,
-          child: PageView.builder(
-            key: const ValueKey<String>('movies-watched-pager'),
-            controller: pageController,
-            physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
-            itemCount: pageCount,
-            onPageChanged: onPageChanged,
-            itemBuilder: (BuildContext context, int pageIndex) {
-              /*
-               * The third preview page reserves its final column for
-               * View All. That leaves four Movie slots:
-               *
-               * [13] [14] [View All]
-               * [15] [16] [View All]
-               */
-              if (pageIndex == 2 && showViewAll) {
-                final List<HistoryMovieItem> finalPageItems = items
-                    .skip(12)
-                    .take(4)
-                    .toList(growable: false);
+          child: ScrollConfiguration(
+            behavior: const AppDragScrollBehavior(),
+            child: PageView.builder(
+              key: const ValueKey<String>('movies-watched-pager'),
+              controller: pageController,
+              physics: kIsWeb
+                  ? const AppPageScrollPhysics(
+                      parent: ClampingScrollPhysics(),
+                      pageChangeThreshold: 0.18,
+                    )
+                  : const PageScrollPhysics(parent: BouncingScrollPhysics()),
+              itemCount: pageCount,
+              onPageChanged: onPageChanged,
+              itemBuilder: (BuildContext context, int pageIndex) {
+                final int startIndex = pageIndex * itemsPerPage;
 
-                return _MovieHistoryFinalPage(
-                  items: finalPageItems,
-                  cardWidth: cardWidth,
-                  cardHeight: cardHeight,
-                  pageHeight: pageHeight,
+                final int endIndex = (startIndex + itemsPerPage).clamp(
+                  0,
+                  items.length,
                 );
-              }
 
-              final int startIndex = pageIndex * _itemsPerFullPage;
+                final List<HistoryMovieItem> pageItems =
+                    startIndex < items.length
+                    ? items.sublist(startIndex, endIndex)
+                    : const <HistoryMovieItem>[];
 
-              final int endIndex = (startIndex + _itemsPerFullPage).clamp(
-                0,
-                items.length,
-              );
+                final bool isLastPage = pageIndex == pageCount - 1;
 
-              final List<HistoryMovieItem> pageItems = items.sublist(
-                startIndex,
-                endIndex,
-              );
+                final bool includeViewAll = isLastPage && showViewAll;
 
-              return GridView.builder(
-                key: ValueKey<String>('movies-watched-page-$pageIndex'),
-                physics: const NeverScrollableScrollPhysics(),
-                padding: EdgeInsets.zero,
-                itemCount: pageItems.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: _columns,
-                  crossAxisSpacing: AppSpacing.md,
-                  mainAxisSpacing: AppSpacing.lg,
-                  mainAxisExtent: cardHeight,
-                ),
-                itemBuilder: (BuildContext context, int index) {
-                  return _MovieHistoryCard(item: pageItems[index]);
-                },
-              );
-            },
+                final int itemCount =
+                    pageItems.length + (includeViewAll ? 1 : 0);
+
+                return GridView.builder(
+                  key: ValueKey<String>('movies-watched-page-$pageIndex'),
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: EdgeInsets.zero,
+                  itemCount: itemCount,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    crossAxisSpacing: AppSpacing.md,
+                    mainAxisSpacing: AppSpacing.lg,
+                    mainAxisExtent: cardHeight,
+                  ),
+                  itemBuilder: (BuildContext context, int index) {
+                    if (includeViewAll && index == pageItems.length) {
+                      return const _MovieHistorySeeAllTile();
+                    }
+
+                    return _MovieHistoryCard(item: pageItems[index]);
+                  },
+                );
+              },
+            ),
           ),
         );
       },
-    );
-  }
-}
-
-class _MovieHistoryFinalPage extends StatelessWidget {
-  const _MovieHistoryFinalPage({
-    required this.items,
-    required this.cardWidth,
-    required this.cardHeight,
-    required this.pageHeight,
-  });
-
-  final List<HistoryMovieItem> items;
-  final double cardWidth;
-  final double cardHeight;
-  final double pageHeight;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      key: const ValueKey<String>('movies-watched-final-page'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Expanded(
-          child: Column(
-            children: <Widget>[
-              if (items.isNotEmpty)
-                SizedBox(
-                  height: cardHeight,
-                  child: _MovieHistoryCard(item: items[0]),
-                ),
-              if (items.length > 2) ...<Widget>[
-                const SizedBox(height: AppSpacing.lg),
-                SizedBox(
-                  height: cardHeight,
-                  child: _MovieHistoryCard(item: items[2]),
-                ),
-              ],
-            ],
-          ),
-        ),
-
-        const SizedBox(width: AppSpacing.md),
-
-        Expanded(
-          child: Column(
-            children: <Widget>[
-              if (items.length > 1)
-                SizedBox(
-                  height: cardHeight,
-                  child: _MovieHistoryCard(item: items[1]),
-                ),
-              if (items.length > 3) ...<Widget>[
-                const SizedBox(height: AppSpacing.lg),
-                SizedBox(
-                  height: cardHeight,
-                  child: _MovieHistoryCard(item: items[3]),
-                ),
-              ],
-            ],
-          ),
-        ),
-
-        const SizedBox(width: AppSpacing.md),
-
-        SizedBox(
-          width: cardWidth,
-          height: pageHeight,
-          child: _MovieHistorySeeAllTile(),
-        ),
-      ],
     );
   }
 }
