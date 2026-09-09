@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -82,12 +83,13 @@ class HomeHeader extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
             ],
 
-            _HomeUserMenu(
-              compact: compact,
-              onSelected: (HomeUserMenuAction action) {
-                _handleUserAction(context, action);
-              },
-            ),
+            if (!kIsWeb)
+              _HomeUserMenu(
+                compact: compact,
+                onSelected: (HomeUserMenuAction action) {
+                  _handleUserAction(context, action);
+                },
+              ),
           ],
         );
       },

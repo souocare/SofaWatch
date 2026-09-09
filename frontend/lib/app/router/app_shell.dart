@@ -14,12 +14,15 @@ import 'package:sofawatch/app/theme/tokens/app_radius.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
 import 'package:sofawatch/app/theme/tokens/app_typography.dart';
 import 'package:sofawatch/core/api/api_client.dart';
+import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
 import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
 import 'package:sofawatch/features/library/data/repositories/api_library_repository.dart';
 import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
 import 'package:sofawatch/features/search/domain/repositories/search_repository.dart';
 import 'package:sofawatch/features/search/presentation/views/search_mobile_view.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_text_field.dart';
+
+enum _WebProfileMenuAction { profile, logout }
 
 class AppShell extends StatelessWidget {
   const AppShell({required this.navigationShell, super.key});
@@ -160,10 +163,129 @@ class _WebNavigationTab extends StatelessWidget {
 }
 
 class _WebNavigationActions extends StatelessWidget {
-  const _WebNavigationActions();
+  const _WebNavigationActions({
+    required this.onProfilePressed,
+    required this.onLogoutPressed,
+  });
+
+  final VoidCallback onProfilePressed;
+  final VoidCallback onLogoutPressed;
 
   void _openSearch(BuildContext context) {
     context.pushNamed(AppRoute.search.name);
+  }
+
+  void _openNotifications(BuildContext context) {
+    final RenderBox button = context.findRenderObject()! as RenderBox;
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+
+    final Offset position = button.localToGlobal(
+      Offset.zero,
+      ancestor: overlay,
+    );
+
+    showMenu<void>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx - 320,
+        position.dy + button.size.height + AppSpacing.sm,
+        overlay.size.width - position.dx - button.size.width,
+        0,
+      ),
+      items: const <PopupMenuEntry<void>>[
+        PopupMenuItem<void>(
+          enabled: false,
+          padding: EdgeInsets.zero,
+          child: SizedBox(
+            width: 360,
+            height: 220,
+            child: Padding(
+              padding: EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Notifications',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  SizedBox(height: AppSpacing.xl),
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(Icons.notifications_none_rounded, size: 36),
+                          SizedBox(height: AppSpacing.md),
+                          Text(
+                            'No notifications yet',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Notifications will be available in a future update.',
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openProfileMenu(BuildContext context) async {
+    final RenderBox button = context.findRenderObject()! as RenderBox;
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+
+    final Offset position = button.localToGlobal(
+      Offset.zero,
+      ancestor: overlay,
+    );
+
+    final _WebProfileMenuAction? action = await showMenu<_WebProfileMenuAction>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx - 150,
+        position.dy + button.size.height + AppSpacing.sm,
+        overlay.size.width - position.dx - button.size.width,
+        0,
+      ),
+      items: const <PopupMenuEntry<_WebProfileMenuAction>>[
+        PopupMenuItem<_WebProfileMenuAction>(
+          value: _WebProfileMenuAction.profile,
+          child: _WebProfileMenuItem(
+            icon: Icons.person_outline_rounded,
+            label: 'Profile',
+          ),
+        ),
+        PopupMenuDivider(),
+        PopupMenuItem<_WebProfileMenuAction>(
+          value: _WebProfileMenuAction.logout,
+          child: _WebProfileMenuItem(
+            icon: Icons.logout_rounded,
+            label: 'Log out',
+          ),
+        ),
+      ],
+    );
+
+    switch (action) {
+      case _WebProfileMenuAction.profile:
+        onProfilePressed();
+
+      case _WebProfileMenuAction.logout:
+        onLogoutPressed();
+
+      case null:
+        return;
+    }
   }
 
   @override
@@ -180,43 +302,59 @@ class _WebNavigationActions extends StatelessWidget {
           icon: const Icon(Icons.search_rounded),
         ),
         const SizedBox(width: AppSpacing.sm),
-        IconButton(
-          tooltip: 'Notifications',
-          onPressed: () {
-            // Implementação futura.
+        Builder(
+          builder: (BuildContext context) {
+            return IconButton(
+              tooltip: 'Notifications',
+              onPressed: () {
+                _openNotifications(context);
+              },
+              icon: const Icon(Icons.notifications_none_rounded),
+            );
           },
-          icon: const Icon(Icons.notifications_none_rounded),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        IconButton(
-          tooltip: 'Settings',
-          onPressed: () {
-            // Implementação futura.
-          },
-          icon: const Icon(Icons.settings_outlined),
         ),
         const SizedBox(width: AppSpacing.lg),
-        const _WebProfileAvatar(),
+        Builder(
+          builder: (BuildContext context) {
+            return _WebProfileAvatar(
+              onPressed: () {
+                _openProfileMenu(context);
+              },
+            );
+          },
+        ),
       ],
     );
   }
 }
 
 class _WebProfileAvatar extends StatelessWidget {
-  const _WebProfileAvatar();
+  const _WebProfileAvatar({required this.onPressed});
+
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('web-profile-avatar'),
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppColors.surfaceHigh,
-        border: Border.all(color: AppColors.outlineVariant),
+    return Tooltip(
+      message: 'Profile',
+      child: InkWell(
+        key: const ValueKey<String>('web-profile-avatar'),
+        onTap: onPressed,
+        borderRadius: AppRadius.borderFull,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.surfaceHigh,
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: const Icon(
+            Icons.person_outline,
+            color: AppColors.textSecondary,
+          ),
+        ),
       ),
-      child: const Icon(Icons.person_outline, color: AppColors.textSecondary),
     );
   }
 }
@@ -272,7 +410,17 @@ class _WebAppShell extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: AppSpacing.lg),
-                    const Flexible(flex: 0, child: _WebNavigationActions()),
+                    Flexible(
+                      flex: 0,
+                      child: _WebNavigationActions(
+                        onProfilePressed: () {
+                          onDestinationSelected(4);
+                        },
+                        onLogoutPressed: () {
+                          context.read<AuthCubit>().logout();
+                        },
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1364,6 +1512,24 @@ class _MobileSearchPill extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _WebProfileMenuItem extends StatelessWidget {
+  const _WebProfileMenuItem({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Icon(icon, size: 20),
+        const SizedBox(width: AppSpacing.md),
+        Text(label),
+      ],
     );
   }
 }
