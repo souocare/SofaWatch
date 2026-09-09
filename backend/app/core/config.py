@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -27,6 +28,7 @@ class Settings(BaseSettings):
         ge=1,
         le=1440,
     )
+    session_cookie_secure_mode: Literal["auto", "always", "never"] = "auto"
     session_idle_expire_days: int = Field(
         default=180,
         ge=1,

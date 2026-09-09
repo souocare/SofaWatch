@@ -49,9 +49,26 @@ router = APIRouter(
 _SESSION_COOKIE_NAME = "sofawatch_session"
 _SECONDS_PER_DAY = 24 * 60 * 60
 
+def _should_use_secure_cookie(
+    *,
+    request: Request,
+    settings: Settings,
+) -> bool:
+    """Return whether the Web session cookie should use the Secure flag."""
+
+    mode = settings.session_cookie_secure_mode
+
+    if mode == "always":
+        return True
+
+    if mode == "never":
+        return False
+
+    return request.url.scheme == "https"
 
 def _set_web_session_cookie(
     *,
+    request: Request,
     response: Response,
     credential: str,
     settings: Settings,
@@ -63,7 +80,10 @@ def _set_web_session_cookie(
         value=credential,
         max_age=(settings.session_idle_expire_days * _SECONDS_PER_DAY),
         httponly=True,
-        secure=settings.is_production,
+        secure=_should_use_secure_cookie(
+            request=request,
+            settings=settings,
+        ),
         samesite="lax",
         path="/",
     )
@@ -71,6 +91,7 @@ def _set_web_session_cookie(
 
 def _clear_web_session_cookie(
     *,
+    request: Request,
     response: Response,
     settings: Settings,
 ) -> None:
@@ -79,7 +100,10 @@ def _clear_web_session_cookie(
     response.delete_cookie(
         key=_SESSION_COOKIE_NAME,
         httponly=True,
-        secure=settings.is_production,
+        secure=_should_use_secure_cookie(
+            request=request,
+            settings=settings,
+        ),
         samesite="lax",
         path="/",
     )
@@ -116,6 +140,7 @@ def get_setup_status(
 )
 def create_initial_admin(
     payload: InitialSetupRequest,
+    request: Request,
     response: Response,
     setup_service: InitialSetupServiceDependency,
     access_token_service: AccessTokenServiceDependency,
@@ -151,6 +176,7 @@ def create_initial_admin(
     )
 
     _set_web_session_cookie(
+        request=request,
         response=response,
         credential=auth_session.credential,
         settings=settings,
@@ -196,6 +222,7 @@ def get_registration_status(
 )
 def register(
     payload: RegistrationRequest,
+    request: Request,
     response: Response,
     registration_service: RegistrationServiceDependency,
     access_token_service: AccessTokenServiceDependency,
@@ -240,6 +267,7 @@ def register(
 
     _set_web_session_cookie(
         response=response,
+        request=request,
         credential=auth_session.credential,
         settings=settings,
     )
@@ -294,6 +322,7 @@ def complete_password_recovery(
 )
 def login(
     credentials: LoginRequest,
+    request: Request,
     response: Response,
     authentication_service: AuthenticationServiceDependency,
     access_token_service: AccessTokenServiceDependency,
@@ -327,6 +356,7 @@ def login(
     )
 
     _set_web_session_cookie(
+        request=request,
         response=response,
         credential=auth_session.credential,
         settings=settings,
@@ -446,6 +476,7 @@ def create_auth_handoff(
 )
 def exchange_auth_handoff(
     payload: AuthHandoffExchangeRequest,
+    request: Request,
     response: Response,
     auth_handoff_service: AuthHandoffServiceDependency,
     user_service: UserServiceDependency,
@@ -486,6 +517,7 @@ def exchange_auth_handoff(
     )
 
     _set_web_session_cookie(
+        request=request,
         response=response,
         credential=auth_session.credential,
         settings=settings,
@@ -651,6 +683,7 @@ def logout(
         )
 
     _clear_web_session_cookie(
+        request=request,
         response=response,
         settings=settings,
     )
@@ -667,6 +700,7 @@ def logout(
     ),
 )
 def logout_all(
+    request: Request,
     response: Response,
     current_user: CurrentUserDependency,
     auth_session_service: AuthSessionServiceDependency,
@@ -682,6 +716,7 @@ def logout_all(
     )
 
     _clear_web_session_cookie(
+        request=request,
         response=response,
         settings=settings,
     )
