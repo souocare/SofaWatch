@@ -1992,3 +1992,9 @@ This document should remain the master implementation-status index even when dee
 - [Backend README](../../backend/README.md)
 - [Frontend README](../../frontend/README.md)
 - [Technical Documentation](../README.md)
+
+
+--- 
+# OTHER POINTS:
+- Preparar suporte oficial a reverse proxy/HTTPS no deployment Web: documentar e configurar corretamente X-Forwarded-Proto, trusted proxy headers e routing /api para permitir acesso simultâneo por HTTP na LAN e HTTPS através de Cloudflare Tunnel, Nginx, Caddy, Traefik ou equivalente, sem tornar nenhum proxy específico obrigatório.
+- Fix Web login password-manager autofill: The login form already uses Flutter’s recommended AutofillGroup and AutofillHints.username/password, but Flutter Web currently has an upstream issue where selecting saved credentials from browser/password managers may not populate the fields. Re-evaluate this when implementing to check whether the issue has been fixed in the current Flutter stable version; if not, consider a Web-specific workaround using native HTML username/password inputs while keeping the standard Flutter implementation on other platforms.

@@ -234,50 +234,52 @@ class _WebAppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: <Widget>[
-          Container(
-            key: const ValueKey<String>('web-top-navigation'),
-            height: 92,
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceLowest,
-              border: Border(bottom: BorderSide(color: AppColors.divider)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.desktopHorizontalPadding,
+    return SelectionArea(
+      child: Scaffold(
+        body: Column(
+          children: <Widget>[
+            Container(
+              key: const ValueKey<String>('web-top-navigation'),
+              height: 92,
+              decoration: const BoxDecoration(
+                color: AppColors.surfaceLowest,
+                border: Border(bottom: BorderSide(color: AppColors.divider)),
               ),
-              child: Row(
-                children: <Widget>[
-                  Flexible(
-                    flex: 0,
-                    child: _WebBrand(
-                      onPressed: () {
-                        onDestinationSelected(0);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.lg),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      physics: const ClampingScrollPhysics(),
-                      child: _WebNavigationTabs(
-                        currentIndex: navigationShell.currentIndex,
-                        navigationItems: navigationItems,
-                        onDestinationSelected: onDestinationSelected,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.desktopHorizontalPadding,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Flexible(
+                      flex: 0,
+                      child: _WebBrand(
+                        onPressed: () {
+                          onDestinationSelected(0);
+                        },
                       ),
                     ),
-                  ),
-                  const SizedBox(width: AppSpacing.lg),
-                  const Flexible(flex: 0, child: _WebNavigationActions()),
-                ],
+                    const SizedBox(width: AppSpacing.lg),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const ClampingScrollPhysics(),
+                        child: _WebNavigationTabs(
+                          currentIndex: navigationShell.currentIndex,
+                          navigationItems: navigationItems,
+                          onDestinationSelected: onDestinationSelected,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.lg),
+                    const Flexible(flex: 0, child: _WebNavigationActions()),
+                  ],
+                ),
               ),
             ),
-          ),
-          Expanded(child: navigationShell),
-        ],
+            Expanded(child: navigationShell),
+          ],
+        ),
       ),
     );
   }
