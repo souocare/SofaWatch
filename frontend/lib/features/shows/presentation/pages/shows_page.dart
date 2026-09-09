@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/scroll/app_drag_scroll_behavior.dart';
+import 'package:sofawatch/core/scroll/app_page_scroll_physics.dart';
 import 'package:sofawatch/core/widgets/server_network_image.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_state.dart';
@@ -40,6 +42,7 @@ class _ShowsPageState extends State<ShowsPage>
     _tabController = TabController(
       length: 2,
       initialIndex: widget.initialTab.index,
+      animationDuration: const Duration(milliseconds: 120),
       vsync: this,
     );
   }
@@ -230,27 +233,42 @@ class _ShowsPageState extends State<ShowsPage>
                     );
                   }
 
+                  final Widget watchListTab = _WatchListTab(
+                    watchNext: state.watchNext,
+                    watchNextError: state.watchNextError,
+                    upToDate: state.upToDate,
+                    staleWatching: state.staleWatching,
+                    staleWatchingError: state.staleWatchingError,
+                    haventStarted: state.haventStarted,
+                    updatingWatchNextEpisodeId:
+                        state.updatingWatchNextEpisodeId,
+                    updatingStaleWatchingEpisodeId:
+                        state.updatingStaleWatchingEpisodeId,
+                    startingShowId: state.startingShowId,
+                    updatingWatchHistoryEventId:
+                        state.updatingWatchHistoryEventId,
+                  );
+
+                  if (kIsWeb) {
+                    return AnimatedBuilder(
+                      animation: _tabController,
+                      builder: (BuildContext context, Widget? child) {
+                        return IndexedStack(
+                          key: const ValueKey<String>('shows-tab-view'),
+                          index: _tabController.index,
+                          children: <Widget>[
+                            watchListTab,
+                            const _UpcomingTab(),
+                          ],
+                        );
+                      },
+                    );
+                  }
+
                   return TabBarView(
                     key: const ValueKey<String>('shows-tab-view'),
                     controller: _tabController,
-                    children: <Widget>[
-                      _WatchListTab(
-                        watchNext: state.watchNext,
-                        watchNextError: state.watchNextError,
-                        upToDate: state.upToDate,
-                        staleWatching: state.staleWatching,
-                        staleWatchingError: state.staleWatchingError,
-                        haventStarted: state.haventStarted,
-                        updatingWatchNextEpisodeId:
-                            state.updatingWatchNextEpisodeId,
-                        updatingStaleWatchingEpisodeId:
-                            state.updatingStaleWatchingEpisodeId,
-                        startingShowId: state.startingShowId,
-                        updatingWatchHistoryEventId:
-                            state.updatingWatchHistoryEventId,
-                      ),
-                      const _UpcomingTab(),
-                    ],
+                    children: <Widget>[watchListTab, const _UpcomingTab()],
                   );
                 },
               ),
@@ -313,22 +331,46 @@ class _ShowsHeader extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
-          TabBar(
-            key: const ValueKey<String>('shows-tabs'),
-            controller: tabController,
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            dividerColor: Colors.transparent,
-            tabs: const <Widget>[
-              Tab(
-                key: ValueKey<String>('shows-tab-watch-list'),
-                text: 'Watch List',
+          Container(
+            key: const ValueKey<String>('shows-tabs-container'),
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: AppColors.surfaceLowest,
+              border: Border(bottom: BorderSide(color: AppColors.divider)),
+            ),
+            child: TabBar(
+              key: const ValueKey<String>('shows-tabs'),
+              controller: tabController,
+              isScrollable: false,
+              dividerColor: Colors.transparent,
+              labelColor: AppColors.primary,
+              unselectedLabelColor: AppColors.textSecondary,
+              labelStyle: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              unselectedLabelStyle: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicator: const BoxDecoration(
+                color: AppColors.surfaceHigh,
+                border: Border(
+                  bottom: BorderSide(color: AppColors.primary, width: 3),
+                ),
               ),
-              Tab(
-                key: ValueKey<String>('shows-tab-upcoming'),
-                text: 'Upcoming',
-              ),
-            ],
+              tabs: const <Widget>[
+                Tab(
+                  key: ValueKey<String>('shows-tab-watch-list'),
+                  height: 52,
+                  text: 'Watch List',
+                ),
+                Tab(
+                  key: ValueKey<String>('shows-tab-upcoming'),
+                  height: 52,
+                  text: 'Upcoming',
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -436,7 +478,7 @@ class _WatchListTab extends StatefulWidget {
 }
 
 class _WatchListTabState extends State<_WatchListTab> {
-  static const double _desktopContentMaxWidth = 1040;
+  static const double _desktopContentMaxWidth = 1300;
   static const int _haventStartedPreviewLimit = 5;
 
   List<String> _haventStartedPreviewIds = <String>[];
@@ -559,10 +601,7 @@ class _WatchListTabState extends State<_WatchListTab> {
                     const SizedBox(height: AppSpacing.section),
 
                     if (widget.upToDate.isNotEmpty) ...<Widget>[
-                      _UpToDateSection(
-                        items: widget.upToDate,
-                        isDesktop: isDesktop,
-                      ),
+                      _UpToDateSection(items: widget.upToDate),
                       const SizedBox(height: AppSpacing.section),
                     ],
 
@@ -654,8 +693,6 @@ class _StaleWatchingSection extends StatelessWidget {
           _StaleWatchingFailure(onRetry: onRetry)
         else if (items.isEmpty)
           const _StaleWatchingEmpty()
-        else if (isDesktop)
-          ..._buildDesktopItems()
         else
           _StaleWatchingPager(
             items: items,
@@ -664,20 +701,6 @@ class _StaleWatchingSection extends StatelessWidget {
           ),
       ],
     );
-  }
-
-  List<Widget> _buildDesktopItems() {
-    final List<Widget> widgets = <Widget>[];
-
-    for (int index = 0; index < items.length; index++) {
-      if (index > 0) {
-        widgets.add(const SizedBox(height: AppSpacing.md));
-      }
-
-      widgets.add(_StaleWatchingRow(item: items[index], isDesktop: true));
-    }
-
-    return widgets;
   }
 }
 
@@ -741,9 +764,10 @@ class _StaleWatchingPagerState extends State<_StaleWatchingPager> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        final int columns = kIsWeb ? 3 : _StaleWatchingPager._columns;
+        final int rows = kIsWeb ? 2 : _StaleWatchingPager._rows;
         final double cardWidth =
-            (constraints.maxWidth - AppSpacing.md) /
-            _StaleWatchingPager._columns;
+            (constraints.maxWidth - (AppSpacing.md * (columns - 1))) / columns;
 
         /*
          * 16:9 artwork plus compact metadata below it.
@@ -755,61 +779,67 @@ class _StaleWatchingPagerState extends State<_StaleWatchingPager> {
             artworkHeight + AppSpacing.sm + metadataHeight;
 
         final double pageHeight =
-            (cardHeight * _StaleWatchingPager._rows) +
-            (AppSpacing.md * (_StaleWatchingPager._rows - 1));
+            (cardHeight * rows) + (AppSpacing.md * (rows - 1));
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             SizedBox(
               height: pageHeight,
-              child: PageView.builder(
-                key: const ValueKey<String>('shows-stale-watching-pager'),
-                controller: _pageController,
-                physics: const PageScrollPhysics(
-                  parent: BouncingScrollPhysics(),
+              child: ScrollConfiguration(
+                behavior: const AppDragScrollBehavior(),
+                child: PageView.builder(
+                  key: const ValueKey<String>('shows-stale-watching-pager'),
+                  controller: _pageController,
+                  physics: kIsWeb
+                      ? const AppPageScrollPhysics(
+                          parent: ClampingScrollPhysics(),
+                        )
+                      : const PageScrollPhysics(
+                          parent: BouncingScrollPhysics(),
+                        ),
+                  itemCount: _pageCount,
+                  onPageChanged: (int page) {
+                    setState(() {
+                      _currentPage = page;
+                    });
+                  },
+                  itemBuilder: (BuildContext context, int pageIndex) {
+                    final int startIndex =
+                        pageIndex * _StaleWatchingPager._itemsPerPage;
+
+                    final int endIndex =
+                        (startIndex + _StaleWatchingPager._itemsPerPage).clamp(
+                          0,
+                          widget.items.length,
+                        );
+
+                    final List<StaleWatchingShow> pageItems = widget.items
+                        .sublist(startIndex, endIndex);
+
+                    return GridView.builder(
+                      key: ValueKey<String>(
+                        'shows-stale-watching-page-$pageIndex',
+                      ),
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: EdgeInsets.zero,
+                      itemCount: pageItems.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        crossAxisSpacing: AppSpacing.md,
+                        mainAxisSpacing: AppSpacing.md,
+                        mainAxisExtent: cardHeight,
+                      ),
+                      itemBuilder: (BuildContext context, int itemIndex) {
+                        return _StaleWatchingCard(
+                          item: pageItems[itemIndex],
+                          updatingEpisodeId: widget.updatingEpisodeId,
+                          onMarkWatched: widget.onMarkWatched,
+                        );
+                      },
+                    );
+                  },
                 ),
-                itemCount: _pageCount,
-                onPageChanged: (int page) {
-                  setState(() {
-                    _currentPage = page;
-                  });
-                },
-                itemBuilder: (BuildContext context, int pageIndex) {
-                  final int startIndex =
-                      pageIndex * _StaleWatchingPager._itemsPerPage;
-
-                  final int endIndex =
-                      (startIndex + _StaleWatchingPager._itemsPerPage).clamp(
-                        0,
-                        widget.items.length,
-                      );
-
-                  final List<StaleWatchingShow> pageItems = widget.items
-                      .sublist(startIndex, endIndex);
-
-                  return GridView.builder(
-                    key: ValueKey<String>(
-                      'shows-stale-watching-page-$pageIndex',
-                    ),
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: EdgeInsets.zero,
-                    itemCount: pageItems.length,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: _StaleWatchingPager._columns,
-                      crossAxisSpacing: AppSpacing.md,
-                      mainAxisSpacing: AppSpacing.md,
-                      mainAxisExtent: cardHeight,
-                    ),
-                    itemBuilder: (BuildContext context, int itemIndex) {
-                      return _StaleWatchingCard(
-                        item: pageItems[itemIndex],
-                        updatingEpisodeId: widget.updatingEpisodeId,
-                        onMarkWatched: widget.onMarkWatched,
-                      );
-                    },
-                  );
-                },
               ),
             ),
 
@@ -1372,8 +1402,11 @@ class _WatchNextCarouselState extends State<_WatchNextCarousel> {
   static const double _mobileViewportFraction = 0.86;
   static const double _artworkAspectRatio = 16 / 9;
   static const double _metadataHeight = 64;
+  static const double _webCardWidth = 330;
 
   late final PageController _pageController;
+
+  final ScrollController _webScrollController = ScrollController();
 
   @override
   void initState() {
@@ -1384,6 +1417,7 @@ class _WatchNextCarouselState extends State<_WatchNextCarousel> {
 
   @override
   void dispose() {
+    _webScrollController.dispose();
     _pageController.dispose();
 
     super.dispose();
@@ -1391,6 +1425,42 @@ class _WatchNextCarouselState extends State<_WatchNextCarousel> {
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) {
+      final double artworkHeight = _webCardWidth / _artworkAspectRatio;
+
+      final double carouselHeight =
+          artworkHeight + AppSpacing.sm + _metadataHeight;
+
+      return SizedBox(
+        height: carouselHeight,
+        child: ScrollConfiguration(
+          behavior: const AppDragScrollBehavior(),
+          child: ListView.separated(
+            key: const ValueKey<String>('shows-watch-next-carousel'),
+            controller: _webScrollController,
+            scrollDirection: Axis.horizontal,
+            physics: const ClampingScrollPhysics(),
+            itemCount: widget.items.length,
+            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+            itemBuilder: (BuildContext context, int index) {
+              final WatchNextShow item = widget.items[index];
+
+              return SizedBox(
+                width: _webCardWidth,
+                child: _WatchNextCard(
+                  item: item,
+                  isUpdating: widget.updatingEpisodeId == item.nextEpisode.id,
+                  onMarkWatched: () {
+                    widget.onMarkWatched(item.nextEpisode.id);
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    }
+
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final double cardWidth = constraints.maxWidth * _mobileViewportFraction;
@@ -1429,6 +1499,32 @@ class _WatchNextCarouselState extends State<_WatchNextCarousel> {
           ),
         );
       },
+    );
+  }
+}
+
+class _WatchNextNavigationButton extends StatelessWidget {
+  const _WatchNextNavigationButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surfaceHigh.withValues(alpha: 0.92),
+      shape: const CircleBorder(),
+      elevation: 2,
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: Icon(icon),
+      ),
     );
   }
 }
@@ -2107,7 +2203,7 @@ enum _UpcomingDateHeaderKind { past, today, tomorrow, future, later }
 class _UpcomingContentWidth extends StatelessWidget {
   const _UpcomingContentWidth({required this.child, this.contentKey});
 
-  static const double maxWidth = 1040;
+  static const double maxWidth = 1340;
 
   final Widget child;
   final Key? contentKey;
@@ -3003,23 +3099,23 @@ class _HaventStartedEmpty extends StatelessWidget {
   }
 }
 
-int _upToDatePageCount(int itemCount) {
-  if (itemCount <= 6) {
-    return 1;
-  }
+int _upToDatePageCount(
+  int itemCount, {
+  required int itemsPerPage,
+  required int previewLimit,
+}) {
+  final int previewItemCount = itemCount.clamp(0, previewLimit);
+  final bool showViewAll = itemCount > previewLimit;
 
-  if (itemCount <= 12) {
-    return 2;
-  }
+  final int slotCount = previewItemCount + (showViewAll ? 1 : 0);
 
-  return 3;
+  return (slotCount / itemsPerPage).ceil().clamp(1, 999);
 }
 
 class _UpToDateSection extends StatefulWidget {
-  const _UpToDateSection({required this.items, required this.isDesktop});
+  const _UpToDateSection({required this.items});
 
   final List<LibraryShow> items;
-  final bool isDesktop;
 
   @override
   State<_UpToDateSection> createState() => _UpToDateSectionState();
@@ -3046,7 +3142,14 @@ class _UpToDateSectionState extends State<_UpToDateSection> {
 
   @override
   Widget build(BuildContext context) {
-    final int pageCount = _upToDatePageCount(widget.items.length);
+    final int columns = kIsWeb ? 6 : 3;
+    final int itemsPerPage = columns * 2;
+
+    final int pageCount = _upToDatePageCount(
+      widget.items.length,
+      itemsPerPage: itemsPerPage,
+      previewLimit: 16,
+    );
 
     return Column(
       key: const ValueKey<String>('shows-up-to-date-section'),
@@ -3070,44 +3173,25 @@ class _UpToDateSectionState extends State<_UpToDateSection> {
 
         const SizedBox(height: AppSpacing.lg),
 
-        if (widget.isDesktop)
-          ..._buildDesktopItems()
-        else ...<Widget>[
-          _UpToDateCarousel(
-            items: widget.items,
-            pageController: _pageController,
-            onPageChanged: (int page) {
-              setState(() {
-                _currentPage = page;
-              });
-            },
+        _UpToDateCarousel(
+          items: widget.items,
+          pageController: _pageController,
+          onPageChanged: (int page) {
+            setState(() {
+              _currentPage = page;
+            });
+          },
+        ),
+
+        if (pageCount > 1) ...<Widget>[
+          const SizedBox(height: AppSpacing.md),
+          _UpToDatePageIndicator(
+            currentPage: _currentPage,
+            pageCount: pageCount,
           ),
-
-          if (pageCount > 1) ...<Widget>[
-            const SizedBox(height: AppSpacing.md),
-
-            _UpToDatePageIndicator(
-              currentPage: _currentPage,
-              pageCount: pageCount,
-            ),
-          ],
         ],
       ],
     );
-  }
-
-  List<Widget> _buildDesktopItems() {
-    final List<Widget> widgets = <Widget>[];
-
-    for (int index = 0; index < widget.items.length; index++) {
-      if (index > 0) {
-        widgets.add(const SizedBox(height: AppSpacing.md));
-      }
-
-      widgets.add(_UpToDateRow(show: widget.items[index], isDesktop: true));
-    }
-
-    return widgets;
   }
 }
 
@@ -3118,10 +3202,11 @@ class _UpToDateCarousel extends StatelessWidget {
     required this.onPageChanged,
   });
 
-  static const int _itemsPerFullPage = 6;
-  static const int _columns = 3;
+  static const int _mobileColumns = 3;
+  static const int _webColumns = 6;
   static const int _rows = 2;
   static const int _previewLimit = 16;
+
   static const double _posterAspectRatio = 2 / 3;
   static const double _metadataHeight = 64;
 
@@ -3135,19 +3220,21 @@ class _UpToDateCarousel extends StatelessWidget {
         .take(_previewLimit)
         .toList(growable: false);
 
-    final int pageCount = _upToDatePageCount(items.length);
-
-    /*
-     * The final preview page reserves its third column for View All
-     * whenever more than 16 Up to Date Shows exist.
-     */
     final bool showViewAll = items.length > _previewLimit;
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        final int columns = kIsWeb ? _webColumns : _mobileColumns;
+        final int itemsPerPage = columns * _rows;
+
+        final int pageCount = _upToDatePageCount(
+          items.length,
+          itemsPerPage: itemsPerPage,
+          previewLimit: _previewLimit,
+        );
+
         final double cardWidth =
-            (constraints.maxWidth - (AppSpacing.md * (_columns - 1))) /
-            _columns;
+            (constraints.maxWidth - (AppSpacing.md * (columns - 1))) / columns;
 
         final double posterHeight = cardWidth / _posterAspectRatio;
 
@@ -3166,45 +3253,40 @@ class _UpToDateCarousel extends StatelessWidget {
             itemCount: pageCount,
             onPageChanged: onPageChanged,
             itemBuilder: (BuildContext context, int pageIndex) {
-              if (pageIndex == 2 && showViewAll) {
-                final List<LibraryShow> finalPageItems = previewItems
-                    .skip(12)
-                    .take(4)
-                    .toList(growable: false);
+              final int startIndex = pageIndex * itemsPerPage;
 
-                return _UpToDateFinalPage(
-                  items: finalPageItems,
-                  cardWidth: cardWidth,
-                  cardHeight: cardHeight,
-                  pageHeight: pageHeight,
-                  totalItems: items.length,
-                );
-              }
-
-              final int startIndex = pageIndex * _itemsPerFullPage;
-
-              final int endIndex = (startIndex + _itemsPerFullPage).clamp(
+              final int endIndex = (startIndex + itemsPerPage).clamp(
                 0,
                 previewItems.length,
               );
 
-              final List<LibraryShow> pageItems = previewItems.sublist(
-                startIndex,
-                endIndex,
-              );
+              final List<LibraryShow> pageItems =
+                  startIndex < previewItems.length
+                  ? previewItems.sublist(startIndex, endIndex)
+                  : const <LibraryShow>[];
+
+              final bool isLastPage = pageIndex == pageCount - 1;
+
+              final bool includeViewAll = isLastPage && showViewAll;
+
+              final int itemCount = pageItems.length + (includeViewAll ? 1 : 0);
 
               return GridView.builder(
                 key: ValueKey<String>('shows-up-to-date-page-$pageIndex'),
                 physics: const NeverScrollableScrollPhysics(),
                 padding: EdgeInsets.zero,
-                itemCount: pageItems.length,
+                itemCount: itemCount,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: _columns,
+                  crossAxisCount: columns,
                   crossAxisSpacing: AppSpacing.md,
                   mainAxisSpacing: AppSpacing.lg,
                   mainAxisExtent: cardHeight,
                 ),
                 itemBuilder: (BuildContext context, int index) {
+                  if (includeViewAll && index == pageItems.length) {
+                    return _UpToDateViewAllTile(totalItems: items.length);
+                  }
+
                   return _UpToDateCard(show: pageItems[index]);
                 },
               );
@@ -3212,74 +3294,6 @@ class _UpToDateCarousel extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _UpToDateFinalPage extends StatelessWidget {
-  const _UpToDateFinalPage({
-    required this.items,
-    required this.cardWidth,
-    required this.cardHeight,
-    required this.pageHeight,
-    required this.totalItems,
-  });
-
-  final List<LibraryShow> items;
-  final double cardWidth;
-  final double cardHeight;
-  final double pageHeight;
-  final int totalItems;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Expanded(
-          child: Column(
-            children: <Widget>[
-              if (items.isNotEmpty)
-                SizedBox(
-                  height: cardHeight,
-                  child: _UpToDateCard(show: items[0]),
-                ),
-              if (items.length > 2) ...<Widget>[
-                const SizedBox(height: AppSpacing.lg),
-                SizedBox(
-                  height: cardHeight,
-                  child: _UpToDateCard(show: items[2]),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: Column(
-            children: <Widget>[
-              if (items.length > 1)
-                SizedBox(
-                  height: cardHeight,
-                  child: _UpToDateCard(show: items[1]),
-                ),
-              if (items.length > 3) ...<Widget>[
-                const SizedBox(height: AppSpacing.lg),
-                SizedBox(
-                  height: cardHeight,
-                  child: _UpToDateCard(show: items[3]),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        SizedBox(
-          width: cardWidth,
-          height: pageHeight,
-          child: _UpToDateViewAllTile(totalItems: totalItems),
-        ),
-      ],
     );
   }
 }
