@@ -470,6 +470,8 @@ Web clients use server-managed sessions through HttpOnly cookies.
 
 Native clients use short-lived access tokens together with rotating refresh credentials.
 
+Expired short-lived access tokens are recovered transparently while the persistent session remains valid; revoked or expired sessions return the client to Login.
+
 A new installation enters a first-run setup flow where the first account becomes the initial Administrator.
 
 Public registration is disabled by default and can be enabled by an Administrator.

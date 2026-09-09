@@ -999,10 +999,12 @@ Home is the personal viewing dashboard.
 
 ## 21.1 Header
 
-- [x] Time-of-day greeting
-- [x] Current date
-- [x] Avatar/account access
-- [x] Settings/account menu integration
+* [x] Explicit Home page title
+* [x] Time-of-day greeting
+* [x] Current date
+* [x] Avatar/account access
+* [x] Profile access from account menu
+* [x] Logout from account menu
 
 ## 21.2 Your Week
 
@@ -1289,6 +1291,50 @@ Current/intended organization:
 - [x] Both resolve to the same User
 - [x] Safe Bearer precedence
 - [x] Invalid Bearer does not silently fall back to cookie
+
+## 29.1 Automatic Authentication Recovery
+
+* [x] Detect expired/invalid short-lived access tokens centrally
+* [x] Attempt authentication recovery outside individual features
+* [x] Retry the original authenticated request once after successful recovery
+* [x] Retry uses the newly issued access token
+* [x] Mobile recovery rotates the refresh credential
+* [x] Web recovery restores through the persistent Web session
+* [x] Concurrent recovery attempts share a single restore/refresh operation
+* [x] Invalid/revoked persistent authentication clears local credentials
+* [x] Invalid/revoked sessions transition the application back to Login
+* [x] Protected content is covered while the authentication transition completes
+* [x] Transient refresh failures do not incorrectly log the user out
+* [x] Individual features do not implement their own token-refresh behavior
+
+Authentication recovery is centralized around the API/authentication boundary rather
+than being implemented independently by Home, Shows, Movies, Search, or other
+features.
+
+An `invalid_access_token` response may trigger one recovery attempt:
+
+    Authenticated request
+            |
+            v
+    invalid_access_token
+            |
+            v
+    Restore / refresh authentication
+          /   \
+         /     \
+    success    invalid/revoked session
+       |              |
+       v              v
+    Retry once    Clear credentials
+                       |
+                       v
+                 Unauthenticated
+                       |
+                       v
+                     Login
+
+Network, timeout, and other transient recovery failures remain errors rather than
+being interpreted as definitive loss of authentication.
 
 ---
 
@@ -1908,6 +1954,9 @@ The following decisions are already established and should not be reopened witho
 30. Tooling, caching, and abstractions should solve real problems rather than be added preemptively.
 31. Home, Shows, Movies, Explore, Search, and Profile should not duplicate the same feature independently.
 32. SQLite remains the intended SofaWatch database; PostgreSQL is not part of the current roadmap.
+33. Expired access tokens are recovered centrally; individual features must not implement token refresh.
+34. Concurrent authentication recovery must share a single restore/refresh operation because mobile refresh credentials rotate.
+35. Transient authentication-recovery failures must not be treated as definitive session loss.
 
 ---
 

@@ -574,6 +574,33 @@ Session restoration uses the refresh credential.
 
 When refresh succeeds, the new refresh credential replaces the old one.
 
+
+### Automatic Authentication Recovery
+
+Short-lived access-token expiration is handled centrally rather than by individual
+features.
+
+When an authenticated API request fails specifically because the access token is
+invalid or expired, the API layer may attempt authentication recovery:
+
+- Web restores authentication through the persistent Web session.
+- Mobile uses the current rotating refresh credential.
+- concurrent recovery attempts share the same in-progress recovery operation;
+- after successful recovery, the original request is retried once using the new
+  access token;
+- definitive session or refresh-credential failure clears local authentication
+  and transitions the application to Login;
+- transient network or server failures during recovery are propagated as errors
+  and do not automatically log the user out.
+
+This keeps authentication transport behavior outside feature Cubits, BLoCs,
+repositories, and presentation code.
+
+Protected application content is temporarily covered during definitive
+authentication-loss transitions so feature-level errors are not exposed while
+the router moves to Login.
+
+
 ### Logout
 
 Logout behavior is platform-aware.

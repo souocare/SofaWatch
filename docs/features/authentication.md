@@ -54,7 +54,13 @@ Implemented or established in the authentication architecture:
 - mobile-to-Web authentication handoff architecture;
 - authenticated user scoping throughout the application;
 - backend administrator dependency;
-- frontend administrator-aware presentation.
+- frontend administrator-aware presentation;
+* automatic access-credential expiry recovery;
+* single-flight authentication recovery for concurrent requests;
+* automatic retry of the original request after successful authentication recovery;
+* definitive authentication-loss handling for expired, invalid, or revoked sessions;
+* protected-content transition handling while returning to Login;
+* transient recovery failures without automatic logout.
 
 Authentication remains security-sensitive and should continue to evolve conservatively.
 
@@ -713,52 +719,167 @@ The exact durations belong to configuration/security policy and should be docume
 
 # Access Expiry Handling
 
-A native API request can encounter an expired access credential.
+Access-credential expiry is handled centrally by the frontend API/authentication
+boundary.
 
-The client can:
+Individual features such as Home, Shows, Movies, Search, Profile, and Explore do
+not implement their own token-refresh behavior.
 
-```text
-request fails due to expired access
--> refresh once
--> receive rotated credentials
--> retry eligible original request
-```
+When an authenticated API request fails specifically with:
 
-This requires careful concurrency control.
+    invalid_access_token
+
+the API client attempts authentication recovery.
+
+Conceptually:
+
+    authenticated request
+            |
+            v
+    invalid_access_token
+            |
+            v
+    authentication recovery
+          /          \
+         /            \
+     success      definitive auth loss
+        |                  |
+        v                  v
+    retry once       clear local auth
+                           |
+                           v
+                    unauthenticated
+                           |
+                           v
+                         Login
+
+Web and native clients use the same recovery boundary but restore persistent
+authentication differently:
+
+    Web
+    -> restore through the persistent server-managed Web session
+
+    iOS / Android
+    -> exchange the current rotating refresh credential
+    -> persist the new access credential
+    -> persist the rotated refresh credential
+
+After successful recovery, the original request is retried once. The retry
+passes through the normal request pipeline again and therefore uses the latest
+access credential.
+
+Recovery is intentionally centralized so feature Cubits, BLoCs, repositories,
+and presentation code remain unaware of credential refresh mechanics.
 
 ---
 
 # Concurrent Refresh
 
-Multiple API calls can discover access expiry simultaneously.
+Authentication recovery uses single-flight behavior.
 
-The client should avoid launching multiple competing refresh rotations with the same refresh credential.
+Multiple API requests may discover an expired access credential at approximately
+the same time. They must not independently rotate the same refresh credential.
 
 Conceptually:
 
-```text
-request A ─┐
-request B ─┼-> one refresh operation
-request C ─┘
-               |
-               v
-       all continue with new access
-```
+    request A ─┐
+    request B ─┼-> one recovery operation
+    request C ─┘
+                    |
+                    v
+            restore / refresh
+                    |
+                    v
+             shared result
 
-This is particularly important with rotating refresh credentials.
+While recovery is already in progress, subsequent recovery attempts share the
+same Future instead of starting another restore operation.
+
+This is particularly important for native authentication because refresh
+credentials rotate:
+
+    refresh A
+    -> access B + refresh B
+    -> refresh A invalid
+
+Without single-flight recovery, concurrent requests could attempt to reuse
+`refresh A`, causing otherwise valid authentication to fail.
+
+The behavior is covered by tests that verify multiple concurrent recovery calls
+result in exactly one authentication restore operation.
 
 ---
 
 # Failed Refresh
 
-If refresh fails because the refresh credential is invalid, expired, or revoked:
+Authentication recovery distinguishes definitive authentication loss from
+transient failure.
 
-```text
-clear local auth state
--> return to authentication flow
-```
+Definitive authentication failures include established authentication errors
+such as:
 
-The client should not loop indefinitely.
+    invalid_refresh_token
+    invalid_session
+    session_required
+
+When persistent authentication is no longer valid:
+
+    recovery fails definitively
+            |
+            v
+    clear local authentication
+            |
+            v
+    AuthUnauthenticated
+            |
+            v
+    authentication entry becomes Login-required
+            |
+            v
+    router transitions to Login
+
+On native clients, clearing local authentication removes both the current access
+credential and the stored refresh credential.
+
+A transient recovery failure is different.
+
+Examples include:
+
+    network failure
+    timeout
+    temporary server failure
+
+These errors are propagated as operational errors and do not automatically clear
+authentication or force the user to Login.
+
+This distinction prevents temporary connectivity problems from being interpreted
+as session revocation.
+
+
+---
+
+# Authentication-Loss Transition
+
+Definitive authentication loss can occur while a protected feature is already
+visible.
+
+The authentication state can change synchronously while the router transition
+itself requires a later Flutter frame. Without protection, the underlying
+feature could briefly render its own authorization error before Login appears.
+
+SofaWatch therefore uses an authentication transition guard around protected
+application content.
+
+While authentication is definitively unauthenticated, protected content is
+covered by the authentication checking presentation until routing reaches the
+authentication flow.
+
+The guard applies to protected application surfaces such as the main application
+shell and Search. Authentication routes themselves remain outside the guard so
+Login and other authentication pages can render normally.
+
+The guard is a presentation safeguard only. It does not perform authentication
+or authorization and does not replace backend access control.
 
 ---
 
@@ -771,6 +892,8 @@ A request that definitely failed before reaching application execution may be sa
 An ambiguous non-idempotent mutation requires care.
 
 Authentication middleware/interceptors should not blindly duplicate actions such as creating a viewing event.
+
+The current frontend recovery mechanism retries an eligible request at most once after successful authentication recovery. Recovery itself is not recursively triggered for definitive refresh/session authentication failures.
 
 ---
 
