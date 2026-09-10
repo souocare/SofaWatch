@@ -16,7 +16,7 @@ from app.repositories.episode_progress import EpisodeProgressRepository
 from app.repositories.library import LibraryRepository
 from app.repositories.movie import MovieRepository
 from app.repositories.show import ShowRepository
-from app.services.library import LibraryService, InvalidManualShowStatusError
+from app.services.library import InvalidManualMovieStatusError, LibraryService, InvalidManualShowStatusError
 
 
 @pytest.fixture
@@ -765,74 +765,6 @@ def test_update_movie_status_returns_none_when_entry_does_not_exist(
     )
 
 
-def test_update_movie_status_to_completed_sets_completed_at(
-    db_session: Session,
-    library_repository: Mock,
-    show_repository: Mock,
-    movie_repository: Mock,
-    episode_repository: Mock,
-    episode_progress_repository: Mock,
-) -> None:
-    """Mark a Movie as completed and store when it was watched."""
-
-    user = User(
-        display_name="Local User",
-    )
-
-    movie = Movie(
-        tmdb_id=438631,
-        title="Dune",
-        original_title="Dune",
-        original_language="en",
-        runtime=155,
-        status="Released",
-        adult=False,
-        video=False,
-        popularity=10.0,
-        vote_average=8.0,
-        vote_count=100,
-        metadata_language="en-US",
-    )
-
-    entry = LibraryEntry(
-        user=user,
-        movie=movie,
-        status=LibraryStatus.PLANNING,
-    )
-
-    db_session.add_all(
-        [
-            user,
-            movie,
-            entry,
-        ]
-    )
-    db_session.commit()
-
-    db_session.refresh(user)
-    db_session.refresh(movie)
-    db_session.refresh(entry)
-
-    library_repository.get_by_user_and_movie.return_value = entry
-
-    service = LibraryService(
-        session=db_session,
-        library_repository=library_repository,
-        show_repository=show_repository,
-        movie_repository=movie_repository,
-        episode_repository=episode_repository,
-        episode_progress_repository=episode_progress_repository,
-    )
-
-    result = service.update_movie_status(
-        user_id=user.id,
-        movie_id=movie.id,
-        status=LibraryStatus.COMPLETED,
-    )
-
-    assert result is entry
-    assert result.status == LibraryStatus.COMPLETED
-    assert result.completed_at is not None
 
 
 def test_update_movie_status_to_planning_clears_completed_at(
@@ -906,77 +838,7 @@ def test_update_movie_status_to_planning_clears_completed_at(
     assert result.completed_at is None
 
 
-def test_update_movie_status_keeps_existing_completed_at(
-    db_session: Session,
-    library_repository: Mock,
-    show_repository: Mock,
-    movie_repository: Mock,
-    episode_repository: Mock,
-    episode_progress_repository: Mock,
-) -> None:
-    """Preserve the original completion date when Movie is already completed."""
 
-    user = User(
-        display_name="Local User",
-    )
-
-    movie = Movie(
-        tmdb_id=438631,
-        title="Dune",
-        original_title="Dune",
-        original_language="en",
-        runtime=155,
-        status="Released",
-        adult=False,
-        video=False,
-        popularity=10.0,
-        vote_average=8.0,
-        vote_count=100,
-        metadata_language="en-US",
-    )
-
-    original_completed_at = datetime(2026, 8, 1, 20, 30, tzinfo=UTC)
-
-    entry = LibraryEntry(
-        user=user,
-        movie=movie,
-        status=LibraryStatus.COMPLETED,
-        completed_at=original_completed_at,
-    )
-
-    db_session.add_all(
-        [
-            user,
-            movie,
-            entry,
-        ]
-    )
-    db_session.commit()
-
-    db_session.refresh(entry)
-
-    library_repository.get_by_user_and_movie.return_value = entry
-
-    service = LibraryService(
-        session=db_session,
-        library_repository=library_repository,
-        show_repository=show_repository,
-        movie_repository=movie_repository,
-        episode_repository=episode_repository,
-        episode_progress_repository=episode_progress_repository,
-    )
-
-    result = service.update_movie_status(
-        user_id=user.id,
-        movie_id=movie.id,
-        status=LibraryStatus.COMPLETED,
-    )
-
-    assert result is entry
-    assert result.status == LibraryStatus.COMPLETED
-    assert result.completed_at is not None
-
-    assert result.completed_at == original_completed_at.replace(tzinfo=None)
 
 
 def test_list_shows_for_user_includes_first_available_episode_for_planning_show(
@@ -1376,3 +1238,75 @@ def test_update_status_rejects_derived_show_status(
             show_id=show.id,
             status=status,
         )
+
+def test_update_movie_status_to_completed_raises_invalid_manual_movie_status(
+    db_session: Session,
+    library_repository: Mock,
+    show_repository: Mock,
+    movie_repository: Mock,
+    episode_repository: Mock,
+    episode_progress_repository: Mock,
+) -> None:
+    """Require a watch event when marking a Movie as watched."""
+
+    user = User(
+        display_name="Local User",
+    )
+
+    movie = Movie(
+        tmdb_id=438631,
+        title="Dune",
+        original_title="Dune",
+        original_language="en",
+        runtime=155,
+        status="Released",
+        adult=False,
+        video=False,
+        popularity=10.0,
+        vote_average=8.0,
+        vote_count=100,
+        metadata_language="en-US",
+    )
+
+    entry = LibraryEntry(
+        user=user,
+        movie=movie,
+        status=LibraryStatus.PLANNING,
+    )
+
+    db_session.add_all(
+        [
+            user,
+            movie,
+            entry,
+        ]
+    )
+    db_session.commit()
+
+    db_session.refresh(user)
+    db_session.refresh(movie)
+    db_session.refresh(entry)
+
+    library_repository.get_by_user_and_movie.return_value = entry
+
+    service = LibraryService(
+        session=db_session,
+        library_repository=library_repository,
+        show_repository=show_repository,
+        movie_repository=movie_repository,
+        episode_repository=episode_repository,
+        episode_progress_repository=episode_progress_repository,
+    )
+
+    with pytest.raises(
+        InvalidManualMovieStatusError,
+        match="Movies must be marked as watched by recording a watch event.",
+    ):
+        service.update_movie_status(
+            user_id=user.id,
+            movie_id=movie.id,
+            status=LibraryStatus.COMPLETED,
+        )
+
+    assert entry.status == LibraryStatus.PLANNING
+    assert entry.completed_at is None

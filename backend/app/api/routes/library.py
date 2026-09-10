@@ -19,7 +19,10 @@ from app.api.dependencies import (
 )
 from app.core.exceptions import APIError
 from app.models.enums import LibraryStatus
-from app.services.library import InvalidManualShowStatusError
+from app.services.library import (
+    InvalidManualMovieStatusError,
+    InvalidManualShowStatusError,
+)
 from app.schemas.havent_started import HaventStartedShowResponse
 from app.schemas.history import (
     HistoryPageResponse,
@@ -662,11 +665,18 @@ def update_movie_library_status(
 ) -> LibraryEntryResponse:
     """Update the tracking status of a Movie in the library."""
 
-    entry = service.update_movie_status(
-        user_id=current_user.id,
-        movie_id=movie_id,
-        status=payload.status,
-    )
+    try:
+        entry = service.update_movie_status(
+            user_id=current_user.id,
+            movie_id=movie_id,
+            status=payload.status,
+        )
+    except InvalidManualMovieStatusError as error:
+        raise APIError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="invalid_movie_library_status",
+            message=str(error),
+        ) from error
 
     if entry is None:
         raise APIError(
