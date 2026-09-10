@@ -1,6 +1,13 @@
-# SofaWatch
 
-**SofaWatch** is a self-hosted companion application for tracking TV shows and movies across Web, iOS, and Android.
+<p align="center">
+  <img src="assets/branding/sofawatch_logo.png" alt="SofaWatch logo" width="220">
+</p>
+
+<h1 align="center">SofaWatch</h1>
+
+<p align="center">
+  A private, self-hosted companion for tracking TV shows and movies.
+</p>
 
 The goal is to provide a private, self-hosted alternative for managing what you watch, keeping track of your progress, discovering what to watch next, and maintaining your own viewing history while keeping application data under your control.
 
