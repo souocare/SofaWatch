@@ -49,7 +49,21 @@ yarn-debug.log*
 yarn-error.log*
 
 # Native builds
-frontend/ios/
+# Native dependencies / generated files
+frontend/ios/Pods/
+frontend/ios/.symlinks/
+frontend/ios/Flutter/ephemeral/
+
+# Flutter generated iOS files
+frontend/ios/Flutter/Generated.xcconfig
+frontend/ios/Flutter/flutter_export_environment.sh
+frontend/ios/Runner/GeneratedPluginRegistrant.h
+frontend/ios/Runner/GeneratedPluginRegistrant.m
+
+# macOS metadata
+.DS_Store
+
+## android
 frontend/android/
 
 # IDE
