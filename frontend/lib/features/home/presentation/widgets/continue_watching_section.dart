@@ -1,10 +1,10 @@
-import 'package:sofawatch/core/scroll/app_drag_scroll_behavior.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_design_tokens.dart';
+import 'package:sofawatch/core/scroll/app_drag_scroll_behavior.dart';
 import 'package:sofawatch/core/widgets/section_failure_card.dart';
 import 'package:sofawatch/core/widgets/server_network_image.dart';
 import 'package:sofawatch/features/home/application/cubit/home_cubit.dart';
@@ -132,7 +132,7 @@ class _ContinueWatchingCarouselState extends State<_ContinueWatchingCarousel> {
             scrollDirection: Axis.horizontal,
             physics: const ClampingScrollPhysics(),
             itemCount: widget.items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
             itemBuilder: (BuildContext context, int index) {
               final WatchNextShow item = widget.items[index];
 

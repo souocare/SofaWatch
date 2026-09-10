@@ -328,7 +328,7 @@ class _PremieringTodayCarouselState extends State<_PremieringTodayCarousel> {
           scrollDirection: Axis.horizontal,
           physics: const ClampingScrollPhysics(),
           itemCount: widget.items.length,
-          separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+          separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
           itemBuilder: (BuildContext context, int index) {
             final UpcomingItem item = widget.items[index];
 

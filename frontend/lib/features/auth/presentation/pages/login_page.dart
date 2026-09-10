@@ -250,21 +250,12 @@ class _LoginHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: <Widget>[
-        Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.14),
-            borderRadius: AppRadius.borderExtraLarge,
-            border: Border.all(
-              color: AppColors.primary.withValues(alpha: 0.35),
-            ),
-          ),
-          child: const Icon(
-            Icons.live_tv_outlined,
-            color: AppColors.primarySoft,
-            size: 34,
-          ),
+        Image.asset(
+          'assets/branding/sofawatch_logo.png',
+          width: 96,
+          height: 96,
+          fit: BoxFit.contain,
+          semanticLabel: 'SofaWatch logo',
         ),
         const SizedBox(height: AppSpacing.xxl),
         Text(

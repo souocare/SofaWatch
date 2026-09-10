@@ -774,7 +774,6 @@ class _MovieHistorySection extends StatefulWidget {
 
 class _MovieHistorySectionState extends State<_MovieHistorySection> {
   static const int _previewItemLimit = 16;
-  static const int _previewPageCount = 3;
 
   late final PageController _pageController;
 

@@ -9,11 +9,9 @@ import 'package:sofawatch/features/profile/domain/repositories/data_transfer_rep
 
 final class DataTransferCubit extends Cubit<DataTransferState> {
   DataTransferCubit({
-    required DataTransferRepository repository,
-    Duration importPollInterval = const Duration(seconds: 2),
-  }) : _repository = repository,
-       _importPollInterval = importPollInterval,
-       super(const DataTransferIdle());
+    required this._repository,
+    this._importPollInterval = const Duration(seconds: 2),
+  }) : super(const DataTransferIdle());
 
   final DataTransferRepository _repository;
   final Duration _importPollInterval;

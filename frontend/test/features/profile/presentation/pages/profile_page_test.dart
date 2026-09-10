@@ -34,6 +34,7 @@ import 'package:sofawatch/features/profile/application/cubit/data_transfer_cubit
 import 'package:sofawatch/features/profile/application/cubit/profile_cubit.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_preview.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_result.dart';
+import 'package:sofawatch/features/profile/domain/models/data_import_run.dart';
 import 'package:sofawatch/features/profile/domain/models/profile_user.dart';
 import 'package:sofawatch/features/profile/domain/repositories/data_transfer_repository.dart';
 import 'package:sofawatch/features/profile/domain/repositories/profile_repository.dart';
@@ -54,7 +55,6 @@ import 'package:sofawatch/features/statistics/domain/models/statistics_library.d
 import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
 import 'package:sofawatch/features/statistics/domain/models/weekly_statistics.dart';
 import 'package:sofawatch/features/statistics/domain/repositories/statistics_repository.dart';
-import 'package:sofawatch/features/profile/domain/models/data_import_run.dart';
 
 void main() {
   group('ProfilePage Statistics', () {
