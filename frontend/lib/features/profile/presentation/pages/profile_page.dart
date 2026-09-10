@@ -57,6 +57,7 @@ import 'package:sofawatch/features/server/domain/repositories/server_repository.
 import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_state.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
+import 'package:sofawatch/features/profile/presentation/widgets/profile_application_section.dart';
 
 const double _profileServerMetricCardExtent = 136;
 
@@ -117,7 +118,8 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: AppSpacing.section),
 
                   const _ProfileHistorySection(),
-
+                  const SizedBox(height: AppSpacing.section),
+                  const ProfileApplicationSection(),
                   if (isWeb) ...<Widget>[
                     const SizedBox(height: AppSpacing.xl),
                     const _ProfileDataTransferSection(),
