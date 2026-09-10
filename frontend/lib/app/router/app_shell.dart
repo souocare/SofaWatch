@@ -1012,19 +1012,15 @@ class _BrandLogoPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('web-brand-logo-placeholder'),
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.14),
-        borderRadius: AppRadius.borderMedium,
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
-      ),
-      child: const Icon(
-        Icons.live_tv_outlined,
-        color: AppColors.primarySoft,
-        size: 24,
+    return ClipRRect(
+      key: const ValueKey<String>('web-brand-logo'),
+      borderRadius: AppRadius.borderMedium,
+      child: Image.asset(
+        'assets/branding/sofawatch_app_icon.png',
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+        semanticLabel: 'SofaWatch app icon',
       ),
     );
   }
