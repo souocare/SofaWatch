@@ -9,6 +9,11 @@ import 'package:sofawatch/core/errors/app_error_message_mapper.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/login_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/login_state.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sofawatch/app/router/route_paths.dart';
+import 'package:sofawatch/core/api/api_client.dart';
+import 'package:sofawatch/core/server/models/server_configuration.dart';
+import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -20,6 +25,7 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  ServerConfiguration? _serverConfiguration;
   late final TextEditingController _usernameController;
   late final TextEditingController _passwordController;
 
@@ -34,6 +40,8 @@ class _LoginPageState extends State<LoginPage> {
 
     _usernameController = TextEditingController();
     _passwordController = TextEditingController();
+
+    _loadServerConfiguration();
 
     _usernameFocusNode = FocusNode();
     _passwordFocusNode = FocusNode();
@@ -59,6 +67,35 @@ class _LoginPageState extends State<LoginPage> {
 
   void _clearFeedback() {
     context.read<LoginCubit>().clearFeedback();
+  }
+
+  Future<void> _loadServerConfiguration() async {
+    final ServerConfiguration? configuration = await context
+        .read<ServerConfigurationRepository>()
+        .load();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _serverConfiguration = configuration;
+    });
+  }
+
+  Future<void> _changeServer() async {
+    final ServerConfigurationRepository repository = context
+        .read<ServerConfigurationRepository>();
+
+    await repository.clear();
+
+    if (!mounted) {
+      return;
+    }
+
+    context.read<ApiClient>().clearBaseUrl();
+
+    context.go(RoutePaths.serverSetup);
   }
 
   void _togglePasswordVisibility() {
@@ -102,9 +139,11 @@ class _LoginPageState extends State<LoginPage> {
                           passwordFocusNode: _passwordFocusNode,
                           obscurePassword: _obscurePassword,
                           state: state,
+                          serverConfiguration: _serverConfiguration,
                           onChanged: _clearFeedback,
                           onSubmit: _submit,
                           onTogglePasswordVisibility: _togglePasswordVisibility,
+                          onChangeServer: _changeServer,
                         );
                       },
                     ),
@@ -130,6 +169,8 @@ class _LoginForm extends StatelessWidget {
     required this.onChanged,
     required this.onSubmit,
     required this.onTogglePasswordVisibility,
+    required this.serverConfiguration,
+    required this.onChangeServer,
   });
 
   final TextEditingController usernameController;
@@ -145,6 +186,9 @@ class _LoginForm extends StatelessWidget {
   final VoidCallback onChanged;
   final VoidCallback onSubmit;
   final VoidCallback onTogglePasswordVisibility;
+
+  final ServerConfiguration? serverConfiguration;
+  final VoidCallback onChangeServer;
 
   @override
   Widget build(BuildContext context) {
@@ -231,6 +275,13 @@ class _LoginForm extends StatelessWidget {
               message: AppErrorMessageMapper.map(error),
             ),
           ],
+          if (serverConfiguration != null) ...<Widget>[
+            const SizedBox(height: AppSpacing.xxl),
+            _ConfiguredServerCard(
+              configuration: serverConfiguration!,
+              onChange: onChangeServer,
+            ),
+          ],
           const SizedBox(height: AppSpacing.xxxl),
           FilledButton(
             key: const ValueKey<String>('auth-login-submit-button'),
@@ -273,6 +324,69 @@ class _LoginHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ConfiguredServerCard extends StatelessWidget {
+  const _ConfiguredServerCard({
+    required this.configuration,
+    required this.onChange,
+  });
+
+  final ServerConfiguration configuration;
+  final VoidCallback onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderMedium,
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: <Widget>[
+          const Icon(
+            Icons.dns_outlined,
+            size: 22,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  configuration.serverName,
+                  style: AppTypography.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  configuration.serverUrl.toString(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          TextButton(
+            key: const ValueKey<String>('auth-login-change-server-button'),
+            onPressed: onChange,
+            child: const Text('Change'),
+          ),
+        ],
+      ),
     );
   }
 }
