@@ -93,13 +93,23 @@ class _ProfileApplicationSectionState extends State<ProfileApplicationSection> {
                                 BuildContext context,
                                 AsyncSnapshot<PackageInfo> snapshot,
                               ) {
-                                if (!snapshot.hasData) {
+                                final TextStyle? style = Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(color: AppColors.textSecondary);
+
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return Text('Loading version…', style: style);
+                                }
+
+                                if (snapshot.hasError || !snapshot.hasData) {
                                   return Text(
-                                    'Version',
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(
-                                          color: AppColors.textSecondary,
-                                        ),
+                                    'Version unavailable',
+                                    key: const ValueKey<String>(
+                                      'profile-application-version',
+                                    ),
+                                    style: style,
                                   );
                                 }
 
@@ -110,10 +120,7 @@ class _ProfileApplicationSectionState extends State<ProfileApplicationSection> {
                                   key: const ValueKey<String>(
                                     'profile-application-version',
                                   ),
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(
-                                        color: AppColors.textSecondary,
-                                      ),
+                                  style: style,
                                 );
                               },
                         ),

@@ -40,6 +40,7 @@ import 'package:sofawatch/features/profile/application/services/open_web_app_ser
 import 'package:sofawatch/features/profile/domain/models/data_import_result.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_run.dart';
 import 'package:sofawatch/features/profile/domain/models/profile_user.dart';
+import 'package:sofawatch/features/profile/presentation/widgets/profile_application_section.dart';
 import 'package:sofawatch/features/security/application/cubit/security_settings_cubit.dart';
 import 'package:sofawatch/features/security/application/cubit/security_settings_state.dart';
 import 'package:sofawatch/features/security/domain/models/security_settings.dart';
@@ -57,9 +58,9 @@ import 'package:sofawatch/features/server/domain/repositories/server_repository.
 import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_state.dart';
 import 'package:sofawatch/features/statistics/domain/models/statistics_summary.dart';
-import 'package:sofawatch/features/profile/presentation/widgets/profile_application_section.dart';
 
 const double _profileServerMetricCardExtent = 136;
+const double _profileWebMaxContentWidth = 1200;
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key, this.isWebOverride});
@@ -84,26 +85,20 @@ class ProfilePage extends StatelessWidget {
           ),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: AppSpacing.maxContentWidth,
+              constraints: BoxConstraints(
+                maxWidth: isWeb
+                    ? _profileWebMaxContentWidth
+                    : AppSpacing.maxContentWidth,
               ),
               child: Column(
                 key: const ValueKey<String>('profile-content'),
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  Text(
-                    'Profile',
-                    key: const ValueKey<String>('profile-page-title'),
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-
                   const SizedBox(height: AppSpacing.xxl),
 
                   const _ProfileBody(),
 
-                  const SizedBox(height: AppSpacing.xl),
+                  const SizedBox(height: AppSpacing.section),
 
                   _ProfileAccountSection(isWeb: isWeb),
 
@@ -184,76 +179,62 @@ class _ProfileIdentityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return Column(
       key: const ValueKey<String>('profile-user-card'),
-      color: AppColors.surfaceHigh,
-      shape: RoundedRectangleBorder(
-        borderRadius: AppRadius.borderLarge,
-        side: const BorderSide(color: AppColors.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        key: const ValueKey<String>('profile-edit-display-name-action'),
-        onTap: () {
-          _showEditDisplayName(context, user);
-        },
-        child: Padding(
-          padding: AppSpacing.cardPadding,
-          child: Row(
-            children: <Widget>[
-              Container(
-                key: const ValueKey<String>('profile-user-avatar'),
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.surface,
-                  border: Border.all(color: AppColors.outlineVariant),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  _initialFor(user.displayName),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-                ),
-              ),
-
-              const SizedBox(width: AppSpacing.lg),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      user.displayName,
-                      key: const ValueKey<String>('profile-user-display-name'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-
-                    const SizedBox(height: AppSpacing.xs),
-
-                    Text(
-                      'SofaWatch profile',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(width: AppSpacing.md),
-
-              const Icon(Icons.edit_outlined, color: AppColors.textSecondary),
-            ],
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        Container(
+          key: const ValueKey<String>('profile-user-avatar'),
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.surfaceHigh,
+            border: Border.all(color: AppColors.primary, width: 2),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            _initialFor(user.displayName),
+            style: textTheme.displaySmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
-      ),
+
+        const SizedBox(height: AppSpacing.lg),
+
+        Text(
+          user.displayName,
+          key: const ValueKey<String>('profile-user-display-name'),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.xs),
+
+        Text(
+          'SofaWatch profile',
+          textAlign: TextAlign.center,
+          style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+        ),
+
+        const SizedBox(height: AppSpacing.sm),
+
+        TextButton.icon(
+          key: const ValueKey<String>('profile-edit-display-name-action'),
+          onPressed: () {
+            _showEditDisplayName(context, user);
+          },
+          icon: const Icon(Icons.edit_outlined, size: 18),
+          label: const Text('Edit profile'),
+        ),
+      ],
     );
   }
 }
@@ -3302,6 +3283,116 @@ class _ProfileServerMetricCard extends StatelessWidget {
   }
 }
 
+class _ProfileServerInfoGroup extends StatelessWidget {
+  const _ProfileServerInfoGroup({required this.children, this.groupKey});
+
+  final List<Widget> children;
+  final Key? groupKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: groupKey,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        borderRadius: AppRadius.borderLarge,
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: <Widget>[
+          for (int index = 0; index < children.length; index++) ...<Widget>[
+            children[index],
+            if (index < children.length - 1)
+              const Divider(
+                height: 1,
+                thickness: 1,
+                color: AppColors.outlineVariant,
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileServerInfoRow extends StatelessWidget {
+  const _ProfileServerInfoRow({
+    required this.rowKey,
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.detail,
+  });
+
+  final String rowKey;
+  final IconData icon;
+  final String label;
+  final String value;
+  final String? detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return Padding(
+      key: ValueKey<String>(rowKey),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Icon(icon, size: 22, color: AppColors.textSecondary),
+
+          const SizedBox(width: AppSpacing.md),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  label,
+                  style: textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                if (detail case final String detail) ...<Widget>[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    detail,
+                    key: ValueKey<String>('$rowKey-detail'),
+                    style: textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          const SizedBox(width: AppSpacing.lg),
+
+          Flexible(
+            child: Text(
+              value,
+              key: ValueKey<String>('$rowKey-value'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ProfileServerSubsectionTitle extends StatelessWidget {
   const _ProfileServerSubsectionTitle({
     required this.title,
@@ -3330,54 +3421,41 @@ class _ProfileServerEnvironmentStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool useWideLayout =
-            constraints.maxWidth >= AppBreakpoints.profileFourColumns;
-
-        return GridView.count(
-          key: const ValueKey<String>('profile-server-environment-status'),
-          crossAxisCount: useWideLayout ? 3 : 2,
-          crossAxisSpacing: AppSpacing.sm,
-          mainAxisSpacing: AppSpacing.sm,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisExtent: _profileServerMetricCardExtent,
-          children: <Widget>[
-            _ProfileServerMetricCard(
-              cardKey: 'profile-server-environment-name',
-              icon: Icons.layers_outlined,
-              value: environment.environment,
-              label: 'Environment',
-            ),
-            _ProfileServerMetricCard(
-              cardKey: 'profile-server-environment-debug',
-              icon: Icons.bug_report_outlined,
-              value: environment.debug ? 'Enabled' : 'Disabled',
-              label: 'Debug',
-            ),
-            _ProfileServerMetricCard(
-              cardKey: 'profile-server-environment-api',
-              icon: Icons.lan_outlined,
-              value: '${environment.apiHost}:${environment.apiPort}',
-              label: 'API',
-            ),
-            _ProfileServerMetricCard(
-              cardKey: 'profile-server-environment-language',
-              icon: Icons.language_outlined,
-              value: environment.defaultLanguage,
-              label: 'Default language',
-              detail: environment.supportedLanguages.join(', '),
-            ),
-            _ProfileServerMetricCard(
-              cardKey: 'profile-server-environment-refresh',
-              icon: Icons.sync_outlined,
-              value: '${environment.metadataRefreshDays}d',
-              label: 'Metadata refresh',
-            ),
-          ],
-        );
-      },
+    return _ProfileServerInfoGroup(
+      groupKey: const ValueKey<String>('profile-server-environment-status'),
+      children: <Widget>[
+        _ProfileServerInfoRow(
+          rowKey: 'profile-server-environment-name',
+          icon: Icons.layers_outlined,
+          label: 'Environment',
+          value: environment.environment,
+        ),
+        _ProfileServerInfoRow(
+          rowKey: 'profile-server-environment-debug',
+          icon: Icons.bug_report_outlined,
+          label: 'Debug',
+          value: environment.debug ? 'Enabled' : 'Disabled',
+        ),
+        _ProfileServerInfoRow(
+          rowKey: 'profile-server-environment-api',
+          icon: Icons.lan_outlined,
+          label: 'API',
+          value: '${environment.apiHost}:${environment.apiPort}',
+        ),
+        _ProfileServerInfoRow(
+          rowKey: 'profile-server-environment-language',
+          icon: Icons.language_outlined,
+          label: 'Default language',
+          value: environment.defaultLanguage,
+          detail: environment.supportedLanguages.join(', '),
+        ),
+        _ProfileServerInfoRow(
+          rowKey: 'profile-server-environment-refresh',
+          icon: Icons.sync_outlined,
+          label: 'Metadata refresh',
+          value: '${environment.metadataRefreshDays}d',
+        ),
+      ],
     );
   }
 }
@@ -3393,54 +3471,41 @@ class _ProfileServerStorageStatus extends StatelessWidget {
       key: const ValueKey<String>('profile-server-storage-status'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final bool useWideLayout =
-                constraints.maxWidth >= AppBreakpoints.profileFourColumns;
-
-            return GridView.count(
-              key: const ValueKey<String>('profile-server-storage-grid'),
-              crossAxisCount: useWideLayout ? 3 : 2,
-              crossAxisSpacing: AppSpacing.sm,
-              mainAxisSpacing: AppSpacing.sm,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisExtent: _profileServerMetricCardExtent,
-              children: <Widget>[
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-storage-directory',
-                  icon: Icons.folder_outlined,
-                  value: storage.dataDirectory,
-                  label: 'Data directory',
-                ),
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-storage-writable',
-                  icon: Icons.edit_outlined,
-                  value: storage.writable ? 'Writable' : 'Read only',
-                  label: 'Access',
-                ),
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-storage-total',
-                  icon: Icons.sd_storage_outlined,
-                  value: _formatBytes(storage.totalSpaceBytes),
-                  label: 'Total space',
-                ),
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-storage-used',
-                  icon: Icons.pie_chart_outline_rounded,
-                  value: _formatBytes(storage.usedSpaceBytes),
-                  label: 'Used space',
-                  detail: _formatPercentage(storage.usagePercentage),
-                ),
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-storage-free',
-                  icon: Icons.space_bar_rounded,
-                  value: _formatBytes(storage.freeSpaceBytes),
-                  label: 'Free space',
-                ),
-              ],
-            );
-          },
+        _ProfileServerInfoGroup(
+          groupKey: const ValueKey<String>('profile-server-storage-grid'),
+          children: <Widget>[
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-storage-directory',
+              icon: Icons.folder_outlined,
+              label: 'Data directory',
+              value: storage.dataDirectory,
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-storage-writable',
+              icon: Icons.edit_outlined,
+              label: 'Access',
+              value: storage.writable ? 'Writable' : 'Read only',
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-storage-total',
+              icon: Icons.sd_storage_outlined,
+              label: 'Total space',
+              value: _formatBytes(storage.totalSpaceBytes),
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-storage-used',
+              icon: Icons.pie_chart_outline_rounded,
+              label: 'Used space',
+              value: _formatBytes(storage.usedSpaceBytes),
+              detail: _formatPercentage(storage.usagePercentage),
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-storage-free',
+              icon: Icons.space_bar_rounded,
+              label: 'Free space',
+              value: _formatBytes(storage.freeSpaceBytes),
+            ),
+          ],
         ),
 
         const SizedBox(height: AppSpacing.md),
@@ -3472,75 +3537,45 @@ class _ProfileServerImageCacheStatus extends StatelessWidget {
 
         const SizedBox(height: AppSpacing.sm),
 
-        LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final bool useWideLayout =
-                constraints.maxWidth >= AppBreakpoints.profileFourColumns;
-
-            return GridView.count(
-              key: const ValueKey<String>('profile-server-image-cache-grid'),
-              crossAxisCount: useWideLayout ? 3 : 2,
-              crossAxisSpacing: AppSpacing.sm,
-              mainAxisSpacing: AppSpacing.sm,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisExtent: _profileServerMetricCardExtent,
-              children: <Widget>[
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-image-cache-total-size',
-                  icon: Icons.photo_library_outlined,
-                  value: _formatBytes(cache.totalSizeBytes),
-                  label: 'Cache size',
-                ),
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-image-cache-total-files',
-                  icon: Icons.insert_drive_file_outlined,
-                  value: cache.totalFiles.toString(),
-                  label: 'Files',
-                ),
-                _ProfileServerCacheCategoryCard(
-                  cardKey: 'profile-server-image-cache-shows',
-                  label: 'Shows',
-                  category: cache.breakdown.shows,
-                ),
-                _ProfileServerCacheCategoryCard(
-                  cardKey: 'profile-server-image-cache-seasons',
-                  label: 'Seasons',
-                  category: cache.breakdown.seasons,
-                ),
-                _ProfileServerCacheCategoryCard(
-                  cardKey: 'profile-server-image-cache-episodes',
-                  label: 'Episodes',
-                  category: cache.breakdown.episodes,
-                ),
-              ],
-            );
-          },
+        _ProfileServerInfoGroup(
+          groupKey: const ValueKey<String>('profile-server-image-cache-grid'),
+          children: <Widget>[
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-image-cache-total-size',
+              icon: Icons.photo_library_outlined,
+              label: 'Cache size',
+              value: _formatBytes(cache.totalSizeBytes),
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-image-cache-total-files',
+              icon: Icons.insert_drive_file_outlined,
+              label: 'Files',
+              value: cache.totalFiles.toString(),
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-image-cache-shows',
+              icon: Icons.image_outlined,
+              label: 'Shows',
+              value: _formatBytes(cache.breakdown.shows.sizeBytes),
+              detail: '${cache.breakdown.shows.files} files',
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-image-cache-seasons',
+              icon: Icons.image_outlined,
+              label: 'Seasons',
+              value: _formatBytes(cache.breakdown.seasons.sizeBytes),
+              detail: '${cache.breakdown.seasons.files} files',
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-image-cache-episodes',
+              icon: Icons.image_outlined,
+              label: 'Episodes',
+              value: _formatBytes(cache.breakdown.episodes.sizeBytes),
+              detail: '${cache.breakdown.episodes.files} files',
+            ),
+          ],
         ),
       ],
-    );
-  }
-}
-
-class _ProfileServerCacheCategoryCard extends StatelessWidget {
-  const _ProfileServerCacheCategoryCard({
-    required this.cardKey,
-    required this.label,
-    required this.category,
-  });
-
-  final String cardKey;
-  final String label;
-  final ServerImageCacheCategory category;
-
-  @override
-  Widget build(BuildContext context) {
-    return _ProfileServerMetricCard(
-      cardKey: cardKey,
-      icon: Icons.image_outlined,
-      value: _formatBytes(category.sizeBytes),
-      label: label,
-      detail: '${category.files} files',
     );
   }
 }
@@ -3552,53 +3587,40 @@ class _ProfileServerRuntimeStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool useWideLayout =
-            constraints.maxWidth >= AppBreakpoints.profileFourColumns;
-
-        return GridView.count(
-          key: const ValueKey<String>('profile-server-runtime-status'),
-          crossAxisCount: useWideLayout ? 3 : 2,
-          crossAxisSpacing: AppSpacing.sm,
-          mainAxisSpacing: AppSpacing.sm,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisExtent: _profileServerMetricCardExtent,
-          children: <Widget>[
-            _ProfileServerMetricCard(
-              cardKey: 'profile-server-runtime-python',
-              icon: Icons.code_rounded,
-              value: health.runtime.pythonVersion,
-              label: 'Python',
-            ),
-            _ProfileServerMetricCard(
-              cardKey: 'profile-server-runtime-platform',
-              icon: Icons.computer_outlined,
-              value: health.runtime.platform,
-              label: 'Platform',
-            ),
-            _ProfileServerMetricCard(
-              cardKey: 'profile-server-runtime-uptime',
-              icon: Icons.timer_outlined,
-              value: _formatServerUptime(health.uptimeSeconds),
-              label: 'Process uptime',
-            ),
-            _ProfileServerMetricCard(
-              cardKey: 'profile-server-runtime-started-at',
-              icon: Icons.play_circle_outline_rounded,
-              value: _formatServerCheckedAt(health.runtime.startedAt),
-              label: 'Started at',
-            ),
-            _ProfileServerMetricCard(
-              cardKey: 'profile-server-runtime-current-time',
-              icon: Icons.schedule_rounded,
-              value: _formatServerCheckedAt(health.checkedAt),
-              label: 'Server current time',
-            ),
-          ],
-        );
-      },
+    return _ProfileServerInfoGroup(
+      groupKey: const ValueKey<String>('profile-server-runtime-status'),
+      children: <Widget>[
+        _ProfileServerInfoRow(
+          rowKey: 'profile-server-runtime-python',
+          icon: Icons.code_rounded,
+          label: 'Python',
+          value: health.runtime.pythonVersion,
+        ),
+        _ProfileServerInfoRow(
+          rowKey: 'profile-server-runtime-platform',
+          icon: Icons.computer_outlined,
+          label: 'Platform',
+          value: health.runtime.platform,
+        ),
+        _ProfileServerInfoRow(
+          rowKey: 'profile-server-runtime-uptime',
+          icon: Icons.timer_outlined,
+          label: 'Process uptime',
+          value: _formatServerUptime(health.uptimeSeconds),
+        ),
+        _ProfileServerInfoRow(
+          rowKey: 'profile-server-runtime-started-at',
+          icon: Icons.play_circle_outline_rounded,
+          label: 'Started at',
+          value: _formatServerCheckedAt(health.runtime.startedAt),
+        ),
+        _ProfileServerInfoRow(
+          rowKey: 'profile-server-runtime-current-time',
+          icon: Icons.schedule_rounded,
+          label: 'Server current time',
+          value: _formatServerCheckedAt(health.checkedAt),
+        ),
+      ],
     );
   }
 }
@@ -3610,41 +3632,28 @@ class _ProfileServerProvidersStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool useWideLayout =
-            constraints.maxWidth >= AppBreakpoints.profileFourColumns;
-
-        return GridView.count(
-          key: const ValueKey<String>('profile-server-providers-status'),
-          crossAxisCount: useWideLayout ? 3 : 2,
-          crossAxisSpacing: AppSpacing.sm,
-          mainAxisSpacing: AppSpacing.sm,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisExtent: _profileServerMetricCardExtent,
-          children: <Widget>[
-            _ProfileServerMetricCard(
-              cardKey: 'profile-server-provider-tmdb-configured',
-              icon: Icons.settings_outlined,
-              value: tmdb.configured ? 'Configured' : 'Not configured',
-              label: 'TMDB configuration',
-            ),
-            _ProfileServerMetricCard(
-              cardKey: 'profile-server-provider-tmdb-reachable',
-              icon: Icons.cloud_done_outlined,
-              value: tmdb.isHealthy ? 'Reachable' : 'Unavailable',
-              label: 'TMDB connectivity',
-            ),
-            _ProfileServerMetricCard(
-              cardKey: 'profile-server-provider-tmdb-latency',
-              icon: Icons.speed_rounded,
-              value: _formatServerLatency(tmdb.latencyMs) ?? 'Unavailable',
-              label: 'TMDB latency',
-            ),
-          ],
-        );
-      },
+    return _ProfileServerInfoGroup(
+      groupKey: const ValueKey<String>('profile-server-providers-status'),
+      children: <Widget>[
+        _ProfileServerInfoRow(
+          rowKey: 'profile-server-provider-tmdb-configured',
+          icon: Icons.settings_outlined,
+          label: 'TMDB configuration',
+          value: tmdb.configured ? 'Configured' : 'Not configured',
+        ),
+        _ProfileServerInfoRow(
+          rowKey: 'profile-server-provider-tmdb-reachable',
+          icon: Icons.cloud_done_outlined,
+          label: 'TMDB connectivity',
+          value: tmdb.isHealthy ? 'Reachable' : 'Unavailable',
+        ),
+        _ProfileServerInfoRow(
+          rowKey: 'profile-server-provider-tmdb-latency',
+          icon: Icons.speed_rounded,
+          label: 'TMDB latency',
+          value: _formatServerLatency(tmdb.latencyMs) ?? 'Unavailable',
+        ),
+      ],
     );
   }
 }
@@ -3656,76 +3665,59 @@ class _ProfileServerDatabaseStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool useWideLayout =
-            constraints.maxWidth >= AppBreakpoints.profileFourColumns;
-
-        return Column(
-          key: const ValueKey<String>('profile-server-database-status'),
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Column(
+      key: const ValueKey<String>('profile-server-database-status'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        _ProfileServerInfoGroup(
+          groupKey: const ValueKey<String>(
+            'profile-server-database-status-grid',
+          ),
           children: <Widget>[
-            GridView.count(
-              key: const ValueKey<String>(
-                'profile-server-database-status-grid',
-              ),
-              crossAxisCount: useWideLayout ? 3 : 2,
-              crossAxisSpacing: AppSpacing.sm,
-              mainAxisSpacing: AppSpacing.sm,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisExtent: _profileServerMetricCardExtent,
-              children: <Widget>[
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-database-engine',
-                  icon: Icons.dns_rounded,
-                  value: _formatDatabaseEngine(database.engine),
-                  label: 'Engine',
-                ),
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-database-size',
-                  icon: Icons.data_usage_rounded,
-                  value: _formatBytes(database.sizeBytes),
-                  label: 'Database size',
-                ),
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-database-wal-size',
-                  icon: Icons.article_outlined,
-                  value: _formatBytes(database.walSizeBytes),
-                  label: 'WAL size',
-                ),
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-database-connectivity',
-                  icon: Icons.link_rounded,
-                  value: _serverComponentStatusLabel(database.status),
-                  label: 'Connectivity',
-                  detail: _formatServerLatency(database.latencyMs),
-                ),
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-database-integrity',
-                  icon: Icons.verified_outlined,
-                  value: _serverDatabaseCheckStatusLabel(
-                    database.integrityCheck,
-                  ),
-                  label: 'Integrity check',
-                ),
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-database-foreign-keys',
-                  icon: Icons.account_tree_outlined,
-                  value: _serverDatabaseCheckStatusLabel(
-                    database.foreignKeyCheck,
-                  ),
-                  label: 'Foreign key check',
-                ),
-              ],
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-database-engine',
+              icon: Icons.dns_rounded,
+              label: 'Engine',
+              value: _formatDatabaseEngine(database.engine),
             ),
-
-            const SizedBox(height: AppSpacing.sm),
-
-            _ProfileServerMigrationCard(migration: database.migration),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-database-size',
+              icon: Icons.data_usage_rounded,
+              label: 'Database size',
+              value: _formatBytes(database.sizeBytes),
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-database-wal-size',
+              icon: Icons.article_outlined,
+              label: 'WAL size',
+              value: _formatBytes(database.walSizeBytes),
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-database-connectivity',
+              icon: Icons.link_rounded,
+              label: 'Connectivity',
+              value: _serverComponentStatusLabel(database.status),
+              detail: _formatServerLatency(database.latencyMs),
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-database-integrity',
+              icon: Icons.verified_outlined,
+              label: 'Integrity check',
+              value: _serverDatabaseCheckStatusLabel(database.integrityCheck),
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-database-foreign-keys',
+              icon: Icons.account_tree_outlined,
+              label: 'Foreign key check',
+              value: _serverDatabaseCheckStatusLabel(database.foreignKeyCheck),
+            ),
           ],
-        );
-      },
+        ),
+
+        const SizedBox(height: AppSpacing.sm),
+
+        _ProfileServerMigrationCard(migration: database.migration),
+      ],
     );
   }
 }
