@@ -450,6 +450,7 @@ def test_metadata_sync_preserves_each_show_metadata_language() -> None:
         language="pt-PT",
     )
 
+
 def test_metadata_force_sync_refreshes_show_and_all_seasons() -> None:
     """Force-refresh Show metadata and every locally stored Season."""
 

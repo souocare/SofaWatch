@@ -1,19 +1,19 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sofawatch/app/router/route_paths.dart';
 import 'package:sofawatch/app/theme/tokens/app_colors.dart';
 import 'package:sofawatch/app/theme/tokens/app_radius.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
 import 'package:sofawatch/app/theme/tokens/app_typography.dart';
+import 'package:sofawatch/core/api/api_client.dart';
 import 'package:sofawatch/core/errors/app_error_message_mapper.dart';
+import 'package:sofawatch/core/server/models/server_configuration.dart';
+import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/login_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/login_state.dart';
-import 'package:go_router/go_router.dart';
-import 'package:sofawatch/app/router/route_paths.dart';
-import 'package:sofawatch/core/api/api_client.dart';
-import 'package:sofawatch/core/server/models/server_configuration.dart';
-import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});

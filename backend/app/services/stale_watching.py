@@ -93,12 +93,10 @@ class StaleWatchingService:
             as_of=now.date(),
         )
 
-        watched_aired_counts = (
-            self._progress_repository.get_watched_aired_counts_by_show_ids(
-                user_id=user_id,
-                show_ids=stale_show_ids,
-                as_of=now.date(),
-            )
+        watched_aired_counts = self._progress_repository.get_watched_aired_counts_by_show_ids(
+            user_id=user_id,
+            show_ids=stale_show_ids,
+            as_of=now.date(),
         )
 
         results: list[StaleWatchingShowResponse] = []
@@ -137,15 +135,8 @@ class StaleWatchingService:
                 0,
             )
 
-            percentage = (
-                watched_episodes / aired_episodes * 100
-                if aired_episodes > 0
-                else 0.0
-            )
-            caught_up = (
-                aired_episodes > 0
-                and watched_episodes == aired_episodes
-            )
+            percentage = watched_episodes / aired_episodes * 100 if aired_episodes > 0 else 0.0
+            caught_up = aired_episodes > 0 and watched_episodes == aired_episodes
 
             results.append(
                 StaleWatchingShowResponse(

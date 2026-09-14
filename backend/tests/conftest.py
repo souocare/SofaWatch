@@ -161,6 +161,7 @@ def unauthenticated_client(
 
     app.dependency_overrides.clear()
 
+
 @pytest.fixture
 def db_session_factory(
     db_session: Session,

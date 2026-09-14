@@ -16,7 +16,11 @@ from app.repositories.episode_progress import EpisodeProgressRepository
 from app.repositories.library import LibraryRepository
 from app.repositories.movie import MovieRepository
 from app.repositories.show import ShowRepository
-from app.services.library import InvalidManualMovieStatusError, LibraryService, InvalidManualShowStatusError
+from app.services.library import (
+    InvalidManualMovieStatusError,
+    LibraryService,
+    InvalidManualShowStatusError,
+)
 
 
 @pytest.fixture
@@ -765,8 +769,6 @@ def test_update_movie_status_returns_none_when_entry_does_not_exist(
     )
 
 
-
-
 def test_update_movie_status_to_planning_clears_completed_at(
     db_session: Session,
     library_repository: Mock,
@@ -836,9 +838,6 @@ def test_update_movie_status_to_planning_clears_completed_at(
     assert result is entry
     assert result.status == LibraryStatus.PLANNING
     assert result.completed_at is None
-
-
-
 
 
 def test_list_shows_for_user_includes_first_available_episode_for_planning_show(
@@ -1238,6 +1237,7 @@ def test_update_status_rejects_derived_show_status(
             show_id=show.id,
             status=status,
         )
+
 
 def test_update_movie_status_to_completed_raises_invalid_manual_movie_status(
     db_session: Session,

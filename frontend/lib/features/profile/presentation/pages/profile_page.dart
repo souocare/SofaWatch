@@ -17,8 +17,6 @@ import 'package:sofawatch/features/admin_users/application/cubit/admin_user_pass
 import 'package:sofawatch/features/admin_users/application/cubit/admin_user_password_recovery_state.dart';
 import 'package:sofawatch/features/admin_users/application/cubit/admin_users_cubit.dart';
 import 'package:sofawatch/features/admin_users/application/cubit/admin_users_state.dart';
-import 'package:sofawatch/features/admin_users/application/cubit/admin_users_summary_cubit.dart';
-import 'package:sofawatch/features/admin_users/application/cubit/admin_users_summary_state.dart';
 import 'package:sofawatch/features/admin_users/domain/models/admin_user.dart';
 import 'package:sofawatch/features/admin_users/domain/models/password_recovery_link.dart';
 import 'package:sofawatch/features/admin_users/domain/repositories/admin_users_repository.dart';
@@ -49,11 +47,8 @@ import 'package:sofawatch/features/server/application/cubit/background_jobs_cubi
 import 'package:sofawatch/features/server/application/cubit/background_jobs_state.dart';
 import 'package:sofawatch/features/server/application/cubit/server_health_cubit.dart';
 import 'package:sofawatch/features/server/application/cubit/server_health_state.dart';
-import 'package:sofawatch/features/server/application/cubit/server_logs_cubit.dart';
-import 'package:sofawatch/features/server/application/cubit/server_logs_state.dart';
 import 'package:sofawatch/features/server/domain/models/background_job.dart';
 import 'package:sofawatch/features/server/domain/models/server_health.dart';
-import 'package:sofawatch/features/server/domain/models/server_logs.dart';
 import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
 import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_state.dart';
@@ -122,11 +117,11 @@ class ProfilePage extends StatelessWidget {
 
                   const SizedBox(height: AppSpacing.xl),
 
-                  const _ProfileServerGate(),
+                  _ProfileServerGate(isWeb: isWeb),
 
                   const SizedBox(height: AppSpacing.xxxl),
 
-                  const _ProfileUsersGate(),
+                  _ProfileUsersGate(isWeb: isWeb),
 
                   const _ProfileSecurityGate(),
 
@@ -2823,10 +2818,15 @@ class _ProfileDataImportFailure extends StatelessWidget {
 }
 
 class _ProfileServerGate extends StatelessWidget {
-  const _ProfileServerGate();
+  const _ProfileServerGate({required this.isWeb});
+
+  final bool isWeb;
 
   @override
   Widget build(BuildContext context) {
+    if (!isWeb) {
+      return const SizedBox.shrink();
+    }
     return BlocBuilder<ProfileCubit, ProfileState>(
       buildWhen: (ProfileState previous, ProfileState current) {
         final bool previousIsAdmin = switch (previous) {
@@ -2851,48 +2851,30 @@ class _ProfileServerGate extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
-        return LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final bool showDesktopDetails =
-                constraints.maxWidth >= AppBreakpoints.profileFourColumns;
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                const SizedBox(height: AppSpacing.section),
-                MultiBlocProvider(
-                  providers: <BlocProvider<dynamic>>[
-                    BlocProvider<BackgroundJobsCubit>(
-                      create: (BuildContext context) {
-                        return BackgroundJobsCubit(
-                          repository: context.read<ServerRepository>(),
-                        )..load();
-                      },
-                    ),
-                    BlocProvider<ServerHealthCubit>(
-                      create: (BuildContext context) {
-                        return ServerHealthCubit(
-                          repository: context.read<ServerRepository>(),
-                        )..load();
-                      },
-                    ),
-                    if (showDesktopDetails)
-                      BlocProvider<ServerLogsCubit>(
-                        create: (BuildContext context) {
-                          return ServerLogsCubit(
-                            repository: context.read<ServerRepository>(),
-                            pageSize: 10,
-                          )..load();
-                        },
-                      ),
-                  ],
-                  child: _ProfileServerSection(
-                    showDesktopDetails: showDesktopDetails,
-                  ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            const SizedBox(height: AppSpacing.section),
+            MultiBlocProvider(
+              providers: <BlocProvider<dynamic>>[
+                BlocProvider<BackgroundJobsCubit>(
+                  create: (BuildContext context) {
+                    return BackgroundJobsCubit(
+                      repository: context.read<ServerRepository>(),
+                    )..load();
+                  },
+                ),
+                BlocProvider<ServerHealthCubit>(
+                  create: (BuildContext context) {
+                    return ServerHealthCubit(
+                      repository: context.read<ServerRepository>(),
+                    )..load();
+                  },
                 ),
               ],
-            );
-          },
+              child: const _ProfileServerSection(),
+            ),
+          ],
         );
       },
     );
@@ -2900,9 +2882,7 @@ class _ProfileServerGate extends StatelessWidget {
 }
 
 class _ProfileServerSection extends StatelessWidget {
-  const _ProfileServerSection({required this.showDesktopDetails});
-
-  final bool showDesktopDetails;
+  const _ProfileServerSection();
 
   @override
   Widget build(BuildContext context) {
@@ -2910,44 +2890,34 @@ class _ProfileServerSection extends StatelessWidget {
       key: const ValueKey<String>('profile-server'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        if (showDesktopDetails) ...<Widget>[
-          Text(
-            'Server',
-            key: const ValueKey<String>('profile-server-title'),
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          BlocBuilder<ServerHealthCubit, ServerHealthState>(
-            builder: (BuildContext context, ServerHealthState state) {
-              return switch (state) {
-                ServerHealthInitial() ||
-                ServerHealthLoading() => const _ProfileServerLoading(),
+        Text(
+          'Server',
+          key: const ValueKey<String>('profile-server-title'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
 
-                ServerHealthSuccess(:final health) =>
-                  _ProfileServerHealthSummary(health: health),
+        const SizedBox(height: AppSpacing.md),
 
-                ServerHealthFailure(:final error) => SectionFailureCard(
-                  failureKey: 'profile-server-failure',
-                  error: error,
-                  onRetry: context.read<ServerHealthCubit>().retry,
-                ),
-              };
-            },
-          ),
-          const SizedBox(height: AppSpacing.section),
-        ] else ...<Widget>[
-          const _ProfileMobileServerSummary(),
-          const SizedBox(height: AppSpacing.section),
-        ],
+        BlocBuilder<ServerHealthCubit, ServerHealthState>(
+          builder: (BuildContext context, ServerHealthState state) {
+            return switch (state) {
+              ServerHealthInitial() ||
+              ServerHealthLoading() => const _ProfileServerLoading(),
 
-        const _ProfileBackgroundJobsSection(),
+              ServerHealthSuccess(:final health) => _ProfileServerHealthSummary(
+                health: health,
+              ),
 
-        if (showDesktopDetails) ...<Widget>[
-          const SizedBox(height: AppSpacing.section),
-          const _ProfileServerLogsSection(),
-        ],
+              ServerHealthFailure(:final error) => SectionFailureCard(
+                failureKey: 'profile-server-failure',
+                error: error,
+                onRetry: context.read<ServerHealthCubit>().retry,
+              ),
+            };
+          },
+        ),
       ],
     );
   }
@@ -3044,82 +3014,95 @@ class _ProfileServerHealthSummary extends StatelessWidget {
       key: const ValueKey<String>('profile-server-health'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        _ProfileServerOverallHealthCard(health: health),
-
-        const SizedBox(height: AppSpacing.sm),
-
-        LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final bool useWideLayout =
-                constraints.maxWidth >= AppBreakpoints.profileFourColumns;
-
-            return GridView.count(
-              key: const ValueKey<String>('profile-server-health-grid'),
-              crossAxisCount: useWideLayout ? 3 : 2,
-              crossAxisSpacing: AppSpacing.sm,
-              mainAxisSpacing: AppSpacing.sm,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisExtent: _profileServerMetricCardExtent,
-              children: <Widget>[
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-checked-at',
-                  icon: Icons.update_rounded,
-                  value: _formatServerCheckedAt(health.checkedAt),
-                  label: 'Checked at',
-                ),
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-uptime',
-                  icon: Icons.timer_outlined,
-                  value: _formatServerUptime(health.uptimeSeconds),
-                  label: 'Uptime',
-                ),
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-database',
-                  icon: Icons.storage_rounded,
-                  value: _serverComponentStatusLabel(health.database.status),
-                  label: 'Database',
-                  detail: _formatServerLatency(health.database.latencyMs),
-                ),
-                _ProfileServerMetricCard(
-                  cardKey: 'profile-server-tmdb',
-                  icon: Icons.cloud_outlined,
-                  value: _serverComponentStatusLabel(health.tmdb.status),
-                  label: 'TMDB',
-                  detail: _serverTmdbDetail(health.tmdb),
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: AppSpacing.section),
-
-        Text(
-          'Database status',
-          key: const ValueKey<String>('profile-server-database-title'),
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+        const _ProfileServerSubsectionTitle(
+          title: 'Health status',
+          titleKey: 'profile-server-health-title',
         ),
 
         const SizedBox(height: AppSpacing.md),
 
-        _ProfileServerDatabaseStatus(database: health.database),
+        _ProfileServerInfoGroup(
+          groupKey: const ValueKey<String>('profile-server-health-summary'),
+          children: <Widget>[
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-overall-health',
+              icon: health.isHealthy
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.warning_amber_rounded,
+              label: 'Server',
+              value: _serverHealthStatusLabel(health.status),
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-uptime',
+              icon: Icons.timer_outlined,
+              label: 'Uptime',
+              value: _formatServerUptime(health.uptimeSeconds),
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-database',
+              icon: Icons.storage_rounded,
+              label: 'Database',
+              value: _serverComponentStatusLabel(health.database.status),
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-tmdb',
+              icon: Icons.cloud_outlined,
+              label: 'TMDB',
+              value: _serverComponentStatusLabel(health.tmdb.status),
+            ),
+          ],
+        ),
 
         const SizedBox(height: AppSpacing.section),
 
-        _ProfileServerSubsectionTitle(
-          title: 'Environment',
-          titleKey: 'profile-server-environment-title',
+        const _ProfileBackgroundJobsSection(),
+
+        const SizedBox(height: AppSpacing.section),
+
+        const _ProfileServerSubsectionTitle(
+          title: 'Database',
+          titleKey: 'profile-server-database-title',
         ),
 
         const SizedBox(height: AppSpacing.md),
 
-        _ProfileServerEnvironmentStatus(environment: health.environment),
+        _ProfileServerInfoGroup(
+          groupKey: const ValueKey<String>('profile-server-database-status'),
+          children: <Widget>[
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-database-status-value',
+              icon: Icons.storage_rounded,
+              label: 'Status',
+              value: _serverComponentStatusLabel(health.database.status),
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-database-engine',
+              icon: Icons.dns_rounded,
+              label: 'Engine',
+              value: _formatDatabaseEngine(health.database.engine),
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-database-size',
+              icon: Icons.data_usage_rounded,
+              label: 'Size',
+              value: health.database.sizeBytes == null
+                  ? 'Unavailable'
+                  : _formatBytes(health.database.sizeBytes!),
+            ),
+            _ProfileServerInfoRow(
+              rowKey: 'profile-server-database-integrity',
+              icon: Icons.verified_outlined,
+              label: 'Integrity',
+              value: _serverDatabaseCheckStatusLabel(
+                health.database.integrityCheck,
+              ),
+            ),
+          ],
+        ),
 
         const SizedBox(height: AppSpacing.section),
 
-        _ProfileServerSubsectionTitle(
+        const _ProfileServerSubsectionTitle(
           title: 'Storage',
           titleKey: 'profile-server-storage-title',
         ),
@@ -3127,84 +3110,7 @@ class _ProfileServerHealthSummary extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
 
         _ProfileServerStorageStatus(storage: health.storage),
-
-        const SizedBox(height: AppSpacing.section),
-
-        _ProfileServerSubsectionTitle(
-          title: 'Runtime',
-          titleKey: 'profile-server-runtime-title',
-        ),
-
-        const SizedBox(height: AppSpacing.md),
-
-        _ProfileServerRuntimeStatus(health: health),
-
-        const SizedBox(height: AppSpacing.section),
-
-        _ProfileServerSubsectionTitle(
-          title: 'Providers',
-          titleKey: 'profile-server-providers-title',
-        ),
-
-        const SizedBox(height: AppSpacing.md),
-
-        _ProfileServerProvidersStatus(tmdb: health.tmdb),
       ],
-    );
-  }
-}
-
-class _ProfileServerOverallHealthCard extends StatelessWidget {
-  const _ProfileServerOverallHealthCard({required this.health});
-
-  final ServerHealth health;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('profile-server-overall-health'),
-      padding: AppSpacing.cardPadding,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderLarge,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Row(
-        children: <Widget>[
-          Icon(
-            health.isHealthy
-                ? Icons.check_circle_outline_rounded
-                : Icons.warning_amber_rounded,
-            color: AppColors.textSecondary,
-          ),
-
-          const SizedBox(width: AppSpacing.md),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'Health status',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-
-                const SizedBox(height: AppSpacing.xs),
-
-                Text(
-                  _serverHealthStatusLabel(health.status),
-                  key: const ValueKey<String>('profile-server-health-status'),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -3414,52 +3320,6 @@ class _ProfileServerSubsectionTitle extends StatelessWidget {
   }
 }
 
-class _ProfileServerEnvironmentStatus extends StatelessWidget {
-  const _ProfileServerEnvironmentStatus({required this.environment});
-
-  final ServerEnvironment environment;
-
-  @override
-  Widget build(BuildContext context) {
-    return _ProfileServerInfoGroup(
-      groupKey: const ValueKey<String>('profile-server-environment-status'),
-      children: <Widget>[
-        _ProfileServerInfoRow(
-          rowKey: 'profile-server-environment-name',
-          icon: Icons.layers_outlined,
-          label: 'Environment',
-          value: environment.environment,
-        ),
-        _ProfileServerInfoRow(
-          rowKey: 'profile-server-environment-debug',
-          icon: Icons.bug_report_outlined,
-          label: 'Debug',
-          value: environment.debug ? 'Enabled' : 'Disabled',
-        ),
-        _ProfileServerInfoRow(
-          rowKey: 'profile-server-environment-api',
-          icon: Icons.lan_outlined,
-          label: 'API',
-          value: '${environment.apiHost}:${environment.apiPort}',
-        ),
-        _ProfileServerInfoRow(
-          rowKey: 'profile-server-environment-language',
-          icon: Icons.language_outlined,
-          label: 'Default language',
-          value: environment.defaultLanguage,
-          detail: environment.supportedLanguages.join(', '),
-        ),
-        _ProfileServerInfoRow(
-          rowKey: 'profile-server-environment-refresh',
-          icon: Icons.sync_outlined,
-          label: 'Metadata refresh',
-          value: '${environment.metadataRefreshDays}d',
-        ),
-      ],
-    );
-  }
-}
-
 class _ProfileServerStorageStatus extends StatelessWidget {
   const _ProfileServerStorageStatus({required this.storage});
 
@@ -3467,332 +3327,43 @@ class _ProfileServerStorageStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ServerImageCache cache = storage.imageCache;
+
     return Column(
       key: const ValueKey<String>('profile-server-storage-status'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         _ProfileServerInfoGroup(
-          groupKey: const ValueKey<String>('profile-server-storage-grid'),
-          children: <Widget>[
-            _ProfileServerInfoRow(
-              rowKey: 'profile-server-storage-directory',
-              icon: Icons.folder_outlined,
-              label: 'Data directory',
-              value: storage.dataDirectory,
-            ),
-            _ProfileServerInfoRow(
-              rowKey: 'profile-server-storage-writable',
-              icon: Icons.edit_outlined,
-              label: 'Access',
-              value: storage.writable ? 'Writable' : 'Read only',
-            ),
-            _ProfileServerInfoRow(
-              rowKey: 'profile-server-storage-total',
-              icon: Icons.sd_storage_outlined,
-              label: 'Total space',
-              value: _formatBytes(storage.totalSpaceBytes),
-            ),
-            _ProfileServerInfoRow(
-              rowKey: 'profile-server-storage-used',
-              icon: Icons.pie_chart_outline_rounded,
-              label: 'Used space',
-              value: _formatBytes(storage.usedSpaceBytes),
-              detail: _formatPercentage(storage.usagePercentage),
-            ),
-            _ProfileServerInfoRow(
-              rowKey: 'profile-server-storage-free',
-              icon: Icons.space_bar_rounded,
-              label: 'Free space',
-              value: _formatBytes(storage.freeSpaceBytes),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: AppSpacing.md),
-
-        _ProfileServerImageCacheStatus(cache: storage.imageCache),
-      ],
-    );
-  }
-}
-
-class _ProfileServerImageCacheStatus extends StatelessWidget {
-  const _ProfileServerImageCacheStatus({required this.cache});
-
-  final ServerImageCache cache;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      key: const ValueKey<String>('profile-server-image-cache'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Text(
-          'Image cache',
-          key: const ValueKey<String>('profile-server-image-cache-title'),
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-        ),
-
-        const SizedBox(height: AppSpacing.sm),
-
-        _ProfileServerInfoGroup(
           groupKey: const ValueKey<String>('profile-server-image-cache-grid'),
           children: <Widget>[
             _ProfileServerInfoRow(
-              rowKey: 'profile-server-image-cache-total-size',
+              rowKey: 'profile-server-image-cache-total',
               icon: Icons.photo_library_outlined,
-              label: 'Cache size',
+              label: 'Image cache',
               value: _formatBytes(cache.totalSizeBytes),
-            ),
-            _ProfileServerInfoRow(
-              rowKey: 'profile-server-image-cache-total-files',
-              icon: Icons.insert_drive_file_outlined,
-              label: 'Files',
-              value: cache.totalFiles.toString(),
+              detail: '${cache.totalFiles} files',
             ),
             _ProfileServerInfoRow(
               rowKey: 'profile-server-image-cache-shows',
-              icon: Icons.image_outlined,
+              icon: Icons.tv_outlined,
               label: 'Shows',
-              value: _formatBytes(cache.breakdown.shows.sizeBytes),
-              detail: '${cache.breakdown.shows.files} files',
+              value: '${cache.breakdown.shows.files} images',
             ),
             _ProfileServerInfoRow(
               rowKey: 'profile-server-image-cache-seasons',
-              icon: Icons.image_outlined,
+              icon: Icons.video_library_outlined,
               label: 'Seasons',
-              value: _formatBytes(cache.breakdown.seasons.sizeBytes),
-              detail: '${cache.breakdown.seasons.files} files',
+              value: '${cache.breakdown.seasons.files} images',
             ),
             _ProfileServerInfoRow(
               rowKey: 'profile-server-image-cache-episodes',
-              icon: Icons.image_outlined,
+              icon: Icons.play_circle_outline_rounded,
               label: 'Episodes',
-              value: _formatBytes(cache.breakdown.episodes.sizeBytes),
-              detail: '${cache.breakdown.episodes.files} files',
+              value: '${cache.breakdown.episodes.files} images',
             ),
           ],
         ),
       ],
-    );
-  }
-}
-
-class _ProfileServerRuntimeStatus extends StatelessWidget {
-  const _ProfileServerRuntimeStatus({required this.health});
-
-  final ServerHealth health;
-
-  @override
-  Widget build(BuildContext context) {
-    return _ProfileServerInfoGroup(
-      groupKey: const ValueKey<String>('profile-server-runtime-status'),
-      children: <Widget>[
-        _ProfileServerInfoRow(
-          rowKey: 'profile-server-runtime-python',
-          icon: Icons.code_rounded,
-          label: 'Python',
-          value: health.runtime.pythonVersion,
-        ),
-        _ProfileServerInfoRow(
-          rowKey: 'profile-server-runtime-platform',
-          icon: Icons.computer_outlined,
-          label: 'Platform',
-          value: health.runtime.platform,
-        ),
-        _ProfileServerInfoRow(
-          rowKey: 'profile-server-runtime-uptime',
-          icon: Icons.timer_outlined,
-          label: 'Process uptime',
-          value: _formatServerUptime(health.uptimeSeconds),
-        ),
-        _ProfileServerInfoRow(
-          rowKey: 'profile-server-runtime-started-at',
-          icon: Icons.play_circle_outline_rounded,
-          label: 'Started at',
-          value: _formatServerCheckedAt(health.runtime.startedAt),
-        ),
-        _ProfileServerInfoRow(
-          rowKey: 'profile-server-runtime-current-time',
-          icon: Icons.schedule_rounded,
-          label: 'Server current time',
-          value: _formatServerCheckedAt(health.checkedAt),
-        ),
-      ],
-    );
-  }
-}
-
-class _ProfileServerProvidersStatus extends StatelessWidget {
-  const _ProfileServerProvidersStatus({required this.tmdb});
-
-  final ServerTmdbHealth tmdb;
-
-  @override
-  Widget build(BuildContext context) {
-    return _ProfileServerInfoGroup(
-      groupKey: const ValueKey<String>('profile-server-providers-status'),
-      children: <Widget>[
-        _ProfileServerInfoRow(
-          rowKey: 'profile-server-provider-tmdb-configured',
-          icon: Icons.settings_outlined,
-          label: 'TMDB configuration',
-          value: tmdb.configured ? 'Configured' : 'Not configured',
-        ),
-        _ProfileServerInfoRow(
-          rowKey: 'profile-server-provider-tmdb-reachable',
-          icon: Icons.cloud_done_outlined,
-          label: 'TMDB connectivity',
-          value: tmdb.isHealthy ? 'Reachable' : 'Unavailable',
-        ),
-        _ProfileServerInfoRow(
-          rowKey: 'profile-server-provider-tmdb-latency',
-          icon: Icons.speed_rounded,
-          label: 'TMDB latency',
-          value: _formatServerLatency(tmdb.latencyMs) ?? 'Unavailable',
-        ),
-      ],
-    );
-  }
-}
-
-class _ProfileServerDatabaseStatus extends StatelessWidget {
-  const _ProfileServerDatabaseStatus({required this.database});
-
-  final ServerDatabaseHealth database;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      key: const ValueKey<String>('profile-server-database-status'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        _ProfileServerInfoGroup(
-          groupKey: const ValueKey<String>(
-            'profile-server-database-status-grid',
-          ),
-          children: <Widget>[
-            _ProfileServerInfoRow(
-              rowKey: 'profile-server-database-engine',
-              icon: Icons.dns_rounded,
-              label: 'Engine',
-              value: _formatDatabaseEngine(database.engine),
-            ),
-            _ProfileServerInfoRow(
-              rowKey: 'profile-server-database-size',
-              icon: Icons.data_usage_rounded,
-              label: 'Database size',
-              value: _formatBytes(database.sizeBytes),
-            ),
-            _ProfileServerInfoRow(
-              rowKey: 'profile-server-database-wal-size',
-              icon: Icons.article_outlined,
-              label: 'WAL size',
-              value: _formatBytes(database.walSizeBytes),
-            ),
-            _ProfileServerInfoRow(
-              rowKey: 'profile-server-database-connectivity',
-              icon: Icons.link_rounded,
-              label: 'Connectivity',
-              value: _serverComponentStatusLabel(database.status),
-              detail: _formatServerLatency(database.latencyMs),
-            ),
-            _ProfileServerInfoRow(
-              rowKey: 'profile-server-database-integrity',
-              icon: Icons.verified_outlined,
-              label: 'Integrity check',
-              value: _serverDatabaseCheckStatusLabel(database.integrityCheck),
-            ),
-            _ProfileServerInfoRow(
-              rowKey: 'profile-server-database-foreign-keys',
-              icon: Icons.account_tree_outlined,
-              label: 'Foreign key check',
-              value: _serverDatabaseCheckStatusLabel(database.foreignKeyCheck),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: AppSpacing.sm),
-
-        _ProfileServerMigrationCard(migration: database.migration),
-      ],
-    );
-  }
-}
-
-class _ProfileServerMigrationCard extends StatelessWidget {
-  const _ProfileServerMigrationCard({required this.migration});
-
-  final ServerDatabaseMigration migration;
-
-  @override
-  Widget build(BuildContext context) {
-    final String revision = migration.revision ?? 'Unavailable';
-    final String? message = migration.message;
-
-    return Container(
-      key: const ValueKey<String>('profile-server-database-migration'),
-      padding: AppSpacing.cardPadding,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderLarge,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const Icon(
-            Icons.schema_outlined,
-            size: 22,
-            color: AppColors.textSecondary,
-          ),
-
-          const SizedBox(width: AppSpacing.md),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  revision,
-                  key: const ValueKey<String>(
-                    'profile-server-database-migration-revision',
-                  ),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-                ),
-
-                const SizedBox(height: AppSpacing.xs),
-
-                Text(
-                  'Migration revision',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-
-                if (message != null) ...<Widget>[
-                  const SizedBox(height: AppSpacing.xs),
-
-                  Text(
-                    message,
-                    key: const ValueKey<String>(
-                      'profile-server-database-migration-message',
-                    ),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -4699,505 +4270,17 @@ class _ProfileServerLoading extends StatelessWidget {
   }
 }
 
-class _ProfileServerLogsSection extends StatelessWidget {
-  const _ProfileServerLogsSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      key: const ValueKey<String>('profile-server-logs'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            const Expanded(
-              child: _ProfileServerSubsectionTitle(
-                title: 'Logs',
-                titleKey: 'profile-server-logs-title',
-              ),
-            ),
-
-            BlocBuilder<ServerLogsCubit, ServerLogsState>(
-              buildWhen: (ServerLogsState previous, ServerLogsState current) {
-                return previous != current;
-              },
-              builder: (BuildContext context, ServerLogsState state) {
-                final bool isRefreshing = switch (state) {
-                  ServerLogsSuccess(:final isRefreshing) => isRefreshing,
-                  _ => false,
-                };
-
-                return IconButton(
-                  key: const ValueKey<String>('profile-server-logs-refresh'),
-                  tooltip: 'Refresh logs',
-                  onPressed: isRefreshing
-                      ? null
-                      : () {
-                          context.read<ServerLogsCubit>().refresh();
-                        },
-                  icon: isRefreshing
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.refresh_rounded),
-                );
-              },
-            ),
-          ],
-        ),
-
-        const SizedBox(height: AppSpacing.md),
-
-        BlocBuilder<ServerLogsCubit, ServerLogsState>(
-          builder: (BuildContext context, ServerLogsState state) {
-            return switch (state) {
-              ServerLogsInitial() ||
-              ServerLogsLoading() => const _ProfileServerLogsLoading(),
-
-              ServerLogsSuccess() => _ProfileServerLogsContent(state: state),
-
-              ServerLogsFailure(:final error) => SectionFailureCard(
-                failureKey: 'profile-server-logs-failure',
-                error: error,
-                onRetry: context.read<ServerLogsCubit>().retry,
-              ),
-            };
-          },
-        ),
-      ],
-    );
-  }
-}
-
-class _ProfileServerLogsContent extends StatelessWidget {
-  const _ProfileServerLogsContent({required this.state});
-
-  final ServerLogsSuccess state;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      key: const ValueKey<String>('profile-server-logs-content'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        _ProfileServerLogsFilter(selectedLevel: state.level),
-
-        const SizedBox(height: AppSpacing.md),
-
-        if (state.refreshError case final AppException error) ...<Widget>[
-          _ProfileServerLogsInlineFailure(
-            failureKey: 'profile-server-logs-refresh-failure',
-            error: error,
-            onRetry: context.read<ServerLogsCubit>().refresh,
-          ),
-
-          const SizedBox(height: AppSpacing.md),
-        ],
-
-        if (state.page.items.isEmpty)
-          const _ProfileServerLogsEmpty()
-        else
-          _ProfileServerLogsList(logs: state.page.items),
-
-        if (state.page.items.isNotEmpty) ...<Widget>[
-          const SizedBox(height: AppSpacing.md),
-
-          _ProfileServerLogsFooter(state: state),
-        ],
-      ],
-    );
-  }
-}
-
-class _ProfileServerLogsFilter extends StatelessWidget {
-  const _ProfileServerLogsFilter({required this.selectedLevel});
-
-  final ServerLogLevel? selectedLevel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      key: const ValueKey<String>('profile-server-logs-filter'),
-      spacing: AppSpacing.sm,
-      runSpacing: AppSpacing.sm,
-      children: <Widget>[
-        _ProfileServerLogFilterChip(
-          filterKey: 'all',
-          label: 'All',
-          selected: selectedLevel == null,
-          onSelected: () {
-            context.read<ServerLogsCubit>().setLevel(null);
-          },
-        ),
-        for (final ServerLogLevel level in ServerLogLevel.values)
-          _ProfileServerLogFilterChip(
-            filterKey: level.name,
-            label: _serverLogLevelLabel(level),
-            selected: selectedLevel == level,
-            onSelected: () {
-              context.read<ServerLogsCubit>().setLevel(level);
-            },
-          ),
-      ],
-    );
-  }
-}
-
-class _ProfileServerLogFilterChip extends StatelessWidget {
-  const _ProfileServerLogFilterChip({
-    required this.filterKey,
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  final String filterKey;
-  final String label;
-  final bool selected;
-  final VoidCallback onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return FilterChip(
-      key: ValueKey<String>('profile-server-logs-filter-$filterKey'),
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) {
-        onSelected();
-      },
-    );
-  }
-}
-
-class _ProfileServerLogsList extends StatelessWidget {
-  const _ProfileServerLogsList({required this.logs});
-
-  final List<ServerLogEntry> logs;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      key: const ValueKey<String>('profile-server-logs-list'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        for (int index = 0; index < logs.length; index++) ...<Widget>[
-          if (index > 0) const SizedBox(height: AppSpacing.sm),
-
-          _ProfileServerLogEntryCard(entry: logs[index], index: index),
-        ],
-      ],
-    );
-  }
-}
-
-class _ProfileServerLogEntryCard extends StatelessWidget {
-  const _ProfileServerLogEntryCard({required this.entry, required this.index});
-
-  final ServerLogEntry entry;
-  final int index;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: ValueKey<String>('profile-server-log-$index'),
-      padding: AppSpacing.cardPadding,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderLarge,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints constraints) {
-              final bool useStackedHeader =
-                  constraints.maxWidth < AppBreakpoints.profileLogHeaderStack;
-
-              final Widget levelAndLogger = Row(
-                children: <Widget>[
-                  _ProfileServerLogLevelBadge(level: entry.level),
-
-                  const SizedBox(width: AppSpacing.sm),
-
-                  Expanded(
-                    child: Text(
-                      entry.logger,
-                      key: ValueKey<String>('profile-server-log-$index-logger'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-
-              final Widget timestamp = Text(
-                _formatServerLogDate(entry.timestamp),
-                key: ValueKey<String>('profile-server-log-$index-timestamp'),
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-              );
-
-              if (useStackedHeader) {
-                return Column(
-                  key: ValueKey<String>(
-                    'profile-server-log-$index-stacked-header',
-                  ),
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    levelAndLogger,
-
-                    const SizedBox(height: AppSpacing.xs),
-
-                    Align(alignment: Alignment.centerLeft, child: timestamp),
-                  ],
-                );
-              }
-
-              return Row(
-                key: ValueKey<String>('profile-server-log-$index-wide-header'),
-                children: <Widget>[
-                  Expanded(child: levelAndLogger),
-
-                  const SizedBox(width: AppSpacing.md),
-
-                  timestamp,
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: AppSpacing.sm),
-
-          Text(
-            entry.message,
-            key: ValueKey<String>('profile-server-log-$index-message'),
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-
-          const SizedBox(height: AppSpacing.sm),
-
-          Text(
-            _serverLogComponentLabel(entry.component),
-            key: ValueKey<String>('profile-server-log-$index-component'),
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProfileServerLogLevelBadge extends StatelessWidget {
-  const _ProfileServerLogLevelBadge({required this.level});
-
-  final ServerLogLevel level;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: ValueKey<String>('profile-server-log-level-${level.name}'),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: AppRadius.borderMedium,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Text(
-        _serverLogLevelLabel(level),
-        style: Theme.of(
-          context,
-        ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800),
-      ),
-    );
-  }
-}
-
-class _ProfileServerLogsEmpty extends StatelessWidget {
-  const _ProfileServerLogsEmpty();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('profile-server-logs-empty'),
-      padding: AppSpacing.cardPadding,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderLarge,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Text(
-        'No logs match the selected filter.',
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-      ),
-    );
-  }
-}
-
-class _ProfileServerLogsFooter extends StatelessWidget {
-  const _ProfileServerLogsFooter({required this.state});
-
-  final ServerLogsSuccess state;
-
-  @override
-  Widget build(BuildContext context) {
-    final int pageSize = state.page.limit;
-
-    final int currentPage = state.page.total == 0
-        ? 1
-        : (state.page.offset ~/ pageSize) + 1;
-
-    final int totalPages = state.page.total == 0
-        ? 1
-        : ((state.page.total + pageSize - 1) ~/ pageSize);
-
-    final bool hasPrevious = state.page.offset > 0;
-    final bool hasNext = state.page.hasNext;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            OutlinedButton(
-              key: const ValueKey<String>('profile-server-logs-previous-page'),
-              onPressed: !hasPrevious || state.isLoadingMore
-                  ? null
-                  : () {
-                      context.read<ServerLogsCubit>().previousPage();
-                    },
-              child: const Text('Previous'),
-            ),
-
-            Expanded(
-              child: Text(
-                'Page $currentPage of $totalPages',
-                key: const ValueKey<String>('profile-server-logs-page'),
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-
-            OutlinedButton(
-              key: const ValueKey<String>('profile-server-logs-next-page'),
-              onPressed: !hasNext || state.isLoadingMore
-                  ? null
-                  : () {
-                      context.read<ServerLogsCubit>().nextPage();
-                    },
-              child: state.isLoadingMore
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Next'),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: AppSpacing.xs),
-
-        Text(
-          '${state.page.total} logs',
-          key: const ValueKey<String>('profile-server-logs-count'),
-          textAlign: TextAlign.center,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-        ),
-
-        if (state.paginationError case final AppException error) ...<Widget>[
-          const SizedBox(height: AppSpacing.md),
-          _ProfileServerLogsInlineFailure(
-            failureKey: 'profile-server-logs-pagination-failure',
-            error: error,
-            onRetry: context.read<ServerLogsCubit>().retryPagination,
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _ProfileServerLogsInlineFailure extends StatelessWidget {
-  const _ProfileServerLogsInlineFailure({
-    required this.failureKey,
-    required this.error,
-    required this.onRetry,
-  });
-
-  final String failureKey;
-  final AppException error;
-  final Future<void> Function() onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: ValueKey<String>(failureKey),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderMedium,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Row(
-        children: <Widget>[
-          const Icon(
-            Icons.error_outline_rounded,
-            size: 18,
-            color: AppColors.textSecondary,
-          ),
-
-          const SizedBox(width: AppSpacing.sm),
-
-          Expanded(
-            child: Text(
-              AppErrorMessageMapper.map(error),
-              key: ValueKey<String>('$failureKey-message'),
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-            ),
-          ),
-
-          const SizedBox(width: AppSpacing.sm),
-
-          TextButton(
-            key: ValueKey<String>('$failureKey-retry'),
-            onPressed: () {
-              onRetry();
-            },
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ProfileUsersGate extends StatelessWidget {
-  const _ProfileUsersGate();
+  const _ProfileUsersGate({required this.isWeb});
+
+  final bool isWeb;
 
   @override
   Widget build(BuildContext context) {
+    if (!isWeb) {
+      return const SizedBox.shrink();
+    }
+
     return BlocBuilder<ProfileCubit, ProfileState>(
       buildWhen: (ProfileState previous, ProfileState current) {
         final bool previousIsAdmin = switch (previous) {
@@ -5222,23 +4305,6 @@ class _ProfileUsersGate extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
-        final bool useDesktopLayout =
-            MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet;
-
-        if (!useDesktopLayout) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.section),
-            child: BlocProvider<AdminUsersSummaryCubit>(
-              create: (BuildContext context) {
-                return AdminUsersSummaryCubit(
-                  repository: context.read<AdminUsersRepository>(),
-                )..load();
-              },
-              child: const _ProfileMobileUsersSection(),
-            ),
-          );
-        }
-
         return Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.section),
           child: BlocProvider<AdminUsersCubit>(
@@ -5250,57 +4316,6 @@ class _ProfileUsersGate extends StatelessWidget {
             child: const _ProfileUsersSection(),
           ),
         );
-      },
-    );
-  }
-}
-
-class _ProfileMobileUsersSection extends StatelessWidget {
-  const _ProfileMobileUsersSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<AdminUsersSummaryCubit, AdminUsersSummaryState>(
-      builder: (BuildContext context, AdminUsersSummaryState state) {
-        return switch (state) {
-          AdminUsersSummaryInitial() ||
-          AdminUsersSummaryLoading() => const _ProfileMobileAdministrationRow(
-            rowKey: 'profile-users-mobile-summary',
-            icon: Icons.people_outline_rounded,
-            title: 'Users',
-            subtitle: 'Loading users…',
-            trailing: SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ),
-
-          AdminUsersSummarySuccess(:final summary) =>
-            _ProfileMobileAdministrationRow(
-              rowKey: 'profile-users-mobile-summary',
-              icon: Icons.people_outline_rounded,
-              title: 'Users',
-              subtitle: _formatUsersSummary(
-                total: summary.total,
-                active: summary.active,
-                admins: summary.admins,
-              ),
-            ),
-
-          AdminUsersSummaryFailure(:final error) =>
-            _ProfileMobileAdministrationRow(
-              rowKey: 'profile-users-mobile-summary',
-              icon: Icons.people_outline_rounded,
-              title: 'Users',
-              subtitle: AppErrorMessageMapper.map(error),
-              trailing: TextButton(
-                key: const ValueKey<String>('profile-users-mobile-retry'),
-                onPressed: context.read<AdminUsersSummaryCubit>().retry,
-                child: const Text('Retry'),
-              ),
-            ),
-        };
       },
     );
   }
@@ -5856,23 +4871,6 @@ class _ProfileSecurityContent extends StatelessWidget {
   }
 }
 
-class _ProfileServerLogsLoading extends StatelessWidget {
-  const _ProfileServerLogsLoading();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('profile-server-logs-loading'),
-      height: 180,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.borderLarge,
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-    );
-  }
-}
-
 String _serverHealthStatusLabel(ServerHealthStatus status) {
   return switch (status) {
     ServerHealthStatus.healthy => 'Healthy',
@@ -5935,14 +4933,6 @@ String? _formatServerLatency(double? latencyMs) {
   return '$formatted ms';
 }
 
-String _serverTmdbDetail(ServerTmdbHealth tmdb) {
-  if (!tmdb.configured) {
-    return 'Not configured';
-  }
-
-  return _formatServerLatency(tmdb.latencyMs) ?? 'Configured';
-}
-
 String _formatProfileHistoryDate(DateTime value) {
   final DateTime local = value.toLocal();
 
@@ -5995,18 +4985,6 @@ String _formatBytes(int? bytes) {
   return '$bytes B';
 }
 
-String _formatPercentage(double? value) {
-  if (value == null) {
-    return 'Unavailable';
-  }
-
-  final String formatted = value == value.roundToDouble()
-      ? value.toStringAsFixed(0)
-      : value.toStringAsFixed(1);
-
-  return '$formatted%';
-}
-
 String _backgroundJobStatusLabel(BackgroundJobStatus status) {
   return switch (status) {
     BackgroundJobStatus.idle => 'Idle',
@@ -6053,39 +5031,6 @@ String _formatBackgroundJobDuration(int? milliseconds) {
   }
 
   return '${minutes}m ${secondsRemaining}s';
-}
-
-String _serverLogLevelLabel(ServerLogLevel level) {
-  return switch (level) {
-    ServerLogLevel.debug => 'Debug',
-    ServerLogLevel.info => 'Info',
-    ServerLogLevel.warning => 'Warning',
-    ServerLogLevel.error => 'Error',
-    ServerLogLevel.critical => 'Critical',
-  };
-}
-
-String _serverLogComponentLabel(ServerLogComponent component) {
-  return switch (component) {
-    ServerLogComponent.api => 'API',
-    ServerLogComponent.worker => 'Worker',
-  };
-}
-
-String _formatServerLogDate(DateTime value) {
-  final DateTime local = value.toLocal();
-
-  final String day = local.day.toString().padLeft(2, '0');
-
-  final String month = local.month.toString().padLeft(2, '0');
-
-  final String hour = local.hour.toString().padLeft(2, '0');
-
-  final String minute = local.minute.toString().padLeft(2, '0');
-
-  final String second = local.second.toString().padLeft(2, '0');
-
-  return '$day/$month · $hour:$minute:$second';
 }
 
 Future<void> _openSofaWatchWeb(BuildContext context) async {
@@ -7145,63 +6090,4 @@ class _AdminPasswordRecoverySuccess extends StatelessWidget {
       ],
     );
   }
-}
-
-class _ProfileMobileServerSummary extends StatelessWidget {
-  const _ProfileMobileServerSummary();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ServerHealthCubit, ServerHealthState>(
-      builder: (BuildContext context, ServerHealthState state) {
-        return switch (state) {
-          ServerHealthInitial() ||
-          ServerHealthLoading() => const _ProfileMobileAdministrationRow(
-            rowKey: 'profile-server-mobile-summary',
-            icon: Icons.dns_rounded,
-            title: 'Server',
-            subtitle: 'Checking server health…',
-            trailing: SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ),
-
-          ServerHealthSuccess(:final health) => _ProfileMobileAdministrationRow(
-            rowKey: 'profile-server-mobile-summary',
-            icon: Icons.dns_rounded,
-            title: 'Server',
-            subtitle:
-                '${_serverHealthStatusLabel(health.status)}'
-                ' · Uptime ${_formatServerUptime(health.uptimeSeconds)}',
-          ),
-
-          ServerHealthFailure(:final error) => _ProfileMobileAdministrationRow(
-            rowKey: 'profile-server-mobile-summary',
-            icon: Icons.dns_rounded,
-            title: 'Server',
-            subtitle: AppErrorMessageMapper.map(error),
-            trailing: TextButton(
-              key: const ValueKey<String>('profile-server-mobile-retry'),
-              onPressed: context.read<ServerHealthCubit>().retry,
-              child: const Text('Retry'),
-            ),
-          ),
-        };
-      },
-    );
-  }
-}
-
-String _formatUsersSummary({
-  required int total,
-  required int active,
-  required int admins,
-}) {
-  final String usersLabel = total == 1 ? 'user' : 'users';
-  final String activeLabel = active == 1 ? 'active' : 'active';
-  final String adminsLabel = admins == 1 ? 'admin' : 'admins';
-
-  return '$total $usersLabel · $active $activeLabel · $admins $adminsLabel';
 }

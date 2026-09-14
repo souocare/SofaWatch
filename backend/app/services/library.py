@@ -23,8 +23,10 @@ from app.schemas.library import (
 class InvalidManualShowStatusError(ValueError):
     """Raised when a derived Show status is requested manually."""
 
+
 class InvalidManualMovieStatusError(ValueError):
     """Raised when a derived Movie status is requested manually."""
+
 
 class LibraryService:
     """Business logic for a user's personal media library."""

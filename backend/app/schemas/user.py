@@ -76,6 +76,7 @@ class AdminUserResponse(BaseModel):
     is_active: bool
     is_admin: bool
 
+
 class AdminUsersSummaryResponse(BaseModel):
     """Aggregate administrative user counts."""
 

@@ -49,6 +49,7 @@ router = APIRouter(
 _SESSION_COOKIE_NAME = "sofawatch_session"
 _SECONDS_PER_DAY = 24 * 60 * 60
 
+
 def _should_use_secure_cookie(
     *,
     request: Request,
@@ -65,6 +66,7 @@ def _should_use_secure_cookie(
         return False
 
     return request.url.scheme == "https"
+
 
 def _set_web_session_cookie(
     *,

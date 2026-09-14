@@ -568,6 +568,7 @@ def test_run_background_job_now_persists_running_state(
     assert job is not None
     assert job.status == BackgroundJobStatus.RUNNING
 
+
 def test_run_background_job_now_schedules_forced_execution(
     client: TestClient,
     db_session: Session,
@@ -601,6 +602,7 @@ def test_run_background_job_now_schedules_forced_execution(
         force=True,
     )
 
+
 def test_run_background_job_now_schedules_normal_execution(
     client: TestClient,
     db_session: Session,
@@ -625,6 +627,7 @@ def test_run_background_job_now_schedules_normal_execution(
         "metadata_sync",
         force=False,
     )
+
 
 def test_run_background_job_now_rejects_unsupported_force_mode(
     client: TestClient,
@@ -660,11 +663,10 @@ def test_run_background_job_now_rejects_unsupported_force_mode(
     assert response.json() == {
         "error": {
             "code": "background_job_force_not_supported",
-            "message": (
-                "This background job does not support forced execution."
-            ),
+            "message": ("This background job does not support forced execution."),
         }
     }
+
 
 def test_run_background_job_force_requires_admin(
     client: TestClient,

@@ -4,7 +4,6 @@ import 'package:sofawatch/features/server/application/cubit/background_jobs_cubi
 import 'package:sofawatch/features/server/application/cubit/background_jobs_state.dart';
 import 'package:sofawatch/features/server/domain/models/background_job.dart';
 import 'package:sofawatch/features/server/domain/models/server_health.dart';
-import 'package:sofawatch/features/server/domain/models/server_logs.dart';
 import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
 
 void main() {
@@ -182,13 +181,19 @@ void main() {
 
       expect(repository.getCalls, 1);
 
-      await Future<void>.delayed(const Duration(milliseconds: 40));
+      final BackgroundJobsState refreshedState = await cubit.stream
+          .firstWhere((BackgroundJobsState state) {
+            return state is BackgroundJobsSuccess &&
+                state.jobs.single.status == BackgroundJobStatus.success;
+          })
+          .timeout(const Duration(seconds: 1));
 
       expect(repository.getCalls, greaterThan(1));
 
-      final BackgroundJobsSuccess state = cubit.state as BackgroundJobsSuccess;
+      final BackgroundJobsSuccess successState =
+          refreshedState as BackgroundJobsSuccess;
 
-      expect(state.jobs.single.status, BackgroundJobStatus.success);
+      expect(successState.jobs.single.status, BackgroundJobStatus.success);
 
       await cubit.close();
     });
@@ -299,15 +304,6 @@ class _BackgroundJobsRepository implements ServerRepository {
   }
 
   @override
-  Future<ServerLogsPage> getLogs({
-    ServerLogLevel? level,
-    int offset = 0,
-    int limit = 50,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
   Future<ServerHealth> getHealth() {
     throw UnimplementedError();
   }
@@ -336,15 +332,6 @@ final class _RetryBackgroundJobsRepository implements ServerRepository {
   Future<ServerHealth> getHealth() {
     throw UnimplementedError();
   }
-
-  @override
-  Future<ServerLogsPage> getLogs({
-    ServerLogLevel? level,
-    int offset = 0,
-    int limit = 50,
-  }) {
-    throw UnimplementedError();
-  }
 }
 
 final class _PollingBackgroundJobsRepository implements ServerRepository {
@@ -370,15 +357,6 @@ final class _PollingBackgroundJobsRepository implements ServerRepository {
   Future<ServerHealth> getHealth() {
     throw UnimplementedError();
   }
-
-  @override
-  Future<ServerLogsPage> getLogs({
-    ServerLogLevel? level,
-    int offset = 0,
-    int limit = 50,
-  }) {
-    throw UnimplementedError();
-  }
 }
 
 final class _PollingFailureRepository implements ServerRepository {
@@ -402,15 +380,6 @@ final class _PollingFailureRepository implements ServerRepository {
 
   @override
   Future<ServerHealth> getHealth() {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<ServerLogsPage> getLogs({
-    ServerLogLevel? level,
-    int offset = 0,
-    int limit = 50,
-  }) {
     throw UnimplementedError();
   }
 }

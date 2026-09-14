@@ -38,15 +38,10 @@ class WorkerRuntime:
 
         now = self._monotonic()
 
-        if (
-            self._next_background_job_check is None
-            or now >= self._next_background_job_check
-        ):
+        if self._next_background_job_check is None or now >= self._next_background_job_check:
             self._background_job_scheduler.run_due_jobs()
 
-            self._next_background_job_check = (
-                now + BACKGROUND_JOB_POLL_INTERVAL_SECONDS
-            )
+            self._next_background_job_check = now + BACKGROUND_JOB_POLL_INTERVAL_SECONDS
 
         return import_processed
 
@@ -59,9 +54,7 @@ class WorkerRuntime:
             try:
                 import_processed = self.run_once()
             except Exception:
-                logger.exception(
-                    "Unexpected error while processing worker tasks."
-                )
+                logger.exception("Unexpected error while processing worker tasks.")
                 import_processed = False
 
             if not import_processed:

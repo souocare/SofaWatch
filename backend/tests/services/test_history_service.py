@@ -993,6 +993,7 @@ def test_list_for_user_can_return_only_episode_history(
 
     movie_repository.list_watch_history.assert_not_called()
 
+
 def test_list_for_user_can_return_only_movie_history(
     service: HistoryService,
     episode_repository: Mock,
@@ -1024,14 +1025,12 @@ def test_list_for_user_can_return_only_movie_history(
         ),
     )
 
-    movie_repository.list_watch_history.return_value = (
-        MovieWatchHistoryEventPage(
-            items=[
-                newer_event,
-                older_event,
-            ],
-            has_more=False,
-        )
+    movie_repository.list_watch_history.return_value = MovieWatchHistoryEventPage(
+        items=[
+            newer_event,
+            older_event,
+        ],
+        has_more=False,
     )
 
     result = service.list_for_user(
@@ -1126,6 +1125,7 @@ def test_list_for_user_paginates_episode_history(
 
     movie_repository.list_watch_history.assert_not_called()
 
+
 def test_list_for_user_rejects_movie_cursor_for_episode_history(
     service: HistoryService,
     episode_repository: Mock,
@@ -1144,9 +1144,7 @@ def test_list_for_user_rejects_movie_cursor_for_episode_history(
                 tzinfo=UTC,
             ),
             media_type="movie",
-            event_id=UUID(
-                "50000000-0000-0000-0000-000000000001"
-            ),
+            event_id=UUID("50000000-0000-0000-0000-000000000001"),
         )
     )
 
@@ -1159,5 +1157,3 @@ def test_list_for_user_rejects_movie_cursor_for_episode_history(
 
     episode_repository.list_watch_history.assert_not_called()
     movie_repository.list_watch_history.assert_not_called()
-
-

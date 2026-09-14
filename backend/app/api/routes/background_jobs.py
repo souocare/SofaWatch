@@ -204,10 +204,7 @@ def run_background_job_now(
     force: Annotated[
         bool,
         Query(
-            description=(
-                "Run the job using its forced execution mode, "
-                "when supported."
-            ),
+            description=("Run the job using its forced execution mode, when supported."),
         ),
     ] = False,
 ) -> BackgroundJobRunNowResponse:

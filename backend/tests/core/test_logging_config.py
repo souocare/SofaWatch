@@ -1,148 +1,91 @@
-import json
-import logging
-from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
-from pydantic import SecretStr
-
-from app.core.config import Settings
-from app.core.logging_config import (
-    SafeJsonLogFormatter,
-    configure_logging,
-)
+from app.core.logging_config import configure_logging
 
 
-def test_safe_json_log_formatter_serializes_supported_fields() -> None:
-    """Serialize the safe subset exposed through Server Logs."""
+def test_configure_logging_uses_console_only() -> None:
+    """Configure application logging without persistent log files."""
 
-    formatter = SafeJsonLogFormatter()
-
-    record = logging.LogRecord(
-        name="app.jobs.executor",
-        level=logging.INFO,
-        pathname=__file__,
-        lineno=1,
-        msg="Background job '%s' completed.",
-        args=("metadata_sync",),
-        exc_info=None,
-    )
-
-    payload = json.loads(
-        formatter.format(
-            record,
-        )
-    )
-
-    assert payload["level"] == "INFO"
-    assert payload["logger"] == "app.jobs.executor"
-    assert payload["message"] == ("Background job 'metadata_sync' completed.")
-
-    assert isinstance(
-        payload["timestamp"],
-        str,
-    )
-
-
-def test_safe_json_log_formatter_does_not_include_exception_traceback() -> None:
-    """Do not expose exception traceback data in persistent structured logs."""
-
-    formatter = SafeJsonLogFormatter()
-
-    try:
-        raise RuntimeError(
-            "Expected failure.",
-        )
-    except RuntimeError:
-        import sys
-
-        exception_info = sys.exc_info()
-
-    record = logging.LogRecord(
-        name="app.jobs.executor",
-        level=logging.ERROR,
-        pathname=__file__,
-        lineno=1,
-        msg="Background job failed.",
-        args=(),
-        exc_info=exception_info,
-    )
-
-    payload = json.loads(
-        formatter.format(
-            record,
-        )
-    )
-
-    assert payload == {
-        "timestamp": payload["timestamp"],
-        "level": "ERROR",
-        "logger": "app.jobs.executor",
-        "message": "Background job failed.",
-    }
-
-
-def test_configure_logging_creates_component_log_file(
-    tmp_path: Path,
-) -> None:
-    """Create a dedicated persistent log file for each process component."""
-
-    settings = Settings.model_construct(
-        app_name="SofaWatch Test",
-        environment="test",
+    settings = SimpleNamespace(
         debug=False,
-        api_host="127.0.0.1",
-        api_port=8000,
-        database_url="sqlite://",
-        data_storage_path=str(
-            tmp_path,
-        ),
-        image_storage_path=str(
-            tmp_path / "images",
-        ),
-        secret_key=SecretStr(
-            "test-secret-key",
-        ),
-        default_language="en-US",
-        supported_languages="en-US,pt-PT",
-        tmdb_api_token=None,
-        tmdb_base_url="https://api.themoviedb.org/3",
-        tmdb_image_base_url="https://image.tmdb.org/t/p",
-        tmdb_timeout_seconds=10.0,
-        tvdb_api_key=None,
-        tvdb_pin=None,
-        tvdb_base_url="https://api4.thetvdb.com/v4",
-        metadata_refresh_days=7,
-        cors_origins="",
     )
 
-    with patch(
-        "app.core.logging_config.get_settings",
-        return_value=settings,
+    dict_config = Mock()
+
+    with (
+        patch(
+            "app.core.logging_config.get_settings",
+            return_value=settings,
+        ),
+        patch(
+            "app.core.logging_config.dictConfig",
+            dict_config,
+        ),
     ):
-        configure_logging(
-            component="api",
-        )
+        configure_logging(component="api")
 
-    logging.getLogger(
-        "test.logging",
-    ).info(
-        "Persistent test message.",
+    dict_config.assert_called_once()
+
+    config = dict_config.call_args.args[0]
+
+    assert set(config["handlers"]) == {"console"}
+    assert config["root"]["handlers"] == ["console"]
+
+    assert config["loggers"]["uvicorn"]["handlers"] == ["console"]
+    assert config["loggers"]["uvicorn.error"]["handlers"] == ["console"]
+    assert config["loggers"]["uvicorn.access"]["handlers"] == ["console"]
+
+
+def test_configure_logging_uses_info_level_by_default() -> None:
+    """Use INFO logging outside debug mode."""
+
+    settings = SimpleNamespace(
+        debug=False,
     )
 
-    logging.shutdown()
+    dict_config = Mock()
 
-    log_file = tmp_path / "logs" / "api.log"
+    with (
+        patch(
+            "app.core.logging_config.get_settings",
+            return_value=settings,
+        ),
+        patch(
+            "app.core.logging_config.dictConfig",
+            dict_config,
+        ),
+    ):
+        configure_logging(component="worker")
 
-    assert log_file.is_file()
+    config = dict_config.call_args.args[0]
 
-    lines = log_file.read_text(
-        encoding="utf-8",
-    ).splitlines()
+    assert config["root"]["level"] == "INFO"
+    assert config["loggers"]["uvicorn"]["level"] == "INFO"
 
-    payload = json.loads(
-        lines[-1],
+
+def test_configure_logging_uses_debug_level_in_debug_mode() -> None:
+    """Use DEBUG logging when SofaWatch debug mode is enabled."""
+
+    settings = SimpleNamespace(
+        debug=True,
     )
 
-    assert payload["level"] == "INFO"
-    assert payload["logger"] == "test.logging"
-    assert payload["message"] == ("Persistent test message.")
+    dict_config = Mock()
+
+    with (
+        patch(
+            "app.core.logging_config.get_settings",
+            return_value=settings,
+        ),
+        patch(
+            "app.core.logging_config.dictConfig",
+            dict_config,
+        ),
+    ):
+        configure_logging()
+
+    config = dict_config.call_args.args[0]
+
+    assert config["root"]["level"] == "DEBUG"
+    assert config["loggers"]["uvicorn"]["level"] == "DEBUG"

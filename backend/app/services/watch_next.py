@@ -119,10 +119,7 @@ class WatchNextService:
 
             percentage = watched_episodes / aired_episodes * 100 if aired_episodes > 0 else 0.0
 
-            caught_up = (
-                aired_episodes > 0
-                and watched_episodes == aired_episodes
-            )
+            caught_up = aired_episodes > 0 and watched_episodes == aired_episodes
 
             results.append(
                 WatchNextShowResponse(

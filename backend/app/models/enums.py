@@ -19,6 +19,7 @@ class BackgroundJobStatus(StrEnum):
     SUCCESS = "success"
     FAILED = "failed"
 
+
 class DataImportRunStatus(StrEnum):
     """Execution status of a user data import."""
 

@@ -17,9 +17,7 @@ class DataImportProgressTracker:
         *,
         repository: DataImportRunRepository,
         run: DataImportRun,
-        persist_interval_seconds: float = (
-            DEFAULT_PROGRESS_PERSIST_INTERVAL_SECONDS
-        ),
+        persist_interval_seconds: float = (DEFAULT_PROGRESS_PERSIST_INTERVAL_SECONDS),
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self._repository = repository
@@ -43,19 +41,11 @@ class DataImportProgressTracker:
 
         phase_changed = phase != self._last_phase
         phase_completed = total > 0 and current >= total
-        interval_elapsed = (
-            self._last_persisted_at is None
-            or (
-                now_monotonic - self._last_persisted_at
-                >= self._persist_interval_seconds
-            )
+        interval_elapsed = self._last_persisted_at is None or (
+            now_monotonic - self._last_persisted_at >= self._persist_interval_seconds
         )
 
-        if not (
-            phase_changed
-            or phase_completed
-            or interval_elapsed
-        ):
+        if not (phase_changed or phase_completed or interval_elapsed):
             return
 
         self._repository.update_progress(

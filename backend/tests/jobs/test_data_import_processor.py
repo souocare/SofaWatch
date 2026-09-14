@@ -1,4 +1,3 @@
-
 from unittest.mock import Mock
 from datetime import UTC, datetime
 
@@ -146,14 +145,10 @@ def test_run_once_executes_and_completes_queued_import(
 
     import_service.import_user_data.assert_called_once()
 
-    call_kwargs = (
-        import_service.import_user_data.call_args.kwargs
-    )
+    call_kwargs = import_service.import_user_data.call_args.kwargs
 
     assert call_kwargs["user_id"] == user.id
     assert call_kwargs["progress_callback"] is not None
-
-    
 
 
 def test_run_once_marks_import_failed_when_execution_raises(
@@ -200,10 +195,7 @@ def test_run_once_marks_import_failed_when_execution_raises(
     assert stored.payload is None
     assert stored.result is None
     assert stored.error_code == "data_import_failed"
-    assert (
-        stored.error_message
-        == "The data import could not be completed."
-    )
+    assert stored.error_message == "The data import could not be completed."
     assert stored.finished_at is not None
 
 
@@ -298,4 +290,3 @@ def test_run_once_marks_stale_running_import_failed_before_claiming(
     assert stored.payload is None
 
     service_factory.assert_not_called()
-

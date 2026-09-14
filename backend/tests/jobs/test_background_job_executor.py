@@ -406,6 +406,7 @@ def test_execute_preserves_result_from_failed_handler(
         "failed": 1,
     }
 
+
 def test_execute_uses_force_handler_when_forced(
     executor: BackgroundJobExecutor,
 ) -> None:

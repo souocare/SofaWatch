@@ -1,6 +1,6 @@
 import 'package:sofawatch/features/profile/data/models/data_import_result_dto.dart';
-import 'package:sofawatch/features/profile/domain/models/data_import_run.dart';
 import 'package:sofawatch/features/profile/domain/models/data_import_result.dart';
+import 'package:sofawatch/features/profile/domain/models/data_import_run.dart';
 
 final class DataImportRunDto {
   const DataImportRunDto({

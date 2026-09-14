@@ -6,7 +6,6 @@ import 'package:sofawatch/features/server/application/cubit/server_health_cubit.
 import 'package:sofawatch/features/server/application/cubit/server_health_state.dart';
 import 'package:sofawatch/features/server/domain/models/background_job.dart';
 import 'package:sofawatch/features/server/domain/models/server_health.dart';
-import 'package:sofawatch/features/server/domain/models/server_logs.dart';
 import 'package:sofawatch/features/server/domain/repositories/server_repository.dart';
 
 void main() {
@@ -210,15 +209,6 @@ class _ServerRepository implements ServerRepository {
   Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
-
-  @override
-  Future<ServerLogsPage> getLogs({
-    ServerLogLevel? level,
-    int offset = 0,
-    int limit = 50,
-  }) {
-    throw UnimplementedError();
-  }
 }
 
 final class _UnexpectedServerRepository extends _ServerRepository {
@@ -259,15 +249,6 @@ final class _ControlledServerRepository implements ServerRepository {
   Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
     throw UnimplementedError();
   }
-
-  @override
-  Future<ServerLogsPage> getLogs({
-    ServerLogLevel? level,
-    int offset = 0,
-    int limit = 50,
-  }) {
-    throw UnimplementedError();
-  }
 }
 
 final class _RetryServerRepository implements ServerRepository {
@@ -291,15 +272,6 @@ final class _RetryServerRepository implements ServerRepository {
 
   @override
   Future<BackgroundJob> runBackgroundJob(String jobKey, {bool force = false}) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<ServerLogsPage> getLogs({
-    ServerLogLevel? level,
-    int offset = 0,
-    int limit = 50,
-  }) {
     throw UnimplementedError();
   }
 }

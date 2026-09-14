@@ -286,9 +286,7 @@ def test_import_run_persists_progress_result_and_failure_metadata(
     assert result.progress_current == 12
     assert result.progress_total == 30
     assert result.started_at == started_at.replace(tzinfo=None)
-    assert result.heartbeat_at == (
-        started_at + timedelta(seconds=5)
-    ).replace(tzinfo=None)
+    assert result.heartbeat_at == (started_at + timedelta(seconds=5)).replace(tzinfo=None)
     assert result.result == {
         "partial": True,
     }
@@ -594,11 +592,9 @@ def test_mark_failed_persists_safe_error_and_cleans_payload(
     assert run.status == DataImportRunStatus.FAILED
     assert run.payload is None
     assert run.error_code == "data_import_failed"
-    assert (
-        run.error_message
-        == "The data import could not be completed."
-    )
+    assert run.error_message == "The data import could not be completed."
     assert run.finished_at == finished_at.replace(tzinfo=None)
+
 
 def test_update_progress_persists_phase_counts_and_heartbeat(
     db_session: Session,
@@ -717,9 +713,7 @@ def test_fail_stale_running_marks_interrupted_and_cleans_payload(
     assert stored.status == DataImportRunStatus.FAILED
     assert stored.payload is None
     assert stored.error_code == "data_import_interrupted"
-    assert stored.error_message == (
-        "The data import was interrupted before it could complete."
-    )
+    assert stored.error_message == ("The data import was interrupted before it could complete.")
     assert stored.finished_at is not None
 
 
@@ -780,4 +774,3 @@ def test_fail_stale_running_does_not_fail_recent_heartbeat(
 
     assert stored is not None
     assert stored.status == DataImportRunStatus.RUNNING
-

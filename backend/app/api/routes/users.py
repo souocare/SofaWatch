@@ -286,14 +286,12 @@ def import_current_user_data(
         run,
     )
 
+
 @router.get(
     "/me/imports/active",
     response_model=DataImportRunResponse | None,
     summary="Get active current user data import",
-    description=(
-        "Return the current user's queued or running data import, "
-        "if one exists."
-    ),
+    description=("Return the current user's queued or running data import, if one exists."),
 )
 def get_active_current_user_data_import(
     current_user: CurrentUserDependency,
@@ -317,10 +315,7 @@ def get_active_current_user_data_import(
     "/me/imports/{run_id}",
     response_model=DataImportRunResponse,
     summary="Get current user data import",
-    description=(
-        "Return a specific data import execution owned by "
-        "the current SofaWatch user."
-    ),
+    description=("Return a specific data import execution owned by the current SofaWatch user."),
 )
 def get_current_user_data_import(
     run_id: UUID,
@@ -344,6 +339,7 @@ def get_current_user_data_import(
     return DataImportRunResponse.model_validate(
         run,
     )
+
 
 @router.get(
     "/summary",

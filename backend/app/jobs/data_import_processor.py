@@ -72,9 +72,7 @@ class DataImportProcessor:
 
             try:
                 if run.payload is None:
-                    raise ValueError(
-                        "Queued data import has no persisted payload."
-                    )
+                    raise ValueError("Queued data import has no persisted payload.")
 
                 export = SofaWatchExportResponse.model_validate(
                     run.payload,
@@ -137,9 +135,7 @@ class DataImportProcessor:
                     repository.mark_failed(
                         run=run,
                         error_code="data_import_failed",
-                        error_message=(
-                            "The data import could not be completed."
-                        ),
+                        error_message=("The data import could not be completed."),
                         finished_at=datetime.now(UTC),
                     )
 

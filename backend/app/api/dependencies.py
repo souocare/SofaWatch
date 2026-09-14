@@ -30,6 +30,7 @@ from app.repositories.authentication_settings import (
     AuthenticationSettingsRepository,
 )
 from app.repositories.background_job import BackgroundJobRepository
+from app.repositories.data_import_run import DataImportRunRepository
 from app.repositories.episode_watch_event import EpisodeWatchEventRepository
 from app.repositories.movie_watch_event import MovieWatchEventRepository
 from app.repositories.network import NetworkRepository
@@ -48,6 +49,8 @@ from app.services.authentication import AuthenticationService
 from app.services.authentication_settings import AuthenticationSettingsService
 from app.services.data_export import DataExportService
 from app.services.data_import import DataImportService
+from app.services.data_import_builder import build_data_import_service
+from app.services.data_import_run import DataImportRunService
 from app.services.episode_details import EpisodeDetailsService
 from app.services.episode_watch_event import EpisodeWatchEventService
 from app.services.explore import ExploreService
@@ -65,7 +68,6 @@ from app.services.password_reset_token import PasswordResetTokenService
 from app.services.registration import RegistrationService
 from app.services.season_episode_sync import SeasonEpisodeSyncService
 from app.services.server_health import ServerHealthService
-from app.services.server_logs import ServerLogsService
 from app.services.show_import import ShowImportService
 from app.services.show_library_status import ShowLibraryStatusSynchronizer
 from app.services.stale_watching import StaleWatchingService
@@ -78,9 +80,6 @@ from app.services.tmdb_show_search import ShowSearchService
 from app.services.upcoming import UpcomingService
 from app.services.watch_history import WatchHistoryService
 from app.services.watch_next import WatchNextService
-from app.repositories.data_import_run import DataImportRunRepository
-from app.services.data_import_run import DataImportRunService
-from app.services.data_import_builder import build_data_import_service
 
 
 def get_genre_service(
@@ -1170,25 +1169,6 @@ def get_server_health_service(
 ServerHealthServiceDependency = Annotated[
     ServerHealthService,
     Depends(get_server_health_service),
-]
-
-
-def get_server_logs_service(
-    settings: Annotated[
-        Settings,
-        Depends(get_settings),
-    ],
-) -> ServerLogsService:
-    """Provide administrative Server log operations."""
-
-    return ServerLogsService(
-        settings=settings,
-    )
-
-
-ServerLogsServiceDependency = Annotated[
-    ServerLogsService,
-    Depends(get_server_logs_service),
 ]
 
 

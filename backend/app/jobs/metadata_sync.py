@@ -231,10 +231,7 @@ def run_metadata_force_sync() -> dict[str, object]:
 
         if failed > 0:
             raise MetadataSyncError(
-                (
-                    f"Forced metadata sync finished with {failed} "
-                    f"failed TV series out of {checked}."
-                ),
+                (f"Forced metadata sync finished with {failed} failed TV series out of {checked}."),
                 result=result,
             )
 

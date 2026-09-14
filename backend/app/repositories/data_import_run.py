@@ -208,9 +208,7 @@ class DataImportRunRepository:
                 status=DataImportRunStatus.FAILED,
                 payload=None,
                 error_code="data_import_interrupted",
-                error_message=(
-                    "The data import was interrupted before it could complete."
-                ),
+                error_message=("The data import was interrupted before it could complete."),
                 heartbeat_at=finished_at,
                 finished_at=finished_at,
             )
@@ -232,7 +230,6 @@ class DataImportRunRepository:
         """Refresh a persisted import execution."""
 
         self._session.refresh(run)
-
 
     def rollback(self) -> None:
         """Roll back the current unit of work."""

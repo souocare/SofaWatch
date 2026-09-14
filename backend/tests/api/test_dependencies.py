@@ -20,6 +20,7 @@ def make_database_session() -> Mock:
 
     return Mock()
 
+
 def make_user(
     *,
     is_admin: bool = False,
@@ -143,7 +144,7 @@ def test_get_current_user_requires_authentication() -> None:
     with pytest.raises(APIError) as exc_info:
         get_current_user(
             request=make_request(),
-        session=make_database_session(),
+            session=make_database_session(),
             user_service=user_service,
             access_token_service=token_service,
             auth_session_service=auth_session_service,
@@ -326,7 +327,7 @@ def test_get_current_user_returns_user_from_web_session() -> None:
         request=make_request(
             session_cookie="valid-session",
         ),
-            session=make_database_session(),
+        session=make_database_session(),
         user_service=user_service,
         access_token_service=make_access_token_service(),
         auth_session_service=auth_session_service,
@@ -511,7 +512,7 @@ def test_get_current_user_prefers_bearer_over_web_session() -> None:
         request=make_request(
             session_cookie="valid-session",
         ),
-            session=make_database_session(),
+        session=make_database_session(),
         user_service=user_service,
         access_token_service=token_service,
         auth_session_service=auth_session_service,
@@ -596,6 +597,7 @@ def test_get_admin_user_rejects_non_admin_user() -> None:
     assert error.code == "admin_required"
     assert error.message == "Administrator access is required."
 
+
 def test_get_current_user_commits_authentication_transaction() -> None:
     """Release the database connection after successful authentication."""
 
@@ -624,6 +626,7 @@ def test_get_current_user_commits_authentication_transaction() -> None:
     assert result is user
     session.commit.assert_called_once_with()
     session.rollback.assert_not_called()
+
 
 def test_get_current_user_rolls_back_authentication_transaction_on_failure() -> None:
     """Release the database connection when authentication fails."""
