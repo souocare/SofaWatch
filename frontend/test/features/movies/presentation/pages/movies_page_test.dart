@@ -710,7 +710,7 @@ void main() {
         await cubit.close();
       },
     );
-    testWidgets('uses three Watchlist columns on a narrow mobile viewport', (
+    testWidgets('uses two Watchlist columns on a narrow mobile viewport', (
       WidgetTester tester,
     ) async {
       await tester.binding.setSurfaceSize(const Size(390, 844));
@@ -758,7 +758,7 @@ void main() {
       final SliverGridDelegateWithFixedCrossAxisCount delegate =
           grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
 
-      expect(delegate.crossAxisCount, 3);
+      expect(delegate.crossAxisCount, 2);
 
       expect(tester.takeException(), isNull);
 
@@ -1318,7 +1318,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const ValueKey<String>('movies-watched-final-page')),
+        find.byKey(const ValueKey<String>('movies-watched-page-2')),
         findsOneWidget,
       );
 

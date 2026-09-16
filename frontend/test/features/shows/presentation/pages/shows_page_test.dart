@@ -3295,7 +3295,7 @@ void main() {
 
       expect(
         contentSize.width,
-        closeTo(1040, 0.5),
+        closeTo(1300, 0.5),
         reason:
             'Watch List should use the available Desktop width only up to its '
             'maximum readable width.',
@@ -3305,7 +3305,7 @@ void main() {
 
       expect(
         topLeft.dx,
-        closeTo((1920 - 1040) / 2, 1),
+        closeTo((1920 - 1300) / 2, 1),
         reason: 'Wide Desktop content should remain horizontally centered.',
       );
 
@@ -3349,9 +3349,9 @@ void main() {
 
       expect(content, findsOneWidget);
 
-      expect(tester.getSize(content).width, closeTo(1040, 0.5));
+      expect(tester.getSize(content).width, closeTo(1340, 0.5));
 
-      expect(tester.getTopLeft(content).dx, closeTo((1920 - 1040) / 2, 1));
+      expect(tester.getTopLeft(content).dx, closeTo((1920 - 1340) / 2, 1));
 
       expect(
         find.byKey(const ValueKey<String>('shows-upcoming-desktop-upcoming')),

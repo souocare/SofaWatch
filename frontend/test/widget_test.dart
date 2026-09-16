@@ -60,10 +60,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey<String>('profile-page-title')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('profile-page')), findsOneWidget);
   });
 
   testWidgets('returns to the previously selected branch', (

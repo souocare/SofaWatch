@@ -4,12 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/server/models/server_configuration.dart';
+import 'package:sofawatch/core/server/repositories/server_configuration_repository.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/auth_state.dart';
 import 'package:sofawatch/features/auth/application/cubit/login_cubit.dart';
 import 'package:sofawatch/features/auth/domain/models/auth_session.dart';
 import 'package:sofawatch/features/auth/domain/repositories/auth_repository.dart';
 import 'package:sofawatch/features/auth/presentation/pages/login_page.dart';
+
+import '../../../fakes/fake_server_configuration_repository.dart';
 
 void main() {
   group('LoginPage', () {
@@ -305,22 +309,35 @@ Widget _buildApp({
 
   onAuthCubitCreated?.call(authCubit);
 
-  return MultiBlocProvider(
-    providers: <BlocProvider<dynamic>>[
-      BlocProvider<AuthCubit>.value(value: authCubit),
-      BlocProvider<LoginCubit>(
-        create: (BuildContext context) {
-          return LoginCubit(repository: repository);
-        },
-      ),
-    ],
-    child: const MaterialApp(home: LoginPage()),
+  final FakeServerConfigurationRepository serverConfigurationRepository =
+      FakeServerConfigurationRepository(
+        initialConfiguration: _serverConfiguration,
+      );
+
+  return RepositoryProvider<ServerConfigurationRepository>.value(
+    value: serverConfigurationRepository,
+    child: MultiBlocProvider(
+      providers: <BlocProvider<dynamic>>[
+        BlocProvider<AuthCubit>.value(value: authCubit),
+        BlocProvider<LoginCubit>(
+          create: (BuildContext context) {
+            return LoginCubit(repository: repository);
+          },
+        ),
+      ],
+      child: const MaterialApp(home: LoginPage()),
+    ),
   );
 }
 
 const AuthSession _session = AuthSession(
   accessToken: 'access-token',
   expiresIn: Duration(minutes: 15),
+);
+
+final ServerConfiguration _serverConfiguration = ServerConfiguration(
+  serverName: 'Test Server',
+  serverUrl: Uri.parse('https://sofawatch.test'),
 );
 
 final class _FakeAuthRepository implements AuthRepository {
