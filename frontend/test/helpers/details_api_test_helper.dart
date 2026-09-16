@@ -2,8 +2,14 @@ import 'package:dio/dio.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 
 final class DetailsApiRequestTracker {
+  int showImportCallCount = 0;
+  int showLibraryLookupCallCount = 0;
+
   int movieImportCallCount = 0;
   int movieLibraryLookupCallCount = 0;
+
+  final List<int> importedShowTmdbIds = <int>[];
+  final List<String> showLibraryLookupIds = <String>[];
 
   final List<int> importedMovieTmdbIds = <int>[];
   final List<String> movieLibraryLookupIds = <String>[];
@@ -38,6 +44,9 @@ ApiClient createDetailsTestApiClient({
         final RegExp showDetailsPattern = RegExp(r'/shows/tmdb/(\d+)$');
 
         final RegExp showImportPattern = RegExp(r'/shows/import/tmdb/(\d+)$');
+        final RegExp showLibraryLookupPattern = RegExp(
+          r'/library/shows/([^/]+)$',
+        );
 
         final RegExp showSeasonsPattern = RegExp(
           r'/shows/show-local-(\d+)/seasons$',
@@ -83,6 +92,9 @@ ApiClient createDetailsTestApiClient({
         if (showImportMatch != null) {
           final int tmdbId = int.parse(showImportMatch.group(1)!);
 
+          requestTracker?.showImportCallCount++;
+          requestTracker?.importedShowTmdbIds.add(tmdbId);
+
           handler.resolve(
             Response<Map<String, dynamic>>(
               requestOptions: options,
@@ -91,6 +103,35 @@ ApiClient createDetailsTestApiClient({
                 'id': 'show-local-$tmdbId',
                 'tmdb_id': tmdbId,
               },
+            ),
+          );
+
+          return;
+        }
+
+        final RegExpMatch? showLibraryLookupMatch = showLibraryLookupPattern
+            .firstMatch(path);
+
+        if (showLibraryLookupMatch != null) {
+          final String showId = showLibraryLookupMatch.group(1)!;
+
+          requestTracker?.showLibraryLookupCallCount++;
+          requestTracker?.showLibraryLookupIds.add(showId);
+
+          handler.reject(
+            DioException(
+              requestOptions: options,
+              response: Response<dynamic>(
+                requestOptions: options,
+                statusCode: 404,
+                data: const <String, dynamic>{
+                  'detail': <String, dynamic>{
+                    'code': 'library_entry_not_found',
+                    'message': 'Library entry not found.',
+                  },
+                },
+              ),
+              type: DioExceptionType.badResponse,
             ),
           );
 

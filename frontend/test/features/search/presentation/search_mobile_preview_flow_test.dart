@@ -49,7 +49,12 @@ void main() {
         ),
       );
 
-      final ApiClient apiClient = createDetailsTestApiClient();
+      final DetailsApiRequestTracker requestTracker =
+          DetailsApiRequestTracker();
+
+      final ApiClient apiClient = createDetailsTestApiClient(
+        requestTracker: requestTracker,
+      );
 
       final AppBootstrapData bootstrapData = createTestBootstrapData(
         searchRepository: searchRepository,
@@ -115,11 +120,33 @@ void main() {
         findsOneWidget,
       );
 
+      final int importsWhileDetailsOpen = requestTracker.showImportCallCount;
+
+      final int lookupsWhileDetailsOpen =
+          requestTracker.showLibraryLookupCallCount;
+
       await tester.tap(
         find.byKey(const ValueKey<String>('show-details-close-button')),
       );
 
       await tester.pumpAndSettle();
+
+      expect(
+        requestTracker.showImportCallCount,
+        importsWhileDetailsOpen + 1,
+        reason:
+            'Returning from Show Details must refresh the Show state '
+            'in the Search LibraryCubit.',
+      );
+
+      expect(
+        requestTracker.showLibraryLookupCallCount,
+        lookupsWhileDetailsOpen + 1,
+      );
+
+      expect(requestTracker.importedShowTmdbIds.last, 95396);
+
+      expect(requestTracker.showLibraryLookupIds.last, 'show-local-95396');
 
       expect(
         find.byKey(const ValueKey<String>('search-mobile-view')),

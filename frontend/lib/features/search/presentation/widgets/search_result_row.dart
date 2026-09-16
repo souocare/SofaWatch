@@ -18,6 +18,9 @@ class SearchResultRow extends StatelessWidget {
     super.key,
   });
 
+  static const double _expandedMovieActionsMinWidth = 760;
+  static const double _expandedShowActionsMinWidth = 520;
+
   final SearchResult result;
   final VoidCallback onPressed;
 
@@ -44,54 +47,72 @@ class SearchResultRow extends StatelessWidget {
     final double thumbnailWidth = compact ? 52 : 60;
     final double thumbnailHeight = thumbnailWidth * 1.5;
 
-    return Semantics(
-      button: true,
-      label: 'Open ${result.title}',
-      child: Material(
-        key: ValueKey<String>(
-          'search-result-${result.mediaType.name}-${result.tmdbId}',
-        ),
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: AppRadius.borderMedium,
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: compact ? AppSpacing.sm : AppSpacing.md,
-              vertical: compact ? AppSpacing.sm : AppSpacing.md,
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool compactActions = _shouldUseCompactActions(constraints);
+
+        return Semantics(
+          button: true,
+          label: 'Open ${result.title}',
+          child: Material(
+            key: ValueKey<String>(
+              'search-result-${result.mediaType.name}-${result.tmdbId}',
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                _SearchResultThumbnail(
-                  result: result,
-                  width: thumbnailWidth,
-                  height: thumbnailHeight,
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onPressed,
+              borderRadius: AppRadius.borderMedium,
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? AppSpacing.sm : AppSpacing.md,
+                  vertical: compact ? AppSpacing.sm : AppSpacing.md,
                 ),
-                SizedBox(width: compact ? AppSpacing.md : AppSpacing.lg),
-                Expanded(
-                  child: _SearchResultInformation(
-                    result: result,
-                    compact: compact,
-                  ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    _SearchResultThumbnail(
+                      result: result,
+                      width: thumbnailWidth,
+                      height: thumbnailHeight,
+                    ),
+                    SizedBox(width: compact ? AppSpacing.md : AppSpacing.lg),
+                    Expanded(
+                      child: _SearchResultInformation(
+                        result: result,
+                        compact: compact,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    _SearchResultActions(
+                      result: result,
+                      compact: compactActions,
+                      onActionPressed: onActionPressed,
+                      actionLoading: actionLoading,
+                      actionAdded: actionAdded,
+                      onWatchedPressed: onWatchedPressed,
+                      watchedLoading: watchedLoading,
+                      watched: watched,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                _SearchResultActions(
-                  result: result,
-                  compact: compact,
-                  onActionPressed: onActionPressed,
-                  actionLoading: actionLoading,
-                  actionAdded: actionAdded,
-                  onWatchedPressed: onWatchedPressed,
-                  watchedLoading: watchedLoading,
-                  watched: watched,
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
+  }
+
+  bool _shouldUseCompactActions(BoxConstraints constraints) {
+    if (compact || !constraints.hasBoundedWidth) {
+      return true;
+    }
+
+    final double minimumWidth = result.isMovie
+        ? _expandedMovieActionsMinWidth
+        : _expandedShowActionsMinWidth;
+
+    return constraints.maxWidth < minimumWidth;
   }
 }
 
@@ -273,24 +294,22 @@ class _SearchResultActions extends StatelessWidget {
         result.isMovie &&
         (onWatchedPressed != null || watchedLoading || watched);
 
-    final bool useCompactActions = compact || showWatchedAction;
-
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         _SearchResultAction(
           result: result,
           onPressed: onActionPressed,
-          compact: useCompactActions,
+          compact: compact,
           isLoading: actionLoading,
           isAdded: actionAdded,
         ),
         if (showWatchedAction) ...<Widget>[
-          const SizedBox(width: 2),
+          const SizedBox(width: AppSpacing.xs),
           _SearchResultWatchedAction(
             result: result,
             onPressed: onWatchedPressed,
-            compact: useCompactActions,
+            compact: compact,
             isLoading: watchedLoading,
             isWatched: watched,
           ),
@@ -351,8 +370,6 @@ class _SearchResultAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-
     final VoidCallback? effectiveOnPressed = isLoading || isAdded
         ? null
         : onPressed;
@@ -372,12 +389,8 @@ class _SearchResultAction extends StatelessWidget {
         child: Tooltip(
           message: _tooltip,
           child: compact
-              ? _buildCompactAction(
-                  key: key,
-                  colorScheme: colorScheme,
-                  onPressed: effectiveOnPressed,
-                )
-              : _buildDesktopAction(key: key, onPressed: effectiveOnPressed),
+              ? _buildCompactAction(key: key, onPressed: effectiveOnPressed)
+              : _buildExpandedAction(key: key, onPressed: effectiveOnPressed),
         ),
       ),
     );
@@ -385,33 +398,55 @@ class _SearchResultAction extends StatelessWidget {
 
   Widget _buildCompactAction({
     required Key key,
-    required ColorScheme colorScheme,
     required VoidCallback? onPressed,
   }) {
     return IconButton(
       key: key,
       onPressed: onPressed,
       visualDensity: VisualDensity.compact,
-      icon: _buildIcon(size: 20, defaultColor: colorScheme.onSurface),
+      icon: _AnimatedSearchActionContent(
+        stateKey: isLoading
+            ? 'loading'
+            : isAdded
+            ? 'added'
+            : 'available',
+        child: _buildIcon(size: 20),
+      ),
     );
   }
 
-  Widget _buildDesktopAction({
+  Widget _buildExpandedAction({
     required Key key,
     required VoidCallback? onPressed,
   }) {
     return TextButton.icon(
       key: key,
       onPressed: onPressed,
-      icon: _buildIcon(size: 18),
-      label: Text(
-        isAdded ? 'Added' : _addLabel,
-        style: isAdded ? const TextStyle(color: AppColors.success) : null,
+      style: TextButton.styleFrom(
+        foregroundColor: isAdded ? AppColors.success : AppColors.primary,
+        disabledForegroundColor: isAdded
+            ? AppColors.success
+            : AppColors.textDisabled,
+      ),
+      icon: _AnimatedSearchActionContent(
+        stateKey: isLoading
+            ? 'loading'
+            : isAdded
+            ? 'added'
+            : 'available',
+        child: _buildIcon(size: 18),
+      ),
+      label: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: Text(
+          isAdded ? 'Added' : _addLabel,
+          key: ValueKey<String>(isAdded ? 'added' : 'available'),
+        ),
       ),
     );
   }
 
-  Widget _buildIcon({required double size, Color? defaultColor}) {
+  Widget _buildIcon({required double size}) {
     if (isLoading) {
       return SizedBox.square(
         key: ValueKey<String>(
@@ -419,7 +454,10 @@ class _SearchResultAction extends StatelessWidget {
           '${result.mediaType.name}-${result.tmdbId}',
         ),
         dimension: size,
-        child: const CircularProgressIndicator(strokeWidth: 2),
+        child: const CircularProgressIndicator(
+          strokeWidth: 2,
+          color: AppColors.primary,
+        ),
       );
     }
 
@@ -432,7 +470,7 @@ class _SearchResultAction extends StatelessWidget {
             : 'search-result-action-add-'
                   '${result.mediaType.name}-${result.tmdbId}',
       ),
-      color: isAdded ? AppColors.success : defaultColor,
+      color: isAdded ? AppColors.success : AppColors.primary,
     );
   }
 }
@@ -478,8 +516,6 @@ class _SearchResultWatchedAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-
     final VoidCallback? effectiveOnPressed = isLoading || isWatched
         ? null
         : onPressed;
@@ -499,32 +535,64 @@ class _SearchResultWatchedAction extends StatelessWidget {
         child: Tooltip(
           message: _tooltip,
           child: compact
-              ? IconButton(
-                  key: key,
-                  onPressed: effectiveOnPressed,
-                  visualDensity: VisualDensity.compact,
-                  icon: _buildIcon(
-                    size: 20,
-                    defaultColor: colorScheme.onSurface,
-                  ),
-                )
-              : TextButton.icon(
-                  key: key,
-                  onPressed: effectiveOnPressed,
-                  icon: _buildIcon(size: 18),
-                  label: Text(
-                    isWatched ? 'Watched' : 'Mark as watched',
-                    style: isWatched
-                        ? const TextStyle(color: AppColors.success)
-                        : null,
-                  ),
-                ),
+              ? _buildCompactAction(key: key, onPressed: effectiveOnPressed)
+              : _buildExpandedAction(key: key, onPressed: effectiveOnPressed),
         ),
       ),
     );
   }
 
-  Widget _buildIcon({required double size, Color? defaultColor}) {
+  Widget _buildCompactAction({
+    required Key key,
+    required VoidCallback? onPressed,
+  }) {
+    return IconButton(
+      key: key,
+      onPressed: onPressed,
+      visualDensity: VisualDensity.compact,
+      icon: _AnimatedSearchActionContent(
+        stateKey: isLoading
+            ? 'loading'
+            : isWatched
+            ? 'watched'
+            : 'available',
+        child: _buildIcon(size: 20),
+      ),
+    );
+  }
+
+  Widget _buildExpandedAction({
+    required Key key,
+    required VoidCallback? onPressed,
+  }) {
+    return TextButton.icon(
+      key: key,
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: isWatched ? AppColors.success : AppColors.primary,
+        disabledForegroundColor: isWatched
+            ? AppColors.success
+            : AppColors.textDisabled,
+      ),
+      icon: _AnimatedSearchActionContent(
+        stateKey: isLoading
+            ? 'loading'
+            : isWatched
+            ? 'watched'
+            : 'available',
+        child: _buildIcon(size: 18),
+      ),
+      label: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: Text(
+          isWatched ? 'Watched' : 'Mark as watched',
+          key: ValueKey<String>(isWatched ? 'watched' : 'available'),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIcon({required double size}) {
     if (isLoading) {
       return SizedBox.square(
         key: ValueKey<String>(
@@ -532,12 +600,15 @@ class _SearchResultWatchedAction extends StatelessWidget {
           '${result.mediaType.name}-${result.tmdbId}',
         ),
         dimension: size,
-        child: const CircularProgressIndicator(strokeWidth: 2),
+        child: const CircularProgressIndicator(
+          strokeWidth: 2,
+          color: AppColors.primary,
+        ),
       );
     }
 
     return Icon(
-      isWatched ? Icons.check_circle_rounded : Icons.visibility_rounded,
+      Icons.visibility_rounded,
       key: ValueKey<String>(
         isWatched
             ? 'search-result-watched-complete-'
@@ -545,7 +616,36 @@ class _SearchResultWatchedAction extends StatelessWidget {
             : 'search-result-mark-watched-'
                   '${result.mediaType.name}-${result.tmdbId}',
       ),
-      color: isWatched ? AppColors.success : defaultColor,
+      color: isWatched ? AppColors.success : AppColors.primary,
+    );
+  }
+}
+
+class _AnimatedSearchActionContent extends StatelessWidget {
+  const _AnimatedSearchActionContent({
+    required this.stateKey,
+    required this.child,
+  });
+
+  final String stateKey;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      switchInCurve: Curves.easeOutBack,
+      switchOutCurve: Curves.easeIn,
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.82, end: 1).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: KeyedSubtree(key: ValueKey<String>(stateKey), child: child),
     );
   }
 }

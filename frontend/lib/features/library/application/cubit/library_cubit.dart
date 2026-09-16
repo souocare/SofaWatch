@@ -30,14 +30,14 @@ final class LibraryCubit extends Cubit<LibraryState> {
     return _loadMediaState(key);
   }
 
-  Future<void> refreshMovieState(LibraryMediaKey key) async {
-    if (key.mediaType != LibraryMediaType.movie) {
-      return;
-    }
-
+  Future<void> refreshMediaState(LibraryMediaKey key) async {
     try {
       final ImportedLibraryMedia media = await _importMedia(key);
-      final LibraryEntry? entry = await _repository.getMovieEntry(media.id);
+
+      final LibraryEntry? entry = await switch (media.mediaType) {
+        LibraryMediaType.show => _repository.getShowEntry(media.id),
+        LibraryMediaType.movie => _repository.getMovieEntry(media.id),
+      };
 
       if (isClosed) {
         return;
@@ -57,6 +57,22 @@ final class LibraryCubit extends Cubit<LibraryState> {
     } on Object {
       // Same principle for unexpected refresh failures.
     }
+  }
+
+  Future<void> refreshMovieState(LibraryMediaKey key) {
+    if (key.mediaType != LibraryMediaType.movie) {
+      return Future<void>.value();
+    }
+
+    return refreshMediaState(key);
+  }
+
+  Future<void> refreshShowState(LibraryMediaKey key) {
+    if (key.mediaType != LibraryMediaType.show) {
+      return Future<void>.value();
+    }
+
+    return refreshMediaState(key);
   }
 
   Future<void> _loadMediaState(LibraryMediaKey key) async {

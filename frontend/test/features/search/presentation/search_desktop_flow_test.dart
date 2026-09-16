@@ -29,6 +29,18 @@ const SearchResult _movieResult = SearchResult(
   voteCount: 13000,
 );
 
+const SearchResult _showResult = SearchResult(
+  mediaType: SearchMediaType.show,
+  tmdbId: 95396,
+  title: 'Severance',
+  originalTitle: 'Severance',
+  originalLanguage: 'en',
+  genreIds: <int>[18, 9648],
+  popularity: 100,
+  voteAverage: 8.4,
+  voteCount: 3000,
+);
+
 Future<void> pumpDesktopApp(
   WidgetTester tester, {
   Size size = const Size(1280, 900),
@@ -289,6 +301,96 @@ void main() {
       findsNothing,
     );
   });
+
+  testWidgets(
+    'refreshes Show library state only after returning from Details',
+    (WidgetTester tester) async {
+      final FakeSearchRepository searchRepository = FakeSearchRepository(
+        result: const SearchResultPage(
+          page: 1,
+          results: <SearchResult>[_showResult],
+          totalPages: 1,
+          totalResults: 1,
+        ),
+      );
+
+      final DetailsApiRequestTracker requestTracker =
+          DetailsApiRequestTracker();
+
+      final ApiClient apiClient = createDetailsTestApiClient(
+        requestTracker: requestTracker,
+      );
+
+      final AppBootstrapData bootstrapData = createTestBootstrapData(
+        searchRepository: searchRepository,
+        apiClient: apiClient,
+      );
+
+      await pumpDesktopApp(tester, bootstrapData: bootstrapData);
+
+      await openSearch(tester);
+
+      final Finder searchField = find.byKey(
+        const ValueKey<String>('search-text-field'),
+      );
+
+      await tester.enterText(searchField, 'Severance');
+
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+
+      final Finder showResult = find.byKey(
+        const ValueKey<String>('search-result-show-95396'),
+      );
+
+      expect(showResult, findsOneWidget);
+
+      await tester.tap(showResult);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('show-details-content')),
+        findsOneWidget,
+      );
+
+      final int importsWhileDetailsOpen = requestTracker.showImportCallCount;
+
+      final int lookupsWhileDetailsOpen =
+          requestTracker.showLibraryLookupCallCount;
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('show-details-close-button')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(modalKey), findsOneWidget);
+
+      expect(
+        requestTracker.showImportCallCount,
+        importsWhileDetailsOpen + 1,
+        reason:
+            'Returning from Show Details must refresh the Show state '
+            'in the desktop Search LibraryCubit.',
+      );
+
+      expect(
+        requestTracker.showLibraryLookupCallCount,
+        lookupsWhileDetailsOpen + 1,
+      );
+
+      expect(requestTracker.importedShowTmdbIds.last, 95396);
+
+      expect(requestTracker.showLibraryLookupIds.last, 'show-local-95396');
+
+      expect(
+        searchRepository.searchCallCount,
+        1,
+        reason: 'Refreshing Show library state must not repeat the Search.',
+      );
+    },
+  );
+
   testWidgets(
     'refreshes Movie library state only after returning from Details',
     (WidgetTester tester) async {

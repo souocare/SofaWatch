@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sofawatch/app/theme/tokens/app_colors.dart';
 import 'package:sofawatch/features/search/domain/entities/search_media_type.dart';
 import 'package:sofawatch/features/search/domain/entities/search_result.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_result_row.dart';
@@ -175,23 +176,42 @@ void main() {
     expect(find.byIcon(Icons.add_rounded), findsNothing);
   });
 
-  testWidgets('shows an action label in the regular desktop layout', (
+  testWidgets('shows an action label when the desktop row has enough width', (
     WidgetTester tester,
   ) async {
-    await _pumpResultRow(tester, result: _duneResult);
+    await _pumpResultRow(tester, result: _duneResult, width: 900);
 
     expect(find.text('Add to Watchlist'), findsOneWidget);
     expect(find.byIcon(Icons.add_rounded), findsOneWidget);
+
+    final TextButton button = tester.widget<TextButton>(
+      find.byKey(const ValueKey<String>('search-result-action-movie-438631')),
+    );
+
+    expect(button.onPressed, isNull);
   });
 
-  testWidgets('shows Added in the regular layout when already added', (
+  testWidgets('shows Added when the desktop row has enough width', (
     WidgetTester tester,
   ) async {
-    await _pumpResultRow(tester, result: _duneResult, actionAdded: true);
+    await _pumpResultRow(
+      tester,
+      result: _duneResult,
+      actionAdded: true,
+      width: 900,
+    );
 
     expect(find.text('Added'), findsOneWidget);
     expect(find.byIcon(Icons.check_rounded), findsOneWidget);
     expect(find.text('Add to Watchlist'), findsNothing);
+
+    final Icon icon = tester.widget<Icon>(
+      find.byKey(
+        const ValueKey<String>('search-result-action-added-movie-438631'),
+      ),
+    );
+
+    expect(icon.color, AppColors.success);
   });
 
   testWidgets('shows a loading indicator in compact mode', (
@@ -209,12 +229,22 @@ void main() {
     expect(find.byIcon(Icons.check_rounded), findsNothing);
   });
 
-  testWidgets('shows a loading indicator in the regular layout', (
+  testWidgets('shows a loading indicator in the expanded desktop layout', (
     WidgetTester tester,
   ) async {
-    await _pumpResultRow(tester, result: _duneResult, actionLoading: true);
+    await _pumpResultRow(
+      tester,
+      result: _duneResult,
+      actionLoading: true,
+      width: 900,
+    );
 
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey<String>('search-result-action-loading-movie-438631'),
+      ),
+      findsOneWidget,
+    );
 
     final TextButton button = tester.widget<TextButton>(
       find.byKey(const ValueKey<String>('search-result-action-movie-438631')),
@@ -470,6 +500,181 @@ void main() {
     expect(find.byIcon(Icons.add_rounded), findsOneWidget);
     expect(find.byIcon(Icons.visibility_rounded), findsOneWidget);
   });
+  testWidgets(
+    'uses icon-only Movie actions when desktop width is constrained',
+    (WidgetTester tester) async {
+      await _pumpResultRow(
+        tester,
+        result: _duneResult,
+        width: 600,
+        onActionPressed: () {},
+        onWatchedPressed: () {},
+      );
+
+      expect(find.text('Add to Watchlist'), findsNothing);
+      expect(find.text('Mark as watched'), findsNothing);
+
+      expect(
+        find.byKey(const ValueKey<String>('search-result-action-movie-438631')),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('search-result-watched-movie-438631'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(find.byIcon(Icons.add_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.visibility_rounded), findsOneWidget);
+
+      expect(
+        tester.widget<IconButton>(
+          find.byKey(
+            const ValueKey<String>('search-result-action-movie-438631'),
+          ),
+        ),
+        isA<IconButton>(),
+      );
+
+      expect(
+        tester.widget<IconButton>(
+          find.byKey(
+            const ValueKey<String>('search-result-watched-movie-438631'),
+          ),
+        ),
+        isA<IconButton>(),
+      );
+    },
+  );
+  testWidgets('shows labels for both Movie actions on a wide desktop row', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(
+      tester,
+      result: _duneResult,
+      width: 900,
+      onActionPressed: () {},
+      onWatchedPressed: () {},
+    );
+
+    expect(find.text('Add to Watchlist'), findsOneWidget);
+    expect(find.text('Mark as watched'), findsOneWidget);
+
+    expect(
+      tester.widget<TextButton>(
+        find.byKey(const ValueKey<String>('search-result-action-movie-438631')),
+      ),
+      isA<TextButton>(),
+    );
+
+    expect(
+      tester.widget<TextButton>(
+        find.byKey(
+          const ValueKey<String>('search-result-watched-movie-438631'),
+        ),
+      ),
+      isA<TextButton>(),
+    );
+  });
+  testWidgets('uses primary red for available compact Movie actions', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(
+      tester,
+      result: _duneResult,
+      compact: true,
+      onActionPressed: () {},
+      onWatchedPressed: () {},
+    );
+
+    final Icon addIcon = tester.widget<Icon>(
+      find.byKey(
+        const ValueKey<String>('search-result-action-add-movie-438631'),
+      ),
+    );
+
+    final Icon watchedIcon = tester.widget<Icon>(
+      find.byKey(
+        const ValueKey<String>('search-result-mark-watched-movie-438631'),
+      ),
+    );
+
+    expect(addIcon.color, AppColors.primary);
+    expect(watchedIcon.color, AppColors.primary);
+  });
+  testWidgets('keeps the eye icon and turns it green when Movie is watched', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(
+      tester,
+      result: _duneResult,
+      compact: true,
+      actionAdded: true,
+      watched: true,
+      onWatchedPressed: () {},
+    );
+
+    final Icon addedIcon = tester.widget<Icon>(
+      find.byKey(
+        const ValueKey<String>('search-result-action-added-movie-438631'),
+      ),
+    );
+
+    final Icon watchedIcon = tester.widget<Icon>(
+      find.byKey(
+        const ValueKey<String>('search-result-watched-complete-movie-438631'),
+      ),
+    );
+
+    expect(addedIcon.icon, Icons.check_rounded);
+    expect(addedIcon.color, AppColors.success);
+
+    expect(watchedIcon.icon, Icons.visibility_rounded);
+    expect(watchedIcon.color, AppColors.success);
+
+    expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
+  });
+  testWidgets('shows Add to Library label for Show on wide desktop', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(
+      tester,
+      result: _csiResult,
+      width: 700,
+      onActionPressed: () {},
+    );
+
+    expect(find.text('Add to Library'), findsOneWidget);
+    expect(find.byIcon(Icons.add_rounded), findsOneWidget);
+
+    expect(
+      find.byKey(const ValueKey<String>('search-result-watched-show-1431')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('uses icon-only Library action for Show on constrained desktop', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(
+      tester,
+      result: _csiResult,
+      width: 450,
+      onActionPressed: () {},
+    );
+
+    expect(find.text('Add to Library'), findsNothing);
+    expect(find.byIcon(Icons.add_rounded), findsOneWidget);
+
+    expect(
+      tester.widget<IconButton>(
+        find.byKey(const ValueKey<String>('search-result-action-show-1431')),
+      ),
+      isA<IconButton>(),
+    );
+  });
 }
 
 Future<void> _pumpResultRow(
@@ -483,12 +688,13 @@ Future<void> _pumpResultRow(
   VoidCallback? onWatchedPressed,
   bool watchedLoading = false,
   bool watched = false,
+  double width = 600,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
         body: SizedBox(
-          width: 600,
+          width: width,
           child: SearchResultRow(
             result: result,
             compact: compact,

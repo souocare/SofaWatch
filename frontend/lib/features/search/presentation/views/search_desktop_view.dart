@@ -295,6 +295,17 @@ class _SearchDesktopScrollableContentState
         pathParameters: <String, String>{'showId': result.tmdbId.toString()},
       );
 
+      if (!context.mounted) {
+        return;
+      }
+
+      await context.read<LibraryCubit>().refreshShowState(
+        LibraryMediaKey(
+          mediaType: LibraryMediaType.show,
+          tmdbId: result.tmdbId,
+        ),
+      );
+
       return;
     }
 

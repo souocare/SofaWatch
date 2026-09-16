@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sofawatch/app/theme/tokens/app_colors.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
 import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
 import 'package:sofawatch/features/library/domain/models/imported_library_media.dart';
@@ -172,6 +173,25 @@ void main() {
         ),
         findsOneWidget,
       );
+      final Icon addedIcon = tester.widget<Icon>(
+        find.byKey(
+          const ValueKey<String>('search-result-action-added-movie-438631'),
+        ),
+      );
+
+      final Icon watchedIcon = tester.widget<Icon>(
+        find.byKey(
+          const ValueKey<String>('search-result-watched-complete-movie-438631'),
+        ),
+      );
+
+      expect(addedIcon.icon, Icons.check_rounded);
+      expect(addedIcon.color, AppColors.success);
+
+      expect(watchedIcon.icon, Icons.visibility_rounded);
+      expect(watchedIcon.color, AppColors.success);
+
+      expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
     });
     testWidgets('keeps Watchlist and watched loading states independent', (
       WidgetTester tester,
@@ -249,7 +269,7 @@ void main() {
         const ValueKey<String>('search-result-action-movie-438631'),
       );
 
-      final IconButton button = tester.widget<IconButton>(action);
+      final TextButton button = tester.widget<TextButton>(action);
 
       expect(button.onPressed, isNull);
 
@@ -333,7 +353,7 @@ void main() {
 
       final TextButton showButton = tester.widget<TextButton>(showAction);
 
-      final IconButton movieButton = tester.widget<IconButton>(movieAction);
+      final TextButton movieButton = tester.widget<TextButton>(movieAction);
 
       expect(showButton.onPressed, isNull);
 
@@ -458,11 +478,31 @@ void main() {
       findsOneWidget,
     );
 
+    final Icon addedIcon = tester.widget<Icon>(
+      find.byKey(
+        const ValueKey<String>('search-result-action-added-movie-438631'),
+      ),
+    );
+
+    final Icon watchedIcon = tester.widget<Icon>(
+      find.byKey(
+        const ValueKey<String>('search-result-watched-complete-movie-438631'),
+      ),
+    );
+
+    expect(addedIcon.icon, Icons.check_rounded);
+    expect(addedIcon.color, AppColors.success);
+
+    expect(watchedIcon.icon, Icons.visibility_rounded);
+    expect(watchedIcon.color, AppColors.success);
+
+    expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
+
     final Finder watchedAction = find.byKey(
       const ValueKey<String>('search-result-watched-movie-438631'),
     );
 
-    final IconButton button = tester.widget<IconButton>(watchedAction);
+    final TextButton button = tester.widget<TextButton>(watchedAction);
 
     expect(button.onPressed, isNull);
 

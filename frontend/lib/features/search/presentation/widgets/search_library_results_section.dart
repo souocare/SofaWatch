@@ -90,6 +90,10 @@ class _SearchLibraryResultsSectionState
               result,
             );
 
+            if (result.isMovie && _isMovieWatched(libraryState, result)) {
+              return true;
+            }
+
             if (operation.entry != null || operation.isAdded) {
               return true;
             }
