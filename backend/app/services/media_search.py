@@ -251,6 +251,11 @@ class MediaSearchService:
             tmdb_ids=movie_tmdb_ids,
         )
 
+        movie_library_statuses = self._library_repository.get_movie_statuses_by_tmdb_ids(
+            user_id=user_id,
+            tmdb_ids=movie_tmdb_ids,
+        )
+
         enriched_results = [
             result.model_copy(
                 update={
@@ -261,7 +266,12 @@ class MediaSearchService:
                             if result.media_type is SearchMediaType.SHOW
                             else library_movie_tmdb_ids
                         )
-                    )
+                    ),
+                    "library_status": (
+                        movie_library_statuses.get(result.tmdb_id)
+                        if result.media_type is SearchMediaType.MOVIE
+                        else None
+                    ),
                 }
             )
             for result in response.results

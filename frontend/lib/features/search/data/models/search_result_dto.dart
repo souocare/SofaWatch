@@ -1,3 +1,4 @@
+import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/search/domain/entities/search_media_type.dart';
 import 'package:sofawatch/features/search/domain/entities/search_result.dart';
 
@@ -17,6 +18,7 @@ class SearchResultDto {
     this.posterUrl,
     this.backdropUrl,
     required this.inLibrary,
+    this.libraryStatus,
   });
 
   factory SearchResultDto.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,7 @@ class SearchResultDto {
       voteAverage: _readDouble(json, 'vote_average'),
       voteCount: _readNonNegativeInt(json, 'vote_count'),
       inLibrary: _readBool(json, 'in_library'),
+      libraryStatus: _parseNullableLibraryStatus(json['library_status']),
     );
   }
 
@@ -57,6 +60,7 @@ class SearchResultDto {
   final double voteAverage;
   final int voteCount;
   final bool inLibrary;
+  final LibraryStatus? libraryStatus;
 
   SearchResult toDomain() {
     return SearchResult(
@@ -74,6 +78,7 @@ class SearchResultDto {
       voteAverage: voteAverage,
       voteCount: voteCount,
       inLibrary: inLibrary,
+      libraryStatus: libraryStatus,
     );
   }
 
@@ -222,5 +227,24 @@ class SearchResultDto {
     }
 
     return List<int>.unmodifiable(genreIds);
+  }
+
+  static LibraryStatus? _parseNullableLibraryStatus(Object? value) {
+    if (value == null) {
+      return null;
+    }
+
+    if (value is! String) {
+      throw const FormatException('Invalid Library status.');
+    }
+
+    return switch (value) {
+      'planning' => LibraryStatus.planning,
+      'watching' => LibraryStatus.watching,
+      'completed' => LibraryStatus.completed,
+      'paused' => LibraryStatus.paused,
+      'dropped' => LibraryStatus.dropped,
+      _ => throw const FormatException('Invalid Library status.'),
+    };
   }
 }

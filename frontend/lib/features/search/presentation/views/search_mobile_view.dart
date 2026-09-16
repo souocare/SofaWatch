@@ -3,6 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_spacing.dart';
+import 'package:sofawatch/features/library/application/cubit/library_cubit.dart';
+import 'package:sofawatch/features/library/domain/models/library_media_key.dart';
+import 'package:sofawatch/features/library/domain/models/library_media_type.dart';
 import 'package:sofawatch/features/search/application/bloc/search_bloc.dart';
 import 'package:sofawatch/features/search/application/bloc/search_event.dart';
 import 'package:sofawatch/features/search/application/bloc/search_state.dart';
@@ -53,9 +56,9 @@ class SearchMobileView extends StatelessWidget {
 class _SearchMobileContent extends StatelessWidget {
   const _SearchMobileContent();
 
-  void _openResult(BuildContext context, SearchResult result) {
+  Future<void> _openResult(BuildContext context, SearchResult result) async {
     if (result.isShow) {
-      context.pushNamed(
+      await context.pushNamed(
         AppRoute.showDetails.name,
         pathParameters: <String, String>{'showId': result.tmdbId.toString()},
       );
@@ -63,9 +66,17 @@ class _SearchMobileContent extends StatelessWidget {
       return;
     }
 
-    context.pushNamed(
+    await context.pushNamed(
       AppRoute.tmdbMovieDetails.name,
       pathParameters: <String, String>{'tmdbId': result.tmdbId.toString()},
+    );
+
+    if (!context.mounted) {
+      return;
+    }
+
+    await context.read<LibraryCubit>().refreshMovieState(
+      LibraryMediaKey(mediaType: LibraryMediaType.movie, tmdbId: result.tmdbId),
     );
   }
 

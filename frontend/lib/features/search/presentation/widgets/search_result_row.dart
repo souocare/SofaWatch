@@ -9,9 +9,12 @@ class SearchResultRow extends StatelessWidget {
     required this.result,
     required this.onPressed,
     this.onActionPressed,
+    this.onWatchedPressed,
     this.compact = false,
     this.actionLoading = false,
     this.actionAdded = false,
+    this.watchedLoading = false,
+    this.watched = false,
     super.key,
   });
 
@@ -19,14 +22,22 @@ class SearchResultRow extends StatelessWidget {
   final VoidCallback onPressed;
 
   final VoidCallback? onActionPressed;
+  final VoidCallback? onWatchedPressed;
 
   /// Mobile usa uma apresentação mais compacta.
   final bool compact;
 
   final bool actionAdded;
 
-  /// Permite mostrar feedback visual enquanto a ação lateral está em curso.
+  /// Permite mostrar feedback visual enquanto a ação de Library está em curso.
   final bool actionLoading;
+
+  /// Permite mostrar feedback visual enquanto o filme está a ser marcado
+  /// como visto.
+  final bool watchedLoading;
+
+  /// Indica que o filme já tem histórico de visualização.
+  final bool watched;
 
   @override
   Widget build(BuildContext context) {
@@ -65,12 +76,15 @@ class SearchResultRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                _SearchResultAction(
+                _SearchResultActions(
                   result: result,
-                  onPressed: onActionPressed,
                   compact: compact,
-                  isLoading: actionLoading,
-                  isAdded: actionAdded,
+                  onActionPressed: onActionPressed,
+                  actionLoading: actionLoading,
+                  actionAdded: actionAdded,
+                  onWatchedPressed: onWatchedPressed,
+                  watchedLoading: watchedLoading,
+                  watched: watched,
                 ),
               ],
             ),
@@ -212,38 +226,75 @@ class _SearchResultInformation extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.xs),
-        Row(
+        Text(
+          result.releaseYear == null
+              ? (result.isShow ? 'Show' : 'Movie')
+              : '${result.isShow ? 'Show' : 'Movie'}  •  ${result.releaseYear}',
           key: ValueKey<String>(
             'search-result-metadata-${result.mediaType.name}-${result.tmdbId}',
           ),
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Text(
-              result.isShow ? 'Show' : 'Movie',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            if (result.releaseYear != null) ...<Widget>[
-              const SizedBox(width: 8),
-              Text(
-                '•',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w700,
-                  height: 1,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                result.releaseYear.toString(),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ],
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
         ),
+      ],
+    );
+  }
+}
+
+class _SearchResultActions extends StatelessWidget {
+  const _SearchResultActions({
+    required this.result,
+    required this.compact,
+    required this.onActionPressed,
+    required this.actionLoading,
+    required this.actionAdded,
+    required this.onWatchedPressed,
+    required this.watchedLoading,
+    required this.watched,
+  });
+
+  final SearchResult result;
+  final bool compact;
+
+  final VoidCallback? onActionPressed;
+  final bool actionLoading;
+  final bool actionAdded;
+
+  final VoidCallback? onWatchedPressed;
+  final bool watchedLoading;
+  final bool watched;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool showWatchedAction =
+        result.isMovie &&
+        (onWatchedPressed != null || watchedLoading || watched);
+
+    final bool useCompactActions = compact || showWatchedAction;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        _SearchResultAction(
+          result: result,
+          onPressed: onActionPressed,
+          compact: useCompactActions,
+          isLoading: actionLoading,
+          isAdded: actionAdded,
+        ),
+        if (showWatchedAction) ...<Widget>[
+          const SizedBox(width: 2),
+          _SearchResultWatchedAction(
+            result: result,
+            onPressed: onWatchedPressed,
+            compact: useCompactActions,
+            isLoading: watchedLoading,
+            isWatched: watched,
+          ),
+        ],
       ],
     );
   }
@@ -382,6 +433,119 @@ class _SearchResultAction extends StatelessWidget {
                   '${result.mediaType.name}-${result.tmdbId}',
       ),
       color: isAdded ? AppColors.success : defaultColor,
+    );
+  }
+}
+
+class _SearchResultWatchedAction extends StatelessWidget {
+  const _SearchResultWatchedAction({
+    required this.result,
+    required this.onPressed,
+    required this.compact,
+    required this.isLoading,
+    required this.isWatched,
+  });
+
+  final SearchResult result;
+  final VoidCallback? onPressed;
+  final bool compact;
+  final bool isLoading;
+  final bool isWatched;
+
+  String get _tooltip {
+    if (isLoading) {
+      return 'Marking as watched';
+    }
+
+    if (isWatched) {
+      return 'Watched';
+    }
+
+    return 'Mark as watched';
+  }
+
+  String get _semanticsLabel {
+    if (isLoading) {
+      return 'Marking ${result.title} as watched';
+    }
+
+    if (isWatched) {
+      return '${result.title} has been watched';
+    }
+
+    return 'Mark ${result.title} as watched';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
+    final VoidCallback? effectiveOnPressed = isLoading || isWatched
+        ? null
+        : onPressed;
+
+    final Key key = ValueKey<String>(
+      'search-result-watched-'
+      '${result.mediaType.name}-${result.tmdbId}',
+    );
+
+    return Semantics(
+      container: true,
+      explicitChildNodes: false,
+      label: _semanticsLabel,
+      button: true,
+      enabled: effectiveOnPressed != null,
+      child: ExcludeSemantics(
+        child: Tooltip(
+          message: _tooltip,
+          child: compact
+              ? IconButton(
+                  key: key,
+                  onPressed: effectiveOnPressed,
+                  visualDensity: VisualDensity.compact,
+                  icon: _buildIcon(
+                    size: 20,
+                    defaultColor: colorScheme.onSurface,
+                  ),
+                )
+              : TextButton.icon(
+                  key: key,
+                  onPressed: effectiveOnPressed,
+                  icon: _buildIcon(size: 18),
+                  label: Text(
+                    isWatched ? 'Watched' : 'Mark as watched',
+                    style: isWatched
+                        ? const TextStyle(color: AppColors.success)
+                        : null,
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIcon({required double size, Color? defaultColor}) {
+    if (isLoading) {
+      return SizedBox.square(
+        key: ValueKey<String>(
+          'search-result-watched-loading-'
+          '${result.mediaType.name}-${result.tmdbId}',
+        ),
+        dimension: size,
+        child: const CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+
+    return Icon(
+      isWatched ? Icons.check_circle_rounded : Icons.visibility_rounded,
+      key: ValueKey<String>(
+        isWatched
+            ? 'search-result-watched-complete-'
+                  '${result.mediaType.name}-${result.tmdbId}'
+            : 'search-result-mark-watched-'
+                  '${result.mediaType.name}-${result.tmdbId}',
+      ),
+      color: isWatched ? AppColors.success : defaultColor,
     );
   }
 }

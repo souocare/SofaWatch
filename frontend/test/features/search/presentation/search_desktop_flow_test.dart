@@ -4,16 +4,40 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sofawatch/app/app_bootstrap_data.dart';
 import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
+import 'package:sofawatch/core/api/api_client.dart';
+import 'package:sofawatch/features/search/domain/entities/search_media_type.dart';
+import 'package:sofawatch/features/search/domain/entities/search_result.dart';
+import 'package:sofawatch/features/search/domain/models/search_result_page.dart';
 import 'package:sofawatch/features/search/presentation/views/search_mobile_view.dart';
 
+import '../../../fakes/fake_search_repository.dart';
+import '../../../helpers/details_api_test_helper.dart';
 import '../../../helpers/test_app.dart';
+import '../../../helpers/test_bootstrap_data.dart';
+
+const SearchResult _movieResult = SearchResult(
+  mediaType: SearchMediaType.movie,
+  tmdbId: 438631,
+  title: 'Dune',
+  originalTitle: 'Dune',
+  originalLanguage: 'en',
+  genreIds: <int>[878, 12],
+  popularity: 95.4,
+  voteAverage: 7.8,
+  voteCount: 13000,
+);
 
 Future<void> pumpDesktopApp(
   WidgetTester tester, {
   Size size = const Size(1280, 900),
+  AppBootstrapData? bootstrapData,
 }) async {
-  await tester.pumpSofaWatchWebApp(surfaceSize: size);
+  await tester.pumpSofaWatchWebApp(
+    bootstrapData: bootstrapData,
+    surfaceSize: size,
+  );
 }
 
 Future<void> openSearch(WidgetTester tester) async {
@@ -265,4 +289,92 @@ void main() {
       findsNothing,
     );
   });
+  testWidgets(
+    'refreshes Movie library state only after returning from Details',
+    (WidgetTester tester) async {
+      final FakeSearchRepository searchRepository = FakeSearchRepository(
+        result: const SearchResultPage(
+          page: 1,
+          results: <SearchResult>[_movieResult],
+          totalPages: 1,
+          totalResults: 1,
+        ),
+      );
+
+      final DetailsApiRequestTracker requestTracker =
+          DetailsApiRequestTracker();
+
+      final ApiClient apiClient = createDetailsTestApiClient(
+        requestTracker: requestTracker,
+      );
+
+      final AppBootstrapData bootstrapData = createTestBootstrapData(
+        searchRepository: searchRepository,
+        apiClient: apiClient,
+      );
+
+      await pumpDesktopApp(tester, bootstrapData: bootstrapData);
+
+      await openSearch(tester);
+
+      final Finder searchField = find.byKey(
+        const ValueKey<String>('search-text-field'),
+      );
+
+      await tester.enterText(searchField, 'Dune');
+
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+
+      final Finder movieResult = find.byKey(
+        const ValueKey<String>('search-result-movie-438631'),
+      );
+
+      expect(movieResult, findsOneWidget);
+
+      await tester.tap(movieResult);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('movie-details-content')),
+        findsOneWidget,
+      );
+
+      final int importsWhileDetailsOpen = requestTracker.movieImportCallCount;
+
+      final int lookupsWhileDetailsOpen =
+          requestTracker.movieLibraryLookupCallCount;
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('movie-details-close-button')),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(modalKey), findsOneWidget);
+
+      expect(
+        requestTracker.movieImportCallCount,
+        importsWhileDetailsOpen + 1,
+        reason:
+            'Returning from Movie Details must refresh the Movie state '
+            'in the desktop Search LibraryCubit.',
+      );
+
+      expect(
+        requestTracker.movieLibraryLookupCallCount,
+        lookupsWhileDetailsOpen + 1,
+      );
+
+      expect(requestTracker.importedMovieTmdbIds.last, 438631);
+
+      expect(requestTracker.movieLibraryLookupIds.last, 'movie-local-uuid');
+
+      expect(
+        searchRepository.searchCallCount,
+        1,
+        reason: 'Refreshing Movie library state must not repeat the Search.',
+      );
+    },
+  );
 }

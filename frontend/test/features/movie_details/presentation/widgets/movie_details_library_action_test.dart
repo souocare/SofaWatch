@@ -17,7 +17,7 @@ import 'package:sofawatch/features/movie_details/presentation/widgets/movie_deta
 
 void main() {
   group('MovieDetailsLibraryAction', () {
-    testWidgets('shows Add to Watchlist initially', (
+    testWidgets('shows Watchlist and Mark as watched actions initially', (
       WidgetTester tester,
     ) async {
       final _FakeLibraryRepository repository = _FakeLibraryRepository();
@@ -32,6 +32,13 @@ void main() {
       );
 
       expect(find.text('Add to Watchlist'), findsOneWidget);
+
+      expect(
+        find.byKey(const ValueKey<String>('movie-details-mark-watched')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Mark as watched'), findsOneWidget);
 
       expect(
         find.byKey(const ValueKey<String>('movie-details-library-adding')),
@@ -469,6 +476,13 @@ void main() {
       );
 
       expect(find.text('Add to Watchlist'), findsOneWidget);
+
+      expect(
+        find.byKey(const ValueKey<String>('movie-details-mark-watched')),
+        findsOneWidget,
+      );
+
+      expect(find.text('Mark as watched'), findsOneWidget);
 
       expect(
         find.byKey(const ValueKey<String>('movie-details-library-added')),

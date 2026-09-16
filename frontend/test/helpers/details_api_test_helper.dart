@@ -1,7 +1,17 @@
 import 'package:dio/dio.dart';
 import 'package:sofawatch/core/api/api_client.dart';
 
-ApiClient createDetailsTestApiClient() {
+final class DetailsApiRequestTracker {
+  int movieImportCallCount = 0;
+  int movieLibraryLookupCallCount = 0;
+
+  final List<int> importedMovieTmdbIds = <int>[];
+  final List<String> movieLibraryLookupIds = <String>[];
+}
+
+ApiClient createDetailsTestApiClient({
+  DetailsApiRequestTracker? requestTracker,
+}) {
   final Dio dio = Dio();
 
   dio.interceptors.add(
@@ -39,6 +49,12 @@ ApiClient createDetailsTestApiClient() {
 
         final RegExpMatch? showDetailsMatch = showDetailsPattern.firstMatch(
           path,
+        );
+
+        final RegExp movieImportPattern = RegExp(r'/movies/import/tmdb/(\d+)$');
+
+        final RegExp movieLibraryLookupPattern = RegExp(
+          r'/library/movies/([^/]+)$',
         );
 
         if (showDetailsMatch != null) {
@@ -117,14 +133,23 @@ ApiClient createDetailsTestApiClient() {
           return;
         }
 
-        if (path.endsWith('/movies/import/tmdb/438631')) {
+        final RegExpMatch? movieImportMatch = movieImportPattern.firstMatch(
+          path,
+        );
+
+        if (movieImportMatch != null) {
+          final int tmdbId = int.parse(movieImportMatch.group(1)!);
+
+          requestTracker?.movieImportCallCount++;
+          requestTracker?.importedMovieTmdbIds.add(tmdbId);
+
           handler.resolve(
             Response<Map<String, dynamic>>(
               requestOptions: options,
               statusCode: 200,
-              data: const <String, dynamic>{
+              data: <String, dynamic>{
                 'id': 'movie-local-uuid',
-                'tmdb_id': 438631,
+                'tmdb_id': tmdbId,
               },
             ),
           );
@@ -132,7 +157,15 @@ ApiClient createDetailsTestApiClient() {
           return;
         }
 
-        if (path.endsWith('/library/movies/movie-local-uuid')) {
+        final RegExpMatch? movieLibraryLookupMatch = movieLibraryLookupPattern
+            .firstMatch(path);
+
+        if (movieLibraryLookupMatch != null) {
+          final String movieId = movieLibraryLookupMatch.group(1)!;
+
+          requestTracker?.movieLibraryLookupCallCount++;
+          requestTracker?.movieLibraryLookupIds.add(movieId);
+
           handler.reject(
             DioException(
               requestOptions: options,

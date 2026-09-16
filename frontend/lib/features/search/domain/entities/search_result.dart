@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/search/domain/entities/search_media_type.dart';
 
 class SearchResult extends Equatable {
@@ -17,6 +18,7 @@ class SearchResult extends Equatable {
     this.posterUrl,
     this.backdropUrl,
     this.inLibrary = false,
+    this.libraryStatus,
   });
 
   final SearchMediaType mediaType;
@@ -39,6 +41,7 @@ class SearchResult extends Equatable {
   final double voteAverage;
   final int voteCount;
   final bool inLibrary;
+  final LibraryStatus? libraryStatus;
 
   bool get isShow {
     return mediaType == SearchMediaType.show;
@@ -64,6 +67,10 @@ class SearchResult extends Equatable {
     return backdropUrl != null;
   }
 
+  bool get isWatchedMovie {
+    return isMovie && libraryStatus == LibraryStatus.completed;
+  }
+
   @override
   List<Object?> get props => <Object?>[
     mediaType,
@@ -80,5 +87,6 @@ class SearchResult extends Equatable {
     voteAverage,
     voteCount,
     inLibrary,
+    libraryStatus,
   ];
 }

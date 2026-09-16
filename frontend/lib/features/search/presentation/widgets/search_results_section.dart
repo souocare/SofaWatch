@@ -10,6 +10,7 @@ class SearchResultsSection extends StatefulWidget {
     required this.onResultPressed,
     required this.scrollable,
     this.onResultActionPressed,
+    this.onResultWatchedPressed,
     this.compact = false,
     this.onLoadMore,
     this.isLoadingMore = false,
@@ -18,12 +19,16 @@ class SearchResultsSection extends StatefulWidget {
     this.isActionAvailable,
     this.isActionLoading,
     this.isActionAdded,
+    this.isWatchedActionAvailable,
+    this.isWatchedActionLoading,
+    this.isWatched,
     super.key,
   });
 
   final List<SearchResult> results;
   final ValueChanged<SearchResult> onResultPressed;
   final ValueChanged<SearchResult>? onResultActionPressed;
+  final ValueChanged<SearchResult>? onResultWatchedPressed;
 
   /// Mobile usa uma lista com scroll próprio.
   ///
@@ -52,6 +57,9 @@ class SearchResultsSection extends StatefulWidget {
   final bool Function(SearchResult)? isActionAvailable;
   final bool Function(SearchResult)? isActionLoading;
   final bool Function(SearchResult)? isActionAdded;
+  final bool Function(SearchResult)? isWatchedActionAvailable;
+  final bool Function(SearchResult)? isWatchedActionLoading;
+  final bool Function(SearchResult)? isWatched;
 
   @override
   State<SearchResultsSection> createState() {
@@ -178,11 +186,21 @@ class _SearchResultsSectionState extends State<SearchResultsSection> {
 
     final bool actionAdded = widget.isActionAdded?.call(result) ?? false;
 
+    final bool watchedActionAvailable =
+        widget.isWatchedActionAvailable?.call(result) ?? false;
+
+    final bool watchedActionLoading =
+        widget.isWatchedActionLoading?.call(result) ?? false;
+
+    final bool watched = widget.isWatched?.call(result) ?? false;
+
     return SearchResultRow(
       result: result,
       compact: widget.compact,
       actionLoading: actionLoading,
       actionAdded: actionAdded,
+      watchedLoading: watchedActionLoading,
+      watched: watched,
       onPressed: () {
         widget.onResultPressed(result);
       },
@@ -190,6 +208,12 @@ class _SearchResultsSectionState extends State<SearchResultsSection> {
           ? null
           : () {
               widget.onResultActionPressed!(result);
+            },
+      onWatchedPressed:
+          widget.onResultWatchedPressed == null || !watchedActionAvailable
+          ? null
+          : () {
+              widget.onResultWatchedPressed!(result);
             },
     );
   }

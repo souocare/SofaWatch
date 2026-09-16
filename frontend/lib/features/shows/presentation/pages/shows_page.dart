@@ -12,7 +12,6 @@ import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_state.dart';
 import 'package:sofawatch/features/shows/domain/models/library_first_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
-import 'package:sofawatch/features/shows/domain/models/stale_watching_episode.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
 import 'package:sofawatch/features/shows/domain/models/upcoming_item.dart';
 import 'package:sofawatch/features/shows/domain/models/watch_next_episode.dart';
@@ -1256,7 +1255,7 @@ class _WatchNextCarouselState extends State<_WatchNextCarousel> {
             scrollDirection: Axis.horizontal,
             physics: const ClampingScrollPhysics(),
             itemCount: widget.items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
             itemBuilder: (BuildContext context, int index) {
               final WatchNextShow item = widget.items[index];
 
@@ -1314,32 +1313,6 @@ class _WatchNextCarouselState extends State<_WatchNextCarousel> {
           ),
         );
       },
-    );
-  }
-}
-
-class _WatchNextNavigationButton extends StatelessWidget {
-  const _WatchNextNavigationButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surfaceHigh.withValues(alpha: 0.92),
-      shape: const CircleBorder(),
-      elevation: 2,
-      child: IconButton(
-        tooltip: tooltip,
-        onPressed: onPressed,
-        icon: Icon(icon),
-      ),
     );
   }
 }
@@ -3360,91 +3333,6 @@ class _UpToDateCheck extends StatelessWidget {
       child: const Padding(
         padding: EdgeInsets.all(AppSpacing.xs),
         child: Icon(Icons.check_rounded, size: 20, color: Colors.white),
-      ),
-    );
-  }
-}
-
-class _UpToDateRow extends StatelessWidget {
-  const _UpToDateRow({required this.show, required this.isDesktop});
-
-  final LibraryShow show;
-  final bool isDesktop;
-
-  @override
-  Widget build(BuildContext context) {
-    final double progressValue = show.progress.airedEpisodes > 0
-        ? show.progress.percentage / 100
-        : 0;
-
-    return Material(
-      key: ValueKey<String>('shows-up-to-date-${show.tmdbId}'),
-      color: AppColors.surfaceHigh,
-      borderRadius: AppRadius.borderLarge,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          context.pushNamed(
-            AppRoute.showDetails.name,
-            pathParameters: <String, String>{'showId': show.tmdbId.toString()},
-          );
-        },
-        child: Padding(
-          padding: AppSpacing.cardPadding,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              _WatchNextPoster(url: show.posterUrl, width: isDesktop ? 72 : 56),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      show.title,
-                      key: ValueKey<String>(
-                        'shows-up-to-date-title-${show.tmdbId}',
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Up to Date',
-                      key: ValueKey<String>(
-                        'shows-up-to-date-label-${show.tmdbId}',
-                      ),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    ClipRRect(
-                      borderRadius: AppRadius.borderSmall,
-                      child: LinearProgressIndicator(
-                        key: ValueKey<String>(
-                          'shows-library-progress-${show.tmdbId}',
-                        ),
-                        value: progressValue,
-                        minHeight: 4,
-                        backgroundColor: AppColors.surfaceLow,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textMuted,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

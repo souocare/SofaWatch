@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 
 from app.core.config import Settings
+from app.models.enums import LibraryStatus
 from app.providers.tmdb import TMDBClient
 from app.providers.tmdb.schemas import (
     TMDBMovieSearchResponse,
@@ -45,6 +46,7 @@ def library_repository() -> Mock:
 
     repository.get_show_tmdb_ids_in_library.return_value = set()
     repository.get_movie_tmdb_ids_in_library.return_value = set()
+    repository.get_movie_statuses_by_tmdb_ids.return_value = {}
 
     return repository
 
@@ -57,6 +59,7 @@ def service(
 ) -> MediaSearchService:
     library_repository.get_show_tmdb_ids_in_library.return_value = set()
     library_repository.get_movie_tmdb_ids_in_library.return_value = set()
+    library_repository.get_movie_statuses_by_tmdb_ids.return_value = {}
 
     return MediaSearchService(
         settings=settings,
@@ -375,6 +378,7 @@ def test_search_marks_result_as_not_in_library(
     )
 
     assert response.results[0].in_library is False
+    assert response.results[0].library_status is None
 
 
 def test_search_marks_show_as_in_library(
@@ -454,6 +458,9 @@ def test_search_marks_movie_as_in_library(
     library_repository.get_movie_tmdb_ids_in_library.return_value = {
         438631,
     }
+    library_repository.get_movie_statuses_by_tmdb_ids.return_value = {
+        438631: LibraryStatus.COMPLETED,
+    }
 
     response = service.search(
         user_id=USER_ID,
@@ -462,8 +469,15 @@ def test_search_marks_movie_as_in_library(
     )
 
     assert response.results[0].in_library is True
+    assert response.results[0].library_status is LibraryStatus.COMPLETED
 
     library_repository.get_movie_tmdb_ids_in_library.assert_called_once_with(
+        user_id=USER_ID,
+        tmdb_ids={
+            438631,
+        },
+    )
+    library_repository.get_movie_statuses_by_tmdb_ids.assert_called_once_with(
         user_id=USER_ID,
         tmdb_ids={
             438631,
@@ -551,6 +565,9 @@ def test_search_resolves_library_state_for_mixed_results(
     library_repository.get_movie_tmdb_ids_in_library.return_value = {
         603,
     }
+    library_repository.get_movie_statuses_by_tmdb_ids.return_value = {
+        603: LibraryStatus.COMPLETED,
+    }
 
     response = service.search(
         user_id=USER_ID,
@@ -563,6 +580,14 @@ def test_search_resolves_library_state_for_mixed_results(
             result.media_type,
             result.tmdb_id,
         ): result.in_library
+        for result in response.results
+    }
+
+    statuses = {
+        (
+            result.media_type,
+            result.tmdb_id,
+        ): result.library_status
         for result in response.results
     }
 
@@ -585,6 +610,25 @@ def test_search_resolves_library_state_for_mixed_results(
         ): True,
     }
 
+    assert statuses == {
+        (
+            SearchMediaType.SHOW,
+            95396,
+        ): None,
+        (
+            SearchMediaType.SHOW,
+            1396,
+        ): None,
+        (
+            SearchMediaType.MOVIE,
+            438631,
+        ): None,
+        (
+            SearchMediaType.MOVIE,
+            603,
+        ): LibraryStatus.COMPLETED,
+    }
+
     library_repository.get_show_tmdb_ids_in_library.assert_called_once_with(
         user_id=USER_ID,
         tmdb_ids={
@@ -594,6 +638,14 @@ def test_search_resolves_library_state_for_mixed_results(
     )
 
     library_repository.get_movie_tmdb_ids_in_library.assert_called_once_with(
+        user_id=USER_ID,
+        tmdb_ids={
+            438631,
+            603,
+        },
+    )
+
+    library_repository.get_movie_statuses_by_tmdb_ids.assert_called_once_with(
         user_id=USER_ID,
         tmdb_ids={
             438631,

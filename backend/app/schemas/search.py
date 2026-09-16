@@ -3,6 +3,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from app.models.enums import LibraryStatus
+
 
 class SearchMediaType(StrEnum):
     """Supported media types returned by the general search."""
@@ -35,6 +37,7 @@ class SearchResult(BaseModel):
     poster_url: str | None = None
     backdrop_url: str | None = None
     in_library: bool = False
+    library_status: LibraryStatus | None = None
 
     original_language: str
     genre_ids: list[int] = Field(default_factory=list)

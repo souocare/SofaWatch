@@ -3121,8 +3121,7 @@ class _ProfileServerMetricCard extends StatelessWidget {
     required this.icon,
     required this.value,
     required this.label,
-    this.detail,
-  });
+  }) : detail = null;
 
   final String cardKey;
   final IconData icon;
@@ -4919,18 +4918,6 @@ String _formatServerUptime(int seconds) {
   }
 
   return '${duration.inSeconds}s';
-}
-
-String? _formatServerLatency(double? latencyMs) {
-  if (latencyMs == null) {
-    return null;
-  }
-
-  final String formatted = latencyMs == latencyMs.roundToDouble()
-      ? latencyMs.toStringAsFixed(0)
-      : latencyMs.toStringAsFixed(1);
-
-  return '$formatted ms';
 }
 
 String _formatProfileHistoryDate(DateTime value) {

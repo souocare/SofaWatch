@@ -123,7 +123,108 @@ void main() {
         reason: 'Adding a Movie must not remove the Search result.',
       );
 
-      expect(find.text('Added'), findsOneWidget);
+      expect(
+        find.byKey(
+          const ValueKey<String>('search-result-action-added-movie-438631'),
+        ),
+        findsOneWidget,
+      );
+    });
+    testWidgets('marks a Movie as watched directly from Search', (
+      WidgetTester tester,
+    ) async {
+      final _FakeLibraryRepository repository = _FakeLibraryRepository();
+
+      await _pumpWidget(
+        tester,
+        repository: repository,
+        results: const <SearchResult>[_movieResult],
+      );
+
+      final Finder watchedAction = find.byKey(
+        const ValueKey<String>('search-result-watched-movie-438631'),
+      );
+
+      expect(watchedAction, findsOneWidget);
+
+      await tester.tap(watchedAction);
+
+      await tester.pump();
+
+      expect(repository.importedMovieTmdbIds, <int>[438631]);
+
+      await tester.pumpAndSettle();
+
+      expect(repository.addedMovieIds, <String>['movie-uuid']);
+      expect(repository.recordMovieWatchCalls, 1);
+      expect(repository.recordedMovieWatchIds, <String>['movie-uuid']);
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('search-result-action-added-movie-438631'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('search-result-watched-complete-movie-438631'),
+        ),
+        findsOneWidget,
+      );
+    });
+    testWidgets('keeps Watchlist and watched loading states independent', (
+      WidgetTester tester,
+    ) async {
+      final Completer<ImportedLibraryMedia> completer =
+          Completer<ImportedLibraryMedia>();
+
+      final _FakeLibraryRepository repository = _FakeLibraryRepository()
+        ..pendingMovieImport = completer;
+
+      await _pumpWidget(
+        tester,
+        repository: repository,
+        results: const <SearchResult>[_movieResult],
+      );
+
+      final Finder watchedAction = find.byKey(
+        const ValueKey<String>('search-result-watched-movie-438631'),
+      );
+
+      await tester.tap(watchedAction);
+      await tester.pump();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('search-result-watched-loading-movie-438631'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('search-result-action-loading-movie-438631'),
+        ),
+        findsNothing,
+      );
+
+      completer.complete(
+        const ImportedLibraryMedia(
+          id: 'movie-uuid',
+          tmdbId: 438631,
+          mediaType: LibraryMediaType.movie,
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('search-result-watched-complete-movie-438631'),
+        ),
+        findsOneWidget,
+      );
     });
   });
   testWidgets(
@@ -137,13 +238,18 @@ void main() {
         results: const <SearchResult>[_addedMovieResult],
       );
 
-      expect(find.text('Added'), findsOneWidget);
+      expect(
+        find.byKey(
+          const ValueKey<String>('search-result-action-added-movie-438631'),
+        ),
+        findsOneWidget,
+      );
 
       final Finder action = find.byKey(
         const ValueKey<String>('search-result-action-movie-438631'),
       );
 
-      final TextButton button = tester.widget<TextButton>(action);
+      final IconButton button = tester.widget<IconButton>(action);
 
       expect(button.onPressed, isNull);
 
@@ -227,7 +333,7 @@ void main() {
 
       final TextButton showButton = tester.widget<TextButton>(showAction);
 
-      final TextButton movieButton = tester.widget<TextButton>(movieAction);
+      final IconButton movieButton = tester.widget<IconButton>(movieAction);
 
       expect(showButton.onPressed, isNull);
 
@@ -252,7 +358,19 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Added'), findsNWidgets(2));
+      expect(
+        find.byKey(
+          const ValueKey<String>('search-result-action-added-show-95396'),
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>('search-result-action-added-movie-438631'),
+        ),
+        findsOneWidget,
+      );
     },
   );
 
@@ -314,6 +432,82 @@ void main() {
     );
 
     semanticsHandle.dispose();
+  });
+  testWidgets('shows a completed Movie as Watched without making a request', (
+    WidgetTester tester,
+  ) async {
+    final _FakeLibraryRepository repository = _FakeLibraryRepository();
+
+    await _pumpWidget(
+      tester,
+      repository: repository,
+      results: const <SearchResult>[_watchedMovieResult],
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey<String>('search-result-action-added-movie-438631'),
+      ),
+      findsOneWidget,
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey<String>('search-result-watched-complete-movie-438631'),
+      ),
+      findsOneWidget,
+    );
+
+    final Finder watchedAction = find.byKey(
+      const ValueKey<String>('search-result-watched-movie-438631'),
+    );
+
+    final IconButton button = tester.widget<IconButton>(watchedAction);
+
+    expect(button.onPressed, isNull);
+
+    expect(repository.importedMovieTmdbIds, isEmpty);
+    expect(repository.addedMovieIds, isEmpty);
+    expect(repository.recordMovieWatchCalls, 0);
+  });
+  testWidgets('retries Mark as watched instead of only adding to Watchlist', (
+    WidgetTester tester,
+  ) async {
+    final _FakeLibraryRepository repository = _FakeLibraryRepository()
+      ..recordMovieWatchError = const AppException.connection();
+
+    await _pumpWidget(
+      tester,
+      repository: repository,
+      results: const <SearchResult>[_movieResult],
+    );
+
+    final Finder watchedAction = find.byKey(
+      const ValueKey<String>('search-result-watched-movie-438631'),
+    );
+
+    await tester.tap(watchedAction);
+    await tester.pumpAndSettle();
+
+    expect(repository.recordMovieWatchCalls, 1);
+
+    repository.recordMovieWatchError = null;
+
+    final Finder retry = find.text('Retry');
+
+    expect(retry, findsOneWidget);
+
+    await tester.tap(retry);
+    await tester.pumpAndSettle();
+
+    expect(repository.recordMovieWatchCalls, 2);
+
+    expect(
+      find.byKey(
+        const ValueKey<String>('search-result-watched-complete-movie-438631'),
+      ),
+      findsOneWidget,
+    );
   });
 }
 
@@ -390,10 +584,30 @@ const SearchResult _movieResult = SearchResult(
   voteCount: 100,
 );
 
+const SearchResult _watchedMovieResult = SearchResult(
+  mediaType: SearchMediaType.movie,
+  tmdbId: 438631,
+  title: 'Dune',
+  originalTitle: 'Dune',
+  originalLanguage: 'en',
+  genreIds: <int>[878],
+  popularity: 100,
+  voteAverage: 7.8,
+  voteCount: 100,
+  inLibrary: true,
+  libraryStatus: LibraryStatus.completed,
+);
+
 final class _FakeLibraryRepository implements LibraryRepository {
   Completer<ImportedLibraryMedia>? pendingShowImport;
+  Completer<ImportedLibraryMedia>? pendingMovieImport;
 
   int showImportFailuresRemaining = 0;
+  int recordMovieWatchCalls = 0;
+
+  final List<String> recordedMovieWatchIds = <String>[];
+
+  AppException? recordMovieWatchError;
 
   final List<int> importedShowTmdbIds = <int>[];
   final List<int> importedMovieTmdbIds = <int>[];
@@ -459,6 +673,12 @@ final class _FakeLibraryRepository implements LibraryRepository {
   Future<ImportedLibraryMedia> importMovieByTmdbId(int tmdbId) async {
     importedMovieTmdbIds.add(tmdbId);
 
+    final Completer<ImportedLibraryMedia>? pendingImport = pendingMovieImport;
+
+    if (pendingImport != null) {
+      return pendingImport.future;
+    }
+
     return ImportedLibraryMedia(
       id: 'movie-uuid',
       tmdbId: tmdbId,
@@ -481,8 +701,27 @@ final class _FakeLibraryRepository implements LibraryRepository {
   }
 
   @override
-  Future<LibraryEntry> recordMovieWatch(String movieId) {
-    throw UnimplementedError();
+  Future<LibraryEntry> recordMovieWatch(String movieId) async {
+    recordMovieWatchCalls++;
+    recordedMovieWatchIds.add(movieId);
+
+    final AppException? currentError = recordMovieWatchError;
+
+    if (currentError != null) {
+      throw currentError;
+    }
+
+    final DateTime now = DateTime.utc(2026, 8, 11);
+
+    return LibraryEntry(
+      id: 'entry-uuid',
+      mediaId: movieId,
+      mediaType: LibraryMediaType.movie,
+      status: LibraryStatus.completed,
+      completedAt: now,
+      createdAt: DateTime.utc(2026, 8, 8),
+      updatedAt: now,
+    );
   }
 
   @override

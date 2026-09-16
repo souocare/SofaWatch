@@ -6,6 +6,7 @@ import 'package:sofawatch/features/library/application/cubit/library_item_operat
 import 'package:sofawatch/features/library/application/cubit/library_state.dart';
 import 'package:sofawatch/features/library/domain/models/library_media_key.dart';
 import 'package:sofawatch/features/library/domain/models/library_media_type.dart';
+import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/library/presentation/mappers/library_failure_message_mapper.dart';
 import 'package:sofawatch/features/search/domain/entities/search_result.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_results_section.dart';
@@ -44,6 +45,7 @@ class SearchLibraryResultsSection extends StatefulWidget {
 class _SearchLibraryResultsSectionState
     extends State<SearchLibraryResultsSection> {
   final Set<LibraryMediaKey> _notifiedFailures = <LibraryMediaKey>{};
+  final Set<LibraryMediaKey> _markingWatched = <LibraryMediaKey>{};
 
   @override
   Widget build(BuildContext context) {
@@ -62,22 +64,109 @@ class _SearchLibraryResultsSectionState
           onResultActionPressed: (SearchResult result) {
             context.read<LibraryCubit>().addToLibrary(_keyFor(result));
           },
+          onResultWatchedPressed: (SearchResult result) {
+            _markMovieWatched(context, result);
+          },
           isActionAvailable: (SearchResult result) {
-            return result.isShow || result.isMovie;
+            final LibraryMediaKey key = _keyFor(result);
+            final LibraryItemOperation operation = _operationFor(
+              libraryState,
+              result,
+            );
+
+            return !_markingWatched.contains(key) &&
+                !operation.isRemoving &&
+                !operation.isUpdating;
           },
           isActionLoading: (SearchResult result) {
-            return _operationFor(libraryState, result).isAdding;
+            final LibraryMediaKey key = _keyFor(result);
+
+            return _operationFor(libraryState, result).isAdding &&
+                !_markingWatched.contains(key);
           },
           isActionAdded: (SearchResult result) {
-            if (result.inLibrary) {
+            final LibraryItemOperation operation = _operationFor(
+              libraryState,
+              result,
+            );
+
+            if (operation.entry != null || operation.isAdded) {
               return true;
             }
 
-            return _operationFor(libraryState, result).isAdded;
+            return result.inLibrary;
+          },
+          isWatchedActionAvailable: (SearchResult result) {
+            if (!result.isMovie) {
+              return false;
+            }
+
+            final LibraryMediaKey key = _keyFor(result);
+            final LibraryItemOperation operation = _operationFor(
+              libraryState,
+              result,
+            );
+
+            return !_markingWatched.contains(key) &&
+                !operation.isAdding &&
+                !operation.isRemoving &&
+                !operation.isUpdating &&
+                !_isMovieWatched(libraryState, result);
+          },
+          isWatchedActionLoading: (SearchResult result) {
+            return _markingWatched.contains(_keyFor(result));
+          },
+          isWatched: (SearchResult result) {
+            return _isMovieWatched(libraryState, result);
           },
         );
       },
     );
+  }
+
+  Future<void> _markMovieWatched(
+    BuildContext context,
+    SearchResult result,
+  ) async {
+    if (!result.isMovie) {
+      return;
+    }
+
+    final LibraryMediaKey key = _keyFor(result);
+
+    if (_markingWatched.contains(key)) {
+      return;
+    }
+
+    setState(() {
+      _markingWatched.add(key);
+    });
+
+    try {
+      await context.read<LibraryCubit>().markMovieWatched(key);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _markingWatched.remove(key);
+        });
+      }
+    }
+  }
+
+  bool _isMovieWatched(LibraryState state, SearchResult result) {
+    if (!result.isMovie) {
+      return false;
+    }
+
+    final LibraryItemOperation operation = _operationFor(state, result);
+
+    final LibraryStatus? currentStatus = operation.entry?.status;
+
+    if (currentStatus != null) {
+      return currentStatus == LibraryStatus.completed;
+    }
+
+    return result.isWatchedMovie;
   }
 
   void _handleLibraryState(BuildContext context, LibraryState state) {

@@ -126,14 +126,31 @@ class _MovieDetailsLibraryActionState extends State<MovieDetailsLibraryAction> {
           );
         }
 
-        return FilledButton.icon(
-          key: const ValueKey<String>('movie-details-library-add'),
-          onPressed: () {
-            context.read<LibraryCubit>().addToLibrary(_key);
-          },
-          style: FilledButton.styleFrom(shape: const StadiumBorder()),
-          icon: const Icon(Icons.add_rounded),
-          label: const Text('Add to Watchlist'),
+        return Wrap(
+          key: const ValueKey<String>('movie-details-library-empty-actions'),
+          spacing: 12,
+          runSpacing: 12,
+          children: <Widget>[
+            OutlinedButton.icon(
+              key: const ValueKey<String>('movie-details-library-add'),
+              onPressed: () {
+                context.read<LibraryCubit>().addToLibrary(_key);
+              },
+              style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add to Watchlist'),
+            ),
+            if (!widget.isUpcoming)
+              FilledButton.icon(
+                key: const ValueKey<String>('movie-details-mark-watched'),
+                onPressed: () {
+                  context.read<LibraryCubit>().markMovieWatched(_key);
+                },
+                style: FilledButton.styleFrom(shape: const StadiumBorder()),
+                icon: const Icon(Icons.visibility_rounded),
+                label: const Text('Mark as watched'),
+              ),
+          ],
         );
       },
     );

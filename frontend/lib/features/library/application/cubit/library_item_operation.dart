@@ -71,7 +71,7 @@ final class LibraryItemOperation extends Equatable {
   bool get hasFailed => status == LibraryItemOperationStatus.failure;
 
   bool get isStatusUpdateFailure {
-    return hasFailed && entry != null && targetStatus != null;
+    return hasFailed && targetStatus != null;
   }
 
   @override

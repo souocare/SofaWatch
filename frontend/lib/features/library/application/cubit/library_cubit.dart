@@ -30,6 +30,35 @@ final class LibraryCubit extends Cubit<LibraryState> {
     return _loadMediaState(key);
   }
 
+  Future<void> refreshMovieState(LibraryMediaKey key) async {
+    if (key.mediaType != LibraryMediaType.movie) {
+      return;
+    }
+
+    try {
+      final ImportedLibraryMedia media = await _importMedia(key);
+      final LibraryEntry? entry = await _repository.getMovieEntry(media.id);
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.withOperation(
+          key,
+          entry == null
+              ? const LibraryItemOperation.idle()
+              : LibraryItemOperation.added(entry: entry),
+        ),
+      );
+    } on AppException {
+      // Refresh after returning from Details is supplementary.
+      // Keep the current usable Search state when it fails.
+    } on Object {
+      // Same principle for unexpected refresh failures.
+    }
+  }
+
   Future<void> _loadMediaState(LibraryMediaKey key) async {
     final LibraryItemOperation currentOperation = state.operationFor(key);
 
@@ -134,6 +163,13 @@ final class LibraryCubit extends Cubit<LibraryState> {
   }
 
   Future<void> retry(LibraryMediaKey key) {
+    final LibraryItemOperation operation = state.operationFor(key);
+
+    if (key.mediaType == LibraryMediaType.movie &&
+        operation.targetStatus != null) {
+      return retryMovieStatus(key);
+    }
+
     return addToLibrary(key);
   }
 
@@ -161,8 +197,25 @@ final class LibraryCubit extends Cubit<LibraryState> {
     };
   }
 
-  Future<void> markMovieWatched(LibraryMediaKey key) {
-    return _recordMovieWatch(key);
+  Future<void> markMovieWatched(LibraryMediaKey key) async {
+    if (key.mediaType != LibraryMediaType.movie) {
+      return;
+    }
+
+    final LibraryItemOperation currentOperation = state.operationFor(key);
+
+    if (currentOperation.isAdding ||
+        currentOperation.isRemoving ||
+        currentOperation.isUpdating) {
+      return;
+    }
+
+    if (currentOperation.entry != null) {
+      await _recordMovieWatch(key);
+      return;
+    }
+
+    await _addMovieAndRecordWatch(key);
   }
 
   Future<void> rewatchMovie(LibraryMediaKey key) {
@@ -193,7 +246,7 @@ final class LibraryCubit extends Cubit<LibraryState> {
     }
 
     return switch (operation.targetStatus!) {
-      LibraryStatus.completed => _recordMovieWatch(key),
+      LibraryStatus.completed => markMovieWatched(key),
       LibraryStatus.planning => _clearMovieWatchHistory(key),
       _ => retryStatus(key),
     };
@@ -220,6 +273,51 @@ final class LibraryCubit extends Cubit<LibraryState> {
     }
 
     await updateStatus(key: key, status: targetStatus);
+  }
+
+  Future<void> _addMovieAndRecordWatch(LibraryMediaKey key) async {
+    emit(state.withOperation(key, const LibraryItemOperation.adding()));
+
+    try {
+      final ImportedLibraryMedia importedMedia = await _importMedia(key);
+      final LibraryEntry entry = await _addImportedMedia(importedMedia);
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(state.withOperation(key, LibraryItemOperation.added(entry: entry)));
+
+      await _recordMovieWatch(key);
+    } on AppException catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.withOperation(
+          key,
+          LibraryItemOperation.failure(
+            error,
+            targetStatus: LibraryStatus.completed,
+          ),
+        ),
+      );
+    } on Object catch (error) {
+      if (isClosed) {
+        return;
+      }
+
+      emit(
+        state.withOperation(
+          key,
+          LibraryItemOperation.failure(
+            AppException.unknown(originalError: error),
+            targetStatus: LibraryStatus.completed,
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _recordMovieWatch(LibraryMediaKey key) async {

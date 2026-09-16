@@ -571,6 +571,57 @@ def test_get_movie_tmdb_ids_in_library(
     assert matrix.tmdb_id not in result
 
 
+def test_get_movie_statuses_by_tmdb_ids(
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    dune = create_movie(
+        db_session,
+        tmdb_id=438631,
+        title="Dune",
+    )
+
+    matrix = create_movie(
+        db_session,
+        tmdb_id=603,
+        title="The Matrix",
+    )
+
+    db_session.add_all(
+        [
+            LibraryEntry(
+                user_id=user.id,
+                movie_id=dune.id,
+                status=LibraryStatus.PLANNING,
+            ),
+            LibraryEntry(
+                user_id=user.id,
+                movie_id=matrix.id,
+                status=LibraryStatus.COMPLETED,
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    repository = LibraryRepository(db_session)
+
+    result = repository.get_movie_statuses_by_tmdb_ids(
+        user_id=user.id,
+        tmdb_ids={
+            438631,
+            603,
+            999999,
+        },
+    )
+
+    assert result == {
+        438631: LibraryStatus.PLANNING,
+        603: LibraryStatus.COMPLETED,
+    }
+
+
 def test_get_library_tmdb_ids_returns_empty_sets_for_empty_input(
     db_session: Session,
 ) -> None:
@@ -594,6 +645,22 @@ def test_get_library_tmdb_ids_returns_empty_sets_for_empty_input(
             tmdb_ids=set(),
         )
         == set()
+    )
+
+
+def test_get_movie_statuses_by_tmdb_ids_returns_empty_mapping_for_empty_input(
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    repository = LibraryRepository(db_session)
+
+    assert (
+        repository.get_movie_statuses_by_tmdb_ids(
+            user_id=user.id,
+            tmdb_ids=set(),
+        )
+        == {}
     )
 
 

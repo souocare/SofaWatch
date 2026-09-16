@@ -281,6 +281,34 @@ class LibraryRepository:
 
         return set(self._session.scalars(statement).all())
 
+    def get_movie_statuses_by_tmdb_ids(
+        self,
+        *,
+        user_id: UUID,
+        tmdb_ids: Collection[int],
+    ) -> dict[int, LibraryStatus]:
+        """Return Library statuses keyed by Movie TMDB ID."""
+
+        if not tmdb_ids:
+            return {}
+
+        statement = (
+            select(
+                Movie.tmdb_id,
+                LibraryEntry.status,
+            )
+            .join(
+                LibraryEntry,
+                LibraryEntry.movie_id == Movie.id,
+            )
+            .where(
+                LibraryEntry.user_id == user_id,
+                Movie.tmdb_id.in_(tmdb_ids),
+            )
+        )
+
+        return {tmdb_id: status for tmdb_id, status in self._session.execute(statement).all()}
+
     def get_backlog_show_ids_for_user(
         self,
         *,

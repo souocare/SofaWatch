@@ -464,7 +464,7 @@ void main() {
     await cubit.close();
   });
 
-  test('marks an added Movie as watched', () async {
+  test('imports, adds and marks a new Movie as watched', () async {
     final _FakeLibraryRepository repository = _FakeLibraryRepository();
 
     final LibraryCubit cubit = LibraryCubit(repository);
@@ -474,21 +474,25 @@ void main() {
       tmdbId: 438631,
     );
 
-    await cubit.addToLibrary(key);
-
-    expect(cubit.state.operationFor(key).entry?.status, LibraryStatus.planning);
+    expect(
+      cubit.state.operationFor(key).status,
+      LibraryItemOperationStatus.idle,
+    );
 
     await cubit.markMovieWatched(key);
 
     final LibraryItemOperation operation = cubit.state.operationFor(key);
 
-    expect(operation.isAdded, isTrue);
-    expect(operation.entry?.status, LibraryStatus.completed);
-    expect(operation.entry?.completedAt, isNotNull);
+    expect(repository.importedMovieTmdbIds, <int>[438631]);
+    expect(repository.addedMovieIds, <String>['movie-uuid']);
 
     expect(repository.recordMovieWatchCalls, 1);
     expect(repository.recordedMovieWatchIds, <String>['movie-uuid']);
-    expect(repository.updatedMovieStatuses, isEmpty);
+
+    expect(operation.isAdded, isTrue);
+    expect(operation.entry, isNotNull);
+    expect(operation.entry!.status, LibraryStatus.completed);
+    expect(operation.entry!.completedAt, isNotNull);
 
     await cubit.close();
   });
@@ -690,10 +694,101 @@ void main() {
 
     await cubit.close();
   });
+  test('retry preserves Mark as watched after Movie watch failure', () async {
+    final _FakeLibraryRepository repository = _FakeLibraryRepository(
+      recordMovieWatchError: const AppException.connection(),
+    );
+
+    final LibraryCubit cubit = LibraryCubit(repository);
+
+    const LibraryMediaKey key = LibraryMediaKey(
+      mediaType: LibraryMediaType.movie,
+      tmdbId: 438631,
+    );
+
+    await cubit.markMovieWatched(key);
+
+    LibraryItemOperation operation = cubit.state.operationFor(key);
+
+    expect(operation.hasFailed, isTrue);
+    expect(operation.targetStatus, LibraryStatus.completed);
+
+    expect(repository.importedMovieTmdbIds, <int>[438631]);
+    expect(repository.addedMovieIds, <String>['movie-uuid']);
+    expect(repository.recordMovieWatchCalls, 1);
+
+    repository.recordMovieWatchError = null;
+
+    await cubit.retry(key);
+
+    operation = cubit.state.operationFor(key);
+
+    expect(repository.recordMovieWatchCalls, 2);
+
+    // Não deve voltar a importar/adicionar o Movie.
+    expect(repository.importedMovieTmdbIds, <int>[438631]);
+    expect(repository.addedMovieIds, <String>['movie-uuid']);
+
+    expect(operation.isAdded, isTrue);
+    expect(operation.entry?.status, LibraryStatus.completed);
+
+    await cubit.close();
+  });
+  test(
+    'refreshes Movie state after it changes outside the current Cubit',
+    () async {
+      final DateTime now = DateTime.utc(2026, 8, 11);
+
+      final LibraryEntry completedEntry = LibraryEntry(
+        id: 'entry-uuid',
+        mediaId: 'movie-uuid',
+        mediaType: LibraryMediaType.movie,
+        status: LibraryStatus.completed,
+        completedAt: now,
+        createdAt: DateTime.utc(2026, 8, 8),
+        updatedAt: now,
+      );
+
+      final _FakeLibraryRepository repository = _FakeLibraryRepository(
+        movieEntry: completedEntry,
+      );
+
+      final LibraryCubit cubit = LibraryCubit(repository);
+
+      const LibraryMediaKey key = LibraryMediaKey(
+        mediaType: LibraryMediaType.movie,
+        tmdbId: 438631,
+      );
+
+      // Simula o snapshot que o Search já tinha antes de abrir Details.
+      cubit.markAdded(key);
+
+      expect(cubit.state.operationFor(key).isAdded, isTrue);
+      expect(cubit.state.operationFor(key).entry, isNull);
+
+      await cubit.refreshMovieState(key);
+
+      final LibraryItemOperation operation = cubit.state.operationFor(key);
+
+      expect(repository.importedMovieTmdbIds, <int>[438631]);
+      expect(repository.requestedMovieEntryIds, <String>['movie-uuid']);
+
+      expect(operation.isAdded, isTrue);
+      expect(operation.entry, completedEntry);
+      expect(operation.entry?.status, LibraryStatus.completed);
+
+      await cubit.close();
+    },
+  );
 }
 
 final class _FakeLibraryRepository implements LibraryRepository {
-  _FakeLibraryRepository({this.error, this.showEntry, this.movieEntry});
+  _FakeLibraryRepository({
+    this.error,
+    this.showEntry,
+    this.movieEntry,
+    this.recordMovieWatchError,
+  });
 
   final AppException? error;
   AppException? removeError;

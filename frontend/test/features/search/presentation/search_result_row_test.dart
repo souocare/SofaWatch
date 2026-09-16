@@ -12,9 +12,7 @@ void main() {
       await _pumpResultRow(tester, result: _csiResult);
 
       expect(find.text('CSI: Crime Scene Investigation'), findsOneWidget);
-      expect(find.text('Show'), findsOneWidget);
-      expect(find.text('2000'), findsOneWidget);
-      expect(find.text('•'), findsOneWidget);
+      expect(find.text('Show  •  2000'), findsOneWidget);
 
       expect(
         find.byKey(const ValueKey<String>('search-result-title-show-1431')),
@@ -31,8 +29,7 @@ void main() {
       await _pumpResultRow(tester, result: _duneResult);
 
       expect(find.text('Dune'), findsOneWidget);
-      expect(find.text('Movie'), findsOneWidget);
-      expect(find.text('2021'), findsOneWidget);
+      expect(find.text('Movie  •  2021'), findsOneWidget);
     });
 
     testWidgets('omits the release year separator when year is unavailable', (
@@ -305,6 +302,174 @@ void main() {
 
     expect(ratio.aspectRatio, equals(2 / 3));
   });
+  testWidgets('shows Watchlist and watched actions for a Movie', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(
+      tester,
+      result: _duneResult,
+      onActionPressed: () {},
+      onWatchedPressed: () {},
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('search-result-action-movie-438631')),
+      findsOneWidget,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('search-result-watched-movie-438631')),
+      findsOneWidget,
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey<String>('search-result-action-add-movie-438631'),
+      ),
+      findsOneWidget,
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey<String>('search-result-mark-watched-movie-438631'),
+      ),
+      findsOneWidget,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('search-result-action-movie-438631')),
+      findsOneWidget,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('search-result-watched-movie-438631')),
+      findsOneWidget,
+    );
+  });
+  testWidgets('does not show watched action for a Show', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(tester, result: _csiResult, onActionPressed: () {});
+
+    expect(
+      find.byKey(const ValueKey<String>('search-result-action-show-1431')),
+      findsOneWidget,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('search-result-watched-show-1431')),
+      findsNothing,
+    );
+
+    expect(find.text('Mark as watched'), findsNothing);
+  });
+  testWidgets('shows completed watched state and disables the action', (
+    WidgetTester tester,
+  ) async {
+    final SemanticsHandle semantics = tester.ensureSemantics();
+
+    int watchedPressCount = 0;
+
+    await _pumpResultRow(
+      tester,
+      result: _duneResult,
+      watched: true,
+      onWatchedPressed: () {
+        watchedPressCount++;
+      },
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey<String>('search-result-watched-complete-movie-438631'),
+      ),
+      findsOneWidget,
+    );
+
+    expect(find.bySemanticsLabel('Dune has been watched'), findsOneWidget);
+
+    final IconButton button = tester.widget<IconButton>(
+      find.byKey(const ValueKey<String>('search-result-watched-movie-438631')),
+    );
+
+    expect(button.onPressed, isNull);
+    expect(watchedPressCount, 0);
+    semantics.dispose();
+  });
+  testWidgets('shows watched loading independently from Watchlist action', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(
+      tester,
+      result: _duneResult,
+      watchedLoading: true,
+      onActionPressed: () {},
+      onWatchedPressed: () {},
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey<String>('search-result-watched-loading-movie-438631'),
+      ),
+      findsOneWidget,
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey<String>('search-result-action-add-movie-438631'),
+      ),
+      findsOneWidget,
+    );
+  });
+  testWidgets('shows Watchlist loading independently from watched action', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(
+      tester,
+      result: _duneResult,
+      actionLoading: true,
+      onActionPressed: () {},
+      onWatchedPressed: () {},
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey<String>('search-result-action-loading-movie-438631'),
+      ),
+      findsOneWidget,
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey<String>('search-result-mark-watched-movie-438631'),
+      ),
+      findsOneWidget,
+    );
+  });
+  testWidgets('shows both Movie actions in compact layout', (
+    WidgetTester tester,
+  ) async {
+    await _pumpResultRow(
+      tester,
+      result: _duneResult,
+      compact: true,
+      onActionPressed: () {},
+      onWatchedPressed: () {},
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('search-result-action-movie-438631')),
+      findsOneWidget,
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('search-result-watched-movie-438631')),
+      findsOneWidget,
+    );
+
+    expect(find.byIcon(Icons.add_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.visibility_rounded), findsOneWidget);
+  });
 }
 
 Future<void> _pumpResultRow(
@@ -315,6 +480,9 @@ Future<void> _pumpResultRow(
   bool compact = false,
   bool actionLoading = false,
   bool actionAdded = false,
+  VoidCallback? onWatchedPressed,
+  bool watchedLoading = false,
+  bool watched = false,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -328,6 +496,9 @@ Future<void> _pumpResultRow(
             actionAdded: actionAdded,
             onPressed: onPressed ?? () {},
             onActionPressed: onActionPressed,
+            onWatchedPressed: onWatchedPressed,
+            watchedLoading: watchedLoading,
+            watched: watched,
           ),
         ),
       ),
