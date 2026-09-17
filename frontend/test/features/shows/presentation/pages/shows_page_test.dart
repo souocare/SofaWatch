@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
 import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/domain/models/library_first_episode.dart';
@@ -24,12 +25,25 @@ import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
 import 'package:sofawatch/features/shows/presentation/pages/shows_page.dart';
 
+ShowsCubit _createShowsCubit({
+  required ShowsRepository repository,
+  ViewingStateChangeNotifier? viewingStateChangeNotifier,
+  DateTime Function()? now,
+}) {
+  return ShowsCubit(
+    repository: repository,
+    viewingStateChangeNotifier:
+        viewingStateChangeNotifier ?? ViewingStateChangeNotifier(),
+    now: now,
+  );
+}
+
 void main() {
   group('ShowsPage', () {
     testWidgets('shows Watch List and Upcoming tabs', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           watchNext: <WatchNextShow>[_watchNextShow],
@@ -65,7 +79,7 @@ void main() {
     });
 
     testWidgets('opens Watch List by default', (WidgetTester tester) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           watchNext: <WatchNextShow>[_watchNextShow],
@@ -139,7 +153,7 @@ void main() {
     testWidgets('switches from Watch List to Upcoming', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           watchNext: <WatchNextShow>[_watchNextShow],
@@ -177,7 +191,7 @@ void main() {
     testWidgets('switches back from Upcoming to Watch List', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           watchNext: <WatchNextShow>[_watchNextShow],
@@ -231,7 +245,7 @@ void main() {
     testWidgets('shows Watch Next empty state when no Episode is available', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: const _FakeShowsRepository(
           shows: <LibraryShow>[],
           watchNext: <WatchNextShow>[],
@@ -262,7 +276,7 @@ void main() {
     testWidgets('preserves selected tab while Details is pushed and popped', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           watchNext: <WatchNextShow>[_watchNextShow],
@@ -341,7 +355,7 @@ void main() {
       final _WatchNextFailureRepository repository =
           _WatchNextFailureRepository(shows: <LibraryShow>[_show]);
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       addTearDown(cubit.close);
 
@@ -373,7 +387,7 @@ void main() {
         shows: <LibraryShow>[_show],
       );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       addTearDown(cubit.close);
 
@@ -420,7 +434,7 @@ void main() {
     testWidgets('shows loading state', (WidgetTester tester) async {
       final _PendingShowsRepository repository = _PendingShowsRepository();
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       addTearDown(cubit.close);
 
@@ -448,7 +462,7 @@ void main() {
     testWidgets('renders Haven\'t Watched in a While section', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           staleWatching: <StaleWatchingShow>[_staleWatchingShow],
@@ -534,7 +548,7 @@ void main() {
         ),
       );
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           watchNext: <WatchNextShow>[_watchNextShow],
@@ -566,7 +580,7 @@ void main() {
     testWidgets('opens Show Details from stale Watching', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           staleWatching: <StaleWatchingShow>[_staleWatchingShow],
@@ -606,7 +620,7 @@ void main() {
     testWidgets(
       'opens Episode Details from Watch Next without triggering Show Details',
       (WidgetTester tester) async {
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: _FakeShowsRepository(
             shows: <LibraryShow>[_show],
             watchNext: <WatchNextShow>[_watchNextShow],
@@ -651,7 +665,7 @@ void main() {
     testWidgets('shows stale Watching failure without breaking Watch Next', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _StaleWatchingFailureRepository(
           shows: <LibraryShow>[_show],
           watchNext: <WatchNextShow>[_watchNextShow],
@@ -708,7 +722,7 @@ void main() {
             watchNext: <WatchNextShow>[_watchNextShow],
           );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       addTearDown(cubit.close);
 
@@ -778,7 +792,7 @@ void main() {
     testWidgets('shows stale Watching empty state', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: const _FakeShowsRepository(
           shows: <LibraryShow>[],
           watchNext: <WatchNextShow>[],
@@ -830,7 +844,7 @@ void main() {
         ),
       );
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show, planningShow],
           watchNext: <WatchNextShow>[_watchNextShow],
@@ -916,7 +930,7 @@ void main() {
         final _PendingStartShowRepository repository =
             _PendingStartShowRepository(planningShow: planningShow);
 
-        final ShowsCubit cubit = ShowsCubit(repository: repository);
+        final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
         addTearDown(cubit.close);
 
@@ -994,7 +1008,7 @@ void main() {
       final _SuccessfulStartShowRepository repository =
           _SuccessfulStartShowRepository(planningShow: planningShow);
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       addTearDown(cubit.close);
 
@@ -1061,7 +1075,7 @@ void main() {
       final _FailingStartShowRepository repository =
           _FailingStartShowRepository(planningShow: planningShow);
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       addTearDown(cubit.close);
 
@@ -1095,7 +1109,7 @@ void main() {
     testWidgets('shows Haven\'t Started empty state without planning Shows', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           watchNext: <WatchNextShow>[_watchNextShow],
@@ -1156,7 +1170,7 @@ void main() {
         updatedAt: DateTime.utc(2026, 8, 10),
       );
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show, planningShow, completedShow],
           watchNext: <WatchNextShow>[_watchNextShow],
@@ -1214,7 +1228,7 @@ void main() {
         updatedAt: DateTime.utc(2026, 8, 10),
       );
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show, planningShow],
           watchNext: <WatchNextShow>[_watchNextShow],
@@ -1259,7 +1273,7 @@ void main() {
         watchNext: <WatchNextShow>[_watchNextShow],
       );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       addTearDown(cubit.close);
 
@@ -1301,7 +1315,7 @@ void main() {
             watchNext: <WatchNextShow>[_watchNextShow],
           );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       addTearDown(cubit.close);
 
@@ -1358,7 +1372,7 @@ void main() {
             watchNext: <WatchNextShow>[_watchNextShow],
           );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       addTearDown(cubit.close);
 
@@ -1412,7 +1426,7 @@ void main() {
           updatedAt: DateTime.utc(2026, 8, 10),
         );
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: _FakeShowsRepository(shows: <LibraryShow>[planningShow]),
         );
 
@@ -1449,7 +1463,7 @@ void main() {
         final _ScrollableUpcomingRepository repository =
             _ScrollableUpcomingRepository();
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -1529,7 +1543,7 @@ void main() {
         final _PendingEarlierUpcomingRepository repository =
             _PendingEarlierUpcomingRepository();
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -1629,7 +1643,7 @@ void main() {
         final _FailingEarlierUpcomingPageRepository repository =
             _FailingEarlierUpcomingPageRepository();
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -1724,7 +1738,7 @@ void main() {
         final _ScrollableUpcomingRepository repository =
             _ScrollableUpcomingRepository();
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -1790,7 +1804,7 @@ void main() {
     testWidgets(
       'opens Upcoming anchored at Today even when no episode airs today',
       (WidgetTester tester) async {
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: _FakeShowsRepository(
             shows: <LibraryShow>[_show],
             upcoming: <UpcomingItem>[
@@ -1845,7 +1859,7 @@ void main() {
     testWidgets('groups Upcoming episodes into Today and Tomorrow', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           upcoming: <UpcomingItem>[
@@ -1903,7 +1917,7 @@ void main() {
     testWidgets(
       'shows dated groups and countdown for episodes within seven days',
       (WidgetTester tester) async {
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: _FakeShowsRepository(
             shows: <LibraryShow>[_show],
             upcoming: <UpcomingItem>[
@@ -1958,7 +1972,7 @@ void main() {
     testWidgets('groups episodes beyond seven days under Later', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           upcoming: <UpcomingItem>[
@@ -2014,7 +2028,7 @@ void main() {
     testWidgets('keeps previously aired Upcoming dates above Today', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           upcoming: <UpcomingItem>[
@@ -2074,7 +2088,7 @@ void main() {
     testWidgets(
       'enables Mark Watched for a previously aired Upcoming Episode',
       (WidgetTester tester) async {
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: _FakeShowsRepository(
             shows: <LibraryShow>[_show],
             upcoming: <UpcomingItem>[
@@ -2165,7 +2179,7 @@ void main() {
     testWidgets(
       'renders a watched Upcoming Episode as completed and disables the action',
       (WidgetTester tester) async {
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: _FakeShowsRepository(
             shows: <LibraryShow>[_show],
             upcoming: <UpcomingItem>[
@@ -2252,7 +2266,7 @@ void main() {
     testWidgets('enables Mark Watched for an Upcoming Episode airing Today', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           upcoming: <UpcomingItem>[
@@ -2299,7 +2313,7 @@ void main() {
     testWidgets('disables Mark Watched for a future Upcoming Episode', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           upcoming: <UpcomingItem>[
@@ -2346,7 +2360,7 @@ void main() {
         final _PendingUpcomingWatchRepository repository =
             _PendingUpcomingWatchRepository();
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -2419,7 +2433,7 @@ void main() {
     testWidgets('shows caught up Watching Show in Up to Date section', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(shows: <LibraryShow>[_upToDateShow]),
       );
 
@@ -2467,7 +2481,7 @@ void main() {
     testWidgets('hides Up to Date section when no Show is caught up', (
       WidgetTester tester,
     ) async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(shows: <LibraryShow>[_show]),
       );
 
@@ -2490,7 +2504,7 @@ void main() {
         final _FailingUpcomingWatchRepository repository =
             _FailingUpcomingWatchRepository();
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -2570,7 +2584,7 @@ void main() {
         await tester.binding.setSurfaceSize(null);
       });
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(shows: <LibraryShow>[_show]),
       );
 
@@ -2600,7 +2614,7 @@ void main() {
         size: const Size(AppBreakpoints.desktop + 100, 1000),
       );
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(shows: <LibraryShow>[_show]),
       );
 
@@ -2635,7 +2649,7 @@ void main() {
       final _PendingRefreshShowsRepository repository =
           _PendingRefreshShowsRepository();
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: repository,
         now: () => DateTime(2026, 8, 15, 12),
       );
@@ -2706,7 +2720,7 @@ void main() {
       final _PendingRefreshShowsRepository repository =
           _PendingRefreshShowsRepository();
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: repository,
         now: () => DateTime(2026, 8, 15, 12),
       );
@@ -2771,7 +2785,7 @@ void main() {
     testWidgets(
       'opens Episode Details from Watch Next without changing card navigation',
       (WidgetTester tester) async {
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: _FakeShowsRepository(
             shows: <LibraryShow>[_show],
             watchNext: <WatchNextShow>[_watchNextShow],
@@ -2826,7 +2840,7 @@ void main() {
           staleWatching: <StaleWatchingShow>[_staleWatchingShow],
         );
 
-        final ShowsCubit cubit = ShowsCubit(repository: repository);
+        final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
         addTearDown(cubit.close);
 
@@ -2955,7 +2969,7 @@ void main() {
           upcoming: upcoming,
         );
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -3082,7 +3096,7 @@ void main() {
     ) async {
       _setTestViewport(tester, size: const Size(390, 844));
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           watchNext: <WatchNextShow>[_watchNextShow],
@@ -3124,7 +3138,7 @@ void main() {
     ) async {
       _setTestViewport(tester, size: const Size(390, 844));
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           upcoming: <UpcomingItem>[
@@ -3195,7 +3209,7 @@ void main() {
         ),
       );
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           watchNext: <WatchNextShow>[longContentShow],
@@ -3244,7 +3258,7 @@ void main() {
         ),
       );
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(shows: <LibraryShow>[planningShow]),
       );
 
@@ -3271,7 +3285,7 @@ void main() {
     ) async {
       _setTestViewport(tester, size: const Size(1920, 1080));
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           watchNext: <WatchNextShow>[_watchNextShow],
@@ -3316,7 +3330,7 @@ void main() {
     ) async {
       _setTestViewport(tester, size: const Size(1920, 1080));
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           upcoming: <UpcomingItem>[
@@ -3400,7 +3414,7 @@ void main() {
             );
           });
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[_show],
           staleWatching: staleShows,
@@ -3460,7 +3474,7 @@ void main() {
           (int index) => _makeHaventStartedShow(index: index + 1),
         );
 
-        final ShowsCubit cubitWithFive = ShowsCubit(
+        final ShowsCubit cubitWithFive = _createShowsCubit(
           repository: _FakeShowsRepository(shows: fiveShows),
         );
 
@@ -3484,7 +3498,7 @@ void main() {
           (int index) => _makeHaventStartedShow(index: index + 1),
         );
 
-        final ShowsCubit cubitWithSix = ShowsCubit(
+        final ShowsCubit cubitWithSix = _createShowsCubit(
           repository: _FakeShowsRepository(shows: sixShows),
         );
 
@@ -3510,7 +3524,7 @@ void main() {
           (int index) => _makeHaventStartedShow(index: index + 1),
         );
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: _FakeShowsRepository(shows: shows),
         );
 

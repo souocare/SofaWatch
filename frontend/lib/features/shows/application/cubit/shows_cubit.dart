@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_state.dart';
 import 'package:sofawatch/features/shows/domain/models/library_show.dart';
 import 'package:sofawatch/features/shows/domain/models/stale_watching_show.dart';
@@ -10,11 +11,15 @@ import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
 
 final class ShowsCubit extends Cubit<ShowsState> {
-  ShowsCubit({required this.repository, DateTime Function()? now})
-    : _now = now ?? DateTime.now,
-      super(const ShowsState());
+  ShowsCubit({
+    required this.repository,
+    required this._viewingStateChangeNotifier,
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now,
+       super(const ShowsState());
 
   final ShowsRepository repository;
+  final ViewingStateChangeNotifier _viewingStateChangeNotifier;
   final DateTime Function() _now;
 
   static const int _initialUpcomingPastDays = 7;
@@ -618,18 +623,35 @@ final class ShowsCubit extends Cubit<ShowsState> {
       }
 
       /*
-     * Episode progress is owned by the backend.
-     *
-     * Watching an Episode from Upcoming may affect:
-     *
-     * - Upcoming itself;
-     * - Watch Next;
-     * - stale Watching;
-     * - Watch History, when it has already been loaded.
-     *
-     * Reload those collections instead of deriving their new state
-     * optimistically in the client.
-     */
+      * The viewing mutation has already been persisted by the backend.
+      *
+      * Announce it before performing local read-back requests so independently
+      * scoped consumers can refresh even if one of the Shows-owned refreshes
+      * below later fails.
+      */
+      _viewingStateChangeNotifier.notifyChanged();
+
+      /*
+      * Episode progress is owned by the backend.
+      *
+      * Watching an Episode from Upcoming may affect:
+      *
+      * - Library progress and therefore Up to Date;
+      * - Upcoming itself;
+      * - Watch Next;
+      * - stale Watching;
+      * - Watch History, when it has already been loaded.
+      *
+      * Reload those server-owned projections instead of deriving their new state
+      * optimistically in the client.
+      */
+      final List<LibraryShow> libraryShows = await repository.getLibraryShows();
+
+      if (isClosed) {
+        return;
+      }
+
+      emit(state.copyWith(libraryShows: libraryShows, referenceDate: _today()));
 
       await _loadWatchNext();
 

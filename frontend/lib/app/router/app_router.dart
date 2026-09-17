@@ -488,6 +488,8 @@ GoRouter createAppRouter({
                         repository: ApiShowsRepository(
                           context.read<ApiClient>(),
                         ),
+                        viewingStateChangeNotifier: context
+                            .read<ViewingStateChangeNotifier>(),
                       )..load();
                     },
                     child: ShowsPage(

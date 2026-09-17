@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sofawatch/core/errors/app_exception.dart';
+import 'package:sofawatch/core/viewing/viewing_state_change_notifier.dart';
 import 'package:sofawatch/features/library/domain/models/library_status.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_cubit.dart';
 import 'package:sofawatch/features/shows/application/cubit/shows_state.dart';
@@ -19,10 +20,25 @@ import 'package:sofawatch/features/shows/domain/models/watch_next_progress.dart'
 import 'package:sofawatch/features/shows/domain/models/watch_next_show.dart';
 import 'package:sofawatch/features/shows/domain/repositories/shows_repository.dart';
 
+ShowsCubit _createShowsCubit({
+  required ShowsRepository repository,
+  ViewingStateChangeNotifier? viewingStateChangeNotifier,
+  DateTime Function()? now,
+}) {
+  return ShowsCubit(
+    repository: repository,
+    viewingStateChangeNotifier:
+        viewingStateChangeNotifier ?? ViewingStateChangeNotifier(),
+    now: now,
+  );
+}
+
 void main() {
   group('ShowsCubit', () {
     test('starts with an empty Shows state', () {
-      final ShowsCubit cubit = ShowsCubit(repository: _FakeShowsRepository());
+      final ShowsCubit cubit = _createShowsCubit(
+        repository: _FakeShowsRepository(),
+      );
 
       expect(cubit.state, const ShowsState());
       expect(cubit.state.hasLoadedUpcoming, isFalse);
@@ -48,7 +64,7 @@ void main() {
         upcoming: <UpcomingItem>[_upcomingItem()],
       );
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: repository,
         now: () => DateTime(2026, 8, 15, 12, 30),
       );
@@ -89,7 +105,9 @@ void main() {
     });
 
     test('supports empty Library and supplementary collections', () async {
-      final ShowsCubit cubit = ShowsCubit(repository: _FakeShowsRepository());
+      final ShowsCubit cubit = _createShowsCubit(
+        repository: _FakeShowsRepository(),
+      );
 
       await cubit.load();
 
@@ -116,7 +134,7 @@ void main() {
           libraryError: expectedError,
         );
 
-        final ShowsCubit cubit = ShowsCubit(repository: repository);
+        final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
         await cubit.load();
 
@@ -133,7 +151,7 @@ void main() {
     );
 
     test('maps unexpected Library errors to unknown failure', () async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           libraryUnexpectedError: StateError('boom'),
         ),
@@ -163,7 +181,7 @@ void main() {
           staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
         );
 
-        final ShowsCubit cubit = ShowsCubit(repository: repository);
+        final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
         await cubit.load();
 
@@ -187,7 +205,7 @@ void main() {
     test(
       'maps unexpected Watch Next errors without failing the page',
       () async {
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: _FakeShowsRepository(
             shows: <LibraryShow>[
               _libraryShow(
@@ -229,7 +247,7 @@ void main() {
           staleWatchingError: expectedError,
         );
 
-        final ShowsCubit cubit = ShowsCubit(repository: repository);
+        final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
         await cubit.load();
 
@@ -248,7 +266,7 @@ void main() {
     test(
       'maps unexpected stale Watching errors without failing the page',
       () async {
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: _FakeShowsRepository(
             shows: <LibraryShow>[
               _libraryShow(
@@ -287,7 +305,7 @@ void main() {
         upcoming: <UpcomingItem>[_upcomingItem()],
       );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       await cubit.load();
 
@@ -319,7 +337,7 @@ void main() {
         staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
       );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       await cubit.load();
 
@@ -349,7 +367,7 @@ void main() {
         staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
       );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       await cubit.load();
 
@@ -366,7 +384,7 @@ void main() {
       await cubit.close();
     });
     test('excludes future planning Shows from Haven\'t Started', () async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[
             _libraryShow(
@@ -405,7 +423,7 @@ void main() {
     test(
       'includes a planning Show premiering today in Haven\'t Started',
       () async {
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: _FakeShowsRepository(
             shows: <LibraryShow>[
               _libraryShow(
@@ -431,7 +449,7 @@ void main() {
     test(
       'keeps planning Shows without first air date in Haven\'t Started',
       () async {
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: _FakeShowsRepository(
             shows: <LibraryShow>[
               _libraryShow(
@@ -455,7 +473,7 @@ void main() {
     );
 
     test('Haven\'t Started is empty without planning Shows', () async {
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: _FakeShowsRepository(
           shows: <LibraryShow>[
             _libraryShow(
@@ -492,7 +510,7 @@ void main() {
         ],
       );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       await cubit.loadWatchHistory();
 
@@ -540,7 +558,7 @@ void main() {
         ],
       );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       await cubit.loadWatchHistory();
       await cubit.loadMoreWatchHistory();
@@ -582,7 +600,7 @@ void main() {
         ],
       );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       await cubit.loadWatchHistory();
 
@@ -620,7 +638,7 @@ void main() {
         watchHistoryErrors: <AppException?>[null, expectedError],
       );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       await cubit.loadWatchHistory();
       await cubit.loadMoreWatchHistory();
@@ -648,7 +666,7 @@ void main() {
         watchHistoryUnexpectedErrors: <Object?>[StateError('boom')],
       );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       await cubit.loadWatchHistory();
 
@@ -665,7 +683,7 @@ void main() {
       final _PendingWatchHistoryRepository repository =
           _PendingWatchHistoryRepository();
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       final Future<void> firstLoad = cubit.loadWatchHistory();
 
@@ -706,7 +724,7 @@ void main() {
         final _PendingLoadMoreWatchHistoryRepository repository =
             _PendingLoadMoreWatchHistoryRepository();
 
-        final ShowsCubit cubit = ShowsCubit(repository: repository);
+        final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
         await cubit.loadWatchHistory();
 
@@ -785,7 +803,7 @@ void main() {
           ],
         );
 
-        final ShowsCubit cubit = ShowsCubit(repository: repository);
+        final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
         await cubit.loadWatchHistory();
 
@@ -851,7 +869,7 @@ void main() {
           staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
         );
 
-        final ShowsCubit cubit = ShowsCubit(repository: repository);
+        final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
         await cubit.load();
 
@@ -889,7 +907,7 @@ void main() {
           staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
         );
 
-        final ShowsCubit cubit = ShowsCubit(repository: repository);
+        final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
         await cubit.load();
 
@@ -931,7 +949,7 @@ void main() {
           markEpisodeWatchedError: expectedError,
         );
 
-        final ShowsCubit cubit = ShowsCubit(repository: repository);
+        final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
         await cubit.load();
 
@@ -969,7 +987,7 @@ void main() {
           markEpisodeWatchedUnexpectedError: StateError('boom'),
         );
 
-        final ShowsCubit cubit = ShowsCubit(repository: repository);
+        final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
         await cubit.load();
 
@@ -998,7 +1016,7 @@ void main() {
           markEpisodeWatchedError: expectedError,
         );
 
-        final ShowsCubit cubit = ShowsCubit(repository: repository);
+        final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
         await cubit.load();
 
@@ -1036,7 +1054,7 @@ void main() {
           markEpisodeWatchedUnexpectedError: StateError('boom'),
         );
 
-        final ShowsCubit cubit = ShowsCubit(repository: repository);
+        final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
         await cubit.load();
 
@@ -1058,7 +1076,7 @@ void main() {
         final _ChangingWatchNextRepository repository =
             _ChangingWatchNextRepository();
 
-        final ShowsCubit cubit = ShowsCubit(repository: repository);
+        final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
         await cubit.load();
 
@@ -1114,7 +1132,7 @@ void main() {
         final _CompletedWatchNextRepository repository =
             _CompletedWatchNextRepository();
 
-        final ShowsCubit cubit = ShowsCubit(repository: repository);
+        final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
         await cubit.load();
 
@@ -1161,7 +1179,7 @@ void main() {
           staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
         );
 
-        final ShowsCubit cubit = ShowsCubit(repository: repository);
+        final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
         await cubit.load();
 
@@ -1218,7 +1236,7 @@ void main() {
         startShowError: expectedError,
       );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       await cubit.load();
 
@@ -1246,7 +1264,7 @@ void main() {
         startShowUnexpectedError: StateError('boom'),
       );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       await cubit.startShow(showId: 'show-1396');
 
@@ -1272,7 +1290,7 @@ void main() {
         upcomingError: expectedError,
       );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       await cubit.load();
 
@@ -1301,7 +1319,7 @@ void main() {
         upcomingUnexpectedError: StateError('boom'),
       );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       await cubit.load();
 
@@ -1328,7 +1346,7 @@ void main() {
         upcoming: <UpcomingItem>[_upcomingItem()],
       );
 
-      final ShowsCubit cubit = ShowsCubit(repository: repository);
+      final ShowsCubit cubit = _createShowsCubit(repository: repository);
 
       await cubit.load();
 
@@ -1353,7 +1371,7 @@ void main() {
           upcoming: <UpcomingItem>[_upcomingItem()],
         );
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 23, 59, 45),
         );
@@ -1380,7 +1398,7 @@ void main() {
         final _RetryInitialUpcomingRepository repository =
             _RetryInitialUpcomingRepository();
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -1415,7 +1433,7 @@ void main() {
         final _EarlierUpcomingRepository repository =
             _EarlierUpcomingRepository();
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -1460,7 +1478,7 @@ void main() {
         final _OverlappingEarlierUpcomingRepository repository =
             _OverlappingEarlierUpcomingRepository();
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -1486,7 +1504,7 @@ void main() {
         final _FailingEarlierUpcomingRepository repository =
             _FailingEarlierUpcomingRepository();
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -1525,7 +1543,7 @@ void main() {
         upcoming: <UpcomingItem>[_upcomingItem()],
       );
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: repository,
         now: () => DateTime(2026, 8, 15, 12),
       );
@@ -1563,7 +1581,35 @@ void main() {
     test(
       'marks an Upcoming Episode as watched and refreshes affected collections',
       () async {
+        final LibraryShow beforeWatching = _libraryShow(
+          tmdbId: 95396,
+          title: 'Severance',
+          status: LibraryStatus.watching,
+          progress: const LibraryShowProgress(
+            watchedEpisodes: 9,
+            airedEpisodes: 10,
+            percentage: 90,
+            caughtUp: false,
+          ),
+        );
+
+        final LibraryShow afterWatching = _libraryShow(
+          tmdbId: 95396,
+          title: 'Severance',
+          status: LibraryStatus.watching,
+          progress: const LibraryShowProgress(
+            watchedEpisodes: 10,
+            airedEpisodes: 10,
+            percentage: 100,
+            caughtUp: true,
+          ),
+        );
+
         final _FakeShowsRepository repository = _FakeShowsRepository(
+          libraryResponses: <List<LibraryShow>>[
+            <LibraryShow>[beforeWatching],
+            <LibraryShow>[afterWatching],
+          ],
           upcoming: <UpcomingItem>[
             _upcomingItem(
               episodeId: 'upcoming-past',
@@ -1574,12 +1620,29 @@ void main() {
           staleWatching: <StaleWatchingShow>[_staleWatchingShow()],
         );
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ViewingStateChangeNotifier viewingStateChangeNotifier =
+            ViewingStateChangeNotifier();
+
+        int viewingStateChanges = 0;
+
+        final StreamSubscription<void> subscription = viewingStateChangeNotifier
+            .changes
+            .listen((_) {
+              viewingStateChanges++;
+            });
+
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
+          viewingStateChangeNotifier: viewingStateChangeNotifier,
           now: () => DateTime(2026, 8, 15, 12),
         );
 
         await cubit.load();
+
+        expect(repository.libraryCalls, 1);
+        expect(cubit.state.libraryShows.single.progress.percentage, 90);
+        expect(cubit.state.libraryShows.single.progress.caughtUp, isFalse);
+        expect(cubit.state.upToDate, isEmpty);
 
         expect(repository.upcomingCalls, 1);
         expect(repository.watchNextCalls, 1);
@@ -1589,6 +1652,27 @@ void main() {
 
         expect(repository.markEpisodeWatchedCalls, 1);
         expect(repository.markedEpisodeIds, <String>['upcoming-past']);
+
+        expect(
+          viewingStateChanges,
+          1,
+          reason:
+              'A successful viewing mutation must invalidate independently '
+              'scoped viewing consumers exactly once.',
+        );
+
+        expect(
+          repository.libraryCalls,
+          2,
+          reason:
+              'Library progress must be read back from the backend after '
+              'watching an Upcoming Episode.',
+        );
+
+        expect(cubit.state.libraryShows.single.progress.percentage, 100);
+        expect(cubit.state.libraryShows.single.progress.caughtUp, isTrue);
+        expect(cubit.state.upToDate, hasLength(1));
+        expect(cubit.state.upToDate.single.showId, afterWatching.showId);
 
         expect(
           repository.watchNextCalls,
@@ -1611,7 +1695,9 @@ void main() {
         expect(cubit.state.updatingUpcomingEpisodeId, isNull);
         expect(cubit.state.upcomingOperationError, isNull);
 
+        await subscription.cancel();
         await cubit.close();
+        await viewingStateChangeNotifier.dispose();
       },
     );
 
@@ -1630,8 +1716,20 @@ void main() {
           markEpisodeWatchedError: expectedError,
         );
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ViewingStateChangeNotifier viewingStateChangeNotifier =
+            ViewingStateChangeNotifier();
+
+        int viewingStateChanges = 0;
+
+        final StreamSubscription<void> subscription = viewingStateChangeNotifier
+            .changes
+            .listen((_) {
+              viewingStateChanges++;
+            });
+
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
+          viewingStateChangeNotifier: viewingStateChangeNotifier,
           now: () => DateTime(2026, 8, 15, 12),
         );
 
@@ -1661,10 +1759,26 @@ void main() {
           reason: 'A failed mutation must not refresh stale Watching.',
         );
 
+        expect(
+          viewingStateChanges,
+          0,
+          reason:
+              'A failed viewing mutation must not invalidate viewing consumers.',
+        );
+
+        expect(
+          repository.libraryCalls,
+          1,
+          reason: 'A failed mutation must not refresh Library progress.',
+        );
+
         expect(cubit.state.upcoming, before);
         expect(cubit.state.updatingUpcomingEpisodeId, isNull);
         expect(cubit.state.upcomingOperationError, expectedError);
 
+        await subscription.cancel();
+        await cubit.close();
+        await viewingStateChangeNotifier.dispose();
         await cubit.close();
       },
     );
@@ -1682,7 +1796,7 @@ void main() {
           markEpisodeWatchedUnexpectedError: StateError('boom'),
         );
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -1732,7 +1846,7 @@ void main() {
           ],
         );
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -1857,7 +1971,7 @@ void main() {
         final _PendingRefreshRepository repository =
             _PendingRefreshRepository();
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -1894,7 +2008,7 @@ void main() {
       final _ChangingRefreshRepository repository =
           _ChangingRefreshRepository();
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: repository,
         now: () => DateTime(2026, 8, 15, 12),
       );
@@ -1928,7 +2042,7 @@ void main() {
       () async {
         final _FakeShowsRepository repository = _FakeShowsRepository();
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -1979,7 +2093,7 @@ void main() {
         ],
       );
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: repository,
         now: () => DateTime(2026, 8, 15, 12),
       );
@@ -2003,7 +2117,7 @@ void main() {
       final _EarlierUpcomingRepository repository =
           _EarlierUpcomingRepository();
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: repository,
         now: () => DateTime(2026, 8, 15, 12),
       );
@@ -2039,7 +2153,7 @@ void main() {
     test('ignores a second refresh while one is already running', () async {
       final _PendingRefreshRepository repository = _PendingRefreshRepository();
 
-      final ShowsCubit cubit = ShowsCubit(
+      final ShowsCubit cubit = _createShowsCubit(
         repository: repository,
         now: () => DateTime(2026, 8, 15, 12),
       );
@@ -2076,7 +2190,7 @@ void main() {
         final _FailingLibraryRefreshRepository repository =
             _FailingLibraryRefreshRepository();
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -2118,7 +2232,7 @@ void main() {
         final _PartialRefreshFailureRepository repository =
             _PartialRefreshFailureRepository();
 
-        final ShowsCubit cubit = ShowsCubit(
+        final ShowsCubit cubit = _createShowsCubit(
           repository: repository,
           now: () => DateTime(2026, 8, 15, 12),
         );
@@ -2147,6 +2261,73 @@ void main() {
         await cubit.close();
       },
     );
+    test(
+      'notifies viewing consumers when Upcoming watch persists before Library refresh fails',
+      () async {
+        final _FakeShowsRepository repository = _FakeShowsRepository(
+          shows: <LibraryShow>[
+            _libraryShow(
+              tmdbId: 95396,
+              title: 'Severance',
+              status: LibraryStatus.watching,
+            ),
+          ],
+          libraryErrors: const <AppException?>[null, AppException.connection()],
+          upcoming: <UpcomingItem>[
+            _upcomingItem(
+              episodeId: 'upcoming-past',
+              airDate: DateTime(2026, 8, 14),
+            ),
+          ],
+        );
+
+        final ViewingStateChangeNotifier viewingStateChangeNotifier =
+            ViewingStateChangeNotifier();
+
+        int viewingStateChanges = 0;
+
+        final StreamSubscription<void> subscription = viewingStateChangeNotifier
+            .changes
+            .listen((_) {
+              viewingStateChanges++;
+            });
+
+        final ShowsCubit cubit = _createShowsCubit(
+          repository: repository,
+          viewingStateChangeNotifier: viewingStateChangeNotifier,
+          now: () => DateTime(2026, 8, 15, 12),
+        );
+
+        await cubit.load();
+
+        expect(repository.libraryCalls, 1);
+        expect(viewingStateChanges, 0);
+
+        await cubit.markUpcomingEpisodeWatched(episodeId: 'upcoming-past');
+
+        expect(repository.markEpisodeWatchedCalls, 1);
+        expect(repository.libraryCalls, 2);
+
+        expect(
+          viewingStateChanges,
+          1,
+          reason:
+              'The viewing mutation was already persisted, so independently '
+              'scoped consumers must be invalidated even when a later local '
+              'read-back fails.',
+        );
+
+        expect(cubit.state.updatingUpcomingEpisodeId, isNull);
+        expect(
+          cubit.state.upcomingOperationError,
+          const AppException.connection(),
+        );
+
+        await subscription.cancel();
+        await cubit.close();
+        await viewingStateChangeNotifier.dispose();
+      },
+    );
   });
 }
 
@@ -2155,18 +2336,19 @@ LibraryShow _libraryShow({
   required String title,
   required LibraryStatus status,
   DateTime? firstAirDate,
+  LibraryShowProgress progress = const LibraryShowProgress(
+    watchedEpisodes: 0,
+    airedEpisodes: 0,
+    percentage: 0,
+    caughtUp: false,
+  ),
 }) {
   return LibraryShow(
     libraryEntryId: 'library-$tmdbId',
     showId: 'show-$tmdbId',
     tmdbId: tmdbId,
     firstAirDate: firstAirDate,
-    progress: const LibraryShowProgress(
-      watchedEpisodes: 0,
-      airedEpisodes: 0,
-      percentage: 0,
-      caughtUp: false,
-    ),
+    progress: progress,
     title: title,
     originalTitle: title,
     status: status,
@@ -2310,6 +2492,8 @@ UpcomingItem _upcomingItem({
 class _FakeShowsRepository implements ShowsRepository {
   _FakeShowsRepository({
     this.shows = const <LibraryShow>[],
+    this.libraryResponses = const <List<LibraryShow>>[],
+    this.libraryErrors = const <AppException?>[],
     this.watchNext = const <WatchNextShow>[],
     this.staleWatching = const <StaleWatchingShow>[],
     this.upcoming = const <UpcomingItem>[],
@@ -2333,6 +2517,8 @@ class _FakeShowsRepository implements ShowsRepository {
   final List<LibraryShow> shows;
   final List<WatchNextShow> watchNext;
   final List<StaleWatchingShow> staleWatching;
+  final List<List<LibraryShow>> libraryResponses;
+  final List<AppException?> libraryErrors;
 
   final AppException? libraryError;
   final Object? libraryUnexpectedError;
@@ -2380,6 +2566,15 @@ class _FakeShowsRepository implements ShowsRepository {
   @override
   Future<List<LibraryShow>> getLibraryShows() async {
     libraryCalls++;
+    final int callIndex = libraryCalls - 1;
+
+    if (callIndex < libraryErrors.length) {
+      final AppException? callError = libraryErrors[callIndex];
+
+      if (callError != null) {
+        throw callError;
+      }
+    }
 
     final AppException? appError = libraryError;
 
@@ -2391,6 +2586,16 @@ class _FakeShowsRepository implements ShowsRepository {
 
     if (unknownError != null) {
       throw unknownError;
+    }
+
+    if (libraryResponses.isNotEmpty) {
+      final int responseIndex = callIndex;
+
+      if (responseIndex < libraryResponses.length) {
+        return libraryResponses[responseIndex];
+      }
+
+      return libraryResponses.last;
     }
 
     return shows;
