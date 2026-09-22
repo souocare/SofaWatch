@@ -469,6 +469,7 @@ LibraryShow _show({
   required String title,
   required LibraryStatus status,
   required LibraryShowProgress progress,
+  bool isTerminal = false,
 }) {
   return LibraryShow(
     libraryEntryId: 'entry-$id',
@@ -478,6 +479,7 @@ LibraryShow _show({
     originalTitle: title,
     status: status,
     showStatus: 'Returning Series',
+    isTerminal: isTerminal,
     voteAverage: 8,
     createdAt: _createdAt,
     updatedAt: _updatedAt,

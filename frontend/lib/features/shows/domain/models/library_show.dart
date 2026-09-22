@@ -12,6 +12,7 @@ final class LibraryShow extends Equatable {
     required this.originalTitle,
     required this.status,
     required this.showStatus,
+    required this.isTerminal,
     required this.voteAverage,
     required this.createdAt,
     required this.updatedAt,
@@ -44,6 +45,10 @@ final class LibraryShow extends Equatable {
   /// (for example "Returning Series" or "Ended").
   final String showStatus;
 
+  /// SofaWatch lifecycle interpretation provided by the backend.
+
+  final bool isTerminal;
+
   final double voteAverage;
 
   /// User rating stored on the Library entry.
@@ -69,6 +74,7 @@ final class LibraryShow extends Equatable {
     backdropUrl,
     status,
     showStatus,
+    isTerminal,
     voteAverage,
     rating,
     startedAt,

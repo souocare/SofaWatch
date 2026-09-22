@@ -672,6 +672,7 @@ LibraryShow _show({
   required String title,
   required LibraryStatus status,
   required LibraryShowProgress progress,
+  bool isTerminal = false,
 }) {
   return LibraryShow(
     libraryEntryId: 'entry-$id',
@@ -685,6 +686,7 @@ LibraryShow _show({
     createdAt: _createdAt,
     updatedAt: _updatedAt,
     progress: progress,
+    isTerminal: isTerminal,
   );
 }
 

@@ -9,6 +9,7 @@ void main() {
       final LibraryShowDto dto = LibraryShowDto.fromJson(<String, dynamic>{
         'id': 'library-entry-uuid',
         'status': 'watching',
+        'is_terminal': false,
         'rating': 8.5,
         'started_at': '2026-08-01T20:00:00Z',
         'completed_at': null,
@@ -53,6 +54,7 @@ void main() {
 
       expect(show.status, LibraryStatus.watching);
       expect(show.showStatus, 'Returning Series');
+      expect(show.isTerminal, isFalse);
 
       expect(show.voteAverage, 8.4);
       expect(show.rating, 8.5);
@@ -70,6 +72,7 @@ void main() {
       final LibraryShow show = LibraryShowDto.fromJson(<String, dynamic>{
         'id': 'library-entry-uuid',
         'status': 'planning',
+        'is_terminal': false,
         'rating': null,
         'started_at': null,
         'completed_at': null,

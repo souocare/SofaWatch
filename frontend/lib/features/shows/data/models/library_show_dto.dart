@@ -13,6 +13,7 @@ final class LibraryShowDto {
     required this.originalTitle,
     required this.status,
     required this.showStatus,
+    required this.isTerminal,
     required this.voteAverage,
     required this.createdAt,
     required this.updatedAt,
@@ -48,6 +49,7 @@ final class LibraryShowDto {
       backdropUrl: _optionalString(show['backdrop_url']),
       status: _parseLibraryStatus(_requiredString(json, 'status')),
       showStatus: _requiredString(show, 'status'),
+      isTerminal: _requiredBool(json, 'is_terminal'),
       voteAverage: _requiredDouble(show, 'vote_average'),
       rating: _optionalDouble(json['rating']),
       startedAt: _optionalDateTime(json['started_at']),
@@ -92,6 +94,7 @@ final class LibraryShowDto {
 
   final LibraryStatus status;
   final String showStatus;
+  final bool isTerminal;
 
   final double voteAverage;
   final double? rating;
@@ -116,6 +119,7 @@ final class LibraryShowDto {
       backdropUrl: backdropUrl,
       status: status,
       showStatus: showStatus,
+      isTerminal: isTerminal,
       voteAverage: voteAverage,
       rating: rating,
       startedAt: startedAt,
@@ -180,6 +184,16 @@ String? _optionalString(Object? value) {
   final String normalized = value.trim();
 
   return normalized.isEmpty ? null : normalized;
+}
+
+bool _requiredBool(Map<String, dynamic> json, String key) {
+  final Object? value = json[key];
+
+  if (value is! bool) {
+    throw FormatException('Invalid $key.');
+  }
+
+  return value;
 }
 
 double? _optionalDouble(Object? value) {

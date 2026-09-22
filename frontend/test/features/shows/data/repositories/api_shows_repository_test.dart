@@ -30,6 +30,7 @@ void main() {
           <String, dynamic>{
             'id': 'library-entry-1',
             'status': 'watching',
+            'is_terminal': false,
             'rating': 9.0,
             'started_at': '2026-08-01T20:00:00Z',
             'completed_at': null,
@@ -59,6 +60,7 @@ void main() {
           <String, dynamic>{
             'id': 'library-entry-2',
             'status': 'planning',
+            'is_terminal': true,
             'rating': null,
             'started_at': null,
             'completed_at': null,

@@ -18,6 +18,7 @@ from app.schemas.library import (
     LibraryShowProgressResponse,
     LibraryShowResponse,
 )
+from app.services.show_lifecycle import is_terminal_show_status
 
 
 class InvalidManualShowStatusError(ValueError):
@@ -151,6 +152,7 @@ class LibraryService:
                     created_at=entry.created_at,
                     updated_at=entry.updated_at,
                     show=entry.show,
+                    is_terminal=is_terminal_show_status(entry.show.status),
                     first_available_episode=first_available_episode,
                     progress=LibraryShowProgressResponse(
                         watched_episodes=watched_episodes,

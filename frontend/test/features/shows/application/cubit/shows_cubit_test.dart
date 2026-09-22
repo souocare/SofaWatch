@@ -1880,6 +1880,7 @@ void main() {
             originalTitle: 'Caught Up',
             status: LibraryStatus.watching,
             showStatus: 'Returning Series',
+            isTerminal: false,
             voteAverage: 8,
             createdAt: DateTime.utc(2026, 8, 1),
             updatedAt: DateTime.utc(2026, 8, 10),
@@ -1899,6 +1900,7 @@ void main() {
             status: LibraryStatus.watching,
             showStatus: 'Returning Series',
             voteAverage: 8,
+            isTerminal: false,
             createdAt: DateTime.utc(2026, 8, 1),
             updatedAt: DateTime.utc(2026, 8, 10),
             progress: const LibraryShowProgress(
@@ -1917,6 +1919,7 @@ void main() {
             status: LibraryStatus.planning,
             showStatus: 'Returning Series',
             voteAverage: 8,
+            isTerminal: false,
             createdAt: DateTime.utc(2026, 8, 1),
             updatedAt: DateTime.utc(2026, 8, 10),
             progress: const LibraryShowProgress(
@@ -1935,6 +1938,7 @@ void main() {
             status: LibraryStatus.completed,
             showStatus: 'Ended',
             voteAverage: 8,
+            isTerminal: true,
             createdAt: DateTime.utc(2026, 8, 1),
             updatedAt: DateTime.utc(2026, 8, 10),
             progress: const LibraryShowProgress(
@@ -2336,6 +2340,7 @@ LibraryShow _libraryShow({
   required String title,
   required LibraryStatus status,
   DateTime? firstAirDate,
+  bool isTerminal = false,
   LibraryShowProgress progress = const LibraryShowProgress(
     watchedEpisodes: 0,
     airedEpisodes: 0,
@@ -2352,6 +2357,7 @@ LibraryShow _libraryShow({
     title: title,
     originalTitle: title,
     status: status,
+    isTerminal: isTerminal,
     showStatus: 'Returning Series',
     voteAverage: 8.0,
     createdAt: DateTime.utc(2026, 8, 1),

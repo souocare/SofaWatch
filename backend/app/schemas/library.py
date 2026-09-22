@@ -87,6 +87,7 @@ class LibraryShowResponse(BaseModel):
     updated_at: datetime
 
     show: ShowSummaryResponse
+    is_terminal: bool
 
     first_available_episode: LibraryFirstEpisodeResponse | None = None
 

@@ -26,6 +26,7 @@ from app.schemas.tmdb_show import (
 from app.services.genre_mapping import GenreMappingService
 from app.services.tmdb_season_details import TMDBSeasonDetailsService
 from app.services.tmdb_show_details import TMDBShowDetailsService
+from app.services.show_lifecycle import is_terminal_show_status
 
 
 class ShowSyncOutcome(StrEnum):
@@ -174,13 +175,7 @@ class ShowImportService:
     ) -> bool:
         """Return whether the show's metadata should be refreshed automatically."""
 
-        normalized_status = show.status.strip().lower() if show.status else ""
-
-        if normalized_status in {
-            "ended",
-            "canceled",
-            "cancelled",
-        }:
+        if is_terminal_show_status(show.status):
             return False
 
         if show.metadata_updated_at is None:

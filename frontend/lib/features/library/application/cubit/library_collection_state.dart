@@ -33,7 +33,8 @@ final class LibraryCollectionState extends Equatable {
     return shows
         .where(
           (LibraryShow show) =>
-              show.status == LibraryStatus.watching && !show.progress.caughtUp,
+              show.status == LibraryStatus.watching &&
+              (!show.progress.caughtUp || show.isTerminal),
         )
         .toList(growable: false);
   }
@@ -42,7 +43,9 @@ final class LibraryCollectionState extends Equatable {
     return shows
         .where(
           (LibraryShow show) =>
-              show.status == LibraryStatus.watching && show.progress.caughtUp,
+              show.status == LibraryStatus.watching &&
+              show.progress.caughtUp &&
+              !show.isTerminal,
         )
         .toList(growable: false);
   }

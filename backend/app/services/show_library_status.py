@@ -3,6 +3,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from app.services.show_lifecycle import is_terminal_show_status
 from app.models.enums import LibraryStatus
 from app.repositories.episode import EpisodeRepository
 from app.repositories.episode_progress import EpisodeProgressRepository
@@ -12,12 +13,6 @@ from app.repositories.show import ShowRepository
 
 class ShowLibraryStatusSynchronizer:
     """Synchronize derived Show Library status with viewing progress."""
-
-    _TERMINAL_PROVIDER_STATUSES = {
-        "ended",
-        "canceled",
-        "cancelled",
-    }
 
     def __init__(
         self,
@@ -68,13 +63,11 @@ class ShowLibraryStatusSynchronizer:
             show_id,
         )
 
-        provider_status = show.status.strip().lower()
-
         is_completed = (
             total_episodes > 0
             and watched_episodes == total_episodes
             and not show.in_production
-            and provider_status in self._TERMINAL_PROVIDER_STATUSES
+            and is_terminal_show_status(show.status)
         )
 
         if entry.started_at is None:
