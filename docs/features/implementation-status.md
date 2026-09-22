@@ -1,5 +1,11 @@
 # SofaWatch Implementation Status
 
+> **Audited and refreshed: 17 September 2026**
+>
+> This tracker has been reconciled with the current implementation and the
+> post-27-August development work. Historical test counts remain checkpoints,
+> not claims about the current suite size.
+
 This document is the detailed implementation tracker for SofaWatch.
 
 It records what is implemented, what is still pending, what has deliberately been deferred, and which ideas remain exploratory. It is intentionally more detailed than the project README files.
@@ -420,15 +426,23 @@ Maximum entries: 100
 
 ## 7.7 Search State Synchronization
 
-Deferred work:
+Current implementation:
 
-- [ ] Update Search result row after Library mutation without repeating Search
-- [ ] Preserve query
-- [ ] Preserve selected filter
-- [ ] Preserve pagination
-- [ ] Preserve scroll position
-- [ ] Ensure correct state when Search is reopened
-- [ ] Add corresponding tests
+- [x] Refresh relevant media state after returning from Show/Movie Details
+- [x] Preserve the active Search query while opening/closing Details
+- [x] Preserve selected filter while opening/closing Details
+- [x] Preserve existing result/pagination context instead of repeating the complete Search unnecessarily
+- [x] Search-side Movie actions update persisted Library/viewing state
+- [x] Search-side Show Library actions update persisted Library state
+- [x] Corresponding Search action/state regression coverage
+
+Remaining narrow edge case:
+
+- [ ] Fully synchronize removal when a result originally entered Search as `inLibrary == true` and is removed from Library inside Details
+- [ ] Ensure the row does not fall back to stale static `result.inLibrary` state after that reverse mutation
+- [ ] Add a focused regression test for the reverse-removal case
+
+Do not solve this by moving Library business rules into `SearchBloc`.
 
 ---
 
@@ -675,10 +689,10 @@ watched_at = newest event timestamp
 
 ## 14.3 Pending Upcoming Interactions
 
-- [ ] Allow marking an eligible historical/aired Episode as watched if still pending
-- [ ] Immediately update progress/Watch Next after that mutation
-- [ ] Block Mark Watched for Episodes that have not aired yet
-- [ ] Add corresponding tests
+- [x] Allow marking an eligible historical/aired Episode as watched if still pending
+- [x] Immediately update progress/Watch Next after that mutation
+- [x] Block Mark Watched for Episodes that have not aired yet
+- [x] Add corresponding tests
 
 ---
 
@@ -779,14 +793,28 @@ Business rules:
 - [x] Ended Show with unwatched Episodes can remain actionable
 - [x] Avoid inappropriate Watch Next / inactive duplication
 - [ ] Centralize provider/status variants such as `Ended`, `Canceled`, and `Cancelled`
+- [x] Automatically keep Show Library status consistent with canonical viewing progress where applicable
+- [x] Backend owns automatic Show Library status transitions; Flutter does not duplicate the rule
 
 A rigid DB enum is not required solely for normalization.
 
 ---
 
-# 17. Shows Refresh
+# 17. Shows Refresh and Cross-feature Invalidation
 
-A coordinated refresh should be able to update:
+Current implementation already refreshes affected server-derived state after viewing
+mutations and uses shared viewing-state invalidation where cross-feature consumers
+need to react.
+
+- [x] Episode/Season progress refreshed after viewing mutations
+- [x] Watch Next / Haven't Watched in a While refreshed where affected
+- [x] Watch History refreshed where loaded after relevant mutations
+- [x] Shared viewing-state change notification infrastructure exists
+- [x] Feature consumers remain responsible for reloading their own server-derived state
+
+A dedicated user-initiated coordinated Shows refresh is still incomplete.
+
+It should be able to update:
 
 - [ ] Library
 - [ ] Watch Next
@@ -797,18 +825,18 @@ A coordinated refresh should be able to update:
 
 Context to preserve:
 
-- [ ] Selected tab
-- [ ] Previous data while refreshing
-- [ ] Watch List scroll
-- [ ] Upcoming scroll
-- [ ] Loaded historical range
+- [x] Selected tab during ordinary feature navigation
+- [ ] Previous data while a full coordinated refresh is running
+- [ ] Watch List scroll during explicit refresh
+- [ ] Upcoming scroll during explicit refresh
+- [ ] Loaded historical range during explicit refresh
 
-Planned work:
+Remaining work:
 
-- [ ] Mobile refresh
-- [ ] Desktop refresh
+- [ ] Mobile explicit refresh
+- [ ] Desktop explicit refresh
 - [ ] Coordinated refresh orchestration
-- [ ] Context preservation tests
+- [ ] Context-preservation regression tests
 
 ---
 
@@ -864,7 +892,7 @@ Planned work:
 
 ## 19.3 Mobile Watchlist
 
-- [x] Three-column poster grid
+- [x] Responsive poster grid (two columns on narrow mobile widths; more columns as width allows)
 - [x] Consistent poster/card geometry
 - [x] Quick watched action on poster
 - [x] Quick watched action creates a real `MovieWatchEvent`
@@ -879,8 +907,8 @@ Planned work:
 - [x] Newest-first ordering
 - [x] Same Movie can appear multiple times
 - [x] Up to 18 events
-- [x] Six events per page
-- [x] Three columns x two rows
+- [x] Responsive events-per-page calculation
+- [x] Responsive column count with two History rows per page
 - [x] Horizontal swipe navigation
 - [x] Page indicator dots
 - [x] Poster
@@ -1150,7 +1178,7 @@ A failure in one section should not unnecessarily break another.
 - [x] Application-related sections
 - [x] Server administration
 - [x] Background Jobs
-- [x] Logs
+- [-] In-app Logs view intentionally removed; use runtime/container logging
 - [x] Import / Export
 - [x] Security
 - [x] Administrator-specific visibility
@@ -1637,20 +1665,20 @@ Not blockers for the current self-hosted single-worker model:
 
 ---
 
-# 40. Logs
+# 40. Logging
 
-- [x] Administrator-only access
-- [x] Backend authorization
-- [x] Independent UI from Server Health
-- [x] Timestamp
-- [x] Level
-- [x] Logger/source
-- [x] Safe message
-- [x] Level filtering
-- [x] Pagination/limit
-- [x] Refresh
-- [x] Independent loading/error state
-- [x] Sensitive information must not be exposed
+The previous Administrator in-app Logs experience was intentionally removed during
+the Server administration simplification.
+
+- [-] Administrator in-app Logs page
+- [-] Persisted application-log viewer
+- [x] Console/runtime application logging
+- [x] Container/process logs are the operational source for deployed runtime logs
+- [x] Sensitive credentials/secrets must not be logged
+- [>] Define production logging/retention guidance as part of the final self-hosting work
+
+Do not reintroduce an in-app Logs feature merely because older documentation or
+tests mention it.
 
 ---
 
@@ -1658,15 +1686,18 @@ Not blockers for the current self-hosted single-worker model:
 
 ## 41.1 Export
 
-Infrastructure supports or is intended to support portable user data including:
+Portable user-data export supports:
 
 - [x] Library
 - [x] Watch History
 - [x] Ratings
 - [x] Relevant configuration/user data
 - [x] Versioned format
+- [x] Flutter Web download flow
 
 ## 41.2 Import
+
+Core behavior:
 
 - [x] File selection
 - [x] Version validation
@@ -1680,10 +1711,41 @@ Infrastructure supports or is intended to support portable user data including:
 - [x] Final summary
 - [x] Partial-failure support
 
-## 41.3 Remaining Work
+## 41.3 Asynchronous Import Execution
 
-- [ ] Make date-sensitive tests independent from the real clock
+The long-running Import flow no longer depends on keeping the initiating HTTP
+request open.
+
+- [x] Persistent `DataImportRun`
+- [x] Data Import run repository/service
+- [x] Worker-side `DataImportProcessor`
+- [x] Data Import service factory for worker execution
+- [x] Persistent progress tracking
+- [x] Worker runtime support for Data Import
+- [x] Frontend Data Import run model/DTO
+- [x] Frontend polling/tracking of asynchronous Import progress
+- [x] Integration coverage for the asynchronous Import flow
+- [x] Processor tests
+- [x] Progress-tracker tests
+- [x] Worker-runtime tests
+- [x] Repository/service tests
+- [x] Import no longer requires the browser/client HTTP request to remain open for the full provider-heavy operation
+- [x] Refresh incomplete Seasons during Data Import when required
+
+Relevant implementation milestones:
+
+```text
+48c96be  feat: add async data import tracking and progress
+f71ba5e  fix: refresh incomplete seasons during data import
+```
+
+## 41.4 Remaining Work
+
+- [ ] Make remaining date-sensitive Import tests independent from the real clock
 - [>] Review partial-import UX as real usage reveals issues
+
+The historical long-running synchronous Import timeout is not an open architectural
+task; it was addressed by the asynchronous Data Import run/worker architecture.
 
 ---
 
@@ -1789,15 +1851,47 @@ SofaWatch's intended production model remains self-hosted with SQLite.
 
 ## 45.3 Worker
 
-- [>] Production background-worker deployment
-- [>] Process supervision/service configuration
+- [x] Background worker runs in the current Phase-0 self-host deployment
+- [x] Worker participates in metadata jobs and asynchronous Data Import
+- [>] Final public/versioned worker deployment contract
+- [>] Final process supervision/service guidance
 
 ## 45.4 Frontend Releases
 
-- [>] Flutter Web release build
-- [>] iOS release build
-- [>] Android release build
-- [>] Production server URL/configuration strategy
+- [x] Flutter Web release build used by the current Phase-0 deployment
+- [>] Official/repeatable public Flutter Web release packaging
+- [>] iOS release build/distribution strategy
+- [>] Android release build/distribution strategy
+- [~] Production server URL/configuration strategy
+  - Current Phase-0 build uses `SOFAWATCH_SERVER_URL`
+  - Same-origin Web deployment remains planned
+
+---
+
+## 45.5 Current Phase-0 Self-host Deployment
+
+A real personal deployment is operational and validates the current container split.
+
+- [x] `migrate` one-shot service
+- [x] FastAPI `api` service
+- [x] Background `worker` service
+- [x] nginx-served Flutter Web build
+- [x] Persistent SQLite/data/image storage
+- [x] Deployment health endpoint
+- [x] Real first-run Administrator setup completed
+- [x] Application access verified on the deployed server
+- [>] Replace manual source/build workflow with official versioned images
+- [>] Publish images through GHCR or equivalent
+- [>] Finalize persistent-volume contract
+- [>] Finalize automatic/controlled migration behavior
+- [>] Finalize healthchecks
+- [>] Backup/restore documentation
+- [>] Upgrade documentation
+- [>] Reverse proxy/HTTPS documentation
+- [>] First-run self-hosting documentation
+
+The current Phase-0 deployment is operational validation, not yet the final public
+self-hosting installation contract.
 
 ---
 
@@ -1872,6 +1966,32 @@ At that checkpoint:
 - [x] Project stable for continued development
 
 Future test counts will naturally change as features and tests are added.
+
+Later September 2026 frontend work added substantial regression coverage. After
+updating stale tests to current intended behavior, the full Flutter suite was again
+confirmed green. Do not replace the historical numeric checkpoint above with a new
+number unless the current suite is actually run and counted.
+
+---
+
+## 47.1 Major Post-checkpoint Implementations
+
+Significant work completed after the 26 August numeric checkpoint includes:
+
+- [x] Asynchronous Data Import runs, worker processing, and persistent progress
+- [x] Incomplete-Season refresh fix during Data Import
+- [x] Bulk watched actions for Seasons and Shows
+- [x] Previous-unwatched-Episode catch-up flow
+- [x] Protected artwork completion
+- [x] Home refinements and recent-activity integration
+- [x] Filtered full History views
+- [x] Local-vs-TMDB Movie Details separation
+- [x] Automatic Show Library status updates from viewing progress
+- [x] Require real Movie watch events for completed Movie viewing state
+- [x] Server administration simplification
+- [x] Search and Movie Details watched actions
+- [x] Search media-state refresh after returning from Details
+- [x] Full Flutter regression suite restored to green after stale-test maintenance
 
 ---
 
@@ -1957,6 +2077,10 @@ The following decisions are already established and should not be reopened witho
 33. Expired access tokens are recovered centrally; individual features must not implement token refresh.
 34. Concurrent authentication recovery must share a single restore/refresh operation because mobile refresh credentials rotate.
 35. Transient authentication-recovery failures must not be treated as definitive session loss.
+36. Long-running Data Import executes asynchronously through persistent Data Import runs and the worker.
+37. Cross-feature viewing changes use invalidation/refresh rather than sharing mutable feature state.
+38. The in-app Administrator Logs viewer is intentionally removed; runtime/container logs are the operational source.
+39. Flutter Web should move toward same-origin `/api/v1` deployment rather than a permanently baked backend URL.
 
 ---
 
@@ -1994,9 +2118,16 @@ This document should remain the master implementation-status index even when dee
 - [Technical Documentation](../README.md)
 
 
---- 
+---
+
+---
+
 # OTHER POINTS:
-- Preparar suporte oficial a reverse proxy/HTTPS no deployment Web: documentar e configurar corretamente X-Forwarded-Proto, trusted proxy headers e routing /api para permitir acesso simultâneo por HTTP na LAN e HTTPS através de Cloudflare Tunnel, Nginx, Caddy, Traefik ou equivalente, sem tornar nenhum proxy específico obrigatório.
-- Remove build-time Web backend URL dependency. Configure same-origin deployment where / serves Flutter Web and /api/v1 proxies FastAPI. Web derives server origin automatically; native clients continue using persisted server configuration.
-- Fix Web login password-manager autofill: The login form already uses Flutter’s recommended AutofillGroup and AutofillHints.username/password, but Flutter Web currently has an upstream issue where selecting saved credentials from browser/password managers may not populate the fields. Re-evaluate this when implementing to check whether the issue has been fixed in the current Flutter stable version; if not, consider a Web-specific workaround using native HTML username/password inputs while keeping the standard Flutter implementation on other platforms.
-- Future implementation: Improve Flutter Web session persistence so authentication survives normal refresh, Shift+Refresh/hard reload, and flutter run restarts where appropriate; review HttpOnly cookie/origin/scheme handling and auth bootstrap/session restoration, ideally alongside the planned Flutter Web cache/versioning improvements.
+
+- Preparar suporte oficial a reverse proxy/HTTPS no deployment Web: documentar e configurar corretamente `X-Forwarded-Proto`, trusted proxy headers e routing `/api` para permitir acesso simultâneo por HTTP na LAN e HTTPS através de Cloudflare Tunnel, Nginx, Caddy, Traefik ou equivalente, sem tornar nenhum proxy específico obrigatório.
+
+- Remove build-time Web backend URL dependency. Configure same-origin deployment where `/` serves Flutter Web and `/api/v1` proxies FastAPI. Web derives server origin automatically; native clients continue using persisted server configuration.
+
+- Fix Web login password-manager autofill: The login form already uses Flutter’s recommended `AutofillGroup` and `AutofillHints.username/password`, but Flutter Web currently has an upstream issue where selecting saved credentials from browser/password managers may not populate the fields. Re-evaluate this when implementing to check whether the issue has been fixed in the current Flutter stable version; if not, consider a Web-specific workaround using native HTML username/password inputs while keeping the standard Flutter implementation on other platforms.
+
+- Future implementation: Improve Flutter Web session persistence so authentication survives normal refresh, Shift+Refresh/hard reload, and `flutter run` restarts where appropriate; review HttpOnly cookie/origin/scheme handling and auth bootstrap/session restoration, ideally alongside the planned Flutter Web cache/versioning improvements.
