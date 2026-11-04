@@ -292,6 +292,10 @@ void main() {
       find.byKey(const ValueKey<String>('search-mobile-title')),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey<String>('search-text-field')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('opens the global Search route as a desktop modal', (

@@ -157,7 +157,9 @@ class _WeeklyStatisticCard extends StatelessWidget {
     final bool compact = width < AppBreakpoints.mobile;
     final bool veryCompact = width < 340;
 
-    if (kIsWeb) {
+    final bool useHorizontalCard = kIsWeb && width >= AppBreakpoints.tablet;
+
+    if (useHorizontalCard) {
       return Container(
         key: ValueKey<String>(cardKey),
         constraints: const BoxConstraints(minHeight: 96),

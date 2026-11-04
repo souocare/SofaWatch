@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sofawatch/app/router/app_routes.dart';
+import 'package:sofawatch/app/theme/tokens/app_breakpoints.dart';
 import 'package:sofawatch/app/theme/tokens/app_colors.dart';
 import 'package:sofawatch/app/theme/tokens/app_durations.dart';
 import 'package:sofawatch/app/theme/tokens/app_radius.dart';
@@ -66,7 +67,12 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb) {
+    final double screenWidth = MediaQuery.sizeOf(context).width;
+
+    final bool useDesktopWebShell =
+        kIsWeb && screenWidth >= AppBreakpoints.tablet;
+
+    if (useDesktopWebShell) {
       return _WebAppShell(
         navigationShell: navigationShell,
         navigationItems: _navigationItems,

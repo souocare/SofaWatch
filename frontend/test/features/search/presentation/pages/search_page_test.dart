@@ -42,7 +42,7 @@ void main() {
       );
     });
 
-    testWidgets('does not show a duplicated search field on mobile', (
+    testWidgets('shows a search field on standalone mobile Search', (
       WidgetTester tester,
     ) async {
       await _setSurfaceSize(tester, const Size(390, 844));
@@ -58,7 +58,7 @@ void main() {
 
       expect(
         find.byKey(const ValueKey<String>('search-text-field')),
-        findsNothing,
+        findsOneWidget,
       );
     });
 

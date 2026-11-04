@@ -16,9 +16,12 @@ import 'package:sofawatch/features/search/presentation/widgets/search_library_re
 import 'package:sofawatch/features/search/presentation/widgets/search_loading_state.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_media_type_filter_bar.dart';
 import 'package:sofawatch/features/search/presentation/widgets/search_minimum_characters_hint.dart';
+import 'package:sofawatch/features/search/presentation/widgets/search_text_field.dart';
 
 class SearchMobileView extends StatelessWidget {
-  const SearchMobileView({super.key});
+  const SearchMobileView({this.showSearchField = false, super.key});
+
+  final bool showSearchField;
 
   static const double _bottomNavigationReservedSpace = 120;
 
@@ -44,6 +47,10 @@ class SearchMobileView extends StatelessWidget {
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               const SizedBox(height: AppSpacing.lg),
+              if (showSearchField) ...<Widget>[
+                const SearchTextField(autofocus: true),
+                const SizedBox(height: AppSpacing.lg),
+              ],
               const Expanded(child: _SearchMobileContent()),
             ],
           ),

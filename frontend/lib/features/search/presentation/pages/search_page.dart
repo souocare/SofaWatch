@@ -24,7 +24,7 @@ class SearchPage extends StatelessWidget {
             return const SearchDesktopView();
           }
 
-          return const SearchMobileView();
+          return const SearchMobileView(showSearchField: true);
         },
       ),
     );

@@ -29,6 +29,8 @@ class HomeHeader extends StatelessWidget {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final bool compact = constraints.maxWidth < AppBreakpoints.mobile;
+        final bool showMobileWebLogo =
+            kIsWeb && constraints.maxWidth < AppBreakpoints.tablet;
 
         return Row(
           key: const ValueKey<String>('home-header'),
@@ -83,7 +85,18 @@ class HomeHeader extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
             ],
 
-            if (!kIsWeb)
+            if (showMobileWebLogo)
+              SizedBox(
+                key: const ValueKey<String>('home-mobile-web-logo'),
+                width: 44,
+                height: 44,
+                child: Image.asset(
+                  'assets/branding/sofawatch_app_icon.png',
+                  fit: BoxFit.contain,
+                  semanticLabel: 'SofaWatch app icon',
+                ),
+              )
+            else if (!kIsWeb)
               _HomeUserMenu(
                 compact: compact,
                 onSelected: (HomeUserMenuAction action) {
