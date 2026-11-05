@@ -93,6 +93,10 @@ import 'package:sofawatch/features/statistics/application/cubit/statistics_libra
 import 'package:sofawatch/features/statistics/application/cubit/statistics_summary_cubit.dart';
 import 'package:sofawatch/features/statistics/data/repositories/api_statistics_repository.dart';
 import 'package:sofawatch/features/statistics/presentation/pages/detailed_statistics_page.dart';
+import 'package:sofawatch/features/auth/application/cubit/registration_cubit.dart';
+import 'package:sofawatch/features/auth/data/repositories/api_registration_repository.dart';
+import 'package:sofawatch/features/auth/domain/repositories/access_token_store.dart';
+import 'package:sofawatch/features/auth/presentation/pages/registration_page.dart';
 
 GoRouter createAppRouter({
   required ApiClient apiClient,
@@ -135,6 +139,7 @@ GoRouter createAppRouter({
           matchedLocation == RoutePaths.authChecking;
 
       final bool isLoginRoute = matchedLocation == RoutePaths.login;
+      final bool isRegisterRoute = matchedLocation == RoutePaths.register;
 
       final bool isInitialSetupRoute =
           matchedLocation == RoutePaths.initialSetup;
@@ -146,6 +151,7 @@ GoRouter createAppRouter({
       final bool isAuthFlowRoute =
           isAuthCheckingRoute ||
           isLoginRoute ||
+          isRegisterRoute ||
           isInitialSetupRoute ||
           isAuthHandoffRoute ||
           isPasswordRecoveryRoute;
@@ -176,11 +182,20 @@ GoRouter createAppRouter({
       }
 
       //
+      //
       // Password recovery must remain publicly reachable regardless
       // of the current authentication state.
       //
       if (isPasswordRecoveryRoute) {
         return null;
+      }
+
+      //
+      // Public registration currently supports Web clients only.
+      // Native clients must use the existing login flow.
+      //
+      if (isRegisterRoute && !kIsWeb) {
+        return RoutePaths.login;
       }
 
       final AuthState? authState = authCubit?.state;
@@ -253,7 +268,7 @@ GoRouter createAppRouter({
         }
 
         if (entryState is AuthEntryLoginRequired) {
-          if (isLoginRoute) {
+          if (isLoginRoute || isRegisterRoute) {
             return null;
           }
 
@@ -308,6 +323,24 @@ GoRouter createAppRouter({
               return LoginCubit(repository: context.read<AuthRepository>());
             },
             child: const LoginPage(),
+          );
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        name: AppRoute.register.name,
+        path: RoutePaths.register,
+        builder: (BuildContext context, GoRouterState state) {
+          return BlocProvider<RegistrationCubit>(
+            create: (BuildContext context) {
+              return RegistrationCubit(
+                repository: ApiRegistrationRepository(
+                  apiClient: context.read<ApiClient>(),
+                  accessTokenStore: context.read<AccessTokenStore>(),
+                ),
+              );
+            },
+            child: const RegistrationPage(),
           );
         },
       ),
@@ -976,6 +1009,7 @@ bool _isSafeAuthReturnLocation(String? location) {
 
   return path != RoutePaths.authChecking &&
       path != RoutePaths.login &&
+      path != RoutePaths.register &&
       path != RoutePaths.initialSetup &&
       path != RoutePaths.authHandoff &&
       path != RoutePaths.serverSetup;

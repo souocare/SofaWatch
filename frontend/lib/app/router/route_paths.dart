@@ -4,6 +4,7 @@ abstract final class RoutePaths {
   static const String serverSetup = '/server-setup';
   static const String authChecking = '/auth/checking';
   static const String login = '/auth/login';
+  static const String register = '/auth/register';
   static const String initialSetup = '/auth/setup';
   static const String authHandoff = '/auth/handoff';
   static const String passwordRecovery = '/auth/password-recovery';

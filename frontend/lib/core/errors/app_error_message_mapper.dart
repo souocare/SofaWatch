@@ -58,6 +58,10 @@ abstract final class AppErrorMessageMapper {
         'This item could not be found in your library.',
       'background_job_not_found' =>
         'The requested background job could not be found.',
+      'registration_closed' => 'Account registration is currently closed.',
+      'username_already_exists' =>
+        'That username is already in use. Please choose another.',
+      'email_already_exists' => 'That email address is already in use.',
       'current_password_invalid' => 'The current password is incorrect.',
       'password_change_unavailable' =>
         'Password change is not available for this account.',

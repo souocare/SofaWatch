@@ -14,6 +14,10 @@ import 'package:sofawatch/core/server/repositories/server_configuration_reposito
 import 'package:sofawatch/features/auth/application/cubit/auth_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/login_cubit.dart';
 import 'package:sofawatch/features/auth/application/cubit/login_state.dart';
+import 'package:sofawatch/features/auth/data/repositories/api_registration_repository.dart';
+import 'package:sofawatch/features/auth/domain/repositories/access_token_store.dart';
+import 'package:flutter/foundation.dart';
+import 'package:sofawatch/features/auth/presentation/widgets/registration_signup_link.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -31,6 +35,7 @@ class _LoginPageState extends State<LoginPage> {
 
   late final FocusNode _usernameFocusNode;
   late final FocusNode _passwordFocusNode;
+  Future<bool>? _registrationAvailability;
 
   bool _obscurePassword = true;
 
@@ -40,6 +45,12 @@ class _LoginPageState extends State<LoginPage> {
 
     _usernameController = TextEditingController();
     _passwordController = TextEditingController();
+    if (kIsWeb) {
+      _registrationAvailability = ApiRegistrationRepository(
+        apiClient: context.read<ApiClient>(),
+        accessTokenStore: context.read<AccessTokenStore>(),
+      ).isRegistrationOpen();
+    }
 
     _loadServerConfiguration();
 
@@ -135,6 +146,7 @@ class _LoginPageState extends State<LoginPage> {
                         return _LoginForm(
                           usernameController: _usernameController,
                           passwordController: _passwordController,
+                          registrationAvailability: _registrationAvailability,
                           usernameFocusNode: _usernameFocusNode,
                           passwordFocusNode: _passwordFocusNode,
                           obscurePassword: _obscurePassword,
@@ -162,6 +174,7 @@ class _LoginForm extends StatelessWidget {
   const _LoginForm({
     required this.usernameController,
     required this.passwordController,
+    required this.registrationAvailability,
     required this.usernameFocusNode,
     required this.passwordFocusNode,
     required this.obscurePassword,
@@ -175,6 +188,7 @@ class _LoginForm extends StatelessWidget {
 
   final TextEditingController usernameController;
   final TextEditingController passwordController;
+  final Future<bool>? registrationAvailability;
 
   final FocusNode usernameFocusNode;
   final FocusNode passwordFocusNode;
@@ -288,6 +302,24 @@ class _LoginForm extends StatelessWidget {
             onPressed: isSubmitting ? null : onSubmit,
             child: _LoginSubmitContent(isSubmitting: isSubmitting),
           ),
+          if (registrationAvailability != null)
+            RegistrationSignupLink(
+              availability: registrationAvailability!,
+              onPressed: () {
+                final String? returnLocation = GoRouterState.of(
+                  context,
+                ).uri.queryParameters['from'];
+
+                context.go(
+                  Uri(
+                    path: RoutePaths.register,
+                    queryParameters: returnLocation == null
+                        ? null
+                        : <String, String>{'from': returnLocation},
+                  ).toString(),
+                );
+              },
+            ),
         ],
       ),
     );
